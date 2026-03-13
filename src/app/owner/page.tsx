@@ -55,9 +55,16 @@ export default async function OwnerPage() {
               </div>
               <div className="flex flex-col gap-2 items-end">
                 <Link
-                  href={`/owner/${space.id}/edit`}
+                  href={`/owner/${space.id}/qr`}
                   className="text-xs px-3 py-1 rounded-full"
                   style={{ background: "var(--fg)", color: "var(--bg)" }}
+                >
+                  QR 보기
+                </Link>
+                <Link
+                  href={`/owner/${space.id}/edit`}
+                  className="text-xs px-3 py-1 rounded-full border"
+                  style={{ borderColor: "var(--border)", color: "var(--fg)" }}
                 >
                   수정
                 </Link>
