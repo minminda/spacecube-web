@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 
 interface SpaceData {
   id: string;
@@ -12,6 +13,7 @@ interface SpaceData {
   description: string;
   philosophy: string;
   ownerMessage: string;
+  imageUrl?: string;
 }
 
 interface Props {
@@ -25,6 +27,8 @@ export default function SpaceForm({ mode, space }: Props) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [imageUrl, setImageUrl] = useState(space?.imageUrl ?? "");
+  const [imageUploading, setImageUploading] = useState(false);
 
   const [form, setForm] = useState({
     name: space?.name ?? "",
@@ -50,6 +54,24 @@ export default function SpaceForm({ mode, space }: Props) {
     });
   }
 
+  async function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setImageUploading(true);
+    const data = new FormData();
+    data.append("file", file);
+    data.append("upload_preset", process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET!);
+
+    const res = await fetch(
+      `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload`,
+      { method: "POST", body: data }
+    );
+    const result = await res.json();
+    setImageUrl(result.secure_url);
+    setImageUploading(false);
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
@@ -61,7 +83,7 @@ export default function SpaceForm({ mode, space }: Props) {
     const res = await fetch(url, {
       method,
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
+      body: JSON.stringify({ ...form, imageUrl: imageUrl || null }),
     });
 
     const data = await res.json();
@@ -75,10 +97,7 @@ export default function SpaceForm({ mode, space }: Props) {
     router.refresh();
   }
 
-  const inputStyle = {
-    background: "var(--tag-bg)",
-    color: "var(--fg)",
-  };
+  const inputStyle = { background: "var(--tag-bg)", color: "var(--fg)" };
 
   return (
     <main className="flex flex-col min-h-screen px-6 py-8 gap-6">
@@ -90,6 +109,25 @@ export default function SpaceForm({ mode, space }: Props) {
       </div>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+
+        <Field label="대표 이미지 (선택)">
+          <label className="block cursor-pointer">
+            <div
+              className="w-full h-40 rounded-2xl flex items-center justify-center overflow-hidden relative"
+              style={{ background: "var(--tag-bg)" }}
+            >
+              {imageUrl ? (
+                <Image src={imageUrl} alt="preview" fill className="object-cover" />
+              ) : (
+                <span className="text-sm" style={{ color: "var(--muted)" }}>
+                  {imageUploading ? "업로드 중..." : "탭해서 이미지 선택"}
+                </span>
+              )}
+            </div>
+            <input type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
+          </label>
+        </Field>
+
         <Field label="공간 이름 *">
           <input name="name" value={form.name} onChange={handleChange} required
             placeholder="북성로 헌책방"
@@ -141,7 +179,7 @@ export default function SpaceForm({ mode, space }: Props) {
 
         <button
           type="submit"
-          disabled={loading}
+          disabled={loading || imageUploading}
           className="w-full py-3 rounded-full text-sm mt-2 disabled:opacity-30"
           style={{ background: "var(--fg)", color: "var(--bg)" }}
         >

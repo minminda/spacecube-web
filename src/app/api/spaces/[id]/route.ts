@@ -17,11 +17,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     return NextResponse.json({ error: "권한이 없어요." }, { status: 403 });
   }
 
-  const { name, type, location, description, philosophy, ownerMessage } = await req.json();
+  const { name, type, location, description, philosophy, ownerMessage, imageUrl } = await req.json();
 
   const updated = await prisma.space.update({
     where: { id },
-    data: { name, type, location, description, philosophy, ownerMessage: ownerMessage || null },
+    data: { name, type, location, description, philosophy, ownerMessage: ownerMessage || null, imageUrl: imageUrl || null },
   });
 
   return NextResponse.json(updated);
