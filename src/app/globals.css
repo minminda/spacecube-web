@@ -1,0 +1,16 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #FAFAF8;
+  --fg: #1C1C1A;
+  --muted: #6B6B62;
+  --border: #E5E5E0;
+  --tag-bg: #F0F0EB;
+}
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
