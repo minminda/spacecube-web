@@ -28,6 +28,7 @@ export default function SpaceForm({ mode, space }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [imageUrl, setImageUrl] = useState(space?.imageUrl ?? "");
+  const [imagePreview, setImagePreview] = useState(space?.imageUrl ?? "");
   const [imageUploading, setImageUploading] = useState(false);
 
   const [form, setForm] = useState({
@@ -58,18 +59,30 @@ export default function SpaceForm({ mode, space }: Props) {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // 로컬 미리보기 즉시 표시
+    const localUrl = URL.createObjectURL(file);
+    setImagePreview(localUrl);
     setImageUploading(true);
+
     const data = new FormData();
     data.append("file", file);
     data.append("upload_preset", process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET!);
 
-    const res = await fetch(
-      `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload`,
-      { method: "POST", body: data }
-    );
-    const result = await res.json();
-    setImageUrl(result.secure_url);
-    setImageUploading(false);
+    try {
+      const res = await fetch(
+        `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload`,
+        { method: "POST", body: data }
+      );
+      const result = await res.json();
+      if (result.secure_url) {
+        setImageUrl(result.secure_url);
+        setImagePreview(result.secure_url);
+      }
+    } catch {
+      setImagePreview("");
+    } finally {
+      setImageUploading(false);
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -116,8 +129,9 @@ export default function SpaceForm({ mode, space }: Props) {
               className="w-full h-40 rounded-2xl flex items-center justify-center overflow-hidden relative"
               style={{ background: "var(--tag-bg)" }}
             >
-              {imageUrl ? (
-                <Image src={imageUrl} alt="preview" fill className="object-cover" />
+              {imagePreview ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={imagePreview} alt="preview" className="w-full h-full object-cover" />
               ) : (
                 <span className="text-sm" style={{ color: "var(--muted)" }}>
                   {imageUploading ? "업로드 중..." : "탭해서 이미지 선택"}
