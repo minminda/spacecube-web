@@ -25,6 +25,13 @@ export default async function Home() {
             >
               내 아카이브 보기
             </Link>
+            <Link
+              href="/owner"
+              className="block w-full text-center py-3 rounded-full text-sm border"
+              style={{ borderColor: "var(--border)", color: "var(--muted)" }}
+            >
+              공간 사장님이에요
+            </Link>
             <p className="text-center text-xs" style={{ color: "var(--muted)" }}>
               공간 안의 큐브를 스캔해서 기록을 시작해봐.
             </p>

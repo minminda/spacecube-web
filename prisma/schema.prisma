@@ -20,6 +20,7 @@ model User {
   accounts Account[]
   sessions Session[]
   records  Record[]
+  spaces   Space[]
 }
 
 model Account {
@@ -62,6 +63,7 @@ model VerificationToken {
 
 model Space {
   id           String   @id @default(cuid())
+  ownerId      String?
   name         String
   slug         String   @unique
   type         String
@@ -73,6 +75,7 @@ model Space {
   isActive     Boolean  @default(true)
   createdAt    DateTime @default(now())
 
+  owner   User?    @relation(fields: [ownerId], references: [id], onDelete: SetNull)
   records Record[]
 }
 
