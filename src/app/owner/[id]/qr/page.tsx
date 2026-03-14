@@ -23,35 +23,34 @@ export default async function QRPage({ params }: Props) {
   const qrUrl = `${baseUrl}/space/${space.slug}`;
 
   return (
-    <main className="flex flex-col min-h-screen px-6 py-8 gap-8">
-      <div className="flex items-center gap-3">
-        <Link href="/owner" className="text-lg" style={{ color: "var(--muted)" }}>←</Link>
-        <div>
-          <h2 className="text-base font-medium">{space.name}</h2>
-          <p className="text-xs" style={{ color: "var(--muted)" }}>큐브 QR 코드</p>
+    <main className="flex flex-col min-h-screen px-6 py-8 gap-6">
+      <div className="space-y-1" style={{ color: "var(--dim)" }}>
+        <div className="flex justify-between">
+          <p className="text-xs">SPACECUBE / QR</p>
+          <Link href="/owner" className="text-xs" style={{ color: "var(--dim)" }}>&lt; back</Link>
         </div>
+        <p className="text-xs">─────────────────────────────</p>
       </div>
 
-      <div
-        className="flex flex-col items-center p-8 rounded-3xl gap-6"
-        style={{ background: "var(--tag-bg)" }}
-      >
+      <div className="space-y-1 text-xs" style={{ color: "var(--dim)" }}>
+        <p>&gt; {space.name}</p>
+        <p>// 큐브에 붙일 QR 코드</p>
+      </div>
+
+      <div className="flex flex-col items-center p-6 border gap-6" style={{ borderColor: "var(--border)" }}>
         <QRDownload url={qrUrl} spaceName={space.name} />
       </div>
 
-      <div className="space-y-2 text-sm" style={{ color: "var(--muted)" }}>
-        <p className="font-medium" style={{ color: "var(--fg)" }}>사용 방법</p>
-        <p>1. QR 다운로드 후 인쇄하기</p>
-        <p>2. 공간 안 눈에 잘 띄는 곳에 큐브와 함께 두기</p>
-        <p>3. 방문자가 스캔하면 공간 페이지로 연결돼</p>
+      <div className="space-y-2 text-xs" style={{ color: "var(--dim)" }}>
+        <p>&gt; 사용 방법</p>
+        <p>  1. QR 다운로드 후 인쇄</p>
+        <p>  2. 공간 안 큐브 옆에 두기</p>
+        <p>  3. 방문자가 스캔하면 공간 페이지로 연결</p>
       </div>
 
-      <div
-        className="p-4 rounded-2xl text-sm"
-        style={{ background: "var(--tag-bg)" }}
-      >
-        <p className="text-xs mb-1" style={{ color: "var(--muted)" }}>직접 접속 주소</p>
-        <p className="font-mono text-xs break-all">{qrUrl}</p>
+      <div className="p-3 border space-y-1" style={{ borderColor: "var(--border)" }}>
+        <p className="text-xs" style={{ color: "var(--dim)" }}>// 접속 주소</p>
+        <p className="text-xs font-mono break-all">{qrUrl}</p>
       </div>
     </main>
   );

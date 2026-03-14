@@ -15,9 +15,9 @@ export default function QRDownload({ url, spaceName }: Props) {
   useEffect(() => {
     if (!canvasRef.current) return;
     QRCode.toCanvas(canvasRef.current, url, {
-      width: 240,
+      width: 220,
       margin: 2,
-      color: { dark: "#1C1C1A", light: "#FAFAF8" },
+      color: { dark: "#e0e0d0", light: "#0a0a0a" },
     }).then(() => setReady(true));
   }, [url]);
 
@@ -31,18 +31,18 @@ export default function QRDownload({ url, spaceName }: Props) {
 
   return (
     <div className="flex flex-col items-center gap-4">
-      <canvas ref={canvasRef} className="rounded-2xl" />
+      <canvas ref={canvasRef} />
       {ready && (
         <button
           onClick={handleDownload}
-          className="px-6 py-2 rounded-full text-sm"
-          style={{ background: "var(--fg)", color: "var(--bg)" }}
+          className="text-sm px-4 py-2 border hover:bg-[var(--fg)] hover:text-[var(--bg)] transition-colors"
+          style={{ borderColor: "var(--fg)" }}
         >
-          QR 다운로드
+          [[ QR 다운로드 ]]
         </button>
       )}
-      <p className="text-xs text-center" style={{ color: "var(--muted)" }}>
-        이 QR을 큐브에 붙여두면<br />방문자가 스캔할 수 있어.
+      <p className="text-xs text-center" style={{ color: "var(--dim)" }}>
+        // 이 QR을 큐브에 붙여두면 방문자가 스캔할 수 있어.
       </p>
     </div>
   );

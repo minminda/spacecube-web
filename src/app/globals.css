@@ -1,16 +1,36 @@
 @import "tailwindcss";
 
 :root {
-  --bg: #FAFAF8;
-  --fg: #1C1C1A;
-  --muted: #6B6B62;
-  --border: #E5E5E0;
-  --tag-bg: #F0F0EB;
+  --bg: #0a0a0a;
+  --fg: #e0e0d0;
+  --dim: #606058;
+  --border: #2a2a2a;
+  --tag-bg: #141414;
+  --accent: #c8c8b8;
+}
+
+* {
+  box-sizing: border-box;
 }
 
 body {
   background: var(--bg);
   color: var(--fg);
-  font-family: "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+  font-family: "Courier New", "D2Coding", "Consolas", monospace;
   -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: var(--fg);
+  color: var(--bg);
+}
+
+::-webkit-scrollbar {
+  width: 4px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
 }

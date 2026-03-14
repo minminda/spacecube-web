@@ -10,15 +10,14 @@ export default function TagChip({ label, selected, onClick }: TagChipProps) {
   return (
     <button
       onClick={onClick}
-      className={`
-        px-4 py-2 rounded-full text-sm transition-all
-        ${selected
-          ? "bg-[var(--fg)] text-[var(--bg)]"
-          : "bg-[var(--tag-bg)] text-[var(--fg)] hover:bg-[var(--border)]"
-        }
-      `}
+      className="px-3 py-1 text-sm border transition-colors"
+      style={
+        selected
+          ? { borderColor: "var(--fg)", background: "var(--fg)", color: "var(--bg)" }
+          : { borderColor: "var(--border)", color: "var(--dim)" }
+      }
     >
-      {label}
+      {selected ? `[${label}]` : label}
     </button>
   );
 }
