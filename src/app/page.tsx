@@ -7,12 +7,12 @@ export default async function Home() {
   return (
     <main className="flex flex-col justify-center min-h-screen px-6 py-12 gap-6">
       <div className="space-y-1" style={{ color: "var(--dim)" }}>
-        <p className="text-xs">SPACECUBE v1.0</p>
+        <p className="text-xs">공간큐브 v1.0</p>
         <p className="text-xs">─────────────────────────────</p>
       </div>
 
       <div className="space-y-3">
-        <p className="text-2xl tracking-widest">□ SPACECUBE</p>
+        <p className="text-2xl tracking-widest">□ 공간큐브</p>
         <p className="text-sm" style={{ color: "var(--dim)" }}>
           &gt; 공간 경험을 기록하고<br />
           &nbsp;&nbsp;취향을 발견해봐.
