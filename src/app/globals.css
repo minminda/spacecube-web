@@ -9,6 +9,15 @@
   --accent: #c8c8b8;
 }
 
+[data-theme="light"] {
+  --bg: #f5f5f0;
+  --fg: #1a1a18;
+  --dim: #888880;
+  --border: #d0cfc8;
+  --tag-bg: #eaeae5;
+  --accent: #404038;
+}
+
 * {
   box-sizing: border-box;
 }
