@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { isAdmin } from "@/lib/admin";
 
 export const dynamic = "force-dynamic";
 
@@ -8,6 +9,9 @@ export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.email) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (!isAdmin(session.user.email)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const user = await prisma.user.findUnique({ where: { email: session.user.email } });

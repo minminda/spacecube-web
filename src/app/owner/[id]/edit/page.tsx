@@ -1,6 +1,7 @@
 import { redirect, notFound } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { isAdmin } from "@/lib/admin";
 import SpaceForm from "../../SpaceForm";
 
 interface Props {
@@ -10,13 +11,11 @@ interface Props {
 export default async function EditSpacePage({ params }: Props) {
   const session = await auth();
   if (!session?.user?.email) redirect("/login");
+  if (!isAdmin(session.user.email)) redirect("/");
 
   const { id } = await params;
-  const user = await prisma.user.findUnique({ where: { email: session.user.email } });
-  if (!user) redirect("/login");
-
   const space = await prisma.space.findUnique({ where: { id } });
-  if (!space || space.ownerId !== user.id) notFound();
+  if (!space) notFound();
 
   return (
     <SpaceForm

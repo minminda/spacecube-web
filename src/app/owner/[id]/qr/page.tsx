@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { isAdmin } from "@/lib/admin";
 import QRDownload from "@/components/QRDownload";
 
 interface Props {
@@ -11,13 +12,11 @@ interface Props {
 export default async function QRPage({ params }: Props) {
   const session = await auth();
   if (!session?.user?.email) redirect("/login");
+  if (!isAdmin(session.user.email)) redirect("/");
 
   const { id } = await params;
-  const user = await prisma.user.findUnique({ where: { email: session.user.email } });
-  if (!user) redirect("/login");
-
   const space = await prisma.space.findUnique({ where: { id } });
-  if (!space || space.ownerId !== user.id) notFound();
+  if (!space) notFound();
 
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? process.env.AUTH_URL ?? "https://spacecube-web.vercel.app";
   const qrUrl = `${baseUrl}/space/${space.slug}`;

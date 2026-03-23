@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { auth } from "@/auth";
+import { isAdmin } from "@/lib/admin";
 import DiscoverEntry from "./DiscoverEntry";
 
 export default async function Home() {
   const session = await auth();
+  const admin = isAdmin(session?.user?.email);
 
   return (
     <main className="flex flex-col min-h-screen px-6 py-12 gap-8">
@@ -40,16 +42,18 @@ export default async function Home() {
           >
             [[ 내 아카이브 ]]
           </Link>
-          <Link
-            href="/owner"
-            className="block text-sm py-2 px-4 border transition-colors"
-            style={{ borderColor: "var(--border)", color: "var(--dim)" }}
-          >
-            [[ 공간 사장님이에요 ]]
-          </Link>
           <p className="text-xs" style={{ color: "var(--dim)" }}>
             &gt; 공간 안의 큐브를 스캔해서 시작해봐.
           </p>
+          {admin && (
+            <Link
+              href="/owner"
+              className="block text-xs py-1 px-2 border transition-colors"
+              style={{ borderColor: "var(--border)", color: "var(--dim)" }}
+            >
+              [[ 관리자 ]]
+            </Link>
+          )}
         </div>
       ) : (
         <Link
