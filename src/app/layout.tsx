@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import ThemeToggle from "@/components/ThemeToggle";
+import OnboardingOverlay from "@/components/OnboardingOverlay";
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://spacecube-web.vercel.app";
 
@@ -38,6 +39,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <div className="max-w-sm mx-auto min-h-screen">
           {children}
         </div>
+        <OnboardingOverlay />
         <ThemeToggle />
       </body>
     </html>
