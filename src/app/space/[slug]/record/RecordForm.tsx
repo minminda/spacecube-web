@@ -6,6 +6,9 @@ import { Tag } from "@prisma/client";
 import { TAG_LABELS, ALL_TAGS } from "@/lib/tags";
 import TagChip from "@/components/TagChip";
 
+const MAX_TAGS = 2;
+const MAX_MEMO = 120;
+
 interface Props {
   space: { id: string; name: string; slug: string };
   existingTags: Tag[];
@@ -19,9 +22,16 @@ export default function RecordForm({ space, existingTags, existingMemo }: Props)
   const [loading, setLoading] = useState(false);
 
   function toggleTag(tag: Tag) {
-    setSelectedTags((prev) =>
-      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
-    );
+    setSelectedTags((prev) => {
+      if (prev.includes(tag)) return prev.filter((t) => t !== tag);
+      if (prev.length >= MAX_TAGS) return prev;
+      return [...prev, tag];
+    });
+  }
+
+  function handleMemoChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
+    const value = e.target.value;
+    if (value.length <= MAX_MEMO) setMemo(value);
   }
 
   async function handleSubmit() {
@@ -51,39 +61,54 @@ export default function RecordForm({ space, existingTags, existingMemo }: Props)
           &lt; back
         </button>
         <p className="text-base">&gt; {space.name}</p>
-        <p className="text-xs" style={{ color: "var(--dim)" }}>// 지금 이 공간에서 느끼는 감정을 골라봐.</p>
       </div>
 
       <p className="text-xs" style={{ color: "var(--border)" }}>─────────────────────────────</p>
 
-      <div className="flex flex-wrap gap-2">
-        {ALL_TAGS.map((tag) => (
-          <TagChip
-            key={tag}
-            label={TAG_LABELS[tag]}
-            selected={selectedTags.includes(tag)}
-            onClick={() => toggleTag(tag)}
-          />
-        ))}
+      {/* 태그 선택 */}
+      <div className="space-y-3">
+        <div className="flex justify-between items-center">
+          <p className="text-xs" style={{ color: "var(--dim)" }}>// 이 공간 어땠나요?</p>
+          <p className="text-xs" style={{ color: selectedTags.length >= MAX_TAGS ? "var(--fg)" : "var(--dim)" }}>
+            {selectedTags.length}/{MAX_TAGS}
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {ALL_TAGS.map((tag) => (
+            <TagChip
+              key={tag}
+              label={TAG_LABELS[tag]}
+              selected={selectedTags.includes(tag)}
+              onClick={() => toggleTag(tag)}
+              disabled={!selectedTags.includes(tag) && selectedTags.length >= MAX_TAGS}
+            />
+          ))}
+        </div>
+        {selectedTags.length >= MAX_TAGS && (
+          <p className="text-xs" style={{ color: "var(--dim)" }}>
+            &gt; 최대 {MAX_TAGS}개까지 고를 수 있어.
+          </p>
+        )}
       </div>
 
       <p className="text-xs" style={{ color: "var(--border)" }}>─────────────────────────────</p>
 
+      {/* 메모 */}
       <div className="space-y-2">
-        <p className="text-xs" style={{ color: "var(--dim)" }}>&gt; 한 줄 메모 (선택)</p>
+        <p className="text-xs" style={{ color: "var(--dim)" }}>// 기록을 남겨볼까요? (선택)</p>
         <textarea
           value={memo}
-          onChange={(e) => setMemo(e.target.value.slice(0, 100))}
-          placeholder="오늘 여기서 무언가를 느꼈다면..."
-          rows={3}
+          onChange={handleMemoChange}
+          placeholder="오늘 어떤 생각이 들었나요... 한 줄로 남겨도 좋아요."
+          rows={4}
           className="w-full text-sm p-3 resize-none outline-none border"
           style={{
             background: "var(--bg)",
             color: "var(--fg)",
-            borderColor: "var(--border)",
+            borderColor: memo.length > 80 ? "var(--fg)" : "var(--border)",
+            transition: "border-color 0.2s",
           }}
         />
-        <p className="text-right text-xs" style={{ color: "var(--dim)" }}>{memo.length}/100</p>
       </div>
 
       <button

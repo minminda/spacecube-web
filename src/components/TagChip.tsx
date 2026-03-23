@@ -4,13 +4,15 @@ interface TagChipProps {
   label: string;
   selected: boolean;
   onClick: () => void;
+  disabled?: boolean;
 }
 
-export default function TagChip({ label, selected, onClick }: TagChipProps) {
+export default function TagChip({ label, selected, onClick, disabled }: TagChipProps) {
   return (
     <button
       onClick={onClick}
-      className="px-3 py-1 text-sm border transition-colors"
+      disabled={disabled}
+      className="px-3 py-1 text-sm border transition-colors disabled:opacity-30"
       style={
         selected
           ? { borderColor: "var(--fg)", background: "var(--fg)", color: "var(--bg)" }

@@ -26,10 +26,17 @@ export default async function EditSpacePage({ params }: Props) {
         name: space.name,
         slug: space.slug,
         type: space.type,
+        district: space.district ?? "",
         location: space.location,
+        tagline: space.tagline ?? "",
+        openingHours: space.openingHours ?? "",
+        naverMapUrl: space.naverMapUrl ?? "",
         description: space.description,
         philosophy: space.philosophy,
         ownerMessage: space.ownerMessage ?? "",
+        experienceGuide: space.experienceGuide ?? "",
+        spacePoints: space.spacePoints ?? "",
+        imageUrl: space.imageUrl ?? "",
       }}
     />
   );

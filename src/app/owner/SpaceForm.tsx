@@ -8,10 +8,16 @@ interface SpaceData {
   name: string;
   slug: string;
   type: string;
+  district: string;
   location: string;
+  tagline: string;
+  openingHours: string;
+  naverMapUrl: string;
   description: string;
   philosophy: string;
   ownerMessage: string;
+  experienceGuide: string;
+  spacePoints: string;
   imageUrl?: string;
 }
 
@@ -21,6 +27,7 @@ interface Props {
 }
 
 const SPACE_TYPES = ["독립서점", "소품샵", "전시공간", "개인 영화관", "문화 카페", "복합문화공간"];
+const DISTRICTS = ["서촌", "성수", "망원", "북촌", "가로수길", "이태원", "홍대", "연남동", "한남동", "익선동"];
 
 export default function SpaceForm({ mode, space }: Props) {
   const router = useRouter();
@@ -34,10 +41,16 @@ export default function SpaceForm({ mode, space }: Props) {
     name: space?.name ?? "",
     slug: space?.slug ?? "",
     type: space?.type ?? "",
+    district: space?.district ?? "",
     location: space?.location ?? "",
+    tagline: space?.tagline ?? "",
+    openingHours: space?.openingHours ?? "",
+    naverMapUrl: space?.naverMapUrl ?? "",
     description: space?.description ?? "",
     philosophy: space?.philosophy ?? "",
     ownerMessage: space?.ownerMessage ?? "",
+    experienceGuide: space?.experienceGuide ?? "",
+    spacePoints: space?.spacePoints ?? "",
   });
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) {
@@ -116,7 +129,11 @@ export default function SpaceForm({ mode, space }: Props) {
       </div>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-        <Field label="// 대표 이미지 (선택)">
+
+        {/* ── 기본 정보 ── */}
+        <p className="text-xs" style={{ color: "var(--dim)" }}>// 기본 정보</p>
+
+        <Field label="대표 이미지 (선택)">
           <label className="block cursor-pointer">
             <div className="w-full h-36 border flex items-center justify-center overflow-hidden relative" style={{ borderColor: "var(--border)" }}>
               {imagePreview ? (
@@ -124,7 +141,7 @@ export default function SpaceForm({ mode, space }: Props) {
                 <img src={imagePreview} alt="preview" className="w-full h-full object-cover opacity-70" />
               ) : (
                 <span className="text-xs" style={{ color: "var(--dim)" }}>
-                  {imageUploading ? "// 업로드 중..." : "&gt; 클릭해서 이미지 선택"}
+                  {imageUploading ? "// 업로드 중..." : "> 클릭해서 이미지 선택"}
                 </span>
               )}
             </div>
@@ -132,13 +149,13 @@ export default function SpaceForm({ mode, space }: Props) {
           </label>
         </Field>
 
-        <Field label="// 공간 이름 *">
+        <Field label="공간 이름 *">
           <input name="name" value={form.name} onChange={handleChange} required
             placeholder="북성로 헌책방"
             className="w-full text-sm px-3 py-2 border" style={inputStyle} />
         </Field>
 
-        <Field label="// 공간 주소 (영문, 하이픈만) *">
+        <Field label="공간 주소 (영문, 하이픈만) *">
           <input name="slug" value={form.slug} onChange={handleChange} required
             placeholder="bukseong-books"
             className="w-full text-sm px-3 py-2 border font-mono" style={inputStyle} />
@@ -147,7 +164,7 @@ export default function SpaceForm({ mode, space }: Props) {
           </p>
         </Field>
 
-        <Field label="// 공간 유형 *">
+        <Field label="공간 유형 *">
           <select name="type" value={form.type} onChange={handleChange} required
             className="w-full text-sm px-3 py-2 border" style={inputStyle}>
             <option value="">선택</option>
@@ -155,28 +172,85 @@ export default function SpaceForm({ mode, space }: Props) {
           </select>
         </Field>
 
-        <Field label="// 위치 *">
+        <Field label="지역 *">
+          <select name="district" value={form.district} onChange={handleChange} required
+            className="w-full text-sm px-3 py-2 border" style={inputStyle}>
+            <option value="">선택</option>
+            {DISTRICTS.map((d) => <option key={d} value={d}>{d}</option>)}
+          </select>
+        </Field>
+
+        <Field label="상세 위치 *">
           <input name="location" value={form.location} onChange={handleChange} required
-            placeholder="서울 마포구"
+            placeholder="서울 마포구 망원동"
             className="w-full text-sm px-3 py-2 border" style={inputStyle} />
         </Field>
 
-        <Field label="// 공간 소개 *">
+        <Field label="네이버 지도 링크 (선택)">
+          <input name="naverMapUrl" value={form.naverMapUrl} onChange={handleChange}
+            placeholder="https://naver.me/..."
+            className="w-full text-sm px-3 py-2 border" style={inputStyle} />
+        </Field>
+
+        <Field label="운영 시간 (선택)">
+          <input name="openingHours" value={form.openingHours} onChange={handleChange}
+            placeholder="화~일 12:00–21:00 / 월 휴무"
+            className="w-full text-sm px-3 py-2 border" style={inputStyle} />
+        </Field>
+
+        <p className="text-xs" style={{ color: "var(--border)" }}>─────────────────────────────</p>
+
+        {/* ── 공간 이야기 ── */}
+        <p className="text-xs" style={{ color: "var(--dim)" }}>// 공간 이야기</p>
+
+        <Field label="핵심 한 줄 (선택)">
+          <input name="tagline" value={form.tagline} onChange={handleChange}
+            placeholder="생각이 많아지는 날, 글을 쓰는 공간"
+            className="w-full text-sm px-3 py-2 border" style={inputStyle} />
+          <p className="text-xs mt-1" style={{ color: "var(--dim)" }}>
+            &gt; 방문 전 보이는 공간의 첫 인상
+          </p>
+        </Field>
+
+        <Field label="공간 소개 *">
           <textarea name="description" value={form.description} onChange={handleChange} required
             placeholder="이 공간이 어떤 곳인지 소개해줘."
             rows={3} className="w-full text-sm px-3 py-2 border resize-none" style={inputStyle} />
         </Field>
 
-        <Field label="// 공간 철학 *">
+        <Field label="왜 만들었나 *">
           <textarea name="philosophy" value={form.philosophy} onChange={handleChange} required
-            placeholder="이 공간을 만든 이유, 담긴 철학."
+            placeholder="이 공간을 만든 이유, 담긴 이야기."
             rows={3} className="w-full text-sm px-3 py-2 border resize-none" style={inputStyle} />
         </Field>
 
-        <Field label="// 운영자 한마디 (선택)">
+        <Field label="운영자 한마디 (선택)">
           <input name="ownerMessage" value={form.ownerMessage} onChange={handleChange}
             placeholder="방문자에게 전하고 싶은 말"
             className="w-full text-sm px-3 py-2 border" style={inputStyle} />
+        </Field>
+
+        <p className="text-xs" style={{ color: "var(--border)" }}>─────────────────────────────</p>
+
+        {/* ── QR 스캔 후 콘텐츠 ── */}
+        <p className="text-xs" style={{ color: "var(--dim)" }}>// QR 스캔 후 콘텐츠</p>
+
+        <Field label="경험 가이드 (선택)">
+          <textarea name="experienceGuide" value={form.experienceGuide} onChange={handleChange}
+            placeholder="이쪽은 ~하는 존입니다. 공간은 이렇게 나눠져 있습니다."
+            rows={3} className="w-full text-sm px-3 py-2 border resize-none" style={inputStyle} />
+          <p className="text-xs mt-1" style={{ color: "var(--dim)" }}>
+            &gt; 공간을 어떻게 경험하면 좋은지
+          </p>
+        </Field>
+
+        <Field label="공간 포인트 (선택)">
+          <textarea name="spacePoints" value={form.spacePoints} onChange={handleChange}
+            placeholder="저녁이 되면 창가에 비치는 나무가 예쁩니다."
+            rows={3} className="w-full text-sm px-3 py-2 border resize-none" style={inputStyle} />
+          <p className="text-xs mt-1" style={{ color: "var(--dim)" }}>
+            &gt; 이 공간만의 숨겨진 포인트
+          </p>
         </Field>
 
         {error && <p className="text-xs text-red-400">&gt; ERROR: {error}</p>}
@@ -197,7 +271,7 @@ export default function SpaceForm({ mode, space }: Props) {
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="space-y-1">
-      <label className="text-xs" style={{ color: "var(--dim)" }}>{label}</label>
+      <label className="text-xs" style={{ color: "var(--dim)" }}>&gt; {label}</label>
       {children}
     </div>
   );

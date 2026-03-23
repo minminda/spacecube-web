@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { auth } from "@/auth";
+import DiscoverEntry from "./DiscoverEntry";
 
 export default async function Home() {
   const session = await auth();
 
   return (
-    <main className="flex flex-col justify-center min-h-screen px-6 py-12 gap-6">
+    <main className="flex flex-col min-h-screen px-6 py-12 gap-8">
       <div className="space-y-1" style={{ color: "var(--dim)" }}>
         <p className="text-xs">공간큐브 v1.0</p>
         <p className="text-xs">─────────────────────────────</p>
@@ -21,12 +22,29 @@ export default async function Home() {
 
       <p className="text-xs" style={{ color: "var(--border)" }}>─────────────────────────────</p>
 
+      {/* 탐험 진입 */}
+      <div className="space-y-4">
+        <p className="text-xs" style={{ color: "var(--dim)" }}>// WHERE DO YOU WANT TO GO</p>
+        <DiscoverEntry />
+      </div>
+
+      <p className="text-xs" style={{ color: "var(--border)" }}>─────────────────────────────</p>
+
+      {/* 유저 메뉴 */}
       {session ? (
         <div className="space-y-3">
-          <Link href="/archive" className="block text-sm py-2 px-4 border hover:bg-[var(--fg)] hover:text-[var(--bg)] transition-colors" style={{ borderColor: "var(--fg)" }}>
+          <Link
+            href="/archive"
+            className="block text-sm py-2 px-4 border hover:bg-[var(--fg)] hover:text-[var(--bg)] transition-colors"
+            style={{ borderColor: "var(--fg)" }}
+          >
             [[ 내 아카이브 ]]
           </Link>
-          <Link href="/owner" className="block text-sm py-2 px-4 border transition-colors" style={{ borderColor: "var(--border)", color: "var(--dim)" }}>
+          <Link
+            href="/owner"
+            className="block text-sm py-2 px-4 border transition-colors"
+            style={{ borderColor: "var(--border)", color: "var(--dim)" }}
+          >
             [[ 공간 사장님이에요 ]]
           </Link>
           <p className="text-xs" style={{ color: "var(--dim)" }}>
@@ -34,7 +52,11 @@ export default async function Home() {
           </p>
         </div>
       ) : (
-        <Link href="/login" className="block text-sm py-2 px-4 border hover:bg-[var(--fg)] hover:text-[var(--bg)] transition-colors" style={{ borderColor: "var(--fg)" }}>
+        <Link
+          href="/login"
+          className="block text-sm py-2 px-4 border hover:bg-[var(--fg)] hover:text-[var(--bg)] transition-colors"
+          style={{ borderColor: "var(--fg)" }}
+        >
           [[ 시작하기 ]]
         </Link>
       )}

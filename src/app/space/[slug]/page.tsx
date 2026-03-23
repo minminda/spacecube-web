@@ -27,47 +27,109 @@ export default async function SpacePage({ params }: Props) {
 
   return (
     <main className="flex flex-col min-h-screen">
+      {/* 대표 이미지 */}
       {space.imageUrl && (
-        <div className="relative w-full h-48 flex-shrink-0" style={{ borderBottom: "1px solid var(--border)" }}>
+        <div className="relative w-full h-52 flex-shrink-0" style={{ borderBottom: "1px solid var(--border)" }}>
           <Image src={space.imageUrl} alt={space.name} fill className="object-cover opacity-60" />
         </div>
       )}
 
-      <div className="flex flex-col gap-5 px-6 py-6 flex-1">
+      <div className="flex flex-col gap-6 px-6 py-6 flex-1">
+        {/* 헤더 */}
         <div className="space-y-1" style={{ color: "var(--dim)" }}>
           <p className="text-xs">SPACECUBE / SPACE</p>
           <p className="text-xs">─────────────────────────────</p>
         </div>
 
-        <div className="space-y-1">
-          <p className="text-xs" style={{ color: "var(--dim)" }}>name : {space.name}</p>
-          <p className="text-xs" style={{ color: "var(--dim)" }}>type : {space.type}</p>
-          <p className="text-xs" style={{ color: "var(--dim)" }}>loc  : {space.location}</p>
+        {/* 공간 이름 + 핵심 한 줄 */}
+        <div className="space-y-2">
+          <p className="text-lg tracking-wide">{space.name}</p>
+          {space.tagline && (
+            <p className="text-sm italic" style={{ color: "var(--dim)" }}>
+              &ldquo;{space.tagline}&rdquo;
+            </p>
+          )}
+        </div>
+
+        {/* 핵심 정보 (위치 + 운영시간) */}
+        <div className="space-y-1 text-xs" style={{ color: "var(--dim)" }}>
+          {space.naverMapUrl ? (
+            <a
+              href={space.naverMapUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block hover:underline"
+              style={{ color: "var(--dim)" }}
+            >
+              &gt; 위치 : {space.location} ↗
+            </a>
+          ) : (
+            <p>&gt; 위치 : {space.location}</p>
+          )}
+          {space.openingHours && (
+            <p>&gt; 운영 : {space.openingHours}</p>
+          )}
         </div>
 
         <p className="text-xs" style={{ color: "var(--border)" }}>─────────────────────────────</p>
 
-        <div className="space-y-2">
-          <p className="text-xs" style={{ color: "var(--dim)" }}>&gt; 이 공간의 이야기</p>
-          <p className="text-sm leading-relaxed whitespace-pre-line">{space.description}</p>
+        {/* 섹션 1: 공간 해석 */}
+        <div className="space-y-4">
+          <p className="text-xs" style={{ color: "var(--dim)" }}>// 공간 해석</p>
+
+          <div className="space-y-2">
+            <p className="text-sm leading-relaxed whitespace-pre-line">{space.description}</p>
+          </div>
+
+          {space.philosophy && (
+            <div className="space-y-1">
+              <p className="text-xs" style={{ color: "var(--dim)" }}>&gt; 왜 만들었나</p>
+              <p className="text-sm leading-relaxed whitespace-pre-line" style={{ color: "var(--dim)" }}>
+                {space.philosophy}
+              </p>
+            </div>
+          )}
+
+          {space.ownerMessage && (
+            <div className="space-y-1">
+              <p className="text-xs" style={{ color: "var(--dim)" }}>&gt; 운영자의 말</p>
+              <p className="text-sm" style={{ color: "var(--fg)" }}>
+                &ldquo;{space.ownerMessage}&rdquo;
+              </p>
+            </div>
+          )}
         </div>
 
-        <div className="space-y-2">
-          <p className="text-xs" style={{ color: "var(--dim)" }}>&gt; 공간의 철학</p>
-          <p className="text-sm leading-relaxed whitespace-pre-line">{space.philosophy}</p>
-        </div>
-
-        {space.ownerMessage && (
+        {/* 섹션 2: 경험 가이드 */}
+        {space.experienceGuide && (
           <>
             <p className="text-xs" style={{ color: "var(--border)" }}>─────────────────────────────</p>
-            <div className="space-y-2">
-              <p className="text-xs" style={{ color: "var(--dim)" }}>&gt; 운영자의 한마디</p>
-              <p className="text-sm">"{space.ownerMessage}"</p>
+            <div className="space-y-3">
+              <p className="text-xs" style={{ color: "var(--dim)" }}>// 경험 가이드</p>
+              <p className="text-sm leading-relaxed whitespace-pre-line">{space.experienceGuide}</p>
             </div>
           </>
         )}
+
+        {/* 섹션 3: 공간 포인트 */}
+        {space.spacePoints && (
+          <>
+            <p className="text-xs" style={{ color: "var(--border)" }}>─────────────────────────────</p>
+            <div className="space-y-3">
+              <p className="text-xs" style={{ color: "var(--dim)" }}>// 공간 포인트</p>
+              <p className="text-sm leading-relaxed whitespace-pre-line">{space.spacePoints}</p>
+            </div>
+          </>
+        )}
+
+        <p className="text-xs" style={{ color: "var(--border)" }}>─────────────────────────────</p>
+
+        <p className="text-xs" style={{ color: "var(--dim)" }}>
+          &gt; 이 공간의 이야기는 공간에서 열립니다.
+        </p>
       </div>
 
+      {/* 기록 버튼 */}
       <div className="sticky bottom-0 px-6 pb-8 pt-4" style={{ background: "var(--bg)", borderTop: "1px solid var(--border)" }}>
         {session ? (
           <Link

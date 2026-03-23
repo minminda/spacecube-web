@@ -62,18 +62,26 @@ model VerificationToken {
 // ─── 공간큐브 Core ────────────────────────────────────────────
 
 model Space {
-  id           String   @id @default(cuid())
-  ownerId      String?
-  name         String
-  slug         String   @unique
-  type         String
-  location     String
-  description  String   @db.Text
-  philosophy   String   @db.Text
-  ownerMessage String?  @db.Text
-  imageUrl     String?
-  isActive     Boolean  @default(true)
-  createdAt    DateTime @default(now())
+  id              String   @id @default(cuid())
+  ownerId         String?
+  name            String
+  slug            String   @unique
+  type            String
+  district        String?
+  location        String
+  tagline         String?
+  openingHours    String?
+  naverMapUrl     String?
+  description     String   @db.Text
+  philosophy      String   @db.Text
+  ownerMessage    String?  @db.Text
+  experienceGuide String?  @db.Text
+  spacePoints     String?  @db.Text
+  imageUrl        String?
+  lat             Float?
+  lng             Float?
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
 
   owner   User?    @relation(fields: [ownerId], references: [id], onDelete: SetNull)
   records Record[]
@@ -83,7 +91,7 @@ model Record {
   id        String   @id @default(cuid())
   userId    String
   spaceId   String
-  memo      String?  @db.VarChar(100)
+  memo      String?  @db.VarChar(120)
   visitedAt DateTime @default(now())
 
   user  User        @relation(fields: [userId], references: [id], onDelete: Cascade)

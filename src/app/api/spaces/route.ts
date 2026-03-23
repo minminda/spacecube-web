@@ -13,9 +13,15 @@ export async function POST(req: NextRequest) {
   const user = await prisma.user.findUnique({ where: { email: session.user.email } });
   if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
 
-  const { name, slug, type, location, description, philosophy, ownerMessage } = await req.json();
+  const {
+    name, slug, type, district, location,
+    tagline, openingHours, naverMapUrl,
+    description, philosophy, ownerMessage,
+    experienceGuide, spacePoints,
+    imageUrl,
+  } = await req.json();
 
-  if (!name || !slug || !type || !location || !description || !philosophy) {
+  if (!name || !slug || !type || !district || !location || !description || !philosophy) {
     return NextResponse.json({ error: "필수 항목이 빠졌어요." }, { status: 400 });
   }
 
@@ -27,13 +33,15 @@ export async function POST(req: NextRequest) {
   const space = await prisma.space.create({
     data: {
       ownerId: user.id,
-      name,
-      slug,
-      type,
-      location,
-      description,
-      philosophy,
+      name, slug, type, district, location,
+      tagline: tagline || null,
+      openingHours: openingHours || null,
+      naverMapUrl: naverMapUrl || null,
+      description, philosophy,
       ownerMessage: ownerMessage || null,
+      experienceGuide: experienceGuide || null,
+      spacePoints: spacePoints || null,
+      imageUrl: imageUrl || null,
     },
   });
 
