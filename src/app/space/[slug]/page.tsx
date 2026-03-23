@@ -3,9 +3,37 @@ import Link from "next/link";
 import Image from "next/image";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
+import type { Metadata } from "next";
 
 interface Props {
   params: Promise<{ slug: string }>;
+}
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { slug } = await params;
+  const space = await prisma.space.findUnique({
+    where: { slug, isActive: true },
+    select: { name: true, tagline: true, description: true, imageUrl: true },
+  });
+  if (!space) return {};
+
+  const description = space.tagline ?? space.description.slice(0, 100);
+  return {
+    title: `${space.name} — SPACECUBE`,
+    description,
+    openGraph: {
+      title: space.name,
+      description,
+      images: space.imageUrl ? [{ url: space.imageUrl }] : [],
+      type: "website",
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: space.name,
+      description,
+      images: space.imageUrl ? [space.imageUrl] : [],
+    },
+  };
 }
 
 export default async function SpacePage({ params }: Props) {

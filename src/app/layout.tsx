@@ -2,9 +2,25 @@ import type { Metadata } from "next";
 import "./globals.css";
 import ThemeToggle from "@/components/ThemeToggle";
 
+const BASE_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://spacecube-web.vercel.app";
+
 export const metadata: Metadata = {
   title: "SPACECUBE",
   description: "공간 경험을 기록하고 취향을 발견하는 서비스",
+  metadataBase: new URL(BASE_URL),
+  openGraph: {
+    title: "SPACECUBE",
+    description: "공간 경험을 기록하고 취향을 발견하는 서비스",
+    url: BASE_URL,
+    siteName: "SPACECUBE",
+    locale: "ko_KR",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "SPACECUBE",
+    description: "공간 경험을 기록하고 취향을 발견하는 서비스",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
