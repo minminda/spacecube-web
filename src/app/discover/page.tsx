@@ -1,7 +1,7 @@
 import Link from "next/link";
-import Image from "next/image";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import SpaceCards from "./SpaceCards";
 
 interface Props {
   searchParams: Promise<{ district?: string }>;
@@ -14,11 +14,19 @@ export default async function DiscoverPage({ searchParams }: Props) {
   const spaces = await prisma.space.findMany({
     where: { district, isActive: true },
     orderBy: { createdAt: "desc" },
+    select: {
+      id: true,
+      slug: true,
+      name: true,
+      tagline: true,
+      type: true,
+      openingHours: true,
+      imageUrl: true,
+    },
   });
 
   return (
     <main className="flex flex-col min-h-screen px-6 py-8 gap-6">
-      {/* 헤더 */}
       <div className="space-y-1" style={{ color: "var(--dim)" }}>
         <div className="flex justify-between items-center">
           <p className="text-xs">SPACECUBE / DISCOVER</p>
@@ -27,7 +35,6 @@ export default async function DiscoverPage({ searchParams }: Props) {
         <p className="text-xs">─────────────────────────────</p>
       </div>
 
-      {/* 지역 타이틀 */}
       <div className="space-y-1">
         <p className="text-xs" style={{ color: "var(--dim)" }}>&gt; 지금 탐험할 지역</p>
         <p className="text-xl tracking-widest">{district.toUpperCase()}</p>
@@ -46,43 +53,12 @@ export default async function DiscoverPage({ searchParams }: Props) {
           </Link>
         </div>
       ) : (
-        <div className="space-y-4">
+        <>
           <p className="text-xs" style={{ color: "var(--dim)" }}>
             // {spaces.length}곳을 발견했어
           </p>
-
-          {spaces.map((space) => (
-            <Link
-              key={space.id}
-              href={`/space/${space.slug}`}
-              className="flex flex-col border transition-colors hover:border-[var(--fg)]"
-              style={{ borderColor: "var(--border)" }}
-            >
-              {space.imageUrl && (
-                <div className="relative w-full h-40 overflow-hidden">
-                  <Image
-                    src={space.imageUrl}
-                    alt={space.name}
-                    fill
-                    className="object-cover opacity-60"
-                  />
-                </div>
-              )}
-              <div className="p-4 space-y-2">
-                <p className="text-sm">&gt; {space.name}</p>
-                {space.tagline && (
-                  <p className="text-xs italic" style={{ color: "var(--dim)" }}>
-                    &ldquo;{space.tagline}&rdquo;
-                  </p>
-                )}
-                <div className="flex gap-3 text-xs" style={{ color: "var(--dim)" }}>
-                  <span>[{space.type}]</span>
-                  {space.openingHours && <span>{space.openingHours}</span>}
-                </div>
-              </div>
-            </Link>
-          ))}
-        </div>
+          <SpaceCards spaces={spaces} />
+        </>
       )}
     </main>
   );

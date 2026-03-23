@@ -36,6 +36,7 @@ export default async function EditSpacePage({ params }: Props) {
         ownerMessage: space.ownerMessage ?? "",
         experienceGuide: space.experienceGuide ?? "",
         spacePoints: space.spacePoints ?? "",
+        spaceTags: space.spaceTags ?? [],
         imageUrl: space.imageUrl ?? "",
       }}
     />

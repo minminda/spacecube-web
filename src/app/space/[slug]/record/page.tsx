@@ -27,6 +27,7 @@ export default async function RecordPage({ params }: Props) {
   return (
     <RecordForm
       space={{ id: space.id, name: space.name, slug: space.slug }}
+      spaceTags={space.spaceTags}
       existingTags={existingRecord?.tags.map((t) => t.tag) ?? []}
       existingMemo={existingRecord?.memo ?? ""}
     />

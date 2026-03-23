@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Tag } from "@prisma/client";
+import { TAG_LABELS, ALL_TAGS } from "@/lib/tags";
 
 interface SpaceData {
   id: string;
@@ -18,6 +20,7 @@ interface SpaceData {
   ownerMessage: string;
   experienceGuide: string;
   spacePoints: string;
+  spaceTags: string[];
   imageUrl?: string;
 }
 
@@ -37,6 +40,10 @@ export default function SpaceForm({ mode, space }: Props) {
   const [imagePreview, setImagePreview] = useState(space?.imageUrl ?? "");
   const [imageUploading, setImageUploading] = useState(false);
 
+  const [selectedSpaceTags, setSelectedSpaceTags] = useState<Tag[]>(
+    (space?.spaceTags ?? []) as Tag[]
+  );
+
   const [form, setForm] = useState({
     name: space?.name ?? "",
     slug: space?.slug ?? "",
@@ -52,6 +59,16 @@ export default function SpaceForm({ mode, space }: Props) {
     experienceGuide: space?.experienceGuide ?? "",
     spacePoints: space?.spacePoints ?? "",
   });
+
+  const MAX_SPACE_TAGS = 7;
+
+  function toggleSpaceTag(tag: Tag) {
+    setSelectedSpaceTags((prev) => {
+      if (prev.includes(tag)) return prev.filter((t) => t !== tag);
+      if (prev.length >= MAX_SPACE_TAGS) return prev;
+      return [...prev, tag];
+    });
+  }
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) {
     const { name, value } = e.target;
@@ -99,7 +116,7 @@ export default function SpaceForm({ mode, space }: Props) {
     const res = await fetch(url, {
       method,
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...form, imageUrl: imageUrl || null }),
+      body: JSON.stringify({ ...form, imageUrl: imageUrl || null, spaceTags: selectedSpaceTags }),
     });
     const data = await res.json();
     if (!res.ok) {
@@ -252,6 +269,48 @@ export default function SpaceForm({ mode, space }: Props) {
             &gt; 이 공간만의 숨겨진 포인트
           </p>
         </Field>
+
+        <p className="text-xs" style={{ color: "var(--border)" }}>─────────────────────────────</p>
+
+        {/* ── 공간 태그 ── */}
+        <div className="space-y-3">
+          <div className="flex justify-between items-center">
+            <p className="text-xs" style={{ color: "var(--dim)" }}>// 방문자에게 보여줄 태그 (최대 {MAX_SPACE_TAGS}개)</p>
+            <p className="text-xs" style={{ color: selectedSpaceTags.length >= MAX_SPACE_TAGS ? "var(--fg)" : "var(--dim)" }}>
+              {selectedSpaceTags.length}/{MAX_SPACE_TAGS}
+            </p>
+          </div>
+          <p className="text-xs" style={{ color: "var(--dim)" }}>
+            &gt; 방문자가 기록할 때 이 태그 중 2개를 고르게 돼.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {ALL_TAGS.map((tag) => {
+              const selected = selectedSpaceTags.includes(tag);
+              const disabled = !selected && selectedSpaceTags.length >= MAX_SPACE_TAGS;
+              return (
+                <button
+                  key={tag}
+                  type="button"
+                  onClick={() => toggleSpaceTag(tag)}
+                  disabled={disabled}
+                  className="px-3 py-1 text-xs border transition-colors disabled:opacity-30"
+                  style={
+                    selected
+                      ? { borderColor: "var(--fg)", background: "var(--fg)", color: "var(--bg)" }
+                      : { borderColor: "var(--border)", color: "var(--dim)" }
+                  }
+                >
+                  {selected ? `[${TAG_LABELS[tag]}]` : TAG_LABELS[tag]}
+                </button>
+              );
+            })}
+          </div>
+          {selectedSpaceTags.length === 0 && (
+            <p className="text-xs" style={{ color: "var(--dim)" }}>
+              &gt; 선택 안 하면 전체 태그가 보여져.
+            </p>
+          )}
+        </div>
 
         {error && <p className="text-xs text-red-400">&gt; ERROR: {error}</p>}
 

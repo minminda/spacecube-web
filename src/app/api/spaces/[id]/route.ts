@@ -22,6 +22,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     tagline, openingHours, naverMapUrl,
     description, philosophy, ownerMessage,
     experienceGuide, spacePoints,
+    spaceTags,
     imageUrl,
   } = await req.json();
 
@@ -36,6 +37,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       ownerMessage: ownerMessage || null,
       experienceGuide: experienceGuide || null,
       spacePoints: spacePoints || null,
+      spaceTags: spaceTags ?? [],
       imageUrl: imageUrl || null,
     },
   });

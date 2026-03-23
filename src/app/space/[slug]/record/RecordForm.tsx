@@ -11,11 +11,13 @@ const MAX_MEMO = 120;
 
 interface Props {
   space: { id: string; name: string; slug: string };
+  spaceTags: Tag[];
   existingTags: Tag[];
   existingMemo: string;
 }
 
-export default function RecordForm({ space, existingTags, existingMemo }: Props) {
+export default function RecordForm({ space, spaceTags, existingTags, existingMemo }: Props) {
+  const tagsToShow = spaceTags.length > 0 ? spaceTags : ALL_TAGS;
   const router = useRouter();
   const [selectedTags, setSelectedTags] = useState<Tag[]>(existingTags);
   const [memo, setMemo] = useState(existingMemo);
@@ -74,7 +76,7 @@ export default function RecordForm({ space, existingTags, existingMemo }: Props)
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          {ALL_TAGS.map((tag) => (
+          {tagsToShow.map((tag) => (
             <TagChip
               key={tag}
               label={TAG_LABELS[tag]}

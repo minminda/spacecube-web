@@ -78,6 +78,7 @@ model Space {
   experienceGuide String?  @db.Text
   spacePoints     String?  @db.Text
   imageUrl        String?
+  spaceTags       Tag[]
   lat             Float?
   lng             Float?
   isActive        Boolean  @default(true)

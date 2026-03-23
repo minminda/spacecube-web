@@ -18,6 +18,7 @@ export async function POST(req: NextRequest) {
     tagline, openingHours, naverMapUrl,
     description, philosophy, ownerMessage,
     experienceGuide, spacePoints,
+    spaceTags,
     imageUrl,
   } = await req.json();
 
@@ -41,6 +42,7 @@ export async function POST(req: NextRequest) {
       ownerMessage: ownerMessage || null,
       experienceGuide: experienceGuide || null,
       spacePoints: spacePoints || null,
+      spaceTags: spaceTags ?? [],
       imageUrl: imageUrl || null,
     },
   });
