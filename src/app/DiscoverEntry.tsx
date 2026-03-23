@@ -2,20 +2,41 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import DistrictMap from "./DistrictMap";
 
 const DISTRICTS = ["서촌", "성수", "망원", "북촌", "가로수길", "이태원", "홍대", "연남동"];
 
 export default function DiscoverEntry() {
   const router = useRouter();
   const [input, setInput] = useState("");
+  const [selected, setSelected] = useState<string | null>(null);
 
   function go(district: string) {
-    router.push(`/discover?district=${encodeURIComponent(district)}`);
+    setSelected(district);
   }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (input.trim()) go(input.trim());
+    const trimmed = input.trim();
+    if (!trimmed) return;
+    // 지도에 없는 지역이면 바로 이동
+    if (!DISTRICTS.includes(trimmed)) {
+      router.push(`/discover?district=${encodeURIComponent(trimmed)}`);
+    } else {
+      go(trimmed);
+    }
+  }
+
+  // 지도 연출 중이면 지도만 보여줌
+  if (selected) {
+    return (
+      <div className="space-y-3">
+        <DistrictMap
+          selected={selected}
+          onDone={() => setSelected(null)}
+        />
+      </div>
+    );
   }
 
   return (
@@ -34,7 +55,7 @@ export default function DiscoverEntry() {
         ))}
       </div>
 
-      {/* 검색 입력 */}
+      {/* 직접 입력 */}
       <form onSubmit={handleSubmit} className="flex items-center gap-2">
         <span className="text-xs" style={{ color: "var(--dim)" }}>&gt;</span>
         <input
