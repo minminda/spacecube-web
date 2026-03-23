@@ -5,40 +5,43 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 import { TAG_LABELS } from "@/lib/tags";
 import { Tag } from "@prisma/client";
+import { rankSpaces } from "@/lib/recommend";
 import ArchiveSearch from "./ArchiveSearch";
 
 interface Props {
-  searchParams: Promise<{ q?: string }>;
+  searchParams: Promise<{ q?: string; mode?: string }>;
 }
 
 function getTastePhrase(topTags: [Tag, number][]): string {
   if (topTags.length === 0) return "나만의 공간을 탐험하는 사람";
   const tags = topTags.map(([tag]) => tag);
 
-  if (tags.includes("QUIET") && tags.includes("FOCUSED"))    return "조용히 집중할 수 있는 공간을 좋아하는 사람";
-  if (tags.includes("QUIET") && tags.includes("INSPIRING"))  return "조용히 영감을 얻는 공간을 찾는 사람";
-  if (tags.includes("QUIET") && tags.includes("COMFORTABLE"))return "조용하고 편안한 공간에서 오래 머무는 사람";
-  if (tags.includes("WARM") && tags.includes("COMFORTABLE")) return "따뜻하고 편안한 분위기를 즐기는 사람";
-  if (tags.includes("UNIQUE") && tags.includes("INSPIRING")) return "독특하고 영감 있는 공간을 탐험하는 사람";
-  if (tags.includes("SENSIBLE") && tags.includes("UNIQUE"))  return "감각적이고 독특한 공간을 발견하는 사람";
+  if (tags.includes("QUIET") && tags.includes("FOCUSED"))     return "조용히 집중할 수 있는 공간을 좋아하는 사람";
+  if (tags.includes("QUIET") && tags.includes("INSPIRING"))   return "조용히 영감을 얻는 공간을 찾는 사람";
+  if (tags.includes("QUIET") && tags.includes("COMFORTABLE")) return "조용하고 편안한 공간에서 오래 머무는 사람";
+  if (tags.includes("WARM") && tags.includes("COMFORTABLE"))  return "따뜻하고 편안한 분위기를 즐기는 사람";
+  if (tags.includes("UNIQUE") && tags.includes("INSPIRING"))  return "독특하고 영감 있는 공간을 탐험하는 사람";
+  if (tags.includes("SENSIBLE") && tags.includes("UNIQUE"))   return "감각적이고 독특한 공간을 발견하는 사람";
   if (tags.includes("INSPIRING") && tags.includes("SENSIBLE"))return "영감 있고 감각적인 공간에 끌리는 사람";
   if (tags.includes("COMFORTABLE") && tags.includes("WANT_AGAIN")) return "편안해서 다시 찾고 싶은 공간을 좋아하는 사람";
 
   const fallback: Partial<Record<Tag, string>> = {
-    QUIET:      "조용한 공간에서 오래 머무는 사람",
-    INSPIRING:  "영감을 주는 공간을 찾는 사람",
-    COMFORTABLE:"편안한 공간을 즐기는 사람",
-    UNIQUE:     "독특한 공간을 탐험하는 사람",
-    WANT_AGAIN: "다시 찾고 싶은 공간을 만드는 사람",
-    SENSIBLE:   "감각 있는 공간에 끌리는 사람",
-    WARM:       "따뜻한 분위기의 공간을 좋아하는 사람",
-    FOCUSED:    "집중할 수 있는 공간을 선호하는 사람",
+    QUIET:       "조용한 공간에서 오래 머무는 사람",
+    INSPIRING:   "영감을 주는 공간을 찾는 사람",
+    COMFORTABLE: "편안한 공간을 즐기는 사람",
+    UNIQUE:      "독특한 공간을 탐험하는 사람",
+    WANT_AGAIN:  "다시 찾고 싶은 공간을 만드는 사람",
+    SENSIBLE:    "감각 있는 공간에 끌리는 사람",
+    WARM:        "따뜻한 분위기의 공간을 좋아하는 사람",
+    FOCUSED:     "집중할 수 있는 공간을 선호하는 사람",
   };
   return fallback[tags[0]] ?? "나만의 공간을 탐험하는 사람";
 }
 
 export default async function ArchivePage({ searchParams }: Props) {
-  const { q } = await searchParams;
+  const { q, mode } = await searchParams;
+  const recMode = mode === "diverse" ? "diverse" : "similar";
+
   const session = await auth();
   if (!session?.user?.email) redirect("/login");
 
@@ -70,10 +73,28 @@ export default async function ArchivePage({ searchParams }: Props) {
   const maxCount = topTags[0]?.[1] ?? 1;
   const recentThree = allRecords.slice(0, 3);
 
-  // 검색 필터 (기록 리스트에만 적용)
+  // 검색 필터
   const filteredRecords = q
     ? allRecords.filter((r) => r.space.name.includes(q))
     : allRecords;
+
+  // 추천 공간 (방문하지 않은 곳)
+  const visitedIds = new Set(allRecords.map((r) => r.spaceId));
+  const candidates = await prisma.space.findMany({
+    where: { isActive: true, id: { notIn: [...visitedIds] } },
+    select: {
+      id: true, name: true, slug: true,
+      tagline: true, imageUrl: true, type: true,
+      district: true, spaceTags: true, lat: true, lng: true,
+    },
+  });
+
+  const recommended = rankSpaces(
+    candidates,
+    topTags.map(([t]) => t),
+    recMode,
+    3,
+  );
 
   return (
     <main className="flex flex-col min-h-screen px-6 py-8 gap-6">
@@ -90,7 +111,6 @@ export default async function ArchivePage({ searchParams }: Props) {
       </div>
 
       {allRecords.length === 0 ? (
-        /* 빈 상태 */
         <div className="flex-1 flex flex-col justify-center gap-3">
           <p className="text-sm" style={{ color: "var(--dim)" }}>
             &gt; 아직 기록이 없어.<br />
@@ -103,12 +123,10 @@ export default async function ArchivePage({ searchParams }: Props) {
           <div className="space-y-5">
             <p className="text-xs" style={{ color: "var(--dim)" }}>// 나의 취향</p>
 
-            {/* 한 줄 문장 */}
             <p className="text-sm" style={{ color: "var(--fg)" }}>
               &quot;{tastePhrase}&quot;
             </p>
 
-            {/* 태그 분포 */}
             {topTags.length > 0 && (
               <div className="space-y-2">
                 {topTags.map(([tag, count]) => {
@@ -129,7 +147,6 @@ export default async function ArchivePage({ searchParams }: Props) {
               </div>
             )}
 
-            {/* 최근 방문 3곳 */}
             <div className="space-y-2">
               <p className="text-xs" style={{ color: "var(--dim)" }}>// 최근 방문</p>
               <div className="flex gap-3">
@@ -177,9 +194,7 @@ export default async function ArchivePage({ searchParams }: Props) {
             </div>
 
             {filteredRecords.length === 0 ? (
-              <p className="text-xs" style={{ color: "var(--dim)" }}>
-                &gt; 검색 결과가 없어.
-              </p>
+              <p className="text-xs" style={{ color: "var(--dim)" }}>&gt; 검색 결과가 없어.</p>
             ) : (
               filteredRecords.map((record) => (
                 <Link
@@ -215,23 +230,79 @@ export default async function ArchivePage({ searchParams }: Props) {
           <p className="text-xs" style={{ color: "var(--border)" }}>─────────────────────────────</p>
 
           {/* ── 섹션 3: 탐험 확장 ── */}
-          <div className="space-y-3 pb-4">
-            <p className="text-xs" style={{ color: "var(--dim)" }}>// 다음 탐험</p>
-            <p className="text-xs" style={{ color: "var(--dim)" }}>
-              &gt; 이런 공간도 좋아할 수 있어요.
-            </p>
-            <div className="flex flex-col gap-2">
+          <div className="space-y-4 pb-4">
+            <div className="flex justify-between items-center">
+              <p className="text-xs" style={{ color: "var(--dim)" }}>// 다음 탐험</p>
+              {recMode === "diverse" && (
+                <p className="text-xs" style={{ color: "var(--dim)" }}>다른 분위기</p>
+              )}
+            </div>
+
+            {recommended.length > 0 ? (
+              <>
+                <p className="text-xs" style={{ color: "var(--dim)" }}>
+                  &gt; {recMode === "diverse" ? "조금 다른 결의 공간이에요." : "이런 공간도 좋아할 수 있어요."}
+                </p>
+                <div className="space-y-2">
+                  {recommended.map((space) => (
+                    <Link
+                      key={space.id}
+                      href={`/space/${space.slug}`}
+                      className="flex gap-3 p-3 border transition-colors hover:border-[var(--fg)]"
+                      style={{ borderColor: "var(--border)" }}
+                    >
+                      {space.imageUrl && (
+                        <div className="relative w-12 h-12 flex-shrink-0 overflow-hidden">
+                          <Image
+                            src={space.imageUrl}
+                            alt={space.name}
+                            fill
+                            className="object-cover opacity-60"
+                          />
+                        </div>
+                      )}
+                      <div className="flex flex-col justify-center gap-1 min-w-0">
+                        <p className="text-sm truncate">&gt; {space.name}</p>
+                        {space.tagline && (
+                          <p className="text-xs truncate italic" style={{ color: "var(--dim)" }}>
+                            &ldquo;{space.tagline}&rdquo;
+                          </p>
+                        )}
+                        {space.district && (
+                          <p className="text-xs" style={{ color: "var(--dim)" }}>
+                            [{space.district}]
+                          </p>
+                        )}
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <p className="text-xs" style={{ color: "var(--dim)" }}>
+                &gt; 아직 추천할 공간이 없어. 더 많은 공간이 등록되면 연결해줄게.
+              </p>
+            )}
+
+            {/* 모드 전환 버튼 */}
+            <div className="flex flex-col gap-2 pt-1">
               <Link
-                href="/"
+                href="/archive?mode=similar"
                 className="text-xs px-3 py-2 border transition-colors hover:border-[var(--fg)]"
-                style={{ borderColor: "var(--border)", color: "var(--dim)" }}
+                style={{
+                  borderColor: recMode === "similar" ? "var(--fg)" : "var(--border)",
+                  color: recMode === "similar" ? "var(--fg)" : "var(--dim)",
+                }}
               >
                 이 취향 더 탐험하기 _
               </Link>
               <Link
-                href="/"
+                href="/archive?mode=diverse"
                 className="text-xs px-3 py-2 border transition-colors hover:border-[var(--fg)]"
-                style={{ borderColor: "var(--border)", color: "var(--dim)" }}
+                style={{
+                  borderColor: recMode === "diverse" ? "var(--fg)" : "var(--border)",
+                  color: recMode === "diverse" ? "var(--fg)" : "var(--dim)",
+                }}
               >
                 조금 다른 분위기 보기 _
               </Link>
