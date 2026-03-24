@@ -3,14 +3,26 @@ import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
 
+type Visibility = "PRIVATE" | "PARTIAL" | "LINK_ONLY";
+
+const VISIBILITY_LABELS: Record<Visibility, string> = {
+  PRIVATE:   "나만 보기",
+  LINK_ONLY: "링크로만 공개",
+  PARTIAL:   "일부 공개",
+};
+
 interface Props {
   nickname: string | null;
+  visibility: Visibility;
+  userId: string;
 }
 
-export default function SettingsPanel({ nickname }: Props) {
+export default function SettingsPanel({ nickname, visibility, userId }: Props) {
   const [open, setOpen] = useState(false);
-  const [value, setValue] = useState(nickname ?? "");
+  const [nickValue, setNickValue] = useState(nickname ?? "");
+  const [vis, setVis] = useState<Visibility>(visibility);
   const [saving, setSaving] = useState(false);
+  const [copied, setCopied] = useState(false);
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -23,11 +35,19 @@ export default function SettingsPanel({ nickname }: Props) {
     await fetch("/api/users/me", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ nickname: value }),
+      body: JSON.stringify({ nickname: nickValue, visibility: vis }),
     });
     setSaving(false);
     setOpen(false);
     router.refresh();
+  }
+
+  function copyLink() {
+    const url = `${window.location.origin}/u/${userId}`;
+    navigator.clipboard.writeText(url).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
   }
 
   return (
@@ -51,41 +71,76 @@ export default function SettingsPanel({ nickname }: Props) {
             className="w-full max-w-sm p-6 space-y-6"
             style={{ background: "var(--bg)", borderTop: "1px solid var(--border)" }}
           >
+            {/* 헤더 */}
             <div className="flex justify-between items-center">
-              <p className="text-xs" style={{ color: "var(--dim)" }}>// 설정</p>
-              <button
-                onClick={() => setOpen(false)}
-                className="text-xs"
-                style={{ color: "var(--dim)" }}
-              >
+              <p className="text-xs" style={{ color: "var(--dim)" }}>설정</p>
+              <button onClick={() => setOpen(false)} className="text-xs" style={{ color: "var(--dim)" }}>
                 [✕]
               </button>
             </div>
 
+            {/* 닉네임 */}
             <div className="space-y-2">
               <p className="text-xs" style={{ color: "var(--dim)" }}>닉네임</p>
-              <div className="flex gap-2">
-                <input
-                  ref={inputRef}
-                  value={value}
-                  onChange={(e) => setValue(e.target.value.slice(0, 20))}
-                  placeholder="최대 20자"
-                  maxLength={20}
-                  className="flex-1 text-sm bg-transparent border-b outline-none pb-1"
-                  style={{ borderColor: "var(--dim)", color: "var(--fg)" }}
-                  onKeyDown={(e) => { if (e.key === "Enter") handleSave(); }}
-                />
-                <button
-                  onClick={handleSave}
-                  disabled={saving}
-                  className="text-xs px-3 py-1 border transition-colors hover:border-[var(--fg)]"
-                  style={{ borderColor: "var(--border)", color: "var(--dim)" }}
-                >
-                  {saving ? "..." : "[저장]"}
-                </button>
-              </div>
+              <input
+                ref={inputRef}
+                value={nickValue}
+                onChange={(e) => setNickValue(e.target.value.slice(0, 20))}
+                placeholder="최대 20자"
+                maxLength={20}
+                className="w-full text-sm bg-transparent border-b outline-none pb-1"
+                style={{ borderColor: "var(--dim)", color: "var(--fg)" }}
+                onKeyDown={(e) => { if (e.key === "Enter") handleSave(); }}
+              />
             </div>
 
+            {/* 공개 범위 */}
+            <div className="space-y-2">
+              <p className="text-xs" style={{ color: "var(--dim)" }}>공개 범위</p>
+              <div className="space-y-1">
+                {(["PRIVATE", "LINK_ONLY", "PARTIAL"] as Visibility[]).map((v) => (
+                  <button
+                    key={v}
+                    onClick={() => setVis(v)}
+                    className="w-full text-left text-xs py-1.5 px-2 border transition-colors"
+                    style={{
+                      borderColor: vis === v ? "var(--fg)" : "var(--border)",
+                      color: vis === v ? "var(--fg)" : "var(--dim)",
+                    }}
+                  >
+                    {vis === v ? "▸ " : "  "}{VISIBILITY_LABELS[v]}
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs" style={{ color: "var(--dim)" }}>
+                {vis === "PRIVATE"   && "나만 볼 수 있어"}
+                {vis === "LINK_ONLY" && "링크를 아는 사람만 볼 수 있어"}
+                {vis === "PARTIAL"   && "비슷한 취향에서 발견될 수 있어"}
+              </p>
+            </div>
+
+            {/* 링크 복사 */}
+            {vis !== "PRIVATE" && (
+              <button
+                onClick={copyLink}
+                className="w-full text-left text-xs py-2 px-2 border"
+                style={{ borderColor: "var(--border)", color: "var(--dim)" }}
+              >
+                {copied ? "링크 복사됨 ✓" : "공유 링크 복사 _"}
+              </button>
+            )}
+
+            {/* 저장 */}
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="w-full text-sm py-2 border transition-colors hover:bg-[var(--fg)] hover:text-[var(--bg)]"
+              style={{ borderColor: "var(--fg)", color: "var(--fg)" }}
+            >
+              {saving ? "..." : "[[ 저장 ]]"}
+            </button>
+
+            {/* 로그아웃 */}
             <button
               onClick={() => signOut({ callbackUrl: "/" })}
               className="text-xs w-full text-left py-2 border-t"

@@ -10,13 +10,14 @@ datasource db {
 // ─── NextAuth ────────────────────────────────────────────────
 
 model User {
-  id            String    @id @default(cuid())
+  id            String     @id @default(cuid())
   name          String?
-  email         String?   @unique
+  email         String?    @unique
   emailVerified DateTime?
   image         String?
   nickname      String?
-  createdAt     DateTime  @default(now())
+  visibility    Visibility @default(PRIVATE)
+  createdAt     DateTime   @default(now())
 
   accounts    Account[]
   sessions    Session[]
@@ -133,6 +134,12 @@ model CollectionItem {
   space      Space      @relation(fields: [spaceId], references: [id], onDelete: Cascade)
 
   @@unique([collectionId, spaceId])
+}
+
+enum Visibility {
+  PRIVATE
+  PARTIAL
+  LINK_ONLY
 }
 
 enum Tag {

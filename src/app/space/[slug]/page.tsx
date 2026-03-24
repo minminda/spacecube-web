@@ -53,6 +53,19 @@ export default async function SpacePage({ params }: Props) {
     }
   }
 
+  // 이 공간을 좋아한 사람들 (PARTIAL 공개 유저만)
+  const publicRecords = await prisma.record.findMany({
+    where: {
+      spaceId: space.id,
+      user: { visibility: "PARTIAL" },
+    },
+    include: {
+      user: { select: { id: true, nickname: true, name: true } },
+    },
+    orderBy: { visitedAt: "desc" },
+    take: 5,
+  });
+
   return (
     <main className="flex flex-col min-h-screen">
       {/* 대표 이미지 */}
@@ -155,6 +168,35 @@ export default async function SpacePage({ params }: Props) {
         <p className="text-xs" style={{ color: "var(--dim)" }}>
           &gt; 이 공간의 이야기는 공간에서 열립니다.
         </p>
+
+        {/* 이 공간을 좋아한 사람들 */}
+        {publicRecords.length > 0 && (
+          <>
+            <p className="text-xs" style={{ color: "var(--border)" }}>─────────────────────────────</p>
+            <div className="space-y-4">
+              <p className="text-xs" style={{ color: "var(--dim)" }}>이 공간을 좋아한 사람들</p>
+              {publicRecords.map((r) => {
+                const name = r.user.nickname || r.user.name?.split(" ")[0] || "익명";
+                return (
+                  <Link
+                    key={r.id}
+                    href={`/u/${r.user.id}`}
+                    className="block space-y-0.5 group"
+                  >
+                    <p className="text-sm group-hover:underline" style={{ color: "var(--fg)" }}>
+                      {name}
+                    </p>
+                    {r.memo && (
+                      <p className="text-xs" style={{ color: "var(--dim)" }}>
+                        &ldquo;{r.memo}&rdquo;
+                      </p>
+                    )}
+                  </Link>
+                );
+              })}
+            </div>
+          </>
+        )}
       </div>
 
       {/* 기록 버튼 */}
