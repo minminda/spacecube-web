@@ -3,17 +3,16 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 import { TAG_LABELS } from "@/lib/tags";
-import { Tag } from "@prisma/client";
 import SettingsPanel from "@/components/SettingsPanel";
 import CollectionManager from "@/components/CollectionManager";
 import { aggregateTags, getTastePhrase, tagOverlap } from "@/lib/taste";
 
 function formatDate(d: Date) {
-  return new Date(d).toLocaleDateString("ko-KR", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  });
+  return new Date(d).toLocaleDateString("ko-KR", { year: "numeric", month: "2-digit", day: "2-digit" });
+}
+
+function Divider() {
+  return <div className="mb-8 text-xs" style={{ color: "var(--border)" }}>─────────────────────────────</div>;
 }
 
 export default async function ArchivePage() {
@@ -29,10 +28,15 @@ export default async function ArchivePage() {
       },
       collections: {
         orderBy: { createdAt: "asc" },
+        include: { items: { orderBy: { addedAt: "asc" }, include: { space: true } } },
+      },
+      savedTastes: {
+        orderBy: { savedAt: "desc" },
         include: {
-          items: {
-            orderBy: { addedAt: "asc" },
-            include: { space: true },
+          target: {
+            include: {
+              records: { include: { tags: true } },
+            },
           },
         },
       },
@@ -52,62 +56,70 @@ export default async function ArchivePage() {
   const visitedSpaces = allRecords.map((r) => ({ id: r.space.id, name: r.space.name, slug: r.space.slug }));
   const displayName = user.nickname || user.name?.split(" ")[0] || "나";
 
-  // 가까운 취향 (PARTIAL 공개 유저 중 태그 겹치는 사람)
-  const nearbyUsers =
-    myTopTagList.length > 0
-      ? await prisma.user.findMany({
-          where: {
-            visibility: "PARTIAL",
-            id: { not: user.id },
-            records: { some: {} },
-          },
-          include: {
-            records: {
-              include: { tags: true },
-            },
-          },
-          take: 50,
-        })
-      : [];
+  // 관심 있는 취향 (직접 저장한 것)
+  const savedTasteCards = user.savedTastes.map((st) => {
+    const tTags = aggregateTags(st.target.records).slice(0, 5);
+    return {
+      id: st.target.id,
+      nickname: st.target.nickname || st.target.name?.split(" ")[0] || "익명",
+      phrase: getTastePhrase(tTags),
+    };
+  });
 
-  const similar = nearbyUsers
-    .map((u) => {
-      const their = aggregateTags(u.records).slice(0, 3).map(([t]) => t);
-      const score = tagOverlap(myTopTagList, their);
-      return { id: u.id, nickname: u.nickname || u.name?.split(" ")[0] || "익명", phrase: getTastePhrase(aggregateTags(u.records).slice(0, 5)), score };
-    })
-    .filter((u) => u.score > 0)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 3);
+  // 비슷한 취향 (자동 추천 — 저장 안 한 PARTIAL 유저)
+  const savedTargetIds = new Set(user.savedTastes.map((st) => st.targetUserId));
+  const similar =
+    myTopTagList.length > 0
+      ? await prisma.user
+          .findMany({
+            where: {
+              visibility: "PARTIAL",
+              id: { not: user.id, notIn: [...savedTargetIds] },
+              records: { some: {} },
+            },
+            include: { records: { include: { tags: true } } },
+            take: 50,
+          })
+          .then((users) =>
+            users
+              .map((u) => {
+                const their = aggregateTags(u.records).slice(0, 3).map(([t]) => t);
+                return {
+                  id: u.id,
+                  nickname: u.nickname || u.name?.split(" ")[0] || "익명",
+                  phrase: getTastePhrase(aggregateTags(u.records).slice(0, 5)),
+                  score: tagOverlap(myTopTagList, their),
+                };
+              })
+              .filter((u) => u.score > 0)
+              .sort((a, b) => b.score - a.score)
+              .slice(0, 3)
+          )
+      : [];
 
   return (
     <main className="flex flex-col min-h-screen px-6 pt-6 pb-16" style={{ color: "var(--fg)" }}>
-      {/* ── 상단 네비 ── */}
+      {/* 상단 네비 */}
       <nav className="flex justify-between items-center mb-8">
         <Link href="/" className="text-xs" style={{ color: "var(--dim)" }}>←</Link>
-        <div style={{ width: "1rem" }} />
-        <SettingsPanel
-          nickname={user.nickname}
-          visibility={user.visibility}
-          userId={user.id}
-        />
+        <div />
+        <SettingsPanel nickname={user.nickname} visibility={user.visibility} userId={user.id} />
       </nav>
 
-      {/* ── 닉네임 + 취향 한 줄 ── */}
+      {/* 닉네임 + 취향 한 줄 */}
       <section className="mb-10 space-y-2">
         <p className="text-lg" style={{ color: "var(--fg)" }}>{displayName}</p>
-        {allRecords.length > 0 ? (
-          <p className="text-sm" style={{ color: "var(--dim)" }}>{tastePhrase}</p>
-        ) : (
-          <p className="text-sm" style={{ color: "var(--dim)" }}>
-            아직 기록이 없어.<br />공간 안의 큐브를 스캔해봐.
-          </p>
-        )}
+        {allRecords.length > 0
+          ? <p className="text-sm" style={{ color: "var(--dim)" }}>{tastePhrase}</p>
+          : <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>
+              아직 기록이 없어.<br />공간 안의 큐브를 스캔해봐.
+            </p>
+        }
       </section>
 
       {allRecords.length > 0 && (
         <>
-          {/* ── 취향 태그 분포 ── */}
+          {/* 취향 태그 분포 */}
           {topTags.length > 0 && (
             <section className="mb-10 space-y-2">
               {topTags.map(([tag, count]) => {
@@ -130,26 +142,29 @@ export default async function ArchivePage() {
 
           <Divider />
 
-          {/* ── 방문 공간 목록 ── */}
-          <section className="mb-10 space-y-3">
+          {/* 방문 공간 목록 (이름 + 날짜 + 태그 1~2) */}
+          <section className="mb-10 space-y-4">
             <p className="text-xs mb-4" style={{ color: "var(--dim)" }}>내가 다녀온 곳</p>
             {allRecords.map((r) => (
-              <Link
-                key={r.id}
-                href={`/archive/${r.id}`}
-                className="flex justify-between items-baseline group"
-              >
-                <span className="text-sm group-hover:underline" style={{ color: "var(--fg)" }}>
-                  {r.space.name}
-                </span>
-                <span className="text-xs flex-shrink-0 ml-4" style={{ color: "var(--dim)" }}>
-                  {formatDate(r.visitedAt)}
-                </span>
+              <Link key={r.id} href={`/archive/${r.id}`} className="flex flex-col gap-0.5 group">
+                <div className="flex justify-between items-baseline">
+                  <span className="text-sm group-hover:underline" style={{ color: "var(--fg)" }}>
+                    {r.space.name}
+                  </span>
+                  <span className="text-xs flex-shrink-0 ml-4" style={{ color: "var(--dim)" }}>
+                    {formatDate(r.visitedAt)}
+                  </span>
+                </div>
+                {r.tags.length > 0 && (
+                  <span className="text-xs" style={{ color: "var(--dim)" }}>
+                    {r.tags.slice(0, 2).map((t) => TAG_LABELS[t.tag]).join(" · ")}
+                  </span>
+                )}
               </Link>
             ))}
           </section>
 
-          {/* ── 감정 문장 ── */}
+          {/* 감정 문장 */}
           {memos.length > 0 && (
             <>
               <Divider />
@@ -169,24 +184,20 @@ export default async function ArchivePage() {
 
           <Divider />
 
-          {/* ── 컬렉션 ── */}
+          {/* 컬렉션 */}
           <section className="mb-10">
             <p className="text-xs mb-4" style={{ color: "var(--dim)" }}>묶어둔 곳들</p>
             <CollectionManager collections={user.collections} visitedSpaces={visitedSpaces} />
           </section>
 
-          {/* ── 다시 가고 싶은 곳 ── */}
+          {/* 다시 가고 싶은 곳 */}
           {wantAgain.length > 0 && (
             <>
               <Divider />
               <section className="mb-10 space-y-3">
                 <p className="text-xs mb-4" style={{ color: "var(--dim)" }}>다시 가고 싶었던 곳</p>
                 {wantAgain.map((r) => (
-                  <Link
-                    key={r.id}
-                    href={`/space/${r.space.slug}`}
-                    className="flex items-center gap-2 group"
-                  >
+                  <Link key={r.id} href={`/space/${r.space.slug}`} className="flex items-center gap-2 group">
                     <span style={{ color: "var(--dim)" }}>·</span>
                     <span className="text-sm group-hover:underline" style={{ color: "var(--fg)" }}>
                       {r.space.name}
@@ -197,22 +208,42 @@ export default async function ArchivePage() {
             </>
           )}
 
-          {/* ── 가까운 취향 ── */}
+          {/* 관심 있는 취향 (저장한 것) */}
+          {savedTasteCards.length > 0 && (
+            <>
+              <Divider />
+              <section className="mb-10 space-y-4">
+                <p className="text-xs mb-4" style={{ color: "var(--dim)" }}>관심 있는 취향</p>
+                {savedTasteCards.map((u) => (
+                  <Link key={u.id} href={`/u/${u.id}`} className="flex items-start gap-2 group">
+                    <span style={{ color: "var(--dim)" }} className="mt-0.5">·</span>
+                    <div>
+                      <span className="text-sm group-hover:underline" style={{ color: "var(--fg)" }}>
+                        {u.nickname}
+                      </span>
+                      <span className="text-xs" style={{ color: "var(--dim)" }}> · {u.phrase}</span>
+                    </div>
+                  </Link>
+                ))}
+              </section>
+            </>
+          )}
+
+          {/* 비슷한 취향 (자동 추천) */}
           {similar.length > 0 && (
             <>
               <Divider />
               <section className="mb-10 space-y-4">
-                <p className="text-xs mb-4" style={{ color: "var(--dim)" }}>가까운 취향</p>
+                <p className="text-xs mb-4" style={{ color: "var(--dim)" }}>비슷한 취향</p>
                 {similar.map((u) => (
-                  <Link
-                    key={u.id}
-                    href={`/u/${u.id}`}
-                    className="block space-y-0.5 group"
-                  >
-                    <p className="text-sm group-hover:underline" style={{ color: "var(--fg)" }}>
-                      {u.nickname}
-                    </p>
-                    <p className="text-xs" style={{ color: "var(--dim)" }}>{u.phrase}</p>
+                  <Link key={u.id} href={`/u/${u.id}`} className="flex items-start gap-2 group">
+                    <span style={{ color: "var(--dim)" }} className="mt-0.5">·</span>
+                    <div>
+                      <span className="text-sm group-hover:underline" style={{ color: "var(--fg)" }}>
+                        {u.nickname}
+                      </span>
+                      <span className="text-xs" style={{ color: "var(--dim)" }}> · {u.phrase}</span>
+                    </div>
                   </Link>
                 ))}
               </section>
@@ -221,13 +252,5 @@ export default async function ArchivePage() {
         </>
       )}
     </main>
-  );
-}
-
-function Divider() {
-  return (
-    <div className="mb-8 text-xs" style={{ color: "var(--border)" }}>
-      ─────────────────────────────
-    </div>
   );
 }

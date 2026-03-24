@@ -178,20 +178,23 @@ export default async function SpacePage({ params }: Props) {
               {publicRecords.map((r) => {
                 const name = r.user.nickname || r.user.name?.split(" ")[0] || "익명";
                 return (
-                  <Link
-                    key={r.id}
-                    href={`/u/${r.user.id}`}
-                    className="block space-y-0.5 group"
-                  >
-                    <p className="text-sm group-hover:underline" style={{ color: "var(--fg)" }}>
-                      {name}
-                    </p>
+                  <div key={r.id} className="space-y-1">
+                    <div className="flex items-baseline justify-between">
+                      <p className="text-sm" style={{ color: "var(--fg)" }}>{name}</p>
+                      <Link
+                        href={`/u/${r.user.id}`}
+                        className="text-xs hover:underline flex-shrink-0 ml-3"
+                        style={{ color: "var(--dim)" }}
+                      >
+                        이 취향 보기 →
+                      </Link>
+                    </div>
                     {r.memo && (
                       <p className="text-xs" style={{ color: "var(--dim)" }}>
                         &ldquo;{r.memo}&rdquo;
                       </p>
                     )}
-                  </Link>
+                  </div>
                 );
               })}
             </div>

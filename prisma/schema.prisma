@@ -19,11 +19,13 @@ model User {
   visibility    Visibility @default(PRIVATE)
   createdAt     DateTime   @default(now())
 
-  accounts    Account[]
-  sessions    Session[]
-  records     Record[]
-  spaces      Space[]
-  collections Collection[]
+  accounts      Account[]
+  sessions      Session[]
+  records       Record[]
+  spaces        Space[]
+  collections   Collection[]
+  savedTastes   SavedTaste[] @relation("SavedBy")
+  savedByOthers SavedTaste[] @relation("SavedTarget")
 }
 
 model Account {
@@ -134,6 +136,18 @@ model CollectionItem {
   space      Space      @relation(fields: [spaceId], references: [id], onDelete: Cascade)
 
   @@unique([collectionId, spaceId])
+}
+
+model SavedTaste {
+  id           String   @id @default(cuid())
+  userId       String
+  targetUserId String
+  savedAt      DateTime @default(now())
+
+  user   User @relation("SavedBy",     fields: [userId],       references: [id], onDelete: Cascade)
+  target User @relation("SavedTarget", fields: [targetUserId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, targetUserId])
 }
 
 enum Visibility {
