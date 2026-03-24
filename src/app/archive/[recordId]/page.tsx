@@ -4,6 +4,7 @@ import Image from "next/image";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 import { TAG_LABELS } from "@/lib/tags";
+import DeleteRecordButton from "@/components/DeleteRecordButton";
 
 interface Props {
   params: Promise<{ recordId: string }>;
@@ -26,13 +27,13 @@ export default async function RecordDetailPage({ params }: Props) {
   return (
     <main className="flex flex-col min-h-screen px-6 py-8 gap-6">
       {/* 헤더 */}
-      <div className="space-y-1" style={{ color: "var(--dim)" }}>
-        <div className="flex justify-between">
-          <p className="text-xs">SPACECUBE / ARCHIVE / RECORD</p>
-          <Link href="/archive" className="text-xs" style={{ color: "var(--dim)" }}>&lt; back</Link>
-        </div>
-        <p className="text-xs">─────────────────────────────</p>
-      </div>
+      <nav className="flex justify-between items-center">
+        <Link href="/archive" className="text-xs" style={{ color: "var(--dim)" }}>
+          ←
+        </Link>
+        <p className="text-xs" style={{ color: "var(--dim)" }}>아카이브</p>
+        <div style={{ width: "1rem" }} />
+      </nav>
 
       {/* 공간 이미지 */}
       {record.space.imageUrl && (
@@ -51,42 +52,68 @@ export default async function RecordDetailPage({ params }: Props) {
 
       {/* 공간 정보 */}
       <div className="space-y-1">
-        <p className="text-base" style={{ color: "var(--fg)" }}>{record.space.name}</p>
+        <p className="text-base" style={{ color: "var(--fg)" }}>
+          {record.space.name}
+        </p>
         <p className="text-xs" style={{ color: "var(--dim)" }}>
-          {new Date(record.visitedAt).toLocaleDateString("ko-KR")}
+          {new Date(record.visitedAt).toLocaleDateString("ko-KR", {
+            year: "numeric",
+            month: "long",
+            day: "numeric",
+          })}
         </p>
       </div>
 
-      <p className="text-xs" style={{ color: "var(--border)" }}>─────────────────────────────</p>
+      <p className="text-xs" style={{ color: "var(--border)" }}>
+        ─────────────────────────────
+      </p>
 
       {/* 태그 */}
-      <div className="space-y-2">
-        <p className="text-xs" style={{ color: "var(--dim)" }}>// 그때 내가 느낀 것</p>
-        <div className="flex flex-wrap gap-2">
-          {record.tags.map((t) => (
-            <span
-              key={t.id}
-              className="text-xs px-3 py-1 border"
-              style={{ borderColor: "var(--fg)", color: "var(--fg)" }}
-            >
-              [{TAG_LABELS[t.tag]}]
-            </span>
-          ))}
+      {record.tags.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-xs" style={{ color: "var(--dim)" }}>그때 내가 느낀 것</p>
+          <div className="flex flex-wrap gap-2">
+            {record.tags.map((t) => (
+              <span
+                key={t.id}
+                className="text-xs px-3 py-1 border"
+                style={{ borderColor: "var(--fg)", color: "var(--fg)" }}
+              >
+                {TAG_LABELS[t.tag]}
+              </span>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* 메모 */}
       {record.memo && (
         <div className="space-y-2">
-          <p className="text-xs" style={{ color: "var(--dim)" }}>// 내가 남긴 기록</p>
+          <p className="text-xs" style={{ color: "var(--dim)" }}>내가 남긴 말</p>
           <p
-            className="text-sm p-3 border"
-            style={{ borderColor: "var(--border)", color: "var(--fg)", lineHeight: "1.8" }}
+            className="text-sm p-3 border leading-loose"
+            style={{ borderColor: "var(--border)", color: "var(--fg)" }}
           >
             &ldquo;{record.memo}&rdquo;
           </p>
         </div>
       )}
+
+      {/* 공간 바로가기 */}
+      <Link
+        href={`/space/${record.space.slug}`}
+        className="text-xs"
+        style={{ color: "var(--dim)" }}
+      >
+        공간 보기 →
+      </Link>
+
+      <div className="flex-1" />
+
+      {/* 삭제 */}
+      <div className="pt-4 border-t" style={{ borderColor: "var(--border)" }}>
+        <DeleteRecordButton recordId={record.id} />
+      </div>
     </main>
   );
 }

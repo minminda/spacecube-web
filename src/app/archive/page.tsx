@@ -1,16 +1,11 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import Image from "next/image";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 import { TAG_LABELS } from "@/lib/tags";
 import { Tag } from "@prisma/client";
-import { rankSpaces } from "@/lib/recommend";
-import ArchiveSearch from "./ArchiveSearch";
-
-interface Props {
-  searchParams: Promise<{ q?: string; mode?: string }>;
-}
+import SettingsPanel from "@/components/SettingsPanel";
+import CollectionManager from "@/components/CollectionManager";
 
 function getTastePhrase(topTags: [Tag, number][]): string {
   if (topTags.length === 0) return "나만의 공간을 탐험하는 사람";
@@ -22,7 +17,7 @@ function getTastePhrase(topTags: [Tag, number][]): string {
   if (tags.includes("WARM") && tags.includes("COMFORTABLE"))  return "따뜻하고 편안한 분위기를 즐기는 사람";
   if (tags.includes("UNIQUE") && tags.includes("INSPIRING"))  return "독특하고 영감 있는 공간을 탐험하는 사람";
   if (tags.includes("SENSIBLE") && tags.includes("UNIQUE"))   return "감각적이고 독특한 공간을 발견하는 사람";
-  if (tags.includes("INSPIRING") && tags.includes("SENSIBLE"))return "영감 있고 감각적인 공간에 끌리는 사람";
+  if (tags.includes("INSPIRING") && tags.includes("SENSIBLE")) return "영감 있고 감각적인 공간에 끌리는 사람";
   if (tags.includes("COMFORTABLE") && tags.includes("WANT_AGAIN")) return "편안해서 다시 찾고 싶은 공간을 좋아하는 사람";
 
   const fallback: Partial<Record<Tag, string>> = {
@@ -38,10 +33,15 @@ function getTastePhrase(topTags: [Tag, number][]): string {
   return fallback[tags[0]] ?? "나만의 공간을 탐험하는 사람";
 }
 
-export default async function ArchivePage({ searchParams }: Props) {
-  const { q, mode } = await searchParams;
-  const recMode = mode === "diverse" ? "diverse" : "similar";
+function formatDate(d: Date) {
+  return new Date(d).toLocaleDateString("ko-KR", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+}
 
+export default async function ArchivePage() {
   const session = await auth();
   if (!session?.user?.email) redirect("/login");
 
@@ -52,13 +52,23 @@ export default async function ArchivePage({ searchParams }: Props) {
         orderBy: { visitedAt: "desc" },
         include: { space: true, tags: true },
       },
+      collections: {
+        orderBy: { createdAt: "asc" },
+        include: {
+          items: {
+            orderBy: { addedAt: "asc" },
+            include: { space: true },
+          },
+        },
+      },
     },
   });
   if (!user) redirect("/login");
 
   const allRecords = user.records;
+  const nickname = user.nickname;
 
-  // 취향 요약용 전체 태그 집계
+  // 태그 집계
   const tagCount: Partial<Record<Tag, number>> = {};
   for (const record of allRecords) {
     for (const rt of record.tags) {
@@ -71,243 +81,198 @@ export default async function ArchivePage({ searchParams }: Props) {
 
   const tastePhrase = getTastePhrase(topTags);
   const maxCount = topTags[0]?.[1] ?? 1;
-  const recentThree = allRecords.slice(0, 3);
 
-  // 검색 필터
-  const filteredRecords = q
-    ? allRecords.filter((r) => r.space.name.includes(q))
-    : allRecords;
+  // 감정 문장 (메모 있는 것만)
+  const memos = allRecords.filter((r) => r.memo);
 
-  // 추천 공간 (방문하지 않은 곳)
-  const visitedIds = new Set(allRecords.map((r) => r.spaceId));
-  const candidates = await prisma.space.findMany({
-    where: { isActive: true, id: { notIn: [...visitedIds] } },
-    select: {
-      id: true, name: true, slug: true,
-      tagline: true, imageUrl: true, type: true,
-      district: true, spaceTags: true, lat: true, lng: true,
-    },
-  });
-
-  const recommended = rankSpaces(
-    candidates,
-    topTags.map(([t]) => t),
-    recMode,
-    3,
+  // 다시 가고 싶은 곳 (WANT_AGAIN 태그)
+  const wantAgain = allRecords.filter((r) =>
+    r.tags.some((t) => t.tag === "WANT_AGAIN")
   );
 
+  // 컬렉션에 추가 가능한 공간 목록
+  const visitedSpaces = allRecords.map((r) => ({
+    id: r.space.id,
+    name: r.space.name,
+    slug: r.space.slug,
+  }));
+
+  const displayName = nickname || (user.name?.split(" ")[0]) || "나";
+
   return (
-    <main className="flex flex-col min-h-screen px-6 py-8 gap-6">
-      {/* 헤더 */}
-      <div className="space-y-1" style={{ color: "var(--dim)" }}>
-        <div className="flex justify-between items-center">
-          <p className="text-xs">SPACECUBE / ARCHIVE</p>
-          <div className="flex items-center gap-3">
-            <ArchiveSearch defaultValue={q} />
-            <Link href="/" className="text-xs" style={{ color: "var(--dim)" }}>&lt; home</Link>
-          </div>
-        </div>
-        <p className="text-xs">─────────────────────────────</p>
-      </div>
+    <main
+      className="flex flex-col min-h-screen px-6 pt-6 pb-16 gap-0"
+      style={{ color: "var(--fg)" }}
+    >
+      {/* ── 상단 네비 ── */}
+      <nav className="flex justify-between items-center mb-8">
+        <Link href="/" className="text-xs" style={{ color: "var(--dim)" }}>
+          ←
+        </Link>
+        <p className="text-xs" style={{ color: "var(--dim)" }}>아카이브</p>
+        <SettingsPanel nickname={nickname} />
+      </nav>
 
       {allRecords.length === 0 ? (
-        <div className="flex-1 flex flex-col justify-center gap-3">
-          <p className="text-sm" style={{ color: "var(--dim)" }}>
-            &gt; 아직 기록이 없어.<br />
-            &nbsp;&nbsp;공간 안의 큐브를 스캔해봐.
+        /* ── 기록 없음 ── */
+        <div className="flex-1 flex flex-col justify-center gap-3 mt-20">
+          <p className="text-sm leading-loose" style={{ color: "var(--dim)" }}>
+            아직 아무 데도 가지 않았어.<br />
+            공간 안의 큐브를 스캔하면<br />
+            여기에 쌓이기 시작해.
           </p>
         </div>
       ) : (
         <>
-          {/* ── 섹션 1: 취향 요약 ── */}
-          <div className="space-y-5">
-            <p className="text-xs" style={{ color: "var(--dim)" }}>// 나의 취향</p>
-
-            <p className="text-sm" style={{ color: "var(--fg)" }}>
-              &quot;{tastePhrase}&quot;
+          {/* ── 섹션 1: 취향 한 줄 ── */}
+          <section className="mb-10">
+            <p className="text-xs mb-3" style={{ color: "var(--dim)" }}>
+              {displayName}는
             </p>
+            <p className="text-base leading-relaxed" style={{ color: "var(--fg)" }}>
+              {tastePhrase}
+            </p>
+          </section>
 
-            {topTags.length > 0 && (
-              <div className="space-y-2">
-                {topTags.map(([tag, count]) => {
-                  const filled = Math.round((count / maxCount) * 8);
-                  return (
-                    <div key={tag} className="flex items-center gap-3 text-xs">
-                      <span className="w-20 flex-shrink-0" style={{ color: "var(--dim)" }}>
-                        {TAG_LABELS[tag]}
-                      </span>
-                      <span style={{ color: "var(--fg)", letterSpacing: "1px" }}>
-                        {"█".repeat(filled)}
-                        <span style={{ color: "var(--border)" }}>{"░".repeat(8 - filled)}</span>
-                      </span>
-                      <span style={{ color: "var(--dim)" }}>{count}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-
-            <div className="space-y-2">
-              <p className="text-xs" style={{ color: "var(--dim)" }}>// 최근 방문</p>
-              <div className="flex gap-3">
-                {recentThree.map((record) => (
-                  <Link
-                    key={record.id}
-                    href={`/archive/${record.id}`}
-                    className="flex-1 min-w-0 space-y-1 group"
-                  >
-                    <div
-                      className="relative w-full overflow-hidden"
-                      style={{ aspectRatio: "1 / 1", border: "1px solid var(--border)" }}
+          {/* ── 섹션 2: 취향 태그 분포 ── */}
+          {topTags.length > 0 && (
+            <section className="mb-10 space-y-2">
+              {topTags.map(([tag, count]) => {
+                const filled = Math.round((count / maxCount) * 10);
+                return (
+                  <div key={tag} className="flex items-center gap-3 text-xs">
+                    <span
+                      className="w-16 flex-shrink-0 text-right"
+                      style={{ color: "var(--dim)" }}
                     >
-                      {record.space.imageUrl ? (
-                        <Image
-                          src={record.space.imageUrl}
-                          alt={record.space.name}
-                          fill
-                          className="object-cover opacity-60 group-hover:opacity-80 transition-opacity"
-                        />
-                      ) : (
-                        <div className="w-full h-full" style={{ background: "var(--border)" }} />
-                      )}
-                    </div>
-                    <p className="text-xs truncate" style={{ color: "var(--dim)" }}>
-                      {record.space.name}
-                    </p>
-                  </Link>
-                ))}
-              </div>
-            </div>
+                      {TAG_LABELS[tag]}
+                    </span>
+                    <span style={{ letterSpacing: "2px" }}>
+                      <span style={{ color: "var(--fg)" }}>{"▪".repeat(filled)}</span>
+                      <span style={{ color: "var(--border)" }}>{"▫".repeat(10 - filled)}</span>
+                    </span>
+                    <span style={{ color: "var(--dim)" }}>{count}</span>
+                  </div>
+                );
+              })}
+            </section>
+          )}
+
+          <div
+            className="mb-8 text-xs"
+            style={{ color: "var(--border)" }}
+          >
+            ─────────────────────────────
           </div>
 
-          <p className="text-xs" style={{ color: "var(--border)" }}>─────────────────────────────</p>
-
-          {/* ── 섹션 2: 기록 리스트 ── */}
-          <div className="space-y-3">
-            <div className="flex justify-between items-center">
-              <p className="text-xs" style={{ color: "var(--dim)" }}>// 기록 목록</p>
-              {q && (
-                <p className="text-xs" style={{ color: "var(--dim)" }}>
-                  &quot;{q}&quot; — {filteredRecords.length}건
-                </p>
-              )}
-            </div>
-
-            {filteredRecords.length === 0 ? (
-              <p className="text-xs" style={{ color: "var(--dim)" }}>&gt; 검색 결과가 없어.</p>
-            ) : (
-              filteredRecords.map((record) => (
-                <Link
-                  key={record.id}
-                  href={`/archive/${record.id}`}
-                  className="flex gap-4 p-3 border transition-colors hover:border-[var(--fg)]"
-                  style={{ borderColor: "var(--border)" }}
+          {/* ── 섹션 3: 방문 공간 목록 ── */}
+          <section className="mb-10 space-y-3">
+            <p className="text-xs mb-4" style={{ color: "var(--dim)" }}>
+              내가 다녀온 곳
+            </p>
+            {allRecords.map((record) => (
+              <Link
+                key={record.id}
+                href={`/archive/${record.id}`}
+                className="flex justify-between items-baseline group"
+              >
+                <span
+                  className="text-sm group-hover:underline"
+                  style={{ color: "var(--fg)" }}
                 >
-                  {record.space.imageUrl && (
-                    <div className="relative w-14 h-14 flex-shrink-0 overflow-hidden">
-                      <Image
-                        src={record.space.imageUrl}
-                        alt={record.space.name}
-                        fill
-                        className="object-cover opacity-70"
-                      />
-                    </div>
-                  )}
-                  <div className="flex flex-col justify-center gap-1 min-w-0">
-                    <p className="text-sm truncate">&gt; {record.space.name}</p>
-                    <p className="text-xs truncate" style={{ color: "var(--dim)" }}>
-                      {record.tags.map((t) => `[${TAG_LABELS[t.tag]}]`).join(" ")}
+                  {record.space.name}
+                </span>
+                <span
+                  className="text-xs flex-shrink-0 ml-4"
+                  style={{ color: "var(--dim)" }}
+                >
+                  {formatDate(record.visitedAt)}
+                </span>
+              </Link>
+            ))}
+          </section>
+
+          {/* ── 섹션 4: 감정 문장 ── */}
+          {memos.length > 0 && (
+            <>
+              <div
+                className="mb-8 text-xs"
+                style={{ color: "var(--border)" }}
+              >
+                ─────────────────────────────
+              </div>
+
+              <section className="mb-10 space-y-4">
+                <p className="text-xs mb-4" style={{ color: "var(--dim)" }}>
+                  그때 내가 남긴 말
+                </p>
+                {memos.map((record) => (
+                  <div key={record.id} className="space-y-1">
+                    <p
+                      className="text-sm leading-relaxed"
+                      style={{ color: "var(--fg)" }}
+                    >
+                      &ldquo;{record.memo}&rdquo;
                     </p>
                     <p className="text-xs" style={{ color: "var(--dim)" }}>
-                      {new Date(record.visitedAt).toLocaleDateString("ko-KR")}
+                      — {record.space.name}
                     </p>
                   </div>
-                </Link>
-              ))
-            )}
+                ))}
+              </section>
+            </>
+          )}
+
+          <div
+            className="mb-8 text-xs"
+            style={{ color: "var(--border)" }}
+          >
+            ─────────────────────────────
           </div>
 
-          <p className="text-xs" style={{ color: "var(--border)" }}>─────────────────────────────</p>
+          {/* ── 섹션 5: 컬렉션 ── */}
+          <section className="mb-10">
+            <p className="text-xs mb-4" style={{ color: "var(--dim)" }}>
+              묶어둔 곳들
+            </p>
+            <CollectionManager
+              collections={user.collections}
+              visitedSpaces={visitedSpaces}
+            />
+          </section>
 
-          {/* ── 섹션 3: 탐험 확장 ── */}
-          <div className="space-y-4 pb-4">
-            <div className="flex justify-between items-center">
-              <p className="text-xs" style={{ color: "var(--dim)" }}>// 다음 탐험</p>
-              {recMode === "diverse" && (
-                <p className="text-xs" style={{ color: "var(--dim)" }}>다른 분위기</p>
-              )}
-            </div>
+          {/* ── 섹션 6: 다시 가고 싶은 곳 ── */}
+          {wantAgain.length > 0 && (
+            <>
+              <div
+                className="mb-8 text-xs"
+                style={{ color: "var(--border)" }}
+              >
+                ─────────────────────────────
+              </div>
 
-            {recommended.length > 0 ? (
-              <>
-                <p className="text-xs" style={{ color: "var(--dim)" }}>
-                  &gt; {recMode === "diverse" ? "조금 다른 결의 공간이에요." : "이런 공간도 좋아할 수 있어요."}
+              <section className="mb-10 space-y-3">
+                <p className="text-xs mb-4" style={{ color: "var(--dim)" }}>
+                  다시 가고 싶었던 곳
                 </p>
-                <div className="space-y-2">
-                  {recommended.map((space) => (
-                    <Link
-                      key={space.id}
-                      href={`/space/${space.slug}`}
-                      className="flex gap-3 p-3 border transition-colors hover:border-[var(--fg)]"
-                      style={{ borderColor: "var(--border)" }}
+                {wantAgain.map((record) => (
+                  <Link
+                    key={record.id}
+                    href={`/space/${record.space.slug}`}
+                    className="flex items-center gap-2 group"
+                  >
+                    <span style={{ color: "var(--dim)" }}>·</span>
+                    <span
+                      className="text-sm group-hover:underline"
+                      style={{ color: "var(--fg)" }}
                     >
-                      {space.imageUrl && (
-                        <div className="relative w-12 h-12 flex-shrink-0 overflow-hidden">
-                          <Image
-                            src={space.imageUrl}
-                            alt={space.name}
-                            fill
-                            className="object-cover opacity-60"
-                          />
-                        </div>
-                      )}
-                      <div className="flex flex-col justify-center gap-1 min-w-0">
-                        <p className="text-sm truncate">&gt; {space.name}</p>
-                        {space.tagline && (
-                          <p className="text-xs truncate italic" style={{ color: "var(--dim)" }}>
-                            &ldquo;{space.tagline}&rdquo;
-                          </p>
-                        )}
-                        {space.district && (
-                          <p className="text-xs" style={{ color: "var(--dim)" }}>
-                            [{space.district}]
-                          </p>
-                        )}
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-              </>
-            ) : (
-              <p className="text-xs" style={{ color: "var(--dim)" }}>
-                &gt; 아직 추천할 공간이 없어. 더 많은 공간이 등록되면 연결해줄게.
-              </p>
-            )}
-
-            {/* 모드 전환 버튼 */}
-            <div className="flex flex-col gap-2 pt-1">
-              <Link
-                href="/archive?mode=similar"
-                className="text-xs px-3 py-2 border transition-colors hover:border-[var(--fg)]"
-                style={{
-                  borderColor: recMode === "similar" ? "var(--fg)" : "var(--border)",
-                  color: recMode === "similar" ? "var(--fg)" : "var(--dim)",
-                }}
-              >
-                이 취향 더 탐험하기 _
-              </Link>
-              <Link
-                href="/archive?mode=diverse"
-                className="text-xs px-3 py-2 border transition-colors hover:border-[var(--fg)]"
-                style={{
-                  borderColor: recMode === "diverse" ? "var(--fg)" : "var(--border)",
-                  color: recMode === "diverse" ? "var(--fg)" : "var(--dim)",
-                }}
-              >
-                조금 다른 분위기 보기 _
-              </Link>
-            </div>
-          </div>
+                      {record.space.name}
+                    </span>
+                  </Link>
+                ))}
+              </section>
+            </>
+          )}
         </>
       )}
     </main>
