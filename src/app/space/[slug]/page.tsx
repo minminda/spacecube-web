@@ -4,6 +4,7 @@ import Image from "next/image";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 import type { Metadata } from "next";
+import SpaceStory from "./SpaceStory";
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -114,54 +115,14 @@ export default async function SpacePage({ params }: Props) {
 
         <p className="text-xs" style={{ color: "var(--border)" }}>─────────────────────────────</p>
 
-        {/* 섹션 1: 공간 해석 */}
-        <div className="space-y-4">
-          <p className="text-xs" style={{ color: "var(--dim)" }}>// 공간 해석</p>
-
-          <div className="space-y-2">
-            <p className="text-sm leading-relaxed whitespace-pre-line">{space.description}</p>
-          </div>
-
-          {space.philosophy && (
-            <div className="space-y-1">
-              <p className="text-xs" style={{ color: "var(--dim)" }}>&gt; 왜 만들었나</p>
-              <p className="text-sm leading-relaxed whitespace-pre-line" style={{ color: "var(--dim)" }}>
-                {space.philosophy}
-              </p>
-            </div>
-          )}
-
-          {space.ownerMessage && (
-            <div className="space-y-1">
-              <p className="text-xs" style={{ color: "var(--dim)" }}>&gt; 운영자의 말</p>
-              <p className="text-sm" style={{ color: "var(--fg)" }}>
-                &ldquo;{space.ownerMessage}&rdquo;
-              </p>
-            </div>
-          )}
-        </div>
-
-        {/* 섹션 2: 경험 가이드 */}
-        {space.experienceGuide && (
-          <>
-            <p className="text-xs" style={{ color: "var(--border)" }}>─────────────────────────────</p>
-            <div className="space-y-3">
-              <p className="text-xs" style={{ color: "var(--dim)" }}>// 경험 가이드</p>
-              <p className="text-sm leading-relaxed whitespace-pre-line">{space.experienceGuide}</p>
-            </div>
-          </>
-        )}
-
-        {/* 섹션 3: 공간 포인트 */}
-        {space.spacePoints && (
-          <>
-            <p className="text-xs" style={{ color: "var(--border)" }}>─────────────────────────────</p>
-            <div className="space-y-3">
-              <p className="text-xs" style={{ color: "var(--dim)" }}>// 공간 포인트</p>
-              <p className="text-sm leading-relaxed whitespace-pre-line">{space.spacePoints}</p>
-            </div>
-          </>
-        )}
+        {/* 스토리 섹션 (탭해서 열기) */}
+        <SpaceStory
+          description={space.description}
+          philosophy={space.philosophy}
+          ownerMessage={space.ownerMessage}
+          experienceGuide={space.experienceGuide}
+          spacePoints={space.spacePoints}
+        />
 
         <p className="text-xs" style={{ color: "var(--border)" }}>─────────────────────────────</p>
 
