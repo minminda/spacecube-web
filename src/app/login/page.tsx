@@ -9,7 +9,7 @@ export default function LoginPage() {
       </div>
 
       <div className="space-y-2">
-        <p className="text-xl tracking-widest">□ SPACECUBE</p>
+        <p className="text-xl tracking-widest">□ 공간큐브</p>
         <p className="text-sm" style={{ color: "var(--dim)" }}>
           &gt; 공간 경험을 기록하고<br />
           &nbsp;&nbsp;취향을 발견해봐.
