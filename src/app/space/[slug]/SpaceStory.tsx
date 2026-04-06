@@ -1,13 +1,7 @@
 "use client";
 
 import { useState } from "react";
-
-interface Section {
-  key: string;
-  label: string;
-  content: string | null | undefined;
-  subItems?: { label: string; content: string }[];
-}
+import type { Lang } from "@/lib/i18n";
 
 interface Props {
   description: string;
@@ -15,6 +9,7 @@ interface Props {
   ownerMessage?: string | null;
   experienceGuide?: string | null;
   spacePoints?: string | null;
+  lang: Lang;
 }
 
 function CollapsibleSection({ label, children }: { label: string; children: React.ReactNode }) {
@@ -40,15 +35,19 @@ function CollapsibleSection({ label, children }: { label: string; children: Reac
   );
 }
 
-export default function SpaceStory({ description, philosophy, ownerMessage, experienceGuide, spacePoints }: Props) {
+export default function SpaceStory({ description, philosophy, ownerMessage, experienceGuide, spacePoints, lang }: Props) {
+  const ko = lang === "ko";
+
   return (
     <>
       {/* 섹션 1: 공간 해석 */}
-      <CollapsibleSection label="공간 해석">
+      <CollapsibleSection label={ko ? "공간 해석" : "About This Space"}>
         <p className="text-sm leading-relaxed whitespace-pre-line">{description}</p>
         {philosophy && (
           <div className="space-y-1">
-            <p className="text-xs" style={{ color: "var(--dim)" }}>&gt; 왜 만들었나</p>
+            <p className="text-xs" style={{ color: "var(--dim)" }}>
+              &gt; {ko ? "왜 만들었나" : "Why it was created"}
+            </p>
             <p className="text-sm leading-relaxed whitespace-pre-line" style={{ color: "var(--dim)" }}>
               {philosophy}
             </p>
@@ -56,7 +55,9 @@ export default function SpaceStory({ description, philosophy, ownerMessage, expe
         )}
         {ownerMessage && (
           <div className="space-y-1">
-            <p className="text-xs" style={{ color: "var(--dim)" }}>&gt; 운영자의 말</p>
+            <p className="text-xs" style={{ color: "var(--dim)" }}>
+              &gt; {ko ? "운영자의 말" : "Owner's message"}
+            </p>
             <p className="text-sm" style={{ color: "var(--fg)" }}>
               &ldquo;{ownerMessage}&rdquo;
             </p>
@@ -68,7 +69,7 @@ export default function SpaceStory({ description, philosophy, ownerMessage, expe
       {experienceGuide && (
         <>
           <p className="text-xs" style={{ color: "var(--border)" }}>─────────────────────────────</p>
-          <CollapsibleSection label="경험 가이드">
+          <CollapsibleSection label={ko ? "경험 가이드" : "Experience Guide"}>
             <p className="text-sm leading-relaxed whitespace-pre-line">{experienceGuide}</p>
           </CollapsibleSection>
         </>
@@ -78,7 +79,7 @@ export default function SpaceStory({ description, philosophy, ownerMessage, expe
       {spacePoints && (
         <>
           <p className="text-xs" style={{ color: "var(--border)" }}>─────────────────────────────</p>
-          <CollapsibleSection label="공간 포인트">
+          <CollapsibleSection label={ko ? "공간 포인트" : "Space Highlights"}>
             <p className="text-sm leading-relaxed whitespace-pre-line">{spacePoints}</p>
           </CollapsibleSection>
         </>

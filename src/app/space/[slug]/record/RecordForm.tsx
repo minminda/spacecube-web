@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Tag } from "@prisma/client";
-import { TAG_LABELS, ALL_TAGS } from "@/lib/tags";
+import { getTagLabels, ALL_TAGS } from "@/lib/tags";
+import type { Lang } from "@/lib/i18n";
 import TagChip from "@/components/TagChip";
 
 const MAX_TAGS = 2;
@@ -14,9 +15,12 @@ interface Props {
   spaceTags: Tag[];
   existingTags: Tag[];
   existingMemo: string;
+  lang: Lang;
 }
 
-export default function RecordForm({ space, spaceTags, existingTags, existingMemo }: Props) {
+export default function RecordForm({ space, spaceTags, existingTags, existingMemo, lang }: Props) {
+  const ko = lang === "ko";
+  const TAG_LABELS = getTagLabels(lang);
   const tagsToShow = spaceTags.length > 0 ? spaceTags : ALL_TAGS;
   const router = useRouter();
   const [selectedTags, setSelectedTags] = useState<Tag[]>(existingTags);
@@ -70,7 +74,9 @@ export default function RecordForm({ space, spaceTags, existingTags, existingMem
       {/* 태그 선택 */}
       <div className="space-y-3">
         <div className="flex justify-between items-center">
-          <p className="text-xs" style={{ color: "var(--dim)" }}>// 이 공간 어땠나요?</p>
+          <p className="text-xs" style={{ color: "var(--dim)" }}>
+            // {ko ? "이 공간 어땠나요?" : "How was this space?"}
+          </p>
           <p className="text-xs" style={{ color: selectedTags.length >= MAX_TAGS ? "var(--fg)" : "var(--dim)" }}>
             {selectedTags.length}/{MAX_TAGS}
           </p>
@@ -88,7 +94,9 @@ export default function RecordForm({ space, spaceTags, existingTags, existingMem
         </div>
         {selectedTags.length >= MAX_TAGS && (
           <p className="text-xs" style={{ color: "var(--dim)" }}>
-            &gt; 최대 {MAX_TAGS}개까지 고를 수 있어.
+            &gt; {ko
+              ? `최대 ${MAX_TAGS}개까지 고를 수 있어.`
+              : `You can select up to ${MAX_TAGS} tags.`}
           </p>
         )}
       </div>
@@ -97,11 +105,15 @@ export default function RecordForm({ space, spaceTags, existingTags, existingMem
 
       {/* 메모 */}
       <div className="space-y-2">
-        <p className="text-xs" style={{ color: "var(--dim)" }}>// 기록을 남겨볼까요? (선택)</p>
+        <p className="text-xs" style={{ color: "var(--dim)" }}>
+          // {ko ? "기록을 남겨볼까요? (선택)" : "Want to leave a note? (optional)"}
+        </p>
         <textarea
           value={memo}
           onChange={handleMemoChange}
-          placeholder="오늘 어떤 생각이 들었나요... 한 줄로 남겨도 좋아요."
+          placeholder={ko
+            ? "오늘 어떤 생각이 들었나요... 한 줄로 남겨도 좋아요."
+            : "What did you feel today... even one line is enough."}
           rows={4}
           className="w-full text-sm p-3 resize-none outline-none border"
           style={{
@@ -119,7 +131,9 @@ export default function RecordForm({ space, spaceTags, existingTags, existingMem
         className="w-full text-sm py-2 px-4 border hover:bg-[var(--fg)] hover:text-[var(--bg)] transition-colors disabled:opacity-30"
         style={{ borderColor: "var(--fg)" }}
       >
-        {loading ? "// 저장 중..." : "[[ 저장하기 ]]"}
+        {loading
+          ? (ko ? "// 저장 중..." : "// Saving...")
+          : (ko ? "[[ 저장하기 ]]" : "[[ Save ]]")}
       </button>
     </main>
   );

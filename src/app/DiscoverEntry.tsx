@@ -3,10 +3,16 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import DistrictMap from "./DistrictMap";
+import type { Lang } from "@/lib/i18n";
 
 const DISTRICTS = ["서촌", "성수", "망원", "북촌", "가로수길", "이태원", "홍대", "연남동"];
 
-export default function DiscoverEntry() {
+interface Props {
+  lang: Lang;
+}
+
+export default function DiscoverEntry({ lang }: Props) {
+  const ko = lang === "ko";
   const router = useRouter();
   const [input, setInput] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
@@ -19,7 +25,6 @@ export default function DiscoverEntry() {
     e.preventDefault();
     const trimmed = input.trim();
     if (!trimmed) return;
-    // 지도에 없는 지역이면 바로 이동
     if (!DISTRICTS.includes(trimmed)) {
       router.push(`/discover?district=${encodeURIComponent(trimmed)}`);
     } else {
@@ -27,7 +32,6 @@ export default function DiscoverEntry() {
     }
   }
 
-  // 지도 연출 중이면 지도만 보여줌
   if (selected) {
     return (
       <div className="space-y-3">
@@ -61,7 +65,7 @@ export default function DiscoverEntry() {
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="지역 직접 입력_"
+          placeholder={ko ? "지역 직접 입력_" : "Enter district name_"}
           className="flex-1 text-xs bg-transparent outline-none border-b pb-1"
           style={{ borderColor: "var(--border)", color: "var(--fg)" }}
         />

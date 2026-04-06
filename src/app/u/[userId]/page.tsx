@@ -2,7 +2,8 @@ import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
-import { TAG_LABELS } from "@/lib/tags";
+import { getTagLabels } from "@/lib/tags";
+import { getLang } from "@/lib/i18n";
 import { aggregateTags, getTastePhrase } from "@/lib/taste";
 import SaveTasteButton from "@/components/SaveTasteButton";
 
@@ -13,6 +14,9 @@ interface Props {
 export default async function PublicArchivePage({ params }: Props) {
   const { userId } = await params;
   const session = await auth();
+  const lang = await getLang();
+  const ko = lang === "ko";
+  const TAG_LABELS = getTagLabels(lang);
 
   const target = await prisma.user.findUnique({
     where: { id: userId },
@@ -30,14 +34,13 @@ export default async function PublicArchivePage({ params }: Props) {
 
   const allTags = aggregateTags(target.records);
   const topTags = allTags.slice(0, 5);
-  const tastePhrase = getTastePhrase(topTags);
+  const tastePhrase = getTastePhrase(topTags, lang);
   const maxCount = topTags[0]?.[1] ?? 1;
-  const displayName = target.nickname || target.name?.split(" ")[0] || "익명";
+  const displayName = target.nickname || target.name?.split(" ")[0] || (ko ? "익명" : "Anonymous");
 
   const recentSpaces = target.records.slice(0, 5);
   const publicMemos = target.records.filter((r) => r.memo).slice(0, 3);
 
-  // 저장 여부 확인
   let isLoggedIn = false;
   let alreadySaved = false;
   if (session?.user?.email) {
@@ -56,13 +59,17 @@ export default async function PublicArchivePage({ params }: Props) {
       {/* 네비 */}
       <nav className="flex justify-between items-center mb-8">
         <Link href="/" className="text-xs" style={{ color: "var(--dim)" }}>←</Link>
-        <p className="text-xs" style={{ color: "var(--dim)" }}>취향 구경</p>
+        <p className="text-xs" style={{ color: "var(--dim)" }}>
+          {ko ? "취향 구경" : "Taste Profile"}
+        </p>
         <div style={{ width: "1rem" }} />
       </nav>
 
       {/* 상단: 닉네임 + 취향 한 줄 */}
       <section className="mb-10 space-y-2">
-        <p className="text-xs" style={{ color: "var(--dim)" }}>{displayName}의 기록</p>
+        <p className="text-xs" style={{ color: "var(--dim)" }}>
+          {ko ? `${displayName}의 기록` : `${displayName}'s Records`}
+        </p>
         <p className="text-base" style={{ color: "var(--fg)" }}>{tastePhrase}</p>
       </section>
 
@@ -91,7 +98,9 @@ export default async function PublicArchivePage({ params }: Props) {
       {/* 최근 공간 */}
       {recentSpaces.length > 0 && (
         <section className="mb-10 space-y-3">
-          <p className="text-xs mb-4" style={{ color: "var(--dim)" }}>최근 좋아한 공간</p>
+          <p className="text-xs mb-4" style={{ color: "var(--dim)" }}>
+            {ko ? "최근 좋아한 공간" : "Recently Liked Spaces"}
+          </p>
           {recentSpaces.map((r) => (
             <Link
               key={r.id}
@@ -116,7 +125,9 @@ export default async function PublicArchivePage({ params }: Props) {
         <>
           <Divider />
           <section className="mb-10 space-y-4">
-            <p className="text-xs mb-4" style={{ color: "var(--dim)" }}>남긴 말</p>
+            <p className="text-xs mb-4" style={{ color: "var(--dim)" }}>
+              {ko ? "남긴 말" : "Notes"}
+            </p>
             {publicMemos.map((r) => (
               <div key={r.id} className="space-y-1">
                 <p className="text-sm leading-relaxed" style={{ color: "var(--fg)" }}>
@@ -137,6 +148,7 @@ export default async function PublicArchivePage({ params }: Props) {
           targetUserId={userId}
           initialSaved={alreadySaved}
           isLoggedIn={isLoggedIn}
+          lang={lang}
         />
       </section>
     </main>

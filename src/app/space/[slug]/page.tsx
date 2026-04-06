@@ -3,6 +3,8 @@ import Link from "next/link";
 import Image from "next/image";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
+import { getLang } from "@/lib/i18n";
+import { getTagLabels } from "@/lib/tags";
 import type { Metadata } from "next";
 import SpaceStory from "./SpaceStory";
 
@@ -43,6 +45,10 @@ export default async function SpacePage({ params }: Props) {
   if (!space) notFound();
 
   const session = await auth();
+  const lang = await getLang();
+  const ko = lang === "ko";
+  const TAG_LABELS = getTagLabels(lang);
+
   let hasRecord = false;
   if (session?.user?.email) {
     const user = await prisma.user.findUnique({ where: { email: session.user.email } });
@@ -54,7 +60,6 @@ export default async function SpacePage({ params }: Props) {
     }
   }
 
-  // 이 공간을 좋아한 사람들 (PARTIAL 공개 유저만)
   const publicRecords = await prisma.record.findMany({
     where: {
       spaceId: space.id,
@@ -93,7 +98,7 @@ export default async function SpacePage({ params }: Props) {
           )}
         </div>
 
-        {/* 핵심 정보 (위치 + 운영시간) */}
+        {/* 핵심 정보 */}
         <div className="space-y-1 text-xs" style={{ color: "var(--dim)" }}>
           {space.naverMapUrl ? (
             <a
@@ -103,31 +108,34 @@ export default async function SpacePage({ params }: Props) {
               className="block hover:underline"
               style={{ color: "var(--dim)" }}
             >
-              &gt; 위치 : {space.location} ↗
+              &gt; {ko ? "위치" : "Location"} : {space.location} ↗
             </a>
           ) : (
-            <p>&gt; 위치 : {space.location}</p>
+            <p>&gt; {ko ? "위치" : "Location"} : {space.location}</p>
           )}
           {space.openingHours && (
-            <p>&gt; 운영 : {space.openingHours}</p>
+            <p>&gt; {ko ? "운영" : "Hours"} : {space.openingHours}</p>
           )}
         </div>
 
         <p className="text-xs" style={{ color: "var(--border)" }}>─────────────────────────────</p>
 
-        {/* 스토리 섹션 (탭해서 열기) */}
+        {/* 스토리 섹션 */}
         <SpaceStory
           description={space.description}
           philosophy={space.philosophy}
           ownerMessage={space.ownerMessage}
           experienceGuide={space.experienceGuide}
           spacePoints={space.spacePoints}
+          lang={lang}
         />
 
         <p className="text-xs" style={{ color: "var(--border)" }}>─────────────────────────────</p>
 
         <p className="text-xs" style={{ color: "var(--dim)" }}>
-          &gt; 이 공간의 이야기는 공간에서 열립니다.
+          &gt; {ko
+            ? "이 공간의 이야기는 공간에서 열립니다."
+            : "The story of this space unfolds within."}
         </p>
 
         {/* 이 공간을 좋아한 사람들 */}
@@ -135,9 +143,11 @@ export default async function SpacePage({ params }: Props) {
           <>
             <p className="text-xs" style={{ color: "var(--border)" }}>─────────────────────────────</p>
             <div className="space-y-4">
-              <p className="text-xs" style={{ color: "var(--dim)" }}>이 공간을 좋아한 사람들</p>
+              <p className="text-xs" style={{ color: "var(--dim)" }}>
+                {ko ? "이 공간을 좋아한 사람들" : "People Who Loved This Space"}
+              </p>
               {publicRecords.map((r) => {
-                const name = r.user.nickname || r.user.name?.split(" ")[0] || "익명";
+                const name = r.user.nickname || r.user.name?.split(" ")[0] || (ko ? "익명" : "Anonymous");
                 return (
                   <div key={r.id} className="space-y-1">
                     <div className="flex items-baseline justify-between">
@@ -147,7 +157,7 @@ export default async function SpacePage({ params }: Props) {
                         className="text-xs hover:underline flex-shrink-0 ml-3"
                         style={{ color: "var(--dim)" }}
                       >
-                        이 취향 보기 →
+                        {ko ? "이 취향 보기 →" : "View taste →"}
                       </Link>
                     </div>
                     {r.memo && (
@@ -171,7 +181,9 @@ export default async function SpacePage({ params }: Props) {
             className="block w-full text-center text-sm py-2 px-4 border hover:bg-[var(--fg)] hover:text-[var(--bg)] transition-colors"
             style={{ borderColor: "var(--fg)" }}
           >
-            {hasRecord ? "[[ 기록 수정하기 ]]" : "[[ 이 공간, 기록 남기기 ]]"}
+            {hasRecord
+              ? (ko ? "[[ 기록 수정하기 ]]" : "[[ Edit Record ]]")
+              : (ko ? "[[ 이 공간, 기록 남기기 ]]" : "[[ Leave a Record ]]")}
           </Link>
         ) : (
           <Link
@@ -179,7 +191,7 @@ export default async function SpacePage({ params }: Props) {
             className="block w-full text-center text-sm py-2 px-4 border hover:bg-[var(--fg)] hover:text-[var(--bg)] transition-colors"
             style={{ borderColor: "var(--fg)" }}
           >
-            [[ 로그인하고 기록 남기기 ]]
+            {ko ? "[[ 로그인하고 기록 남기기 ]]" : "[[ Sign In to Leave a Record ]]"}
           </Link>
         )}
       </div>

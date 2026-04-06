@@ -1,14 +1,17 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import type { Lang } from "@/lib/i18n";
 
 interface Props {
   targetUserId: string;
   initialSaved: boolean;
   isLoggedIn: boolean;
+  lang: Lang;
 }
 
-export default function SaveTasteButton({ targetUserId, initialSaved, isLoggedIn }: Props) {
+export default function SaveTasteButton({ targetUserId, initialSaved, isLoggedIn, lang }: Props) {
+  const ko = lang === "ko";
   const [saved, setSaved] = useState(initialSaved);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
@@ -44,7 +47,11 @@ export default function SaveTasteButton({ targetUserId, initialSaved, isLoggedIn
           : { borderColor: "var(--fg)", color: "var(--fg)" }
       }
     >
-      {loading ? "..." : saved ? "저장됨 ✓" : "[[ 이 취향 저장하기 ]]"}
+      {loading
+        ? "..."
+        : saved
+          ? (ko ? "저장됨 ✓" : "Saved ✓")
+          : (ko ? "[[ 이 취향 저장하기 ]]" : "[[ Save This Taste ]]")}
     </button>
   );
 }

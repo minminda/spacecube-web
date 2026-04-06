@@ -2,22 +2,19 @@
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
+import type { Lang } from "@/lib/i18n";
 
 type Visibility = "PRIVATE" | "PARTIAL" | "LINK_ONLY";
-
-const VISIBILITY_LABELS: Record<Visibility, string> = {
-  PRIVATE:   "나만 보기",
-  LINK_ONLY: "링크로만 공개",
-  PARTIAL:   "일부 공개",
-};
 
 interface Props {
   nickname: string | null;
   visibility: Visibility;
   userId: string;
+  lang: Lang;
 }
 
-export default function SettingsPanel({ nickname, visibility, userId }: Props) {
+export default function SettingsPanel({ nickname, visibility, userId, lang }: Props) {
+  const ko = lang === "ko";
   const [open, setOpen] = useState(false);
   const [nickValue, setNickValue] = useState(nickname ?? "");
   const [vis, setVis] = useState<Visibility>(visibility);
@@ -25,6 +22,10 @@ export default function SettingsPanel({ nickname, visibility, userId }: Props) {
   const [copied, setCopied] = useState(false);
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const VISIBILITY_LABELS: Record<Visibility, string> = ko
+    ? { PRIVATE: "나만 보기", LINK_ONLY: "링크로만 공개", PARTIAL: "일부 공개" }
+    : { PRIVATE: "Only Me", LINK_ONLY: "Link Only", PARTIAL: "Partially Public" };
 
   useEffect(() => {
     if (open) inputRef.current?.focus();
@@ -56,7 +57,7 @@ export default function SettingsPanel({ nickname, visibility, userId }: Props) {
         onClick={() => setOpen(true)}
         className="text-xs"
         style={{ color: "var(--dim)" }}
-        aria-label="설정"
+        aria-label={ko ? "설정" : "Settings"}
       >
         ⚙
       </button>
@@ -73,7 +74,9 @@ export default function SettingsPanel({ nickname, visibility, userId }: Props) {
           >
             {/* 헤더 */}
             <div className="flex justify-between items-center">
-              <p className="text-xs" style={{ color: "var(--dim)" }}>설정</p>
+              <p className="text-xs" style={{ color: "var(--dim)" }}>
+                {ko ? "설정" : "Settings"}
+              </p>
               <button onClick={() => setOpen(false)} className="text-xs" style={{ color: "var(--dim)" }}>
                 [✕]
               </button>
@@ -81,12 +84,14 @@ export default function SettingsPanel({ nickname, visibility, userId }: Props) {
 
             {/* 닉네임 */}
             <div className="space-y-2">
-              <p className="text-xs" style={{ color: "var(--dim)" }}>닉네임</p>
+              <p className="text-xs" style={{ color: "var(--dim)" }}>
+                {ko ? "닉네임" : "Nickname"}
+              </p>
               <input
                 ref={inputRef}
                 value={nickValue}
                 onChange={(e) => setNickValue(e.target.value.slice(0, 20))}
-                placeholder="최대 20자"
+                placeholder={ko ? "최대 20자" : "Max 20 characters"}
                 maxLength={20}
                 className="w-full text-sm bg-transparent border-b outline-none pb-1"
                 style={{ borderColor: "var(--dim)", color: "var(--fg)" }}
@@ -96,7 +101,9 @@ export default function SettingsPanel({ nickname, visibility, userId }: Props) {
 
             {/* 공개 범위 */}
             <div className="space-y-2">
-              <p className="text-xs" style={{ color: "var(--dim)" }}>공개 범위</p>
+              <p className="text-xs" style={{ color: "var(--dim)" }}>
+                {ko ? "공개 범위" : "Visibility"}
+              </p>
               <div className="space-y-1">
                 {(["PRIVATE", "LINK_ONLY", "PARTIAL"] as Visibility[]).map((v) => (
                   <button
@@ -113,9 +120,9 @@ export default function SettingsPanel({ nickname, visibility, userId }: Props) {
                 ))}
               </div>
               <p className="text-xs" style={{ color: "var(--dim)" }}>
-                {vis === "PRIVATE"   && "나만 볼 수 있어"}
-                {vis === "LINK_ONLY" && "링크를 아는 사람만 볼 수 있어"}
-                {vis === "PARTIAL"   && "비슷한 취향에서 발견될 수 있어"}
+                {vis === "PRIVATE"   && (ko ? "나만 볼 수 있어" : "Only you can see this")}
+                {vis === "LINK_ONLY" && (ko ? "링크를 아는 사람만 볼 수 있어" : "Only people with the link can see this")}
+                {vis === "PARTIAL"   && (ko ? "비슷한 취향에서 발견될 수 있어" : "You can be discovered by similar tastes")}
               </p>
             </div>
 
@@ -126,7 +133,9 @@ export default function SettingsPanel({ nickname, visibility, userId }: Props) {
                 className="w-full text-left text-xs py-2 px-2 border"
                 style={{ borderColor: "var(--border)", color: "var(--dim)" }}
               >
-                {copied ? "링크 복사됨 ✓" : "공유 링크 복사 _"}
+                {copied
+                  ? (ko ? "링크 복사됨 ✓" : "Link Copied ✓")
+                  : (ko ? "공유 링크 복사 _" : "Copy Share Link _")}
               </button>
             )}
 
@@ -137,7 +146,7 @@ export default function SettingsPanel({ nickname, visibility, userId }: Props) {
               className="w-full text-sm py-2 border transition-colors hover:bg-[var(--fg)] hover:text-[var(--bg)]"
               style={{ borderColor: "var(--fg)", color: "var(--fg)" }}
             >
-              {saving ? "..." : "[[ 저장 ]]"}
+              {saving ? "..." : (ko ? "[[ 저장 ]]" : "[[ Save ]]")}
             </button>
 
             {/* 로그아웃 */}
@@ -146,7 +155,7 @@ export default function SettingsPanel({ nickname, visibility, userId }: Props) {
               className="text-xs w-full text-left py-2 border-t"
               style={{ borderColor: "var(--border)", color: "var(--dim)" }}
             >
-              로그아웃 _
+              {ko ? "로그아웃 _" : "Sign Out _"}
             </button>
           </div>
         </div>

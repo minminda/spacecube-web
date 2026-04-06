@@ -1,5 +1,6 @@
 import { Tag } from "@prisma/client";
 import { TAG_LABELS } from "./tags";
+import type { Lang } from "./i18n";
 
 export function aggregateTags(
   records: { tags: { tag: Tag }[] }[]
@@ -13,9 +14,36 @@ export function aggregateTags(
   return (Object.entries(count) as [Tag, number][]).sort((a, b) => b[1] - a[1]);
 }
 
-export function getTastePhrase(topTags: [Tag, number][]): string {
-  if (topTags.length === 0) return "나만의 공간을 탐험하는 사람";
+export function getTastePhrase(topTags: [Tag, number][], lang: Lang = "ko"): string {
+  if (topTags.length === 0) {
+    return lang === "en"
+      ? "Someone exploring their own kind of space"
+      : "나만의 공간을 탐험하는 사람";
+  }
   const tags = topTags.map(([t]) => t);
+
+  if (lang === "en") {
+    if (tags.includes("QUIET") && tags.includes("FOCUSED"))      return "Someone who loves quiet spaces to focus in";
+    if (tags.includes("QUIET") && tags.includes("INSPIRING"))    return "Someone who seeks quiet, inspiring spaces";
+    if (tags.includes("QUIET") && tags.includes("COMFORTABLE"))  return "Someone who lingers in quiet, comfortable spaces";
+    if (tags.includes("WARM") && tags.includes("COMFORTABLE"))   return "Someone who enjoys warm, cozy atmospheres";
+    if (tags.includes("UNIQUE") && tags.includes("INSPIRING"))   return "Someone who explores unique and inspiring spaces";
+    if (tags.includes("SENSIBLE") && tags.includes("UNIQUE"))    return "Someone who discovers sensible, distinctive spaces";
+    if (tags.includes("INSPIRING") && tags.includes("SENSIBLE")) return "Someone drawn to inspiring and sensible spaces";
+    if (tags.includes("COMFORTABLE") && tags.includes("WANT_AGAIN")) return "Someone who returns to comforting spaces again and again";
+
+    const fallback: Partial<Record<Tag, string>> = {
+      QUIET:       "Someone who lingers in quiet spaces",
+      INSPIRING:   "Someone who seeks out inspiring spaces",
+      COMFORTABLE: "Someone who enjoys comfortable spaces",
+      UNIQUE:      "Someone who explores unique spaces",
+      WANT_AGAIN:  "Someone who finds spaces worth returning to",
+      SENSIBLE:    "Someone drawn to sensible spaces",
+      WARM:        "Someone who loves warm, welcoming spaces",
+      FOCUSED:     "Someone who prefers spaces to focus in",
+    };
+    return fallback[tags[0]] ?? "Someone exploring their own kind of space";
+  }
 
   if (tags.includes("QUIET") && tags.includes("FOCUSED"))      return "조용히 집중할 수 있는 공간을 좋아하는 사람";
   if (tags.includes("QUIET") && tags.includes("INSPIRING"))    return "조용히 영감을 얻는 공간을 찾는 사람";
