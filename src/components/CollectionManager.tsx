@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import type { Lang } from "@/lib/i18n";
 
 interface SpaceOption {
   id: string;
@@ -23,9 +24,11 @@ interface Collection {
 interface Props {
   collections: Collection[];
   visitedSpaces: SpaceOption[];
+  lang: Lang;
 }
 
-export default function CollectionManager({ collections: initial, visitedSpaces }: Props) {
+export default function CollectionManager({ collections: initial, visitedSpaces, lang }: Props) {
+  const ko = lang === "ko";
   const [collections, setCollections] = useState(initial);
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState("");
@@ -118,14 +121,14 @@ export default function CollectionManager({ collections: initial, visitedSpaces 
                     className="text-xs"
                     style={{ color: "var(--dim)" }}
                   >
-                    [저장]
+                    {ko ? "[저장]" : "[Save]"}
                   </button>
                   <button
                     onClick={() => setEditingId(null)}
                     className="text-xs"
                     style={{ color: "var(--dim)" }}
                   >
-                    [취소]
+                    {ko ? "[취소]" : "[Cancel]"}
                   </button>
                 </div>
               ) : (
@@ -139,14 +142,14 @@ export default function CollectionManager({ collections: initial, visitedSpaces 
                     className="text-xs"
                     style={{ color: "var(--dim)" }}
                   >
-                    수정
+                    {ko ? "수정" : "Edit"}
                   </button>
                   <button
                     onClick={() => deleteCollection(col.id)}
                     className="text-xs"
                     style={{ color: "var(--dim)" }}
                   >
-                    삭제
+                    {ko ? "삭제" : "Delete"}
                   </button>
                 </>
               )}
@@ -180,7 +183,7 @@ export default function CollectionManager({ collections: initial, visitedSpaces 
               <div className="pl-2 space-y-1">
                 {available.length === 0 ? (
                   <p className="text-xs" style={{ color: "var(--dim)" }}>
-                    추가할 공간이 없어
+                    {ko ? "추가할 공간이 없어" : "No spaces to add"}
                   </p>
                 ) : (
                   available.map((s) => (
@@ -199,7 +202,7 @@ export default function CollectionManager({ collections: initial, visitedSpaces 
                   className="text-xs"
                   style={{ color: "var(--dim)" }}
                 >
-                  [닫기]
+                  {ko ? "[닫기]" : "[Close]"}
                 </button>
               </div>
             ) : (
@@ -208,7 +211,7 @@ export default function CollectionManager({ collections: initial, visitedSpaces 
                 className="text-xs pl-2"
                 style={{ color: "var(--dim)" }}
               >
-                + 공간 추가
+                + {ko ? "공간 추가" : "Add Space"}
               </button>
             )}
           </div>
@@ -221,7 +224,7 @@ export default function CollectionManager({ collections: initial, visitedSpaces 
             autoFocus
             value={newName}
             onChange={(e) => setNewName(e.target.value.slice(0, 30))}
-            placeholder="컬렉션 이름..."
+            placeholder={ko ? "컬렉션 이름..." : "Collection name..."}
             onKeyDown={(e) => {
               if (e.key === "Enter") createCollection();
               if (e.key === "Escape") { setCreating(false); setNewName(""); }
@@ -230,14 +233,14 @@ export default function CollectionManager({ collections: initial, visitedSpaces 
             style={{ borderColor: "var(--dim)", color: "var(--fg)" }}
           />
           <button onClick={createCollection} className="text-xs" style={{ color: "var(--dim)" }}>
-            [만들기]
+            {ko ? "[만들기]" : "[Create]"}
           </button>
           <button
             onClick={() => { setCreating(false); setNewName(""); }}
             className="text-xs"
             style={{ color: "var(--dim)" }}
           >
-            [취소]
+            {ko ? "[취소]" : "[Cancel]"}
           </button>
         </div>
       ) : (
@@ -246,7 +249,7 @@ export default function CollectionManager({ collections: initial, visitedSpaces 
           className="text-xs"
           style={{ color: "var(--dim)" }}
         >
-          + 새 컬렉션
+          + {ko ? "새 컬렉션" : "New Collection"}
         </button>
       )}
     </div>
