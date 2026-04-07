@@ -9,18 +9,27 @@ export default async function Home() {
   const admin = isAdmin(session?.user?.email);
   const lang = await getLang();
 
-  const title    = lang === "ko" ? "□ 공간큐브"   : lang === "ja" ? "□ SPACECUBE"  : "□ SPACECUBE";
   const version  = lang === "ko" ? "공간큐브 v1.0" : "SPACECUBE v1.0";
-  const subtitle = lang === "ko"
-    ? <>&gt; 공간 경험을 기록하고<br />&nbsp;&nbsp;취향을 발견해봐.</>
-    : lang === "ja"
-    ? <>&gt; 空間の体験を記録して<br />&nbsp;&nbsp;好みを発見しよう。</>
-    : <>&gt; Record your space experiences<br />&nbsp;&nbsp;and discover your taste.</>;
-
-  const archiveLabel  = lang === "ko" ? "[[ 내 아카이브 ]]"   : lang === "ja" ? "[[ マイアーカイブ ]]" : "[[ My Archive ]]";
-  const scanHint      = lang === "ko" ? "> 공간 안의 큐브를 스캔해서 시작해봐." : lang === "ja" ? "> 空間内のキューブをスキャンして始めよう。" : "> Scan the cube inside a space to begin.";
-  const adminLabel    = lang === "ko" ? "[[ 관리자 ]]"         : lang === "ja" ? "[[ 管理者 ]]"          : "[[ Admin ]]";
-  const startLabel    = lang === "ko" ? "[[ 시작하기 ]]"        : lang === "ja" ? "[[ 始める ]]"          : "[[ Get Started ]]";
+  const title    = lang === "ko" ? "□ 공간큐브" : "□ SPACECUBE";
+  const subtitle =
+    lang === "ko" ? <>&gt; 공간 경험을 기록하고<br />&nbsp;&nbsp;취향을 발견해봐.</> :
+    lang === "ja" ? <>&gt; 空間の体験を記録して<br />&nbsp;&nbsp;好みを発見しよう。</> :
+    lang === "zh" ? <>&gt; 记录空间体验，<br />&nbsp;&nbsp;发现自己的品味。</> :
+                   <>&gt; Record your space experiences<br />&nbsp;&nbsp;and discover your taste.</>;
+  const archiveLabel =
+    lang === "ko" ? "[[ 내 아카이브 ]]" : lang === "ja" ? "[[ マイアーカイブ ]]" :
+    lang === "zh" ? "[[ 我的档案 ]]" : "[[ My Archive ]]";
+  const scanHint =
+    lang === "ko" ? "> 공간 안의 큐브를 스캔해서 시작해봐." :
+    lang === "ja" ? "> 空間内のキューブをスキャンして始めよう。" :
+    lang === "zh" ? "> 扫描空间内的方块开始体验。" :
+                   "> Scan the cube inside a space to begin.";
+  const adminLabel =
+    lang === "ko" ? "[[ 관리자 ]]" : lang === "ja" ? "[[ 管理者 ]]" :
+    lang === "zh" ? "[[ 管理员 ]]" : "[[ Admin ]]";
+  const startLabel =
+    lang === "ko" ? "[[ 시작하기 ]]" : lang === "ja" ? "[[ 始める ]]" :
+    lang === "zh" ? "[[ 开始 ]]" : "[[ Get Started ]]";
 
   return (
     <main className="flex flex-col min-h-screen px-6 py-12 gap-8">
@@ -45,30 +54,24 @@ export default async function Home() {
 
       {session ? (
         <div className="space-y-3">
-          <Link
-            href="/archive"
+          <Link href="/archive"
             className="block text-sm py-2 px-4 border hover:bg-[var(--fg)] hover:text-[var(--bg)] transition-colors"
-            style={{ borderColor: "var(--fg)" }}
-          >
+            style={{ borderColor: "var(--fg)" }}>
             {archiveLabel}
           </Link>
           <p className="text-xs" style={{ color: "var(--dim)" }}>{scanHint}</p>
           {admin && (
-            <Link
-              href="/owner"
+            <Link href="/owner"
               className="block text-xs py-1 px-2 border transition-colors"
-              style={{ borderColor: "var(--border)", color: "var(--dim)" }}
-            >
+              style={{ borderColor: "var(--border)", color: "var(--dim)" }}>
               {adminLabel}
             </Link>
           )}
         </div>
       ) : (
-        <Link
-          href="/login"
+        <Link href="/login"
           className="block text-sm py-2 px-4 border hover:bg-[var(--fg)] hover:text-[var(--bg)] transition-colors"
-          style={{ borderColor: "var(--fg)" }}
-        >
+          style={{ borderColor: "var(--fg)" }}>
           {startLabel}
         </Link>
       )}

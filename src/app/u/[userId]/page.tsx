@@ -7,17 +7,14 @@ import { getLang } from "@/lib/i18n";
 import { aggregateTags, getTastePhrase } from "@/lib/taste";
 import SaveTasteButton from "@/components/SaveTasteButton";
 
-interface Props {
-  params: Promise<{ userId: string }>;
-}
+interface Props { params: Promise<{ userId: string }> }
 
 export default async function PublicArchivePage({ params }: Props) {
   const { userId } = await params;
   const session = await auth();
   const lang = await getLang();
   const TAG_LABELS = getTagLabels(lang);
-
-  const anon = lang === "ko" ? "익명" : lang === "ja" ? "匿名" : "Anonymous";
+  const anon = lang === "ko" ? "익명" : lang === "zh" ? "匿名" : lang === "ja" ? "匿名" : "Anonymous";
 
   const target = await prisma.user.findUnique({
     where: { id: userId },
@@ -28,33 +25,29 @@ export default async function PublicArchivePage({ params }: Props) {
   if (session?.user?.email && session.user.email === target.email) redirect("/archive");
   if (target.visibility === "PRIVATE") notFound();
 
-  const allTags    = aggregateTags(target.records);
-  const topTags    = allTags.slice(0, 5);
+  const allTags     = aggregateTags(target.records);
+  const topTags     = allTags.slice(0, 5);
   const tastePhrase = getTastePhrase(topTags, lang);
-  const maxCount   = topTags[0]?.[1] ?? 1;
+  const maxCount    = topTags[0]?.[1] ?? 1;
   const displayName = target.nickname || target.name?.split(" ")[0] || anon;
-
   const recentSpaces = target.records.slice(0, 5);
   const publicMemos  = target.records.filter((r) => r.memo).slice(0, 3);
 
-  let isLoggedIn = false;
-  let alreadySaved = false;
+  let isLoggedIn = false, alreadySaved = false;
   if (session?.user?.email) {
     isLoggedIn = true;
     const me = await prisma.user.findUnique({ where: { email: session.user.email } });
     if (me) {
-      const existing = await prisma.savedTaste.findUnique({
-        where: { userId_targetUserId: { userId: me.id, targetUserId: userId } },
-      });
+      const existing = await prisma.savedTaste.findUnique({ where: { userId_targetUserId: { userId: me.id, targetUserId: userId } } });
       alreadySaved = !!existing;
     }
   }
 
   const t = {
-    tasteProfile:   lang === "ko" ? "취향 구경"      : lang === "ja" ? "好みを見る"      : "Taste Profile",
-    records:        lang === "ko" ? `${displayName}의 기록` : lang === "ja" ? `${displayName}の記録` : `${displayName}'s Records`,
-    recentSpaces:   lang === "ko" ? "최근 좋아한 공간" : lang === "ja" ? "最近気に入った空間" : "Recently Liked Spaces",
-    notes:          lang === "ko" ? "남긴 말"         : lang === "ja" ? "残したメモ"        : "Notes",
+    tasteProfile: lang === "ko" ? "취향 구경" : lang === "ja" ? "好みを見る" : lang === "zh" ? "品味展示" : "Taste Profile",
+    records:      lang === "ko" ? `${displayName}의 기록` : lang === "ja" ? `${displayName}の記録` : lang === "zh" ? `${displayName}的记录` : `${displayName}'s Records`,
+    recentSpaces: lang === "ko" ? "최근 좋아한 공간" : lang === "ja" ? "最近気に入った空間" : lang === "zh" ? "最近喜欢的空间" : "Recently Liked Spaces",
+    notes:        lang === "ko" ? "남긴 말" : lang === "ja" ? "残したメモ" : lang === "zh" ? "留下的话" : "Notes",
   };
 
   return (
@@ -106,18 +99,16 @@ export default async function PublicArchivePage({ params }: Props) {
       )}
 
       {publicMemos.length > 0 && (
-        <>
-          <Divider />
-          <section className="mb-10 space-y-4">
-            <p className="text-xs mb-4" style={{ color: "var(--dim)" }}>{t.notes}</p>
-            {publicMemos.map((r) => (
-              <div key={r.id} className="space-y-1">
-                <p className="text-sm leading-relaxed" style={{ color: "var(--fg)" }}>&ldquo;{r.memo}&rdquo;</p>
-                <p className="text-xs" style={{ color: "var(--dim)" }}>— {r.space.name}</p>
-              </div>
-            ))}
-          </section>
-        </>
+        <><Divider />
+        <section className="mb-10 space-y-4">
+          <p className="text-xs mb-4" style={{ color: "var(--dim)" }}>{t.notes}</p>
+          {publicMemos.map((r) => (
+            <div key={r.id} className="space-y-1">
+              <p className="text-sm leading-relaxed" style={{ color: "var(--fg)" }}>&ldquo;{r.memo}&rdquo;</p>
+              <p className="text-xs" style={{ color: "var(--dim)" }}>— {r.space.name}</p>
+            </div>
+          ))}
+        </section></>
       )}
 
       <Divider />

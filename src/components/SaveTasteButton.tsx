@@ -3,44 +3,27 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Lang } from "@/lib/i18n";
 
-interface Props {
-  targetUserId: string;
-  initialSaved: boolean;
-  isLoggedIn: boolean;
-  lang: Lang;
-}
+interface Props { targetUserId: string; initialSaved: boolean; isLoggedIn: boolean; lang: Lang; }
 
 export default function SaveTasteButton({ targetUserId, initialSaved, isLoggedIn, lang }: Props) {
   const [saved, setSaved] = useState(initialSaved);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
-  const savedLabel  = lang === "ko" ? "저장됨 ✓"             : lang === "ja" ? "保存済み ✓"         : "Saved ✓";
-  const saveLabel   = lang === "ko" ? "[[ 이 취향 저장하기 ]]" : lang === "ja" ? "[[ この好みを保存 ]]" : "[[ Save This Taste ]]";
+  const savedLabel = lang === "ko" ? "저장됨 ✓" : lang === "ja" ? "保存済み ✓" : lang === "zh" ? "已保存 ✓" : "Saved ✓";
+  const saveLabel  = lang === "ko" ? "[[ 이 취향 저장하기 ]]" : lang === "ja" ? "[[ この好みを保存 ]]" : lang === "zh" ? "[[ 保存这个品味 ]]" : "[[ Save This Taste ]]";
 
   async function toggle() {
     if (!isLoggedIn) { router.push("/login"); return; }
     setLoading(true);
-    if (saved) {
-      await fetch(`/api/tastes/${targetUserId}`, { method: "DELETE" });
-      setSaved(false);
-    } else {
-      await fetch("/api/tastes", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ targetUserId }),
-      });
-      setSaved(true);
-    }
+    if (saved) { await fetch(`/api/tastes/${targetUserId}`, { method: "DELETE" }); setSaved(false); }
+    else { await fetch("/api/tastes", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ targetUserId }) }); setSaved(true); }
     setLoading(false);
   }
 
   return (
-    <button onClick={toggle} disabled={loading}
-      className="w-full text-sm py-2 border transition-colors"
-      style={saved
-        ? { borderColor: "var(--dim)", color: "var(--dim)" }
-        : { borderColor: "var(--fg)", color: "var(--fg)" }}>
+    <button onClick={toggle} disabled={loading} className="w-full text-sm py-2 border transition-colors"
+      style={saved ? { borderColor: "var(--dim)", color: "var(--dim)" } : { borderColor: "var(--fg)", color: "var(--fg)" }}>
       {loading ? "..." : saved ? savedLabel : saveLabel}
     </button>
   );

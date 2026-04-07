@@ -17,6 +17,7 @@ export default function DiscoverEntry({ lang }: Props) {
   const placeholder =
     lang === "ko" ? "지역 직접 입력_" :
     lang === "ja" ? "エリアを直接入力_" :
+    lang === "zh" ? "直接输入区域_" :
     "Enter district name_";
 
   function go(district: string) { setSelected(district); }
@@ -30,11 +31,7 @@ export default function DiscoverEntry({ lang }: Props) {
   }
 
   if (selected) {
-    return (
-      <div className="space-y-3">
-        <DistrictMap selected={selected} onDone={() => setSelected(null)} />
-      </div>
-    );
+    return <div className="space-y-3"><DistrictMap selected={selected} onDone={() => setSelected(null)} /></div>;
   }
 
   return (
@@ -50,8 +47,7 @@ export default function DiscoverEntry({ lang }: Props) {
       </div>
       <form onSubmit={handleSubmit} className="flex items-center gap-2">
         <span className="text-xs" style={{ color: "var(--dim)" }}>&gt;</span>
-        <input value={input} onChange={(e) => setInput(e.target.value)}
-          placeholder={placeholder}
+        <input value={input} onChange={(e) => setInput(e.target.value)} placeholder={placeholder}
           className="flex-1 text-xs bg-transparent outline-none border-b pb-1"
           style={{ borderColor: "var(--border)", color: "var(--fg)" }} />
       </form>

@@ -3,11 +3,12 @@
 import { useEffect, useState } from "react";
 import type { Lang } from "@/lib/i18n";
 
-const CYCLE: Lang[] = ["ko", "en", "ja"];
+const CYCLE: Lang[] = ["ko", "en", "ja", "zh"];
 const NEXT_LABEL: Record<Lang, string> = {
   ko: "[EN]",
   en: "[日]",
-  ja: "[한]",
+  ja: "[中]",
+  zh: "[한]",
 };
 
 export default function LanguageToggle() {
@@ -16,7 +17,7 @@ export default function LanguageToggle() {
   useEffect(() => {
     const match = document.cookie.match(/(?:^|;\s*)lang=([^;]*)/);
     const val = match?.[1];
-    if (val === "en" || val === "ja") setLang(val);
+    if (val === "en" || val === "ja" || val === "zh") setLang(val);
   }, []);
 
   function toggle() {

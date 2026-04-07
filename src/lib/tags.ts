@@ -34,9 +34,21 @@ export const TAG_LABELS_JA: Record<Tag, string> = {
   FOCUSED: "集中できる",
 };
 
+export const TAG_LABELS_ZH: Record<Tag, string> = {
+  QUIET: "安静",
+  INSPIRING: "有灵感",
+  COMFORTABLE: "舒适",
+  UNIQUE: "独特",
+  WANT_AGAIN: "想再来",
+  SENSIBLE: "有品味",
+  WARM: "温暖",
+  FOCUSED: "专注",
+};
+
 export function getTagLabels(lang: Lang): Record<Tag, string> {
   if (lang === "en") return TAG_LABELS_EN;
   if (lang === "ja") return TAG_LABELS_JA;
+  if (lang === "zh") return TAG_LABELS_ZH;
   return TAG_LABELS;
 }
 
