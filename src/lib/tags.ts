@@ -23,8 +23,21 @@ export const TAG_LABELS_EN: Record<Tag, string> = {
   FOCUSED: "Focused",
 };
 
+export const TAG_LABELS_JA: Record<Tag, string> = {
+  QUIET: "静かな",
+  INSPIRING: "インスピレーション",
+  COMFORTABLE: "居心地の良い",
+  UNIQUE: "ユニークな",
+  WANT_AGAIN: "また来たい",
+  SENSIBLE: "センスのある",
+  WARM: "温かい",
+  FOCUSED: "集中できる",
+};
+
 export function getTagLabels(lang: Lang): Record<Tag, string> {
-  return lang === "en" ? TAG_LABELS_EN : TAG_LABELS;
+  if (lang === "en") return TAG_LABELS_EN;
+  if (lang === "ja") return TAG_LABELS_JA;
+  return TAG_LABELS;
 }
 
 export const ALL_TAGS = Object.keys(TAG_LABELS) as Tag[];

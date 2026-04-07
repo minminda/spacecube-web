@@ -11,16 +11,15 @@ interface Props {
 }
 
 export default function SaveTasteButton({ targetUserId, initialSaved, isLoggedIn, lang }: Props) {
-  const ko = lang === "ko";
   const [saved, setSaved] = useState(initialSaved);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
+  const savedLabel  = lang === "ko" ? "저장됨 ✓"             : lang === "ja" ? "保存済み ✓"         : "Saved ✓";
+  const saveLabel   = lang === "ko" ? "[[ 이 취향 저장하기 ]]" : lang === "ja" ? "[[ この好みを保存 ]]" : "[[ Save This Taste ]]";
+
   async function toggle() {
-    if (!isLoggedIn) {
-      router.push("/login");
-      return;
-    }
+    if (!isLoggedIn) { router.push("/login"); return; }
     setLoading(true);
     if (saved) {
       await fetch(`/api/tastes/${targetUserId}`, { method: "DELETE" });
@@ -37,21 +36,12 @@ export default function SaveTasteButton({ targetUserId, initialSaved, isLoggedIn
   }
 
   return (
-    <button
-      onClick={toggle}
-      disabled={loading}
+    <button onClick={toggle} disabled={loading}
       className="w-full text-sm py-2 border transition-colors"
-      style={
-        saved
-          ? { borderColor: "var(--dim)", color: "var(--dim)" }
-          : { borderColor: "var(--fg)", color: "var(--fg)" }
-      }
-    >
-      {loading
-        ? "..."
-        : saved
-          ? (ko ? "저장됨 ✓" : "Saved ✓")
-          : (ko ? "[[ 이 취향 저장하기 ]]" : "[[ Save This Taste ]]")}
+      style={saved
+        ? { borderColor: "var(--dim)", color: "var(--dim)" }
+        : { borderColor: "var(--fg)", color: "var(--fg)" }}>
+      {loading ? "..." : saved ? savedLabel : saveLabel}
     </button>
   );
 }

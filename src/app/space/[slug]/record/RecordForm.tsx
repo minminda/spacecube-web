@@ -19,13 +19,21 @@ interface Props {
 }
 
 export default function RecordForm({ space, spaceTags, existingTags, existingMemo, lang }: Props) {
-  const ko = lang === "ko";
   const TAG_LABELS = getTagLabels(lang);
   const tagsToShow = spaceTags.length > 0 ? spaceTags : ALL_TAGS;
   const router = useRouter();
   const [selectedTags, setSelectedTags] = useState<Tag[]>(existingTags);
   const [memo, setMemo] = useState(existingMemo);
   const [loading, setLoading] = useState(false);
+
+  const t = {
+    howWas:     lang === "ko" ? "이 공간 어땠나요?" : lang === "ja" ? "この空間はいかがでしたか？" : "How was this space?",
+    maxTags:    lang === "ko" ? `최대 ${MAX_TAGS}개까지 고를 수 있어.` : lang === "ja" ? `最大${MAX_TAGS}つまで選べます。` : `You can select up to ${MAX_TAGS} tags.`,
+    leaveNote:  lang === "ko" ? "기록을 남겨볼까요? (선택)" : lang === "ja" ? "メモを残しませんか？（任意）" : "Want to leave a note? (optional)",
+    placeholder:lang === "ko" ? "오늘 어떤 생각이 들었나요... 한 줄로 남겨도 좋아요." : lang === "ja" ? "今日どんな気持ちでしたか... 一言でも大丈夫です。" : "What did you feel today... even one line is enough.",
+    saving:     lang === "ko" ? "// 저장 중..." : lang === "ja" ? "// 保存中..." : "// Saving...",
+    save:       lang === "ko" ? "[[ 저장하기 ]]" : lang === "ja" ? "[[ 保存する ]]" : "[[ Save ]]",
+  };
 
   function toggleTag(tag: Tag) {
     setSelectedTags((prev) => {
@@ -36,8 +44,7 @@ export default function RecordForm({ space, spaceTags, existingTags, existingMem
   }
 
   function handleMemoChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
-    const value = e.target.value;
-    if (value.length <= MAX_MEMO) setMemo(value);
+    if (e.target.value.length <= MAX_MEMO) setMemo(e.target.value);
   }
 
   async function handleSubmit() {
@@ -63,20 +70,15 @@ export default function RecordForm({ space, spaceTags, existingTags, existingMem
       </div>
 
       <div className="space-y-1">
-        <button onClick={() => router.back()} className="text-xs" style={{ color: "var(--dim)" }}>
-          &lt; back
-        </button>
+        <button onClick={() => router.back()} className="text-xs" style={{ color: "var(--dim)" }}>&lt; back</button>
         <p className="text-base">&gt; {space.name}</p>
       </div>
 
       <p className="text-xs" style={{ color: "var(--border)" }}>─────────────────────────────</p>
 
-      {/* 태그 선택 */}
       <div className="space-y-3">
         <div className="flex justify-between items-center">
-          <p className="text-xs" style={{ color: "var(--dim)" }}>
-            // {ko ? "이 공간 어땠나요?" : "How was this space?"}
-          </p>
+          <p className="text-xs" style={{ color: "var(--dim)" }}>// {t.howWas}</p>
           <p className="text-xs" style={{ color: selectedTags.length >= MAX_TAGS ? "var(--fg)" : "var(--dim)" }}>
             {selectedTags.length}/{MAX_TAGS}
           </p>
@@ -93,32 +95,22 @@ export default function RecordForm({ space, spaceTags, existingTags, existingMem
           ))}
         </div>
         {selectedTags.length >= MAX_TAGS && (
-          <p className="text-xs" style={{ color: "var(--dim)" }}>
-            &gt; {ko
-              ? `최대 ${MAX_TAGS}개까지 고를 수 있어.`
-              : `You can select up to ${MAX_TAGS} tags.`}
-          </p>
+          <p className="text-xs" style={{ color: "var(--dim)" }}>&gt; {t.maxTags}</p>
         )}
       </div>
 
       <p className="text-xs" style={{ color: "var(--border)" }}>─────────────────────────────</p>
 
-      {/* 메모 */}
       <div className="space-y-2">
-        <p className="text-xs" style={{ color: "var(--dim)" }}>
-          // {ko ? "기록을 남겨볼까요? (선택)" : "Want to leave a note? (optional)"}
-        </p>
+        <p className="text-xs" style={{ color: "var(--dim)" }}>// {t.leaveNote}</p>
         <textarea
           value={memo}
           onChange={handleMemoChange}
-          placeholder={ko
-            ? "오늘 어떤 생각이 들었나요... 한 줄로 남겨도 좋아요."
-            : "What did you feel today... even one line is enough."}
+          placeholder={t.placeholder}
           rows={4}
           className="w-full text-sm p-3 resize-none outline-none border"
           style={{
-            background: "var(--bg)",
-            color: "var(--fg)",
+            background: "var(--bg)", color: "var(--fg)",
             borderColor: memo.length > 80 ? "var(--fg)" : "var(--border)",
             transition: "border-color 0.2s",
           }}
@@ -131,9 +123,7 @@ export default function RecordForm({ space, spaceTags, existingTags, existingMem
         className="w-full text-sm py-2 px-4 border hover:bg-[var(--fg)] hover:text-[var(--bg)] transition-colors disabled:opacity-30"
         style={{ borderColor: "var(--fg)" }}
       >
-        {loading
-          ? (ko ? "// 저장 중..." : "// Saving...")
-          : (ko ? "[[ 저장하기 ]]" : "[[ Save ]]")}
+        {loading ? t.saving : t.save}
       </button>
     </main>
   );

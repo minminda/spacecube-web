@@ -17,13 +17,11 @@ export default async function DonePage({ params, searchParams }: Props) {
   const { name, tags } = await searchParams;
 
   const lang = await getLang();
-  const ko = lang === "ko";
   const TAG_LABELS = getTagLabels(lang);
 
-  const spaceName = name ? decodeURIComponent(name) : (ko ? "이 공간" : "this space");
-  const tagList = tags
-    ? (tags.split(",").filter((t) => t in TAG_LABELS) as Tag[])
-    : [];
+  const defaultSpaceName = lang === "ko" ? "이 공간" : lang === "ja" ? "この空間" : "this space";
+  const spaceName = name ? decodeURIComponent(name) : defaultSpaceName;
+  const tagList = tags ? (tags.split(",").filter((t) => t in TAG_LABELS) as Tag[]) : [];
 
   let recommended: {
     id: string; name: string; slug: string;
@@ -40,42 +38,34 @@ export default async function DonePage({ params, searchParams }: Props) {
   if (space && session?.user?.email) {
     const user = await prisma.user.findUnique({ where: { email: session.user.email } });
     if (user) {
-      const visited = await prisma.record.findMany({
-        where: { userId: user.id },
-        select: { spaceId: true },
-      });
+      const visited = await prisma.record.findMany({ where: { userId: user.id }, select: { spaceId: true } });
       const visitedIds = new Set(visited.map((r) => r.spaceId));
-
       const candidates = await prisma.space.findMany({
-        where: {
-          isActive: true,
-          id: { notIn: [...visitedIds] },
-          ...(space.district ? { district: space.district } : {}),
-        },
-        select: {
-          id: true, name: true, slug: true,
-          tagline: true, imageUrl: true, type: true,
-          district: true, spaceTags: true, lat: true, lng: true,
-        },
+        where: { isActive: true, id: { notIn: [...visitedIds] }, ...(space.district ? { district: space.district } : {}) },
+        select: { id: true, name: true, slug: true, tagline: true, imageUrl: true, type: true, district: true, spaceTags: true, lat: true, lng: true },
         take: 20,
       });
-
       recommended = rankSpaces(candidates, tagList, "similar", 2);
-
       if (recommended.length === 0 && space.district) {
         const broader = await prisma.space.findMany({
           where: { isActive: true, id: { notIn: [...visitedIds] } },
-          select: {
-            id: true, name: true, slug: true,
-            tagline: true, imageUrl: true, type: true,
-            district: true, spaceTags: true, lat: true, lng: true,
-          },
+          select: { id: true, name: true, slug: true, tagline: true, imageUrl: true, type: true, district: true, spaceTags: true, lat: true, lng: true },
           take: 20,
         });
         recommended = rankSpaces(broader, tagList, "similar", 2);
       }
     }
   }
+
+  const t = {
+    saved:       lang === "ko" ? "아카이브에 저장됐어." : lang === "ja" ? "アーカイブに保存されました。" : "Saved to your archive.",
+    nextSpace:   lang === "ko" ? "다음 공간" : lang === "ja" ? "次の空間" : "Next Space",
+    nearBy:      space?.district
+      ? (lang === "ko" ? `${space.district} 근처로 이런 공간도 있어.` : lang === "ja" ? `${space.district}周辺のおすすめ空間です。` : `More spaces near ${space.district}.`)
+      : (lang === "ko" ? "취향 기반으로 이런 공간도 있어." : lang === "ja" ? "好みに合った空間もあります。" : "You might also like these spaces."),
+    viewArchive: lang === "ko" ? "[[ 내 아카이브 보기 ]]" : lang === "ja" ? "[[ マイアーカイブを見る ]]" : "[[ View My Archive ]]",
+    goHome:      lang === "ko" ? "홈으로" : lang === "ja" ? "ホームへ" : "Go Home",
+  };
 
   return (
     <main className="flex flex-col justify-center min-h-screen px-6 py-12 gap-6">
@@ -85,59 +75,36 @@ export default async function DonePage({ params, searchParams }: Props) {
       </div>
 
       <div className="space-y-3">
-        <p className="text-xs" style={{ color: "var(--dim)" }}>
-          &gt; {ko ? "아카이브에 저장됐어." : "Saved to your archive."}
-        </p>
+        <p className="text-xs" style={{ color: "var(--dim)" }}>&gt; {t.saved}</p>
         <p className="text-lg">□ {spaceName}</p>
         {tagList.length > 0 && (
           <p className="text-sm" style={{ color: "var(--dim)" }}>
-            {tagList.map((t) => `[${TAG_LABELS[t]}]`).join(" ")}
+            {tagList.map((tag) => `[${TAG_LABELS[tag]}]`).join(" ")}
           </p>
         )}
       </div>
 
       <p className="text-xs" style={{ color: "var(--border)" }}>─────────────────────────────</p>
 
-      {/* 추천 공간 */}
       {recommended.length > 0 && (
         <>
           <div className="space-y-3">
-            <p className="text-xs" style={{ color: "var(--dim)" }}>
-              // {ko ? "다음 공간" : "Next Space"}
-            </p>
-            <p className="text-xs" style={{ color: "var(--dim)" }}>
-              &gt; {space?.district
-                ? (ko ? `${space.district} 근처로 이런 공간도 있어.` : `More spaces near ${space.district}.`)
-                : (ko ? "취향 기반으로 이런 공간도 있어." : "You might also like these spaces.")}
-            </p>
+            <p className="text-xs" style={{ color: "var(--dim)" }}>// {t.nextSpace}</p>
+            <p className="text-xs" style={{ color: "var(--dim)" }}>&gt; {t.nearBy}</p>
             <div className="space-y-2">
               {recommended.map((rec) => (
-                <Link
-                  key={rec.id}
-                  href={`/space/${rec.slug}`}
+                <Link key={rec.id} href={`/space/${rec.slug}`}
                   className="flex gap-3 p-3 border transition-colors hover:border-[var(--fg)]"
-                  style={{ borderColor: "var(--border)" }}
-                >
+                  style={{ borderColor: "var(--border)" }}>
                   {rec.imageUrl && (
                     <div className="relative w-12 h-12 flex-shrink-0 overflow-hidden">
-                      <Image
-                        src={rec.imageUrl}
-                        alt={rec.name}
-                        fill
-                        className="object-cover opacity-60"
-                      />
+                      <Image src={rec.imageUrl} alt={rec.name} fill className="object-cover opacity-60" />
                     </div>
                   )}
                   <div className="flex flex-col justify-center gap-1 min-w-0">
                     <p className="text-sm truncate">&gt; {rec.name}</p>
-                    {rec.tagline && (
-                      <p className="text-xs truncate italic" style={{ color: "var(--dim)" }}>
-                        &ldquo;{rec.tagline}&rdquo;
-                      </p>
-                    )}
-                    {rec.district && (
-                      <p className="text-xs" style={{ color: "var(--dim)" }}>[{rec.district}]</p>
-                    )}
+                    {rec.tagline && <p className="text-xs truncate italic" style={{ color: "var(--dim)" }}>&ldquo;{rec.tagline}&rdquo;</p>}
+                    {rec.district && <p className="text-xs" style={{ color: "var(--dim)" }}>[{rec.district}]</p>}
                   </div>
                 </Link>
               ))}
@@ -148,15 +115,13 @@ export default async function DonePage({ params, searchParams }: Props) {
       )}
 
       <div className="space-y-3">
-        <Link
-          href="/archive"
+        <Link href="/archive"
           className="block w-full text-center text-sm py-2 px-4 border hover:bg-[var(--fg)] hover:text-[var(--bg)] transition-colors"
-          style={{ borderColor: "var(--fg)" }}
-        >
-          {ko ? "[[ 내 아카이브 보기 ]]" : "[[ View My Archive ]]"}
+          style={{ borderColor: "var(--fg)" }}>
+          {t.viewArchive}
         </Link>
         <Link href="/" className="block text-xs text-center" style={{ color: "var(--dim)" }}>
-          &lt; {ko ? "홈으로" : "Go Home"}
+          &lt; {t.goHome}
         </Link>
       </div>
     </main>
