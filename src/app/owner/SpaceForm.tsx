@@ -39,6 +39,7 @@ export default function SpaceForm({ mode, space }: Props) {
   const [imageUrl, setImageUrl] = useState(space?.imageUrl ?? "");
   const [imagePreview, setImagePreview] = useState(space?.imageUrl ?? "");
   const [imageUploading, setImageUploading] = useState(false);
+  const [imageError, setImageError] = useState("");
 
   const [selectedSpaceTags, setSelectedSpaceTags] = useState<Tag[]>(
     (space?.spaceTags ?? []) as Tag[]
@@ -86,6 +87,7 @@ export default function SpaceForm({ mode, space }: Props) {
     if (!file) return;
     const localUrl = URL.createObjectURL(file);
     setImagePreview(localUrl);
+    setImageError("");
     setImageUploading(true);
     const data = new FormData();
     data.append("file", file);
@@ -99,9 +101,12 @@ export default function SpaceForm({ mode, space }: Props) {
       if (result.secure_url) {
         setImageUrl(result.secure_url);
         setImagePreview(result.secure_url);
+      } else {
+        setImageError(`이미지 업로드 실패: ${result.error?.message ?? "알 수 없는 오류"}`);
       }
-    } catch {
-      setImagePreview("");
+    } catch (err) {
+      setImageError("이미지 업로드 중 네트워크 오류가 발생했어요.");
+      console.error("Cloudinary upload error:", err);
     } finally {
       setImageUploading(false);
     }
@@ -152,18 +157,25 @@ export default function SpaceForm({ mode, space }: Props) {
 
         <Field label="대표 이미지 (선택)">
           <label className="block cursor-pointer">
-            <div className="w-full h-36 border flex items-center justify-center overflow-hidden relative" style={{ borderColor: "var(--border)" }}>
+            <div className="w-full h-44 border flex items-center justify-center overflow-hidden relative" style={{ borderColor: "var(--border)" }}>
               {imagePreview ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={imagePreview} alt="preview" className="w-full h-full object-cover opacity-70" />
+                <img src={imagePreview} alt="preview" className="w-full h-full object-cover" />
               ) : (
                 <span className="text-xs" style={{ color: "var(--dim)" }}>
-                  {imageUploading ? "// 업로드 중..." : "> 클릭해서 이미지 선택"}
+                  {imageUploading ? "업로드 중..." : "클릭해서 이미지 선택"}
                 </span>
+              )}
+              {imageUploading && (
+                <div className="absolute inset-0 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.5)" }}>
+                  <span className="text-xs" style={{ color: "var(--fg)" }}>업로드 중...</span>
+                </div>
               )}
             </div>
             <input type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
           </label>
+          {imageError && <p className="text-xs mt-1 text-red-400">{imageError}</p>}
+          {imageUrl && !imageError && <p className="text-xs mt-1" style={{ color: "var(--dim)" }}>✓ 업로드 완료</p>}
         </Field>
 
         <Field label="공간 이름 *">
