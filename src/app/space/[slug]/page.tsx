@@ -50,7 +50,6 @@ export default async function SpacePage({ params }: Props) {
   const t = {
     location:     lang === "ko" ? "위치" : lang === "ja" ? "場所" : lang === "zh" ? "位置" : "Location",
     hours:        lang === "ko" ? "운영" : lang === "ja" ? "営業時間" : lang === "zh" ? "营业时间" : "Hours",
-    storyNote:    lang === "ko" ? "이 공간의 이야기는 공간에서 열립니다." : lang === "ja" ? "この空間のストーリーは現地で始まります。" : lang === "zh" ? "这个空间的故事在现场展开。" : "The story of this space unfolds within.",
     lovedBy:      lang === "ko" ? "이 공간을 좋아한 사람들" : lang === "ja" ? "この空間が好きな人たち" : lang === "zh" ? "喜欢这个空间的人" : "People Who Loved This Space",
     viewTaste:    lang === "ko" ? "취향 보기 →" : lang === "ja" ? "好みを見る →" : lang === "zh" ? "查看品味 →" : "View taste →",
     editRecord:   lang === "ko" ? "기록 수정하기" : lang === "ja" ? "記録を編集する" : lang === "zh" ? "编辑记录" : "Edit Record",
@@ -116,10 +115,6 @@ export default async function SpacePage({ params }: Props) {
           spacePoints={space.spacePoints}
           lang={lang}
         />
-
-        <div style={{ borderTop: "1px solid var(--border)" }} />
-
-        <p className="text-xs leading-relaxed" style={{ color: "var(--dim)" }}>{t.storyNote}</p>
 
         {publicRecords.length > 0 && (
           <>
