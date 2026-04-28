@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import type { Lang } from "@/lib/i18n";
 
 interface Props {
@@ -12,64 +11,74 @@ interface Props {
   lang: Lang;
 }
 
-function CollapsibleSection({ label, children }: { label: string; children: React.ReactNode }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <div>
-      <button
-        onClick={() => setOpen((v) => !v)}
-        className="w-full text-left flex items-center justify-between py-3"
-        style={{ borderBottom: open ? "none" : "1px solid var(--border)" }}
-      >
-        <span className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>{label}</span>
-        <span className="text-base font-light" style={{ color: "var(--dim)" }}>{open ? "−" : "+"}</span>
-      </button>
-      {open && (
-        <div className="pt-4 pb-3 space-y-4" style={{ borderBottom: "1px solid var(--border)" }}>
-          {children}
-        </div>
-      )}
-    </div>
-  );
-}
-
 export default function SpaceStory({ description, philosophy, ownerMessage, experienceGuide, spacePoints, lang }: Props) {
   const t = {
-    about:  lang === "ko" ? "공간 해석"   : lang === "ja" ? "この空間について" : lang === "zh" ? "关于这个空间" : "About This Space",
-    why:    lang === "ko" ? "왜 만들었나" : lang === "ja" ? "なぜ作ったのか"  : lang === "zh" ? "创建原因"    : "Why it was created",
-    owner:  lang === "ko" ? "운영자의 말" : lang === "ja" ? "オーナーのメッセージ" : lang === "zh" ? "运营者的话" : "Owner's message",
-    guide:  lang === "ko" ? "경험 가이드" : lang === "ja" ? "体験ガイド"      : lang === "zh" ? "体验指南"    : "Experience Guide",
-    points: lang === "ko" ? "공간 포인트" : lang === "ja" ? "空間のハイライト" : lang === "zh" ? "空间亮点"    : "Space Highlights",
+    why:    lang === "ko" ? "이 공간을 만든 이유가 뭔가요?" : lang === "ja" ? "なぜこの空間を作ったのですか？" : lang === "zh" ? "为什么创建这个空间？" : "Why did you create this space?",
+    guide:  lang === "ko" ? "어떻게 경험하면 좋을까요?" : lang === "ja" ? "どう楽しめばいいですか？" : lang === "zh" ? "如何体验这个空间？" : "How should visitors experience this?",
+    points: lang === "ko" ? "이 공간만의 포인트가 있다면?" : lang === "ja" ? "この空間ならではのポイントは？" : lang === "zh" ? "这个空间有什么独特之处？" : "What makes this space special?",
   };
 
   return (
-    <div className="space-y-0">
-      <CollapsibleSection label={t.about}>
-        <p className="text-sm leading-relaxed whitespace-pre-line">{description}</p>
-        {philosophy && (
-          <div className="space-y-1.5">
-            <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>{t.why}</p>
-            <p className="text-sm leading-relaxed whitespace-pre-line" style={{ color: "var(--dim)" }}>{philosophy}</p>
-          </div>
-        )}
-        {ownerMessage && (
-          <div className="space-y-1.5">
-            <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>{t.owner}</p>
-            <p className="text-sm leading-relaxed">&ldquo;{ownerMessage}&rdquo;</p>
-          </div>
-        )}
-      </CollapsibleSection>
+    <div className="space-y-8">
+      {/* 리드 문단 — description */}
+      <p className="text-base leading-8 whitespace-pre-line">{description}</p>
 
-      {experienceGuide && (
-        <CollapsibleSection label={t.guide}>
-          <p className="text-sm leading-relaxed whitespace-pre-line">{experienceGuide}</p>
-        </CollapsibleSection>
+      {/* 인터뷰 — philosophy */}
+      {philosophy && (
+        <div className="space-y-3">
+          <p
+            className="text-xs uppercase tracking-widest"
+            style={{ color: "var(--dim)" }}
+          >
+            Q.
+          </p>
+          <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>
+            {t.why}
+          </p>
+          <p className="text-sm leading-8 whitespace-pre-line">{philosophy}</p>
+        </div>
       )}
 
+      {/* 인용 — ownerMessage */}
+      {ownerMessage && (
+        <div
+          className="py-5 px-5 space-y-1"
+          style={{ borderLeft: "2px solid var(--fg)" }}
+        >
+          <p className="text-base leading-8">&ldquo;{ownerMessage}&rdquo;</p>
+        </div>
+      )}
+
+      {/* 인터뷰 — experienceGuide */}
+      {experienceGuide && (
+        <div className="space-y-3">
+          <p
+            className="text-xs uppercase tracking-widest"
+            style={{ color: "var(--dim)" }}
+          >
+            Q.
+          </p>
+          <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>
+            {t.guide}
+          </p>
+          <p className="text-sm leading-8 whitespace-pre-line">{experienceGuide}</p>
+        </div>
+      )}
+
+      {/* 인터뷰 — spacePoints */}
       {spacePoints && (
-        <CollapsibleSection label={t.points}>
-          <p className="text-sm leading-relaxed whitespace-pre-line">{spacePoints}</p>
-        </CollapsibleSection>
+        <div className="space-y-3">
+          <p
+            className="text-xs uppercase tracking-widest"
+            style={{ color: "var(--dim)" }}
+          >
+            Q.
+          </p>
+          <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>
+            {t.points}
+          </p>
+          <p className="text-sm leading-8 whitespace-pre-line">{spacePoints}</p>
+        </div>
       )}
     </div>
   );
