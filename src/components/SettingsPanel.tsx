@@ -34,10 +34,10 @@ export default function SettingsPanel({ nickname, visibility, userId, lang }: Pr
     nickname:   lang === "ko" ? "닉네임"     : lang === "ja" ? "ニックネーム"   : lang === "zh" ? "昵称"      : "Nickname",
     nickMax:    lang === "ko" ? "최대 20자"  : lang === "ja" ? "最大20文字"     : lang === "zh" ? "最多20个字符" : "Max 20 characters",
     visibility: lang === "ko" ? "공개 범위"  : lang === "ja" ? "公開設定"       : lang === "zh" ? "公开设置"   : "Visibility",
-    copyLink:   lang === "ko" ? "공유 링크 복사 _" : lang === "ja" ? "共有リンクをコピー _" : lang === "zh" ? "复制分享链接 _" : "Copy Share Link _",
+    copyLink:   lang === "ko" ? "공유 링크 복사" : lang === "ja" ? "共有リンクをコピー" : lang === "zh" ? "复制分享链接" : "Copy Share Link",
     linkCopied: lang === "ko" ? "링크 복사됨 ✓"    : lang === "ja" ? "リンクをコピーしました ✓" : lang === "zh" ? "链接已复制 ✓" : "Link Copied ✓",
-    save:       lang === "ko" ? "[[ 저장 ]]" : lang === "ja" ? "[[ 保存 ]]"     : lang === "zh" ? "[[ 保存 ]]" : "[[ Save ]]",
-    signOut:    lang === "ko" ? "로그아웃 _" : lang === "ja" ? "ログアウト _"   : lang === "zh" ? "退出登录 _" : "Sign Out _",
+    save:       lang === "ko" ? "저장"       : lang === "ja" ? "保存"           : lang === "zh" ? "保存"      : "Save",
+    signOut:    lang === "ko" ? "로그아웃"   : lang === "ja" ? "ログアウト"      : lang === "zh" ? "退出登录"  : "Sign Out",
   };
 
   useEffect(() => { if (open) inputRef.current?.focus(); }, [open]);
@@ -59,30 +59,42 @@ export default function SettingsPanel({ nickname, visibility, userId, lang }: Pr
       <button onClick={() => setOpen(true)} className="text-xs" style={{ color: "var(--dim)" }} aria-label={t.settings}>⚙</button>
 
       {open && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ background: "rgba(0,0,0,0.5)" }}
-          onClick={(e) => { if (e.target === e.currentTarget) setOpen(false); }}>
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center"
+          style={{ background: "rgba(0,0,0,0.6)" }}
+          onClick={(e) => { if (e.target === e.currentTarget) setOpen(false); }}
+        >
           <div className="w-full max-w-sm p-6 space-y-6" style={{ background: "var(--bg)", borderTop: "1px solid var(--border)" }}>
             <div className="flex justify-between items-center">
-              <p className="text-xs" style={{ color: "var(--dim)" }}>{t.settings}</p>
-              <button onClick={() => setOpen(false)} className="text-xs" style={{ color: "var(--dim)" }}>[✕]</button>
+              <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>{t.settings}</p>
+              <button onClick={() => setOpen(false)} className="text-lg leading-none" style={{ color: "var(--dim)" }}>×</button>
             </div>
 
             <div className="space-y-2">
-              <p className="text-xs" style={{ color: "var(--dim)" }}>{t.nickname}</p>
-              <input ref={inputRef} value={nickValue} onChange={(e) => setNickValue(e.target.value.slice(0, 20))}
-                placeholder={t.nickMax} maxLength={20}
-                className="w-full text-sm bg-transparent border-b outline-none pb-1"
-                style={{ borderColor: "var(--dim)", color: "var(--fg)" }}
-                onKeyDown={(e) => { if (e.key === "Enter") handleSave(); }} />
+              <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>{t.nickname}</p>
+              <input
+                ref={inputRef}
+                value={nickValue}
+                onChange={(e) => setNickValue(e.target.value.slice(0, 20))}
+                placeholder={t.nickMax}
+                maxLength={20}
+                className="w-full text-sm bg-transparent border-b outline-none pb-2"
+                style={{ borderColor: "var(--border)", color: "var(--fg)" }}
+                onKeyDown={(e) => { if (e.key === "Enter") handleSave(); }}
+              />
             </div>
 
             <div className="space-y-2">
-              <p className="text-xs" style={{ color: "var(--dim)" }}>{t.visibility}</p>
+              <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>{t.visibility}</p>
               <div className="space-y-1">
                 {(["PRIVATE", "LINK_ONLY", "PARTIAL"] as Visibility[]).map((v) => (
-                  <button key={v} onClick={() => setVis(v)} className="w-full text-left text-xs py-1.5 px-2 border transition-colors"
-                    style={{ borderColor: vis === v ? "var(--fg)" : "var(--border)", color: vis === v ? "var(--fg)" : "var(--dim)" }}>
-                    {vis === v ? "▸ " : "  "}{VISIBILITY_LABELS[v]}
+                  <button
+                    key={v}
+                    onClick={() => setVis(v)}
+                    className="w-full text-left text-sm py-2 px-3 border transition-colors"
+                    style={{ borderColor: vis === v ? "var(--fg)" : "var(--border)", color: vis === v ? "var(--fg)" : "var(--dim)" }}
+                  >
+                    {VISIBILITY_LABELS[v]}
                   </button>
                 ))}
               </div>
@@ -90,16 +102,29 @@ export default function SettingsPanel({ nickname, visibility, userId, lang }: Pr
             </div>
 
             {vis !== "PRIVATE" && (
-              <button onClick={copyLink} className="w-full text-left text-xs py-2 px-2 border" style={{ borderColor: "var(--border)", color: "var(--dim)" }}>
+              <button
+                onClick={copyLink}
+                className="w-full text-left text-sm py-2.5 px-3 border"
+                style={{ borderColor: "var(--border)", color: "var(--dim)" }}
+              >
                 {copied ? t.linkCopied : t.copyLink}
               </button>
             )}
 
-            <button onClick={handleSave} disabled={saving} className="w-full text-sm py-2 border transition-colors hover:bg-[var(--fg)] hover:text-[var(--bg)]" style={{ borderColor: "var(--fg)", color: "var(--fg)" }}>
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="w-full text-sm font-medium py-3 border transition-colors hover:bg-[var(--fg)] hover:text-[var(--bg)]"
+              style={{ borderColor: "var(--fg)", color: "var(--fg)" }}
+            >
               {saving ? "..." : t.save}
             </button>
 
-            <button onClick={() => signOut({ callbackUrl: "/" })} className="text-xs w-full text-left py-2 border-t" style={{ borderColor: "var(--border)", color: "var(--dim)" }}>
+            <button
+              onClick={() => signOut({ callbackUrl: "/" })}
+              className="text-xs w-full text-left py-2 border-t"
+              style={{ borderColor: "var(--border)", color: "var(--dim)" }}
+            >
               {t.signOut}
             </button>
           </div>

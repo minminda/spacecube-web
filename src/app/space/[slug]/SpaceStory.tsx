@@ -16,11 +16,19 @@ function CollapsibleSection({ label, children }: { label: string; children: Reac
   const [open, setOpen] = useState(false);
   return (
     <div>
-      <button onClick={() => setOpen((v) => !v)} className="w-full text-left flex items-center justify-between py-1" style={{ color: "var(--dim)" }}>
-        <span className="text-xs">// {label}</span>
-        <span className="text-xs" style={{ color: "var(--dim)" }}>{open ? "[ − ]" : "[ + ]"}</span>
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="w-full text-left flex items-center justify-between py-3"
+        style={{ borderBottom: open ? "none" : "1px solid var(--border)" }}
+      >
+        <span className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>{label}</span>
+        <span className="text-base font-light" style={{ color: "var(--dim)" }}>{open ? "−" : "+"}</span>
       </button>
-      {open && <div className="mt-3 space-y-3">{children}</div>}
+      {open && (
+        <div className="pt-4 pb-3 space-y-4" style={{ borderBottom: "1px solid var(--border)" }}>
+          {children}
+        </div>
+      )}
     </div>
   );
 }
@@ -35,40 +43,34 @@ export default function SpaceStory({ description, philosophy, ownerMessage, expe
   };
 
   return (
-    <>
+    <div className="space-y-0">
       <CollapsibleSection label={t.about}>
         <p className="text-sm leading-relaxed whitespace-pre-line">{description}</p>
         {philosophy && (
-          <div className="space-y-1">
-            <p className="text-xs" style={{ color: "var(--dim)" }}>&gt; {t.why}</p>
+          <div className="space-y-1.5">
+            <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>{t.why}</p>
             <p className="text-sm leading-relaxed whitespace-pre-line" style={{ color: "var(--dim)" }}>{philosophy}</p>
           </div>
         )}
         {ownerMessage && (
-          <div className="space-y-1">
-            <p className="text-xs" style={{ color: "var(--dim)" }}>&gt; {t.owner}</p>
-            <p className="text-sm" style={{ color: "var(--fg)" }}>&ldquo;{ownerMessage}&rdquo;</p>
+          <div className="space-y-1.5">
+            <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>{t.owner}</p>
+            <p className="text-sm leading-relaxed">&ldquo;{ownerMessage}&rdquo;</p>
           </div>
         )}
       </CollapsibleSection>
 
       {experienceGuide && (
-        <>
-          <p className="text-xs" style={{ color: "var(--border)" }}>─────────────────────────────</p>
-          <CollapsibleSection label={t.guide}>
-            <p className="text-sm leading-relaxed whitespace-pre-line">{experienceGuide}</p>
-          </CollapsibleSection>
-        </>
+        <CollapsibleSection label={t.guide}>
+          <p className="text-sm leading-relaxed whitespace-pre-line">{experienceGuide}</p>
+        </CollapsibleSection>
       )}
 
       {spacePoints && (
-        <>
-          <p className="text-xs" style={{ color: "var(--border)" }}>─────────────────────────────</p>
-          <CollapsibleSection label={t.points}>
-            <p className="text-sm leading-relaxed whitespace-pre-line">{spacePoints}</p>
-          </CollapsibleSection>
-        </>
+        <CollapsibleSection label={t.points}>
+          <p className="text-sm leading-relaxed whitespace-pre-line">{spacePoints}</p>
+        </CollapsibleSection>
       )}
-    </>
+    </div>
   );
 }
