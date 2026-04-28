@@ -82,6 +82,7 @@ model Space {
   ownerMessage    String?  @db.Text
   experienceGuide String?  @db.Text
   spacePoints     String?  @db.Text
+  storyItems      Json?
   imageUrl        String?
   spaceTags       Tag[]
   lat             Float?

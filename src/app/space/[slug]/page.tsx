@@ -6,7 +6,7 @@ import { auth } from "@/auth";
 import { getLang } from "@/lib/i18n";
 import { getTagLabels } from "@/lib/tags";
 import type { Metadata } from "next";
-import SpaceStory from "./SpaceStory";
+import SpaceStory, { type StoryItem } from "./SpaceStory";
 
 interface Props { params: Promise<{ slug: string }> }
 
@@ -113,6 +113,7 @@ export default async function SpacePage({ params }: Props) {
           ownerMessage={space.ownerMessage}
           experienceGuide={space.experienceGuide}
           spacePoints={space.spacePoints}
+          storyItems={space.storyItems as StoryItem[] | null}
           lang={lang}
         />
 
