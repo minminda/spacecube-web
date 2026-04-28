@@ -14,7 +14,15 @@ function formatDate(d: Date, lang: string) {
 }
 
 function Divider() {
-  return <div className="mb-8 text-xs" style={{ color: "var(--border)" }}>─────────────────────────────</div>;
+  return <div className="my-8" style={{ borderTop: "1px solid var(--border)" }} />;
+}
+
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="text-xs uppercase tracking-widest mb-5" style={{ color: "var(--dim)" }}>
+      {children}
+    </p>
+  );
 }
 
 export default async function ArchivePage() {
@@ -78,34 +86,35 @@ export default async function ArchivePage() {
   };
 
   return (
-    <main className="flex flex-col min-h-screen px-6 pt-6 pb-16" style={{ color: "var(--fg)" }}>
-      <nav className="flex justify-between items-center mb-8">
-        <Link href="/" className="text-xs" style={{ color: "var(--dim)" }}>←</Link>
-        <div />
+    <main className="flex flex-col min-h-screen px-6 pt-8 pb-16">
+      <nav className="flex justify-between items-center mb-10">
+        <Link href="/" className="text-xs" style={{ color: "var(--dim)" }}>← </Link>
         <SettingsPanel nickname={user.nickname} visibility={user.visibility} userId={user.id} lang={lang} />
       </nav>
 
       <section className="mb-10 space-y-2">
-        <p className="text-lg" style={{ color: "var(--fg)" }}>{displayName}</p>
+        <h1 className="text-2xl font-bold">{displayName}</h1>
         {allRecords.length > 0
-          ? <p className="text-sm" style={{ color: "var(--dim)" }}>{tastePhrase}</p>
+          ? <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>{tastePhrase}</p>
           : <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>{t.noRecord}</p>}
       </section>
 
       {allRecords.length > 0 && (
         <>
           {topTags.length > 0 && (
-            <section className="mb-10 space-y-2">
+            <section className="mb-10 space-y-2.5">
               {topTags.map(([tag, count]) => {
                 const filled = Math.round((count / maxCount) * 10);
                 return (
-                  <div key={tag} className="flex items-center gap-3 text-xs">
-                    <span className="w-16 flex-shrink-0 text-right" style={{ color: "var(--dim)" }}>{TAG_LABELS[tag]}</span>
-                    <span style={{ letterSpacing: "2px" }}>
-                      <span style={{ color: "var(--fg)" }}>{"▪".repeat(filled)}</span>
-                      <span style={{ color: "var(--border)" }}>{"▫".repeat(10 - filled)}</span>
-                    </span>
-                    <span style={{ color: "var(--dim)" }}>{count}</span>
+                  <div key={tag} className="flex items-center gap-4 text-xs">
+                    <span className="w-16 flex-shrink-0 text-right text-xs" style={{ color: "var(--dim)" }}>{TAG_LABELS[tag]}</span>
+                    <div className="flex-1 h-0.5 relative" style={{ background: "var(--border)" }}>
+                      <div
+                        className="absolute inset-y-0 left-0 h-full"
+                        style={{ width: `${filled * 10}%`, background: "var(--fg)", transition: "width 0.6s ease" }}
+                      />
+                    </div>
+                    <span className="w-4 text-right" style={{ color: "var(--dim)" }}>{count}</span>
                   </div>
                 );
               })}
@@ -114,86 +123,104 @@ export default async function ArchivePage() {
 
           <Divider />
 
-          <section className="mb-10 space-y-4">
-            <p className="text-xs mb-4" style={{ color: "var(--dim)" }}>{t.placesBeen}</p>
-            {allRecords.map((r) => (
-              <Link key={r.id} href={`/archive/${r.id}`} className="flex flex-col gap-0.5 group">
-                <div className="flex justify-between items-baseline">
-                  <span className="text-sm group-hover:underline" style={{ color: "var(--fg)" }}>{r.space.name}</span>
-                  <span className="text-xs flex-shrink-0 ml-4" style={{ color: "var(--dim)" }}>{formatDate(r.visitedAt, lang)}</span>
-                </div>
-                {r.tags.length > 0 && (
-                  <span className="text-xs" style={{ color: "var(--dim)" }}>
-                    {r.tags.slice(0, 2).map((t) => TAG_LABELS[t.tag]).join(" · ")}
-                  </span>
-                )}
-              </Link>
-            ))}
+          <section className="mb-10">
+            <SectionLabel>{t.placesBeen}</SectionLabel>
+            <div className="space-y-4">
+              {allRecords.map((r) => (
+                <Link key={r.id} href={`/archive/${r.id}`} className="flex flex-col gap-0.5 group">
+                  <div className="flex justify-between items-baseline">
+                    <span className="text-sm font-medium group-hover:underline">{r.space.name}</span>
+                    <span className="text-xs flex-shrink-0 ml-4" style={{ color: "var(--dim)" }}>{formatDate(r.visitedAt, lang)}</span>
+                  </div>
+                  {r.tags.length > 0 && (
+                    <span className="text-xs" style={{ color: "var(--dim)" }}>
+                      {r.tags.slice(0, 2).map((t) => TAG_LABELS[t.tag]).join(" · ")}
+                    </span>
+                  )}
+                </Link>
+              ))}
+            </div>
           </section>
 
           {memos.length > 0 && (
-            <><Divider />
-            <section className="mb-10 space-y-4">
-              <p className="text-xs mb-4" style={{ color: "var(--dim)" }}>{t.whatIWrote}</p>
-              {memos.map((r) => (
-                <div key={r.id} className="space-y-1">
-                  <p className="text-sm leading-relaxed" style={{ color: "var(--fg)" }}>&ldquo;{r.memo}&rdquo;</p>
-                  <p className="text-xs" style={{ color: "var(--dim)" }}>— {r.space.name}</p>
+            <>
+              <Divider />
+              <section className="mb-10">
+                <SectionLabel>{t.whatIWrote}</SectionLabel>
+                <div className="space-y-5">
+                  {memos.map((r) => (
+                    <div key={r.id} className="space-y-1">
+                      <p className="text-sm leading-relaxed">&ldquo;{r.memo}&rdquo;</p>
+                      <p className="text-xs" style={{ color: "var(--dim)" }}>— {r.space.name}</p>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </section></>
+              </section>
+            </>
           )}
 
           <Divider />
 
           <section className="mb-10">
-            <p className="text-xs mb-4" style={{ color: "var(--dim)" }}>{t.grouped}</p>
+            <SectionLabel>{t.grouped}</SectionLabel>
             <CollectionManager collections={user.collections} visitedSpaces={visitedSpaces} lang={lang} />
           </section>
 
           {wantAgain.length > 0 && (
-            <><Divider />
-            <section className="mb-10 space-y-3">
-              <p className="text-xs mb-4" style={{ color: "var(--dim)" }}>{t.wantReturn}</p>
-              {wantAgain.map((r) => (
-                <Link key={r.id} href={`/space/${r.space.slug}`} className="flex items-center gap-2 group">
-                  <span style={{ color: "var(--dim)" }}>·</span>
-                  <span className="text-sm group-hover:underline" style={{ color: "var(--fg)" }}>{r.space.name}</span>
-                </Link>
-              ))}
-            </section></>
+            <>
+              <Divider />
+              <section className="mb-10">
+                <SectionLabel>{t.wantReturn}</SectionLabel>
+                <div className="space-y-3">
+                  {wantAgain.map((r) => (
+                    <Link key={r.id} href={`/space/${r.space.slug}`} className="flex items-center gap-3 group">
+                      <span style={{ color: "var(--border)" }}>·</span>
+                      <span className="text-sm font-medium group-hover:underline">{r.space.name}</span>
+                    </Link>
+                  ))}
+                </div>
+              </section>
+            </>
           )}
 
           {savedTasteCards.length > 0 && (
-            <><Divider />
-            <section className="mb-10 space-y-4">
-              <p className="text-xs mb-4" style={{ color: "var(--dim)" }}>{t.savedTastes}</p>
-              {savedTasteCards.map((u) => (
-                <Link key={u.id} href={`/u/${u.id}`} className="flex items-start gap-2 group">
-                  <span style={{ color: "var(--dim)" }} className="mt-0.5">·</span>
-                  <div>
-                    <span className="text-sm group-hover:underline" style={{ color: "var(--fg)" }}>{u.nickname}</span>
-                    <span className="text-xs" style={{ color: "var(--dim)" }}> · {u.phrase}</span>
-                  </div>
-                </Link>
-              ))}
-            </section></>
+            <>
+              <Divider />
+              <section className="mb-10">
+                <SectionLabel>{t.savedTastes}</SectionLabel>
+                <div className="space-y-4">
+                  {savedTasteCards.map((u) => (
+                    <Link key={u.id} href={`/u/${u.id}`} className="flex items-start gap-3 group">
+                      <span style={{ color: "var(--border)" }} className="mt-0.5">·</span>
+                      <div>
+                        <span className="text-sm font-medium group-hover:underline">{u.nickname}</span>
+                        <span className="text-xs" style={{ color: "var(--dim)" }}> · {u.phrase}</span>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </section>
+            </>
           )}
 
           {similar.length > 0 && (
-            <><Divider />
-            <section className="mb-10 space-y-4">
-              <p className="text-xs mb-4" style={{ color: "var(--dim)" }}>{t.similarTastes}</p>
-              {similar.map((u) => (
-                <Link key={u.id} href={`/u/${u.id}`} className="flex items-start gap-2 group">
-                  <span style={{ color: "var(--dim)" }} className="mt-0.5">·</span>
-                  <div>
-                    <span className="text-sm group-hover:underline" style={{ color: "var(--fg)" }}>{u.nickname}</span>
-                    <span className="text-xs" style={{ color: "var(--dim)" }}> · {u.phrase}</span>
-                  </div>
-                </Link>
-              ))}
-            </section></>
+            <>
+              <Divider />
+              <section className="mb-10">
+                <SectionLabel>{t.similarTastes}</SectionLabel>
+                <div className="space-y-4">
+                  {similar.map((u) => (
+                    <Link key={u.id} href={`/u/${u.id}`} className="flex items-start gap-3 group">
+                      <span style={{ color: "var(--border)" }} className="mt-0.5">·</span>
+                      <div>
+                        <span className="text-sm font-medium group-hover:underline">{u.nickname}</span>
+                        <span className="text-xs" style={{ color: "var(--dim)" }}> · {u.phrase}</span>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </section>
+            </>
           )}
         </>
       )}

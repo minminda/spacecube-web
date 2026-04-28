@@ -1,20 +1,20 @@
 @import "tailwindcss";
 
 :root {
-  --bg: #0a0a0a;
-  --fg: #e0e0d0;
-  --dim: #606058;
-  --border: #2a2a2a;
-  --tag-bg: #141414;
-  --accent: #c8c8b8;
+  --bg: #0a0a08;
+  --fg: #f0ede6;
+  --dim: #888880;
+  --border: #242420;
+  --tag-bg: #141412;
+  --accent: #c8c4b8;
 }
 
 [data-theme="light"] {
-  --bg: #f5f5f0;
-  --fg: #1a1a18;
+  --bg: #f8f7f4;
+  --fg: #1a1916;
   --dim: #888880;
-  --border: #d0cfc8;
-  --tag-bg: #eaeae5;
+  --border: #d8d6d0;
+  --tag-bg: #eeece8;
   --accent: #404038;
 }
 
@@ -25,8 +25,9 @@
 body {
   background: var(--bg);
   color: var(--fg);
-  font-family: "Courier New", "D2Coding", "Consolas", monospace;
+  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
   -webkit-font-smoothing: antialiased;
+  letter-spacing: -0.01em;
 }
 
 ::selection {
@@ -63,4 +64,9 @@ body {
 @keyframes map-scan {
   0%   { opacity: 0; }
   100% { opacity: 1; }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
 }

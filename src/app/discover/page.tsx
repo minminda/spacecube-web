@@ -26,44 +26,41 @@ export default async function DiscoverPage({ searchParams }: Props) {
     lang === "ko" ? "지금 탐험할 지역" : lang === "ja" ? "探索中のエリア" :
     lang === "zh" ? "正在探索的区域" : "Exploring";
   const emptyMsg =
-    lang === "ko" ? <>&gt; 아직 {district}에 등록된 공간이 없어.<br />&nbsp;&nbsp;조금 기다려봐.</> :
-    lang === "ja" ? <>&gt; {district}にはまだ登録された空間がありません。<br />&nbsp;&nbsp;少し待ってください。</> :
-    lang === "zh" ? <>&gt; {district}暂时还没有已登记的空间。<br />&nbsp;&nbsp;请稍后再来。</> :
-                   <>&gt; No spaces registered in {district} yet.<br />&nbsp;&nbsp;Check back soon.</>;
+    lang === "ko" ? `아직 ${district}에 등록된 공간이 없어. 조금 기다려봐.` :
+    lang === "ja" ? `${district}にはまだ登録された空間がありません。少し待ってください。` :
+    lang === "zh" ? `${district}暂时还没有已登记的空间。请稍后再来。` :
+                   `No spaces registered in ${district} yet. Check back soon.`;
   const otherAreaLabel =
-    lang === "ko" ? "다른 지역 보기 _" : lang === "ja" ? "他のエリアを見る _" :
-    lang === "zh" ? "查看其他区域 _" : "View other areas _";
+    lang === "ko" ? "다른 지역 보기" : lang === "ja" ? "他のエリアを見る" :
+    lang === "zh" ? "查看其他区域" : "View other areas";
   const foundLabel =
-    lang === "ko" ? `${spaces.length}곳을 발견했어` :
-    lang === "ja" ? `${spaces.length}件の空間を発見` :
-    lang === "zh" ? `发现了 ${spaces.length} 个空间` :
-    `${spaces.length} space${spaces.length !== 1 ? "s" : ""} found`;
+    lang === "ko" ? `${spaces.length}곳 발견` :
+    lang === "ja" ? `${spaces.length}件の空間` :
+    lang === "zh" ? `发现 ${spaces.length} 个空间` :
+    `${spaces.length} space${spaces.length !== 1 ? "s" : ""}`;
 
   return (
-    <main className="flex flex-col min-h-screen px-6 py-8 gap-6">
-      <div className="space-y-1" style={{ color: "var(--dim)" }}>
-        <div className="flex justify-between items-center">
-          <p className="text-xs">SPACECUBE / DISCOVER</p>
-          <Link href="/" className="text-xs" style={{ color: "var(--dim)" }}>&lt; {homeLabel}</Link>
-        </div>
-        <p className="text-xs">─────────────────────────────</p>
-      </div>
+    <main className="flex flex-col min-h-screen px-6 py-8 gap-8">
+      <nav className="flex items-center justify-between">
+        <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>SPACECUBE</p>
+        <Link href="/" className="text-xs" style={{ color: "var(--dim)" }}>← {homeLabel}</Link>
+      </nav>
+
+      <div style={{ borderTop: "1px solid var(--border)" }} />
 
       <div className="space-y-1">
-        <p className="text-xs" style={{ color: "var(--dim)" }}>&gt; {exploringLabel}</p>
-        <p className="text-xl tracking-widest">{district.toUpperCase()}</p>
+        <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>{exploringLabel}</p>
+        <h1 className="text-3xl font-bold">{district}</h1>
       </div>
 
-      <p className="text-xs" style={{ color: "var(--border)" }}>─────────────────────────────</p>
-
       {spaces.length === 0 ? (
-        <div className="flex-1 flex flex-col justify-center gap-3">
-          <p className="text-sm" style={{ color: "var(--dim)" }}>{emptyMsg}</p>
-          <Link href="/" className="text-xs" style={{ color: "var(--dim)" }}>&gt; {otherAreaLabel}</Link>
+        <div className="flex-1 flex flex-col justify-center gap-4">
+          <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>{emptyMsg}</p>
+          <Link href="/" className="text-sm" style={{ color: "var(--dim)" }}>{otherAreaLabel} →</Link>
         </div>
       ) : (
         <>
-          <p className="text-xs" style={{ color: "var(--dim)" }}>// {foundLabel}</p>
+          <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>{foundLabel}</p>
           <SpaceCards spaces={spaces} />
         </>
       )}

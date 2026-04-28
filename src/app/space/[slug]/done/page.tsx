@@ -54,58 +54,79 @@ export default async function DonePage({ params, searchParams }: Props) {
     saved:       lang === "ko" ? "아카이브에 저장됐어." : lang === "ja" ? "アーカイブに保存されました。" : lang === "zh" ? "已保存到档案。" : "Saved to your archive.",
     nextSpace:   lang === "ko" ? "다음 공간" : lang === "ja" ? "次の空間" : lang === "zh" ? "下一个空间" : "Next Space",
     nearBy: space?.district
-      ? (lang === "ko" ? `${space.district} 근처로 이런 공간도 있어.` : lang === "ja" ? `${space.district}周辺のおすすめ空間です。` : lang === "zh" ? `${space.district}附近还有这些空间。` : `More spaces near ${space.district}.`)
-      : (lang === "ko" ? "취향 기반으로 이런 공간도 있어." : lang === "ja" ? "好みに合った空間もあります。" : lang === "zh" ? "根据你的品味，还有这些空间。" : "You might also like these spaces."),
-    viewArchive: lang === "ko" ? "[[ 내 아카이브 보기 ]]" : lang === "ja" ? "[[ マイアーカイブを見る ]]" : lang === "zh" ? "[[ 查看我的档案 ]]" : "[[ View My Archive ]]",
+      ? (lang === "ko" ? `${space.district} 근처 추천 공간` : lang === "ja" ? `${space.district}周辺のおすすめ` : lang === "zh" ? `${space.district}附近推荐` : `More near ${space.district}`)
+      : (lang === "ko" ? "취향 기반 추천" : lang === "ja" ? "好みに合ったおすすめ" : lang === "zh" ? "根据品味推荐" : "Recommended for you"),
+    viewArchive: lang === "ko" ? "내 아카이브 보기" : lang === "ja" ? "マイアーカイブを見る" : lang === "zh" ? "查看我的档案" : "View My Archive",
     goHome:      lang === "ko" ? "홈으로" : lang === "ja" ? "ホームへ" : lang === "zh" ? "回到首页" : "Go Home",
   };
 
   return (
-    <main className="flex flex-col justify-center min-h-screen px-6 py-12 gap-6">
-      <div className="space-y-1" style={{ color: "var(--dim)" }}>
-        <p className="text-xs">SPACECUBE / DONE</p>
-        <p className="text-xs">─────────────────────────────</p>
-      </div>
-
+    <main className="flex flex-col min-h-screen px-6 pt-16 pb-12 gap-8">
+      {/* Saved confirmation */}
       <div className="space-y-3">
-        <p className="text-xs" style={{ color: "var(--dim)" }}>&gt; {t.saved}</p>
-        <p className="text-lg">□ {spaceName}</p>
-        {tagList.length > 0 && <p className="text-sm" style={{ color: "var(--dim)" }}>{tagList.map((tag) => `[${TAG_LABELS[tag]}]`).join(" ")}</p>}
+        <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>{t.saved}</p>
+        <h1 className="text-2xl font-bold leading-tight">{spaceName}</h1>
+        {tagList.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {tagList.map((tag) => (
+              <span
+                key={tag}
+                className="text-xs px-2.5 py-1 border"
+                style={{ borderColor: "var(--border)", color: "var(--dim)" }}
+              >
+                {TAG_LABELS[tag]}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
 
-      <p className="text-xs" style={{ color: "var(--border)" }}>─────────────────────────────</p>
+      <div style={{ borderTop: "1px solid var(--border)" }} />
 
+      {/* Recommendations */}
       {recommended.length > 0 && (
         <>
-          <div className="space-y-3">
-            <p className="text-xs" style={{ color: "var(--dim)" }}>// {t.nextSpace}</p>
-            <p className="text-xs" style={{ color: "var(--dim)" }}>&gt; {t.nearBy}</p>
-            <div className="space-y-2">
-              {recommended.map((rec) => (
-                <Link key={rec.id} href={`/space/${rec.slug}`} className="flex gap-3 p-3 border transition-colors hover:border-[var(--fg)]" style={{ borderColor: "var(--border)" }}>
-                  {rec.imageUrl && (
-                    <div className="relative w-12 h-12 flex-shrink-0 overflow-hidden">
-                      <Image src={rec.imageUrl} alt={rec.name} fill className="object-cover opacity-60" />
-                    </div>
-                  )}
-                  <div className="flex flex-col justify-center gap-1 min-w-0">
-                    <p className="text-sm truncate">&gt; {rec.name}</p>
-                    {rec.tagline && <p className="text-xs truncate italic" style={{ color: "var(--dim)" }}>&ldquo;{rec.tagline}&rdquo;</p>}
-                    {rec.district && <p className="text-xs" style={{ color: "var(--dim)" }}>[{rec.district}]</p>}
+          <div className="space-y-5">
+            <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>{t.nearBy}</p>
+            {recommended.map((rec) => (
+              <Link
+                key={rec.id}
+                href={`/space/${rec.slug}`}
+                className="flex gap-4 group"
+              >
+                {rec.imageUrl && (
+                  <div className="relative w-16 h-16 flex-shrink-0 overflow-hidden">
+                    <Image src={rec.imageUrl} alt={rec.name} fill className="object-cover transition-transform duration-500 group-hover:scale-105" />
                   </div>
-                </Link>
-              ))}
-            </div>
+                )}
+                <div className="flex flex-col justify-center gap-1 min-w-0">
+                  <p className="text-sm font-semibold truncate group-hover:underline">{rec.name}</p>
+                  {rec.tagline && (
+                    <p className="text-xs truncate leading-relaxed" style={{ color: "var(--dim)" }}>{rec.tagline}</p>
+                  )}
+                  {rec.district && (
+                    <p className="text-xs" style={{ color: "var(--dim)" }}>{rec.district}</p>
+                  )}
+                </div>
+              </Link>
+            ))}
           </div>
-          <p className="text-xs" style={{ color: "var(--border)" }}>─────────────────────────────</p>
+          <div style={{ borderTop: "1px solid var(--border)" }} />
         </>
       )}
 
+      {/* CTAs */}
       <div className="space-y-3">
-        <Link href="/archive" className="block w-full text-center text-sm py-2 px-4 border hover:bg-[var(--fg)] hover:text-[var(--bg)] transition-colors" style={{ borderColor: "var(--fg)" }}>
+        <Link
+          href="/archive"
+          className="block w-full text-center text-sm font-medium py-3 border hover:bg-[var(--fg)] hover:text-[var(--bg)] transition-colors"
+          style={{ borderColor: "var(--fg)" }}
+        >
           {t.viewArchive}
         </Link>
-        <Link href="/" className="block text-xs text-center" style={{ color: "var(--dim)" }}>&lt; {t.goHome}</Link>
+        <Link href="/" className="block text-xs text-center py-2" style={{ color: "var(--dim)" }}>
+          {t.goHome}
+        </Link>
       </div>
     </main>
   );
