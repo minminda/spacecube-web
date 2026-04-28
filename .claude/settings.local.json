@@ -6,7 +6,12 @@
       "Bash(git push:*)",
       "WebFetch(domain:longblack.co)",
       "mcp__Claude_in_Chrome__tabs_context_mcp",
-      "Bash(npm run *)"
+      "Bash(npm run *)",
+      "Bash(git checkout *)",
+      "Bash(git merge *)",
+      "Read(//c/Users/alseh/spacecube-app/**)",
+      "Bash(gh run *)",
+      "Bash(npx prisma *)"
     ]
   }
 }

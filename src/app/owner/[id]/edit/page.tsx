@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { isAdmin } from "@/lib/admin";
 import SpaceForm from "../../SpaceForm";
+import type { StoryItem } from "@/app/space/[slug]/SpaceStory";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -31,12 +32,9 @@ export default async function EditSpacePage({ params }: Props) {
         openingHours: space.openingHours ?? "",
         naverMapUrl: space.naverMapUrl ?? "",
         description: space.description,
-        philosophy: space.philosophy,
-        ownerMessage: space.ownerMessage ?? "",
-        experienceGuide: space.experienceGuide ?? "",
-        spacePoints: space.spacePoints ?? "",
         spaceTags: space.spaceTags ?? [],
         imageUrl: space.imageUrl ?? "",
+        storyItems: (space.storyItems as StoryItem[]) ?? [],
       }}
     />
   );

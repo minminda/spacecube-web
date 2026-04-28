@@ -22,11 +22,12 @@ export async function POST(req: NextRequest) {
     tagline, openingHours, naverMapUrl,
     description, philosophy, ownerMessage,
     experienceGuide, spacePoints,
+    storyItems,
     spaceTags,
     imageUrl,
   } = await req.json();
 
-  if (!name || !slug || !type || !district || !location || !description || !philosophy) {
+  if (!name || !slug || !type || !district || !location || !description) {
     return NextResponse.json({ error: "필수 항목이 빠졌어요." }, { status: 400 });
   }
 
@@ -42,10 +43,11 @@ export async function POST(req: NextRequest) {
       tagline: tagline || null,
       openingHours: openingHours || null,
       naverMapUrl: naverMapUrl || null,
-      description, philosophy,
+      description, philosophy: philosophy || "",
       ownerMessage: ownerMessage || null,
       experienceGuide: experienceGuide || null,
       spacePoints: spacePoints || null,
+      storyItems: storyItems ?? null,
       spaceTags: spaceTags ?? [],
       imageUrl: imageUrl || null,
     },
