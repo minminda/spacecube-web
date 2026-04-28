@@ -117,6 +117,8 @@ export default async function SpacePage({ params }: Props) {
           lang={lang}
         />
 
+        <div style={{ borderTop: "1px solid var(--border)" }} />
+
         <p className="text-xs leading-relaxed" style={{ color: "var(--dim)" }}>{t.storyNote}</p>
 
         {publicRecords.length > 0 && (
