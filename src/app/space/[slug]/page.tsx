@@ -6,7 +6,8 @@ import { auth } from "@/auth";
 import { getLang } from "@/lib/i18n";
 import { getTagLabels } from "@/lib/tags";
 import type { Metadata } from "next";
-import SpaceStory, { type StoryItem } from "./SpaceStory";
+import { type StoryItem } from "./SpaceStory";
+import StoryTabs from "./StoryTabs";
 
 interface Props { params: Promise<{ slug: string }> }
 
@@ -107,13 +108,20 @@ export default async function SpacePage({ params }: Props) {
 
         <div style={{ borderTop: "1px solid var(--border)" }} />
 
-        <SpaceStory
+        <StoryTabs
           description={space.description}
           philosophy={space.philosophy}
           ownerMessage={space.ownerMessage}
           experienceGuide={space.experienceGuide}
           spacePoints={space.spacePoints}
           storyItems={space.storyItems as StoryItem[] | null}
+          ownerName={space.ownerName}
+          ownerPhotoUrl={space.ownerPhotoUrl}
+          ownerBio={space.ownerBio}
+          ownerValues={space.ownerValues}
+          ownerPlaylistUrl={space.ownerPlaylistUrl}
+          ownerBlogUrl={space.ownerBlogUrl}
+          ownerSocialUrl={space.ownerSocialUrl}
           lang={lang}
         />
 

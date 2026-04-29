@@ -24,6 +24,13 @@ interface SpaceData {
   storyItems?: StoryItem[];
   spaceTags: string[];
   imageUrl?: string;
+  ownerName?: string;
+  ownerPhotoUrl?: string;
+  ownerBio?: string;
+  ownerValues?: string;
+  ownerPlaylistUrl?: string;
+  ownerBlogUrl?: string;
+  ownerSocialUrl?: string;
 }
 
 interface Props {
@@ -54,6 +61,19 @@ export default function SpaceForm({ mode, space }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  // 사장님 이야기
+  const [ownerPhotoUrl, setOwnerPhotoUrl] = useState(space?.ownerPhotoUrl ?? "");
+  const [ownerPhotoPreview, setOwnerPhotoPreview] = useState(space?.ownerPhotoUrl ?? "");
+  const [ownerPhotoUploading, setOwnerPhotoUploading] = useState(false);
+  const [ownerForm, setOwnerForm] = useState({
+    ownerName: space?.ownerName ?? "",
+    ownerBio: space?.ownerBio ?? "",
+    ownerValues: space?.ownerValues ?? "",
+    ownerPlaylistUrl: space?.ownerPlaylistUrl ?? "",
+    ownerBlogUrl: space?.ownerBlogUrl ?? "",
+    ownerSocialUrl: space?.ownerSocialUrl ?? "",
+  });
+
   // 대표 이미지
   const [imageUrl, setImageUrl] = useState(space?.imageUrl ?? "");
   const [imagePreview, setImagePreview] = useState(space?.imageUrl ?? "");
@@ -81,6 +101,24 @@ export default function SpaceForm({ mode, space }: Props) {
   });
 
   const MAX_SPACE_TAGS = 7;
+
+  function handleOwnerChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) {
+    const { name, value } = e.target;
+    setOwnerForm((prev) => ({ ...prev, [name]: value }));
+  }
+
+  async function handleOwnerPhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setOwnerPhotoPreview(URL.createObjectURL(file));
+    setOwnerPhotoUploading(true);
+    const url = await uploadToCloudinary(file);
+    setOwnerPhotoUploading(false);
+    if (url) {
+      setOwnerPhotoUrl(url);
+      setOwnerPhotoPreview(url);
+    }
+  }
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) {
     const { name, value } = e.target;
@@ -174,6 +212,8 @@ export default function SpaceForm({ mode, space }: Props) {
         imageUrl: imageUrl || null,
         storyItems: storyItems.length > 0 ? storyItems : null,
         spaceTags: selectedSpaceTags,
+        ...ownerForm,
+        ownerPhotoUrl: ownerPhotoUrl || null,
       }),
     });
     const data = await res.json();
@@ -363,6 +403,61 @@ export default function SpaceForm({ mode, space }: Props) {
             + 이미지 추가
           </button>
         </div>
+
+        {/* 사장님 이야기 */}
+        <div style={{ borderTop: "1px solid var(--border)" }} />
+        <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>사장님의 이야기</p>
+
+        <Field label="사장님 이름/닉네임 (선택)">
+          <input name="ownerName" value={ownerForm.ownerName} onChange={handleOwnerChange}
+            placeholder="김책방" className="w-full text-sm px-3 py-2.5 border" style={inputStyle} />
+        </Field>
+
+        <Field label="사장님 사진 (선택)">
+          <label className="block cursor-pointer">
+            <div className="w-20 h-20 rounded-full border flex items-center justify-center overflow-hidden relative" style={{ borderColor: "var(--border)" }}>
+              {ownerPhotoPreview ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={ownerPhotoPreview} alt="owner" className="w-full h-full object-cover" />
+              ) : (
+                <span className="text-xs text-center" style={{ color: "var(--dim)" }}>사진</span>
+              )}
+              {ownerPhotoUploading && (
+                <div className="absolute inset-0 flex items-center justify-center rounded-full" style={{ background: "rgba(0,0,0,0.5)" }}>
+                  <span className="text-xs" style={{ color: "var(--fg)" }}>...</span>
+                </div>
+              )}
+            </div>
+            <input type="file" accept="image/*" onChange={handleOwnerPhotoChange} className="hidden" />
+          </label>
+        </Field>
+
+        <Field label="사장님 이야기 (선택)">
+          <textarea name="ownerBio" value={ownerForm.ownerBio} onChange={handleOwnerChange}
+            placeholder="어떻게 이 공간을 시작하게 됐는지, 어떤 사람인지 자유롭게 써줘."
+            rows={5} className="w-full text-sm px-3 py-2.5 border resize-none" style={inputStyle} />
+        </Field>
+
+        <Field label="가장 중요하게 생각하는 가치 (선택)">
+          <textarea name="ownerValues" value={ownerForm.ownerValues} onChange={handleOwnerChange}
+            placeholder="공간을 운영하면서 가장 지키고 싶은 것, 손님에게 전하고 싶은 것"
+            rows={3} className="w-full text-sm px-3 py-2.5 border resize-none" style={inputStyle} />
+        </Field>
+
+        <Field label="플레이리스트 링크 (선택)">
+          <input name="ownerPlaylistUrl" value={ownerForm.ownerPlaylistUrl} onChange={handleOwnerChange}
+            placeholder="https://open.spotify.com/..." className="w-full text-sm px-3 py-2.5 border" style={inputStyle} />
+        </Field>
+
+        <Field label="블로그 링크 (선택)">
+          <input name="ownerBlogUrl" value={ownerForm.ownerBlogUrl} onChange={handleOwnerChange}
+            placeholder="https://brunch.co.kr/..." className="w-full text-sm px-3 py-2.5 border" style={inputStyle} />
+        </Field>
+
+        <Field label="SNS 링크 (선택)">
+          <input name="ownerSocialUrl" value={ownerForm.ownerSocialUrl} onChange={handleOwnerChange}
+            placeholder="https://instagram.com/..." className="w-full text-sm px-3 py-2.5 border" style={inputStyle} />
+        </Field>
 
         {/* 태그 */}
         <div style={{ borderTop: "1px solid var(--border)" }} />

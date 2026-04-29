@@ -24,6 +24,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     storyItems,
     spaceTags,
     imageUrl,
+    ownerName, ownerPhotoUrl, ownerBio, ownerValues,
+    ownerPlaylistUrl, ownerBlogUrl, ownerSocialUrl,
   } = await req.json();
 
   const updated = await prisma.space.update({
@@ -40,6 +42,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       storyItems: storyItems ?? null,
       spaceTags: spaceTags ?? [],
       imageUrl: imageUrl || null,
+      ownerName: ownerName || null,
+      ownerPhotoUrl: ownerPhotoUrl || null,
+      ownerBio: ownerBio || null,
+      ownerValues: ownerValues || null,
+      ownerPlaylistUrl: ownerPlaylistUrl || null,
+      ownerBlogUrl: ownerBlogUrl || null,
+      ownerSocialUrl: ownerSocialUrl || null,
     },
   });
 

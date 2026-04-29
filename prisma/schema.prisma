@@ -84,6 +84,13 @@ model Space {
   spacePoints     String?  @db.Text
   storyItems      Json?
   imageUrl        String?
+  ownerName       String?
+  ownerPhotoUrl   String?
+  ownerBio        String?  @db.Text
+  ownerValues     String?  @db.Text
+  ownerPlaylistUrl String?
+  ownerBlogUrl    String?
+  ownerSocialUrl  String?
   spaceTags       Tag[]
   lat             Float?
   lng             Float?
