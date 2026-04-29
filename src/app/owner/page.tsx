@@ -17,7 +17,7 @@ export default async function AdminPage() {
     <main className="flex flex-col min-h-screen px-6 py-8 gap-6">
       <div className="space-y-1" style={{ color: "var(--dim)" }}>
         <div className="flex justify-between">
-          <p className="text-xs">SPACECUBE / ADMIN</p>
+          <p className="text-xs">공간큐브 / ADMIN</p>
           <Link href="/" className="text-xs" style={{ color: "var(--dim)" }}>&lt; home</Link>
         </div>
         <p className="text-xs">─────────────────────────────</p>

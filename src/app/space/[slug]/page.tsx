@@ -17,7 +17,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!space) return {};
   const description = space.tagline ?? space.description.slice(0, 100);
   return {
-    title: `${space.name} — SPACECUBE`, description,
+    title: `${space.name} — 공간큐브`, description,
     openGraph: { title: space.name, description, images: space.imageUrl ? [{ url: space.imageUrl }] : [], type: "website" },
     twitter:   { card: "summary_large_image", title: space.name, description, images: space.imageUrl ? [space.imageUrl] : [] },
   };
@@ -71,7 +71,7 @@ export default async function SpacePage({ params }: Props) {
       <div className="flex flex-col gap-6 px-6 py-6 flex-1">
         {/* Breadcrumb */}
         <div className="flex items-center justify-between">
-          <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>SPACECUBE</p>
+          <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>공간큐브</p>
           <Link href="/" className="text-xs" style={{ color: "var(--dim)" }}>← {t.home}</Link>
         </div>
 

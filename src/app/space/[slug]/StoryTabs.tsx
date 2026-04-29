@@ -13,7 +13,7 @@ interface Props {
   experienceGuide?: string | null;
   spacePoints?: string | null;
   storyItems?: StoryItem[] | null;
-  // 사장님 이야기
+  // 운영자 이야기
   ownerName?: string | null;
   ownerPhotoUrl?: string | null;
   ownerBio?: string | null;
@@ -32,7 +32,7 @@ export default function StoryTabs({
   const [tab, setTab] = useState<"space" | "owner">("space");
 
   const tabSpace  = lang === "ko" ? "공간의 이야기" : lang === "ja" ? "空間の話" : lang === "zh" ? "空间的故事" : "Space Story";
-  const tabOwner  = lang === "ko" ? "사장님의 이야기" : lang === "ja" ? "オーナーの話" : lang === "zh" ? "老板的故事" : "Owner's Story";
+  const tabOwner  = lang === "ko" ? "운영자의 이야기" : lang === "ja" ? "オーナーの話" : lang === "zh" ? "老板的故事" : "Owner's Story";
 
   return (
     <div className="space-y-6">

@@ -25,7 +25,7 @@ export default async function QRPage({ params }: Props) {
     <main className="flex flex-col min-h-screen px-6 py-8 gap-6">
       <div className="space-y-1" style={{ color: "var(--dim)" }}>
         <div className="flex justify-between">
-          <p className="text-xs">SPACECUBE / QR</p>
+          <p className="text-xs">공간큐브 / QR</p>
           <Link href="/owner" className="text-xs" style={{ color: "var(--dim)" }}>&lt; back</Link>
         </div>
         <p className="text-xs">─────────────────────────────</p>

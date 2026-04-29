@@ -16,7 +16,7 @@ export default async function LoginPage() {
   return (
     <main className="flex flex-col justify-center min-h-screen px-6 py-12 gap-8">
       <div className="space-y-4">
-        <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>SPACECUBE</p>
+        <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>공간큐브</p>
         <h1 className="text-3xl font-bold leading-tight whitespace-pre-line">{heading}</h1>
       </div>
 

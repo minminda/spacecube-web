@@ -42,7 +42,7 @@ export default async function DiscoverPage({ searchParams }: Props) {
   return (
     <main className="flex flex-col min-h-screen px-6 py-8 gap-8">
       <nav className="flex items-center justify-between">
-        <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>SPACECUBE</p>
+        <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>공간큐브</p>
         <Link href="/" className="text-xs" style={{ color: "var(--dim)" }}>← {homeLabel}</Link>
       </nav>
 

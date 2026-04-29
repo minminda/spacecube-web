@@ -4,7 +4,7 @@ export default function NotFound() {
   return (
     <main className="flex flex-col justify-center min-h-screen px-6 py-12 gap-6">
       <div className="space-y-1" style={{ color: "var(--dim)" }}>
-        <p className="text-xs">SPACECUBE / 404</p>
+        <p className="text-xs">공간큐브 / 404</p>
         <p className="text-xs">─────────────────────────────</p>
       </div>
 

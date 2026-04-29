@@ -61,7 +61,7 @@ export default function SpaceForm({ mode, space }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // 사장님 이야기
+  // 운영자 이야기
   const [ownerPhotoUrl, setOwnerPhotoUrl] = useState(space?.ownerPhotoUrl ?? "");
   const [ownerPhotoPreview, setOwnerPhotoPreview] = useState(space?.ownerPhotoUrl ?? "");
   const [ownerPhotoUploading, setOwnerPhotoUploading] = useState(false);
@@ -404,16 +404,16 @@ export default function SpaceForm({ mode, space }: Props) {
           </button>
         </div>
 
-        {/* 사장님 이야기 */}
+        {/* 운영자 이야기 */}
         <div style={{ borderTop: "1px solid var(--border)" }} />
-        <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>사장님의 이야기</p>
+        <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>운영자의 이야기</p>
 
-        <Field label="사장님 이름/닉네임 (선택)">
+        <Field label="운영자 이름/닉네임 (선택)">
           <input name="ownerName" value={ownerForm.ownerName} onChange={handleOwnerChange}
             placeholder="김책방" className="w-full text-sm px-3 py-2.5 border" style={inputStyle} />
         </Field>
 
-        <Field label="사장님 사진 (선택)">
+        <Field label="운영자 사진 (선택)">
           <label className="block cursor-pointer">
             <div className="w-20 h-20 rounded-full border flex items-center justify-center overflow-hidden relative" style={{ borderColor: "var(--border)" }}>
               {ownerPhotoPreview ? (
@@ -432,7 +432,7 @@ export default function SpaceForm({ mode, space }: Props) {
           </label>
         </Field>
 
-        <Field label="사장님 이야기 (선택)">
+        <Field label="운영자 이야기 (선택)">
           <textarea name="ownerBio" value={ownerForm.ownerBio} onChange={handleOwnerChange}
             placeholder="어떻게 이 공간을 시작하게 됐는지, 어떤 사람인지 자유롭게 써줘."
             rows={5} className="w-full text-sm px-3 py-2.5 border resize-none" style={inputStyle} />

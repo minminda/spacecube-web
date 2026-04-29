@@ -9,7 +9,7 @@ export default async function Home() {
   const admin = isAdmin(session?.user?.email);
   const lang = await getLang();
 
-  const eyebrow = "SPACECUBE";
+  const eyebrow = "공간큐브";
   const heading =
     lang === "ko" ? "공간 경험을 기록하고,\n취향을 발견해봐" :
     lang === "ja" ? "空間の体験を記録して、\n好みを発見しよう" :

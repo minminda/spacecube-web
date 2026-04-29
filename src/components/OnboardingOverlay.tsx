@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 
 const LINES = [
-  { text: "SPACECUBE v1.0", delay: 0, style: "fg" },
+  { text: "공간큐브 v1.0", delay: 0, style: "fg" },
   { text: "─────────────────────────────", delay: 300, style: "border" },
   { text: "> 처음 오셨군요.", delay: 700, style: "dim" },
   { text: "", delay: 1000, style: "dim" },
