@@ -20,10 +20,14 @@ export default async function RecordPage({ params }: Props) {
   const user = await prisma.user.findUnique({ where: { email: session.user.email } });
   if (!user) notFound();
 
-  const existingRecord = await prisma.record.findUnique({
-    where: { userId_spaceId: { userId: user.id, spaceId: space.id } },
+  const previousRecords = await prisma.record.findMany({
+    where: { userId: user.id, spaceId: space.id },
     include: { tags: true },
+    orderBy: { visitedAt: "desc" },
   });
+
+  const visitCount = previousRecords.length;
+  const lastRecord = previousRecords[0] ?? null;
 
   const lang = await getLang();
 
@@ -31,8 +35,8 @@ export default async function RecordPage({ params }: Props) {
     <RecordForm
       space={{ id: space.id, name: space.name, slug: space.slug }}
       spaceTags={space.spaceTags}
-      existingTags={existingRecord?.tags.map((t) => t.tag) ?? []}
-      existingMemo={existingRecord?.memo ?? ""}
+      visitCount={visitCount}
+      previousRecord={lastRecord ? { tags: lastRecord.tags.map((t) => t.tag), memo: lastRecord.memo ?? "" } : null}
       lang={lang}
     />
   );

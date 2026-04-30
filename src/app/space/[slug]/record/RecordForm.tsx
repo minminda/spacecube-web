@@ -13,26 +13,33 @@ const MAX_MEMO = 120;
 interface Props {
   space: { id: string; name: string; slug: string };
   spaceTags: Tag[];
-  existingTags: Tag[];
-  existingMemo: string;
+  visitCount: number;
+  previousRecord: { tags: Tag[]; memo: string } | null;
   lang: Lang;
 }
 
-export default function RecordForm({ space, spaceTags, existingTags, existingMemo, lang }: Props) {
+export default function RecordForm({ space, spaceTags, visitCount, previousRecord, lang }: Props) {
   const TAG_LABELS = getTagLabels(lang);
   const tagsToShow = spaceTags.length > 0 ? spaceTags : ALL_TAGS;
   const router = useRouter();
-  const [selectedTags, setSelectedTags] = useState<Tag[]>(existingTags);
-  const [memo, setMemo] = useState(existingMemo);
+  const [selectedTags, setSelectedTags] = useState<Tag[]>([]);
+  const [memo, setMemo] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const isRevisit = visitCount > 0;
+  const visitNumber = visitCount + 1;
 
   const t = {
     howWas:      lang === "ko" ? "이 공간 어땠나요?" : lang === "ja" ? "この空間はいかがでしたか？" : lang === "zh" ? "这个空间怎么样？" : "How was this space?",
+    howWasAgain: lang === "ko" ? "이번엔 어땠나요?" : lang === "ja" ? "今回はいかがでしたか？" : lang === "zh" ? "这次怎么样？" : "How was it this time?",
     maxTags:     lang === "ko" ? `최대 ${MAX_TAGS}개까지 고를 수 있어.` : lang === "ja" ? `最大${MAX_TAGS}つまで選べます。` : lang === "zh" ? `最多可以选择 ${MAX_TAGS} 个标签。` : `You can select up to ${MAX_TAGS} tags.`,
     leaveNote:   lang === "ko" ? "기록을 남겨볼까요? (선택)" : lang === "ja" ? "メモを残しませんか？（任意）" : lang === "zh" ? "留下记录吧？（可选）" : "Want to leave a note? (optional)",
     placeholder: lang === "ko" ? "오늘 어떤 생각이 들었나요... 한 줄로 남겨도 좋아요." : lang === "ja" ? "今日どんな気持ちでしたか... 一言でも大丈夫です。" : lang === "zh" ? "今天有什么感受... 一句话也可以。" : "What did you feel today... even one line is enough.",
     saving:      lang === "ko" ? "// 저장 중..." : lang === "ja" ? "// 保存中..." : lang === "zh" ? "// 保存中..." : "// Saving...",
     save:        lang === "ko" ? "[[ 저장하기 ]]" : lang === "ja" ? "[[ 保存する ]]" : lang === "zh" ? "[[ 保存 ]]" : "[[ Save ]]",
+    visitLabel:  lang === "ko" ? `// ${visitNumber}번째 방문입니다` : lang === "ja" ? `// ${visitNumber}回目の訪問です` : lang === "zh" ? `// 第 ${visitNumber} 次到访` : `// Visit #${visitNumber}`,
+    lastTime:    lang === "ko" ? "지난번:" : lang === "ja" ? "前回:" : lang === "zh" ? "上次:" : "Last time:",
+    noMemo:      lang === "ko" ? "기록 없음" : lang === "ja" ? "メモなし" : lang === "zh" ? "无记录" : "No note left",
   };
 
   function toggleTag(tag: Tag) {
@@ -66,11 +73,32 @@ export default function RecordForm({ space, spaceTags, existingTags, existingMem
         <p className="text-base">&gt; {space.name}</p>
       </div>
 
+      {isRevisit && (
+        <div className="space-y-2 p-3 border" style={{ borderColor: "var(--border)" }}>
+          <p className="text-xs" style={{ color: "var(--fg)" }}>{t.visitLabel}</p>
+          <div className="flex items-start gap-2 text-xs" style={{ color: "var(--dim)" }}>
+            <span className="flex-shrink-0">{t.lastTime}</span>
+            <span className="italic leading-relaxed">
+              &ldquo;{previousRecord?.memo || t.noMemo}&rdquo;
+            </span>
+          </div>
+          {previousRecord && previousRecord.tags.length > 0 && (
+            <div className="flex gap-1.5 flex-wrap">
+              {previousRecord.tags.map((tag) => (
+                <span key={tag} className="text-xs px-2 py-0.5 border" style={{ borderColor: "var(--border)", color: "var(--dim)" }}>
+                  {TAG_LABELS[tag]}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       <p className="text-xs" style={{ color: "var(--border)" }}>─────────────────────────────</p>
 
       <div className="space-y-3">
         <div className="flex justify-between items-center">
-          <p className="text-xs" style={{ color: "var(--dim)" }}>// {t.howWas}</p>
+          <p className="text-xs" style={{ color: "var(--dim)" }}>// {isRevisit ? t.howWasAgain : t.howWas}</p>
           <p className="text-xs" style={{ color: selectedTags.length >= MAX_TAGS ? "var(--fg)" : "var(--dim)" }}>{selectedTags.length}/{MAX_TAGS}</p>
         </div>
         <div className="flex flex-wrap gap-2">

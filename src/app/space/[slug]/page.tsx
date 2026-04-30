@@ -37,7 +37,7 @@ export default async function SpacePage({ params }: Props) {
   if (session?.user?.email) {
     const user = await prisma.user.findUnique({ where: { email: session.user.email } });
     if (user) {
-      const record = await prisma.record.findUnique({ where: { userId_spaceId: { userId: user.id, spaceId: space.id } } });
+      const record = await prisma.record.findFirst({ where: { userId: user.id, spaceId: space.id } });
       hasRecord = !!record;
     }
   }
@@ -53,7 +53,7 @@ export default async function SpacePage({ params }: Props) {
     hours:        lang === "ko" ? "운영" : lang === "ja" ? "営業時間" : lang === "zh" ? "营业时间" : "Hours",
     lovedBy:      lang === "ko" ? "이 공간을 좋아한 사람들" : lang === "ja" ? "この空間が好きな人たち" : lang === "zh" ? "喜欢这个空间的人" : "People Who Loved This Space",
     viewTaste:    lang === "ko" ? "취향 보기 →" : lang === "ja" ? "好みを見る →" : lang === "zh" ? "查看品味 →" : "View taste →",
-    editRecord:   lang === "ko" ? "기록 수정하기" : lang === "ja" ? "記録を編集する" : lang === "zh" ? "编辑记录" : "Edit Record",
+    editRecord:   lang === "ko" ? "다시 기록하기" : lang === "ja" ? "また記録する" : lang === "zh" ? "再次记录" : "Record Again",
     leaveRecord:  lang === "ko" ? "이 공간, 기록 남기기" : lang === "ja" ? "この空間を記録する" : lang === "zh" ? "记录这个空间" : "Leave a Record",
     signInRecord: lang === "ko" ? "로그인하고 기록 남기기" : lang === "ja" ? "ログインして記録する" : lang === "zh" ? "登录后记录" : "Sign In to Leave a Record",
     home:         lang === "ko" ? "홈" : lang === "ja" ? "ホーム" : lang === "zh" ? "首页" : "Home",

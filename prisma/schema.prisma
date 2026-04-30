@@ -112,8 +112,6 @@ model Record {
   user  User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   space Space       @relation(fields: [spaceId], references: [id], onDelete: Cascade)
   tags  RecordTag[]
-
-  @@unique([userId, spaceId])
 }
 
 model RecordTag {

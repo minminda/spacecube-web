@@ -51,8 +51,12 @@ export default async function ArchivePage() {
   const maxCount     = topTags[0]?.[1] ?? 1;
   const myTopTagList = topTags.slice(0, 3).map(([t]) => t);
 
-  const memos     = allRecords.filter((r) => r.memo);
-  const wantAgain = allRecords.filter((r) => r.tags.some((t) => t.tag === "WANT_AGAIN"));
+  const memos = allRecords.filter((r) => r.memo);
+  const wantAgainMap = new Map<string, typeof allRecords[0]>();
+  allRecords.filter((r) => r.tags.some((t) => t.tag === "WANT_AGAIN")).forEach((r) => {
+    if (!wantAgainMap.has(r.space.id)) wantAgainMap.set(r.space.id, r);
+  });
+  const wantAgain = [...wantAgainMap.values()];
   const visitedSpaces = allRecords.map((r) => ({ id: r.space.id, name: r.space.name, slug: r.space.slug }));
   const displayName   = user.nickname || user.name?.split(" ")[0] || me;
 

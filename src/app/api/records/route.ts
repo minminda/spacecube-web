@@ -22,26 +22,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
 
-  const existing = await prisma.record.findUnique({
-    where: { userId_spaceId: { userId: user.id, spaceId } },
-  });
-
-  if (existing) {
-    // 기존 기록 업데이트
-    await prisma.recordTag.deleteMany({ where: { recordId: existing.id } });
-    const record = await prisma.record.update({
-      where: { id: existing.id },
-      data: {
-        memo: memo || null,
-        visitedAt: new Date(),
-        tags: {
-          create: tags.map((tag: Tag) => ({ tag })),
-        },
-      },
-    });
-    return NextResponse.json(record);
-  }
-
   const record = await prisma.record.create({
     data: {
       userId: user.id,
