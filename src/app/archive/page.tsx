@@ -13,8 +13,8 @@ function formatDate(d: Date, lang: string) {
   return new Date(d).toLocaleDateString(locale, { year: "numeric", month: "2-digit", day: "2-digit" });
 }
 
-function Divider() {
-  return <div className="my-8" style={{ borderTop: "1px solid var(--border)" }} />;
+function Divider({ className }: { className?: string }) {
+  return <div className={`my-8 ${className ?? ""}`} style={{ borderTop: "1px solid var(--border)" }} />;
 }
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
@@ -96,6 +96,10 @@ export default async function ArchivePage() {
         <SettingsPanel nickname={user.nickname} visibility={user.visibility} userId={user.id} lang={lang} />
       </nav>
 
+      {/* 데스크탑: 왼쪽 취향 프로필 + 오른쪽 기록 목록 */}
+      <div className="md:grid md:grid-cols-2 md:gap-12 md:items-start">
+      {/* 왼쪽 패널: 프로필 + 취향 차트 */}
+      <div className="md:sticky md:top-8">
       <section className="mb-10 space-y-2">
         <h1 className="text-2xl font-bold">{displayName}</h1>
         {allRecords.length > 0
@@ -124,8 +128,15 @@ export default async function ArchivePage() {
               })}
             </section>
           )}
+        </>
+      )}
+      </div>{/* 왼쪽 패널 끝 */}
 
-          <Divider />
+      {/* 오른쪽 패널: 기록 섹션들 */}
+      <div>
+      {allRecords.length > 0 && (
+        <>
+          <Divider className="md:hidden" />
 
           <section className="mb-10">
             <SectionLabel>{t.placesBeen}</SectionLabel>
@@ -228,6 +239,8 @@ export default async function ArchivePage() {
           )}
         </>
       )}
+      </div>{/* 오른쪽 패널 끝 */}
+      </div>{/* md:grid 끝 */}
     </main>
   );
 }

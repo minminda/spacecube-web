@@ -19,7 +19,7 @@ export default function SpaceCards({ spaces }: { spaces: SpaceCard[] }) {
   if (spaces.length === 0) return null;
 
   return (
-    <div className="space-y-8 pb-8">
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-10 pb-8">
       {spaces.map((space) => (
         <div
           key={space.id}

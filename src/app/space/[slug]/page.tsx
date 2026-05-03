@@ -60,114 +60,126 @@ export default async function SpacePage({ params }: Props) {
   };
 
   return (
-    <main className="flex flex-col min-h-screen">
-      {/* Hero image */}
+    <main className="flex flex-col min-h-screen md:flex-row">
+      {/* 이미지 — 모바일: 상단 전체, 데스크탑: 왼쪽 sticky 패널 */}
       {space.imageUrl && (
-        <div className="relative w-full flex-shrink-0" style={{ aspectRatio: "16 / 11" }}>
-          <Image src={space.imageUrl} alt={space.name} fill className="object-cover" />
+        <div
+          className="relative w-full flex-shrink-0 md:w-1/2 md:sticky md:top-0 md:self-start md:h-screen"
+          style={{ aspectRatio: "16 / 11" }}
+        >
+          <Image
+            src={space.imageUrl}
+            alt={space.name}
+            fill
+            className="object-cover"
+            style={{ aspectRatio: "unset" }}
+          />
         </div>
       )}
 
-      <div className="flex flex-col gap-6 px-6 py-6 flex-1">
-        {/* Breadcrumb */}
-        <div className="flex items-center justify-between">
-          <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>공간큐브</p>
-          <Link href="/" className="text-xs" style={{ color: "var(--dim)" }}>← {t.home}</Link>
-        </div>
+      {/* 오른쪽 콘텐츠 패널 */}
+      <div className="flex flex-col flex-1 min-w-0">
+        <div className="flex flex-col gap-6 px-6 py-6 flex-1">
+          {/* Breadcrumb */}
+          <div className="flex items-center justify-between">
+            <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>공간큐브</p>
+            <Link href="/" className="text-xs" style={{ color: "var(--dim)" }}>← {t.home}</Link>
+          </div>
 
-        <div style={{ borderTop: "1px solid var(--border)" }} />
+          <div style={{ borderTop: "1px solid var(--border)" }} />
 
-        {/* Title */}
-        <div className="space-y-2">
-          <h1 className="text-2xl font-bold leading-tight">{space.name}</h1>
-          {space.tagline && (
-            <p className="text-sm leading-relaxed italic" style={{ color: "var(--dim)" }}>{space.tagline}</p>
-          )}
-        </div>
+          {/* Title */}
+          <div className="space-y-2">
+            <h1 className="text-2xl font-bold leading-tight">{space.name}</h1>
+            {space.tagline && (
+              <p className="text-sm leading-relaxed italic" style={{ color: "var(--dim)" }}>{space.tagline}</p>
+            )}
+          </div>
 
-        {/* Info */}
-        <div className="space-y-2 text-sm" style={{ color: "var(--dim)" }}>
-          {space.naverMapUrl ? (
-            <a href={space.naverMapUrl} target="_blank" rel="noopener noreferrer" className="flex items-start gap-3 hover:underline">
-              <span className="text-xs uppercase tracking-widest flex-shrink-0 mt-0.5">{t.location}</span>
-              <span>{space.location} ↗</span>
-            </a>
-          ) : (
-            <div className="flex items-start gap-3">
-              <span className="text-xs uppercase tracking-widest flex-shrink-0 mt-0.5">{t.location}</span>
-              <span>{space.location}</span>
-            </div>
-          )}
-          {space.openingHours && (
-            <div className="flex items-start gap-3">
-              <span className="text-xs uppercase tracking-widest flex-shrink-0 mt-0.5">{t.hours}</span>
-              <span>{space.openingHours}</span>
-            </div>
-          )}
-        </div>
+          {/* Info */}
+          <div className="space-y-2 text-sm" style={{ color: "var(--dim)" }}>
+            {space.naverMapUrl ? (
+              <a href={space.naverMapUrl} target="_blank" rel="noopener noreferrer" className="flex items-start gap-3 hover:underline">
+                <span className="text-xs uppercase tracking-widest flex-shrink-0 mt-0.5">{t.location}</span>
+                <span>{space.location} ↗</span>
+              </a>
+            ) : (
+              <div className="flex items-start gap-3">
+                <span className="text-xs uppercase tracking-widest flex-shrink-0 mt-0.5">{t.location}</span>
+                <span>{space.location}</span>
+              </div>
+            )}
+            {space.openingHours && (
+              <div className="flex items-start gap-3">
+                <span className="text-xs uppercase tracking-widest flex-shrink-0 mt-0.5">{t.hours}</span>
+                <span>{space.openingHours}</span>
+              </div>
+            )}
+          </div>
 
-        <div style={{ borderTop: "1px solid var(--border)" }} />
+          <div style={{ borderTop: "1px solid var(--border)" }} />
 
-        <StoryTabs
-          description={space.description}
-          philosophy={space.philosophy}
-          ownerMessage={space.ownerMessage}
-          experienceGuide={space.experienceGuide}
-          spacePoints={space.spacePoints}
-          storyItems={space.storyItems as StoryItem[] | null}
-          ownerName={space.ownerName}
-          ownerPhotoUrl={space.ownerPhotoUrl}
-          ownerBio={space.ownerBio}
-          ownerValues={space.ownerValues}
-          ownerPlaylistUrl={space.ownerPlaylistUrl}
-          ownerBlogUrl={space.ownerBlogUrl}
-          ownerSocialUrl={space.ownerSocialUrl}
-          lang={lang}
-        />
+          <StoryTabs
+            description={space.description}
+            philosophy={space.philosophy}
+            ownerMessage={space.ownerMessage}
+            experienceGuide={space.experienceGuide}
+            spacePoints={space.spacePoints}
+            storyItems={space.storyItems as StoryItem[] | null}
+            ownerName={space.ownerName}
+            ownerPhotoUrl={space.ownerPhotoUrl}
+            ownerBio={space.ownerBio}
+            ownerValues={space.ownerValues}
+            ownerPlaylistUrl={space.ownerPlaylistUrl}
+            ownerBlogUrl={space.ownerBlogUrl}
+            ownerSocialUrl={space.ownerSocialUrl}
+            lang={lang}
+          />
 
-        {publicRecords.length > 0 && (
-          <>
-            <div style={{ borderTop: "1px solid var(--border)" }} />
-            <div className="space-y-5">
-              <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>{t.lovedBy}</p>
-              {publicRecords.map((r) => {
-                const name = r.user.nickname || r.user.name?.split(" ")[0] || anon;
-                return (
-                  <div key={r.id} className="space-y-1">
-                    <div className="flex items-baseline justify-between">
-                      <p className="text-sm font-medium">{name}</p>
-                      <Link href={`/u/${r.user.id}`} className="text-xs hover:underline flex-shrink-0 ml-3" style={{ color: "var(--dim)" }}>{t.viewTaste}</Link>
+          {publicRecords.length > 0 && (
+            <>
+              <div style={{ borderTop: "1px solid var(--border)" }} />
+              <div className="space-y-5">
+                <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>{t.lovedBy}</p>
+                {publicRecords.map((r) => {
+                  const name = r.user.nickname || r.user.name?.split(" ")[0] || anon;
+                  return (
+                    <div key={r.id} className="space-y-1">
+                      <div className="flex items-baseline justify-between">
+                        <p className="text-sm font-medium">{name}</p>
+                        <Link href={`/u/${r.user.id}`} className="text-xs hover:underline flex-shrink-0 ml-3" style={{ color: "var(--dim)" }}>{t.viewTaste}</Link>
+                      </div>
+                      {r.memo && (
+                        <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>&ldquo;{r.memo}&rdquo;</p>
+                      )}
                     </div>
-                    {r.memo && (
-                      <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>&ldquo;{r.memo}&rdquo;</p>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </>
-        )}
-      </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
+        </div>
 
-      {/* Sticky CTA */}
-      <div className="sticky bottom-0 px-6 pb-8 pt-4" style={{ background: "var(--bg)", borderTop: "1px solid var(--border)" }}>
-        {session ? (
-          <Link
-            href={`/space/${slug}/record`}
-            className="block w-full text-center text-sm font-medium py-3 border hover:bg-[var(--fg)] hover:text-[var(--bg)] transition-colors"
-            style={{ borderColor: "var(--fg)" }}
-          >
-            {hasRecord ? t.editRecord : t.leaveRecord}
-          </Link>
-        ) : (
-          <Link
-            href="/login"
-            className="block w-full text-center text-sm font-medium py-3 border hover:bg-[var(--fg)] hover:text-[var(--bg)] transition-colors"
-            style={{ borderColor: "var(--fg)" }}
-          >
-            {t.signInRecord}
-          </Link>
-        )}
+        {/* Sticky CTA */}
+        <div className="sticky bottom-0 px-6 pb-8 pt-4" style={{ background: "var(--bg)", borderTop: "1px solid var(--border)" }}>
+          {session ? (
+            <Link
+              href={`/space/${slug}/record`}
+              className="block w-full text-center text-sm font-medium py-3 border hover:bg-[var(--fg)] hover:text-[var(--bg)] transition-colors"
+              style={{ borderColor: "var(--fg)" }}
+            >
+              {hasRecord ? t.editRecord : t.leaveRecord}
+            </Link>
+          ) : (
+            <Link
+              href="/login"
+              className="block w-full text-center text-sm font-medium py-3 border hover:bg-[var(--fg)] hover:text-[var(--bg)] transition-colors"
+              style={{ borderColor: "var(--fg)" }}
+            >
+              {t.signInRecord}
+            </Link>
+          )}
+        </div>
       </div>
     </main>
   );

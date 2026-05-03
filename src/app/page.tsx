@@ -77,7 +77,7 @@ export default async function Home() {
       {hasStories && (
         <>
           <div style={{ borderTop: "1px solid var(--border)" }} />
-          <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             {regionStory && (
               <StoryCard
                 href={`/story/${regionStory.slug}`}

@@ -91,7 +91,7 @@ export default async function StoryPage({ params }: Props) {
             <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>
               {story.type === "REGION" ? "이 동네의 공간" : "이 취향의 공간"}
             </p>
-            <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {story.storySpaces.map(({ space }) => (
                 <Link
                   key={space.id}

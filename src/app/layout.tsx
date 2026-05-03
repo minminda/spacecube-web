@@ -39,7 +39,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body className="min-h-screen" style={{ background: "var(--bg)", color: "var(--fg)" }}>
-        <div className="max-w-sm mx-auto min-h-screen">
+        <div className="max-w-sm md:max-w-2xl mx-auto min-h-screen">
           {children}
         </div>
         <OnboardingOverlay />
