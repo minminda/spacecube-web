@@ -19,7 +19,7 @@ export default async function QRPage({ params }: Props) {
   if (!space) notFound();
 
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? process.env.AUTH_URL ?? "https://spacecube-web.vercel.app";
-  const qrUrl = `${baseUrl}/space/${space.slug}`;
+  const qrUrl = `${baseUrl}/space/${space.slug}?src=qr`;
 
   return (
     <main className="flex flex-col min-h-screen px-6 py-8 gap-6">

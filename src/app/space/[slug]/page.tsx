@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
+import { Suspense } from "react";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 import { getLang } from "@/lib/i18n";
@@ -8,6 +9,8 @@ import { getTagLabels } from "@/lib/tags";
 import type { Metadata } from "next";
 import { type StoryItem } from "./SpaceStory";
 import StoryTabs from "./StoryTabs";
+import ScanTracker from "@/components/ScanTracker";
+import { aggregateSpaceTags, getSpaceUsageSummary } from "@/lib/spaceInsight";
 
 interface Props { params: Promise<{ slug: string }> }
 
@@ -31,7 +34,6 @@ export default async function SpacePage({ params }: Props) {
   const session = await auth();
   const lang = await getLang();
   const TAG_LABELS = getTagLabels(lang);
-  const anon = lang === "ko" ? "익명" : lang === "zh" ? "匿名" : lang === "ja" ? "匿名" : "Anonymous";
 
   let hasRecord = false;
   if (session?.user?.email) {
@@ -42,21 +44,30 @@ export default async function SpacePage({ params }: Props) {
     }
   }
 
-  const publicRecords = await prisma.record.findMany({
-    where: { spaceId: space.id, user: { visibility: "PARTIAL" } },
-    include: { user: { select: { id: true, nickname: true, name: true } } },
-    orderBy: { visitedAt: "desc" }, take: 5,
+  // 익명 반응: memo 있는 기록 (사용자 식별 없이 memo + tags만)
+  const anonymousReactions = await prisma.record.findMany({
+    where: { spaceId: space.id, memo: { not: null } },
+    include: { tags: true },
+    orderBy: { visitedAt: "desc" },
+    take: 5,
   });
 
+  // 공간 사용 방식 요약 (전체 기록 태그 집계)
+  const allTagRecords = await prisma.record.findMany({
+    where: { spaceId: space.id },
+    include: { tags: true },
+  });
+  const topTags = aggregateSpaceTags(allTagRecords);
+  const usageSummary = getSpaceUsageSummary(topTags, lang);
+
   const t = {
-    location:     lang === "ko" ? "위치" : lang === "ja" ? "場所" : lang === "zh" ? "位置" : "Location",
-    hours:        lang === "ko" ? "운영" : lang === "ja" ? "営業時間" : lang === "zh" ? "营业时间" : "Hours",
-    lovedBy:      lang === "ko" ? "이 공간을 좋아한 사람들" : lang === "ja" ? "この空間が好きな人たち" : lang === "zh" ? "喜欢这个空间的人" : "People Who Loved This Space",
-    viewTaste:    lang === "ko" ? "취향 보기 →" : lang === "ja" ? "好みを見る →" : lang === "zh" ? "查看品味 →" : "View taste →",
-    editRecord:   lang === "ko" ? "다시 기록하기" : lang === "ja" ? "また記録する" : lang === "zh" ? "再次记录" : "Record Again",
-    leaveRecord:  lang === "ko" ? "이 공간, 기록 남기기" : lang === "ja" ? "この空間を記録する" : lang === "zh" ? "记录这个空间" : "Leave a Record",
-    signInRecord: lang === "ko" ? "로그인하고 기록 남기기" : lang === "ja" ? "ログインして記録する" : lang === "zh" ? "登录后记录" : "Sign In to Leave a Record",
-    home:         lang === "ko" ? "홈" : lang === "ja" ? "ホーム" : lang === "zh" ? "首页" : "Home",
+    location:     lang === "ko" ? "위치"                       : lang === "ja" ? "場所"           : lang === "zh" ? "位置"      : "Location",
+    hours:        lang === "ko" ? "운영"                       : lang === "ja" ? "営業時間"        : lang === "zh" ? "营业时间"  : "Hours",
+    moments:      lang === "ko" ? "이 공간을 경험한 사람들의 순간" : lang === "ja" ? "この空間を体験した人たちの瞬間" : lang === "zh" ? "体验过这个空间的人们的瞬间" : "Moments from This Space",
+    editRecord:   lang === "ko" ? "다시 기록하기"                : lang === "ja" ? "また記録する"   : lang === "zh" ? "再次记录"  : "Record Again",
+    leaveRecord:  lang === "ko" ? "이 공간, 기록 남기기"          : lang === "ja" ? "この空間を記録する" : lang === "zh" ? "记录这个空间" : "Leave a Record",
+    signInRecord: lang === "ko" ? "로그인하고 기록 남기기"         : lang === "ja" ? "ログインして記録する" : lang === "zh" ? "登录后记录" : "Sign In to Leave a Record",
+    home:         lang === "ko" ? "홈"                         : lang === "ja" ? "ホーム"          : lang === "zh" ? "首页"     : "Home",
   };
 
   return (
@@ -76,6 +87,11 @@ export default async function SpacePage({ params }: Props) {
           />
         </div>
       )}
+
+      {/* QR 스캔 추적 (클라이언트, ?src=qr 감지) */}
+      <Suspense fallback={null}>
+        <ScanTracker spaceId={space.id} />
+      </Suspense>
 
       {/* 오른쪽 콘텐츠 패널 */}
       <div className="flex flex-col flex-1 min-w-0">
@@ -136,25 +152,43 @@ export default async function SpacePage({ params }: Props) {
             lang={lang}
           />
 
-          {publicRecords.length > 0 && (
+          {/* 공간 사용 방식 요약 */}
+          {usageSummary && (
             <>
               <div style={{ borderTop: "1px solid var(--border)" }} />
-              <div className="space-y-5">
-                <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>{t.lovedBy}</p>
-                {publicRecords.map((r) => {
-                  const name = r.user.nickname || r.user.name?.split(" ")[0] || anon;
-                  return (
-                    <div key={r.id} className="space-y-1">
-                      <div className="flex items-baseline justify-between">
-                        <p className="text-sm font-medium">{name}</p>
-                        <Link href={`/u/${r.user.id}`} className="text-xs hover:underline flex-shrink-0 ml-3" style={{ color: "var(--dim)" }}>{t.viewTaste}</Link>
+              <p
+                className="text-sm leading-relaxed pl-3"
+                style={{ borderLeft: "2px solid var(--border)", color: "var(--dim)" }}
+              >
+                {usageSummary}
+              </p>
+            </>
+          )}
+
+          {/* 익명 반응 — 리뷰가 아닌 "순간의 기록" */}
+          {anonymousReactions.length > 0 && (
+            <>
+              <div style={{ borderTop: "1px solid var(--border)" }} />
+              <div className="space-y-6">
+                <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>{t.moments}</p>
+                {anonymousReactions.map((r) => (
+                  <div key={r.id} className="space-y-2">
+                    <p className="text-sm leading-relaxed">&ldquo;{r.memo}&rdquo;</p>
+                    {r.tags.length > 0 && (
+                      <div className="flex gap-2 flex-wrap">
+                        {r.tags.map((tag) => (
+                          <span
+                            key={tag.id}
+                            className="text-xs px-2 py-0.5 border"
+                            style={{ borderColor: "var(--border)", color: "var(--dim)" }}
+                          >
+                            {TAG_LABELS[tag.tag]}
+                          </span>
+                        ))}
                       </div>
-                      {r.memo && (
-                        <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>&ldquo;{r.memo}&rdquo;</p>
-                      )}
-                    </div>
-                  );
-                })}
+                    )}
+                  </div>
+                ))}
               </div>
             </>
           )}

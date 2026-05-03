@@ -67,11 +67,18 @@ export default async function AdminPage() {
                 <p>loc      : {space.location}</p>
                 <p>url      : /space/{space.slug}</p>
               </div>
-              <div className="flex gap-3 text-xs">
+              <div className="flex gap-3 text-xs flex-wrap">
                 <Link
-                  href={`/owner/${space.id}/qr`}
+                  href={`/owner/${space.id}/dashboard`}
                   className="border px-3 py-1 hover:bg-[var(--fg)] hover:text-[var(--bg)] transition-colors"
                   style={{ borderColor: "var(--fg)" }}
+                >
+                  [반응 보드]
+                </Link>
+                <Link
+                  href={`/owner/${space.id}/qr`}
+                  className="border px-3 py-1 transition-colors"
+                  style={{ borderColor: "var(--border)", color: "var(--dim)" }}
                 >
                   [QR]
                 </Link>

@@ -101,6 +101,15 @@ model Space {
   records         Record[]
   collectionItems CollectionItem[]
   storySpaces     ContentStorySpace[]
+  scans           SpaceScan[]
+}
+
+model SpaceScan {
+  id        String   @id @default(cuid())
+  spaceId   String
+  scannedAt DateTime @default(now())
+
+  space Space @relation(fields: [spaceId], references: [id], onDelete: Cascade)
 }
 
 model Record {
