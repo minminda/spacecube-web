@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 import { getLang } from "@/lib/i18n";
 import { getTagLabels } from "@/lib/tags";
+import { aggregateTags, getTastePhrase } from "@/lib/taste";
 import type { Metadata } from "next";
 import { type StoryItem } from "./SpaceStory";
 import StoryTabs from "./StoryTabs";
@@ -57,17 +58,65 @@ export default async function SpacePage({ params }: Props) {
     where: { spaceId: space.id },
     include: { tags: true },
   });
-  const topTags = aggregateSpaceTags(allTagRecords);
-  const usageSummary = getSpaceUsageSummary(topTags, lang);
+  const spaceTopTags = aggregateSpaceTags(allTagRecords);
+  const usageSummary = getSpaceUsageSummary(spaceTopTags, lang);
+
+  // 비슷한 취향 기록 카드: 이 공간을 방문한 공개 사용자 최대 3명 + 그들의 다른 공간
+  const visitorRecords = await prisma.record.findMany({
+    where: { spaceId: space.id, user: { visibility: "PARTIAL" } },
+    include: {
+      tags: true,
+      user: {
+        include: {
+          records: {
+            include: {
+              space: { select: { id: true, name: true, slug: true } },
+              tags: true,
+            },
+            orderBy: { visitedAt: "desc" },
+            take: 20,
+          },
+        },
+      },
+    },
+    orderBy: { visitedAt: "desc" },
+    take: 10,
+  });
+
+  const seenUserIds = new Set<string>();
+  const similarTasteCards = visitorRecords
+    .filter((r) => {
+      if (seenUserIds.has(r.user.id)) return false;
+      seenUserIds.add(r.user.id);
+      return true;
+    })
+    .slice(0, 3)
+    .map((r) => {
+      const phrase = getTastePhrase(aggregateTags(r.user.records).slice(0, 5), lang);
+      const seenSpaces = new Set<string>([space.id]);
+      const otherSpaces = r.user.records
+        .filter((ur) => {
+          if (seenSpaces.has(ur.space.id)) return false;
+          seenSpaces.add(ur.space.id);
+          return true;
+        })
+        .slice(0, 3)
+        .map((ur) => ur.space);
+      return { userId: r.user.id, phrase, memo: r.memo, otherSpaces };
+    })
+    .filter((c) => c.otherSpaces.length > 0);
 
   const t = {
-    location:     lang === "ko" ? "위치"                       : lang === "ja" ? "場所"           : lang === "zh" ? "位置"      : "Location",
-    hours:        lang === "ko" ? "운영"                       : lang === "ja" ? "営業時間"        : lang === "zh" ? "营业时间"  : "Hours",
-    moments:      lang === "ko" ? "이 공간을 경험한 사람들의 순간" : lang === "ja" ? "この空間を体験した人たちの瞬間" : lang === "zh" ? "体验过这个空间的人们的瞬间" : "Moments from This Space",
-    editRecord:   lang === "ko" ? "다시 기록하기"                : lang === "ja" ? "また記録する"   : lang === "zh" ? "再次记录"  : "Record Again",
-    leaveRecord:  lang === "ko" ? "이 공간, 기록 남기기"          : lang === "ja" ? "この空間を記録する" : lang === "zh" ? "记录这个空间" : "Leave a Record",
-    signInRecord: lang === "ko" ? "로그인하고 기록 남기기"         : lang === "ja" ? "ログインして記録する" : lang === "zh" ? "登录后记录" : "Sign In to Leave a Record",
-    home:         lang === "ko" ? "홈"                         : lang === "ja" ? "ホーム"          : lang === "zh" ? "首页"     : "Home",
+    location:      lang === "ko" ? "위치" : lang === "ja" ? "場所" : lang === "zh" ? "位置" : "Location",
+    hours:         lang === "ko" ? "운영" : lang === "ja" ? "営業時間" : lang === "zh" ? "营业时间" : "Hours",
+    moments:       lang === "ko" ? "이 공간을 경험한 사람들의 순간" : lang === "ja" ? "この空間を体験した人たちの瞬間" : lang === "zh" ? "体验过这个空间的人们的瞬间" : "Moments from This Space",
+    similarTastes: lang === "ko" ? "이 공간을 좋아한 취향들" : lang === "ja" ? "この空間が好きな好みたち" : lang === "zh" ? "喜欢这个空间的品味们" : "Tastes that love this space",
+    otherSpaces:   lang === "ko" ? "이 취향이 좋아한 다른 공간" : lang === "ja" ? "この好みが気に入った他の空間" : lang === "zh" ? "这个品味喜欢的其他空间" : "Other spaces this taste loves",
+    followTaste:   lang === "ko" ? "이 취향 따라가기 →" : lang === "ja" ? "この好みをたどる →" : lang === "zh" ? "追随这个品味 →" : "Follow this taste →",
+    editRecord:    lang === "ko" ? "다시 기록하기" : lang === "ja" ? "また記録する" : lang === "zh" ? "再次记录" : "Record Again",
+    leaveRecord:   lang === "ko" ? "이 공간, 기록 남기기" : lang === "ja" ? "この空間を記録する" : lang === "zh" ? "记录这个空间" : "Leave a Record",
+    signInRecord:  lang === "ko" ? "로그인하고 기록 남기기" : lang === "ja" ? "ログインして記録する" : lang === "zh" ? "登录后记录" : "Sign In to Leave a Record",
+    home:          lang === "ko" ? "홈" : lang === "ja" ? "ホーム" : lang === "zh" ? "首页" : "Home",
   };
 
   return (
@@ -187,6 +236,57 @@ export default async function SpacePage({ params }: Props) {
                         ))}
                       </div>
                     )}
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+
+          {/* 비슷한 취향 기록 카드 — 이 공간을 좋아한 취향들 */}
+          {similarTasteCards.length > 0 && (
+            <>
+              <div style={{ borderTop: "1px solid var(--border)" }} />
+              <div className="space-y-6">
+                <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>{t.similarTastes}</p>
+                {similarTasteCards.map((card) => (
+                  <div
+                    key={card.userId}
+                    className="space-y-3 py-4 border-l pl-4"
+                    style={{ borderColor: "var(--border)" }}
+                  >
+                    {/* 취향 문장 */}
+                    <p className="text-sm font-medium leading-snug">{card.phrase}</p>
+
+                    {/* 이 공간에서 남긴 한 줄 */}
+                    {card.memo && (
+                      <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>
+                        &ldquo;{card.memo}&rdquo;
+                      </p>
+                    )}
+
+                    {/* 이 취향이 좋아한 다른 공간 */}
+                    <div className="space-y-1">
+                      <p className="text-xs" style={{ color: "var(--border)" }}>{t.otherSpaces}</p>
+                      {card.otherSpaces.map((s) => (
+                        <Link
+                          key={s.id}
+                          href={`/space/${s.slug}`}
+                          className="block text-sm hover:underline"
+                          style={{ color: "var(--dim)" }}
+                        >
+                          · {s.name}
+                        </Link>
+                      ))}
+                    </div>
+
+                    {/* 이 취향 따라가기 */}
+                    <Link
+                      href={`/taste/${card.userId}`}
+                      className="inline-block text-xs py-1 px-2 border transition-colors hover:bg-[var(--fg)] hover:text-[var(--bg)]"
+                      style={{ borderColor: "var(--border)", color: "var(--dim)" }}
+                    >
+                      {t.followTaste}
+                    </Link>
                   </div>
                 ))}
               </div>

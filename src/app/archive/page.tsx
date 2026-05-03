@@ -39,7 +39,22 @@ export default async function ArchivePage() {
     include: {
       records: { orderBy: { visitedAt: "desc" }, include: { space: true, tags: true } },
       collections: { orderBy: { createdAt: "asc" }, include: { items: { orderBy: { addedAt: "asc" }, include: { space: true } } } },
-      savedTastes: { orderBy: { savedAt: "desc" }, include: { target: { include: { records: { include: { tags: true } } } } } },
+      savedTastes: {
+        orderBy: { savedAt: "desc" },
+        include: {
+          target: {
+            include: {
+              records: {
+                orderBy: { visitedAt: "desc" },
+                include: {
+                  space: { select: { id: true, name: true, slug: true } },
+                  tags: true,
+                },
+              },
+            },
+          },
+        },
+      },
     },
   });
   if (!user) redirect("/login");
@@ -60,21 +75,50 @@ export default async function ArchivePage() {
   const visitedSpaces = allRecords.map((r) => ({ id: r.space.id, name: r.space.name, slug: r.space.slug }));
   const displayName   = user.nickname || user.name?.split(" ")[0] || me;
 
+  // 저장된 취향 카드: 공간 목록 포함
   const savedTasteCards = user.savedTastes.map((st) => {
     const tTags = aggregateTags(st.target.records).slice(0, 5);
-    return { id: st.target.id, nickname: st.target.nickname || st.target.name?.split(" ")[0] || anon, phrase: getTastePhrase(tTags, lang) };
+    const phrase = getTastePhrase(tTags, lang);
+    const seenSpaces = new Set<string>();
+    const spaces = st.target.records
+      .filter((r) => {
+        if (seenSpaces.has(r.space.id)) return false;
+        seenSpaces.add(r.space.id);
+        return true;
+      })
+      .slice(0, 3)
+      .map((r) => r.space);
+    return { id: st.target.id, phrase, spaces };
   });
 
   const savedTargetIds = new Set(user.savedTastes.map((st) => st.targetUserId));
   const similar = myTopTagList.length > 0
     ? await prisma.user.findMany({
         where: { visibility: "PARTIAL", id: { not: user.id, notIn: [...savedTargetIds] }, records: { some: {} } },
-        include: { records: { include: { tags: true } } },
+        include: {
+          records: {
+            orderBy: { visitedAt: "desc" },
+            include: {
+              space: { select: { id: true, name: true, slug: true } },
+              tags: true,
+            },
+          },
+        },
         take: 50,
       }).then((users) =>
         users.map((u) => {
           const their = aggregateTags(u.records).slice(0, 3).map(([t]) => t);
-          return { id: u.id, nickname: u.nickname || u.name?.split(" ")[0] || anon, phrase: getTastePhrase(aggregateTags(u.records).slice(0, 5), lang), score: tagOverlap(myTopTagList, their) };
+          const phrase = getTastePhrase(aggregateTags(u.records).slice(0, 5), lang);
+          const seenSpaces = new Set<string>();
+          const spaces = u.records
+            .filter((r) => {
+              if (seenSpaces.has(r.space.id)) return false;
+              seenSpaces.add(r.space.id);
+              return true;
+            })
+            .slice(0, 3)
+            .map((r) => r.space);
+          return { id: u.id, phrase, spaces, score: tagOverlap(myTopTagList, their) };
         }).filter((u) => u.score > 0).sort((a, b) => b.score - a.score).slice(0, 3)
       )
     : [];
@@ -87,6 +131,8 @@ export default async function ArchivePage() {
     wantReturn:    lang === "ko" ? "다시 가고 싶었던 곳" : lang === "ja" ? "また行きたい場所"   : lang === "zh" ? "想再去的地方"    : "Places to Return To",
     savedTastes:   lang === "ko" ? "관심 있는 취향"     : lang === "ja" ? "保存した好み"       : lang === "zh" ? "收藏的品味"      : "Saved Tastes",
     similarTastes: lang === "ko" ? "비슷한 취향"        : lang === "ja" ? "似た好みの人"       : lang === "zh" ? "相似品味的人"    : "Similar Tastes",
+    followTaste:   lang === "ko" ? "이 취향 따라가기 →" : lang === "ja" ? "この好みをたどる →" : lang === "zh" ? "追随这个品味 →"  : "Follow this taste →",
+    spacesVisited: lang === "ko" ? "다녀온 공간"        : lang === "ja" ? "訪れた空間"         : lang === "zh" ? "去过的空间"      : "Spaces visited",
   };
 
   return (
@@ -203,15 +249,38 @@ export default async function ArchivePage() {
               <Divider />
               <section className="mb-10">
                 <SectionLabel>{t.savedTastes}</SectionLabel>
-                <div className="space-y-4">
-                  {savedTasteCards.map((u) => (
-                    <Link key={u.id} href={`/u/${u.id}`} className="flex items-start gap-3 group">
-                      <span style={{ color: "var(--border)" }} className="mt-0.5">·</span>
-                      <div>
-                        <span className="text-sm font-medium group-hover:underline">{u.nickname}</span>
-                        <span className="text-xs" style={{ color: "var(--dim)" }}> · {u.phrase}</span>
-                      </div>
-                    </Link>
+                <div className="space-y-6">
+                  {savedTasteCards.map((card) => (
+                    <div key={card.id} className="space-y-3 pl-4 border-l" style={{ borderColor: "var(--border)" }}>
+                      {/* 취향 문장 */}
+                      <p className="text-sm font-medium leading-snug">{card.phrase}</p>
+
+                      {/* 이 취향이 다녀온 공간 */}
+                      {card.spaces.length > 0 && (
+                        <div className="space-y-1">
+                          <p className="text-xs" style={{ color: "var(--border)" }}>{t.spacesVisited}</p>
+                          {card.spaces.map((s) => (
+                            <Link
+                              key={s.id}
+                              href={`/space/${s.slug}`}
+                              className="block text-sm hover:underline"
+                              style={{ color: "var(--dim)" }}
+                            >
+                              · {s.name}
+                            </Link>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* 이 취향 따라가기 */}
+                      <Link
+                        href={`/taste/${card.id}`}
+                        className="inline-block text-xs py-1 px-2 border transition-colors hover:bg-[var(--fg)] hover:text-[var(--bg)]"
+                        style={{ borderColor: "var(--border)", color: "var(--dim)" }}
+                      >
+                        {t.followTaste}
+                      </Link>
+                    </div>
                   ))}
                 </div>
               </section>
@@ -223,15 +292,38 @@ export default async function ArchivePage() {
               <Divider />
               <section className="mb-10">
                 <SectionLabel>{t.similarTastes}</SectionLabel>
-                <div className="space-y-4">
-                  {similar.map((u) => (
-                    <Link key={u.id} href={`/u/${u.id}`} className="flex items-start gap-3 group">
-                      <span style={{ color: "var(--border)" }} className="mt-0.5">·</span>
-                      <div>
-                        <span className="text-sm font-medium group-hover:underline">{u.nickname}</span>
-                        <span className="text-xs" style={{ color: "var(--dim)" }}> · {u.phrase}</span>
-                      </div>
-                    </Link>
+                <div className="space-y-6">
+                  {similar.map((card) => (
+                    <div key={card.id} className="space-y-3 pl-4 border-l" style={{ borderColor: "var(--border)" }}>
+                      {/* 취향 문장 */}
+                      <p className="text-sm font-medium leading-snug">{card.phrase}</p>
+
+                      {/* 이 취향이 다녀온 공간 */}
+                      {card.spaces.length > 0 && (
+                        <div className="space-y-1">
+                          <p className="text-xs" style={{ color: "var(--border)" }}>{t.spacesVisited}</p>
+                          {card.spaces.map((s) => (
+                            <Link
+                              key={s.id}
+                              href={`/space/${s.slug}`}
+                              className="block text-sm hover:underline"
+                              style={{ color: "var(--dim)" }}
+                            >
+                              · {s.name}
+                            </Link>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* 이 취향 따라가기 */}
+                      <Link
+                        href={`/taste/${card.id}`}
+                        className="inline-block text-xs py-1 px-2 border transition-colors hover:bg-[var(--fg)] hover:text-[var(--bg)]"
+                        style={{ borderColor: "var(--border)", color: "var(--dim)" }}
+                      >
+                        {t.followTaste}
+                      </Link>
+                    </div>
                   ))}
                 </div>
               </section>
