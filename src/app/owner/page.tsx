@@ -23,13 +23,22 @@ export default async function AdminPage() {
         <p className="text-xs">─────────────────────────────</p>
       </div>
 
-      <Link
-        href="/owner/new"
-        className="block text-sm py-2 px-4 border hover:bg-[var(--fg)] hover:text-[var(--bg)] transition-colors"
-        style={{ borderColor: "var(--fg)" }}
-      >
-        [[ + 새 공간 등록 ]]
-      </Link>
+      <div className="flex gap-3">
+        <Link
+          href="/owner/new"
+          className="flex-1 block text-sm py-2 px-4 border hover:bg-[var(--fg)] hover:text-[var(--bg)] transition-colors"
+          style={{ borderColor: "var(--fg)" }}
+        >
+          [[ + 새 공간 등록 ]]
+        </Link>
+        <Link
+          href="/owner/stories"
+          className="flex-1 block text-sm py-2 px-4 border transition-colors text-center"
+          style={{ borderColor: "var(--border)", color: "var(--dim)" }}
+        >
+          [[ 스토리 관리 ]]
+        </Link>
+      </div>
 
       {spaces.length === 0 ? (
         <p className="text-sm" style={{ color: "var(--dim)" }}>

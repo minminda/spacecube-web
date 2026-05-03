@@ -2,12 +2,40 @@ import Link from "next/link";
 import { auth } from "@/auth";
 import { isAdmin } from "@/lib/admin";
 import { getLang } from "@/lib/i18n";
+import { prisma } from "@/lib/prisma";
 import DiscoverEntry from "./DiscoverEntry";
 
 export default async function Home() {
   const session = await auth();
   const admin = isAdmin(session?.user?.email);
   const lang = await getLang();
+
+  const now = new Date();
+
+  const [regionStory, tasteStory] = await Promise.all([
+    prisma.contentStory.findFirst({
+      where: { type: "REGION", isActive: true, publishedAt: { not: null, lte: now } },
+      orderBy: { publishedAt: "desc" },
+      include: {
+        storySpaces: {
+          orderBy: { order: "asc" },
+          take: 3,
+          include: { space: { select: { name: true, slug: true } } },
+        },
+      },
+    }),
+    prisma.contentStory.findFirst({
+      where: { type: "TASTE", isActive: true, publishedAt: { not: null, lte: now } },
+      orderBy: { publishedAt: "desc" },
+      include: {
+        storySpaces: {
+          orderBy: { order: "asc" },
+          take: 3,
+          include: { space: { select: { name: true, slug: true } } },
+        },
+      },
+    }),
+  ]);
 
   const eyebrow = "공간큐브";
   const heading =
@@ -35,6 +63,8 @@ export default async function Home() {
     lang === "ko" ? "시작하기" : lang === "ja" ? "始める" :
     lang === "zh" ? "开始" : "Get Started";
 
+  const hasStories = regionStory || tasteStory;
+
   return (
     <main className="flex flex-col min-h-screen px-6 pt-16 pb-12 gap-10">
       {/* Hero */}
@@ -42,6 +72,35 @@ export default async function Home() {
         <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>{eyebrow}</p>
         <h1 className="text-3xl font-bold leading-tight whitespace-pre-line">{heading}</h1>
       </div>
+
+      {/* 콘텐츠 레이어 */}
+      {hasStories && (
+        <>
+          <div style={{ borderTop: "1px solid var(--border)" }} />
+          <div className="space-y-6">
+            {regionStory && (
+              <StoryCard
+                href={`/story/${regionStory.slug}`}
+                typeLabel="지역 이야기"
+                meta={regionStory.district ?? undefined}
+                title={regionStory.title}
+                intro={regionStory.intro}
+                spaces={regionStory.storySpaces.map((s) => s.space)}
+              />
+            )}
+            {tasteStory && (
+              <StoryCard
+                href={`/story/${tasteStory.slug}`}
+                typeLabel="취향 이야기"
+                meta={tasteStory.persona ?? undefined}
+                title={tasteStory.title}
+                intro={tasteStory.intro}
+                spaces={tasteStory.storySpaces.map((s) => s.space)}
+              />
+            )}
+          </div>
+        </>
+      )}
 
       <div style={{ borderTop: "1px solid var(--border)" }} />
 
@@ -84,5 +143,57 @@ export default async function Home() {
         </Link>
       )}
     </main>
+  );
+}
+
+function StoryCard({
+  href,
+  typeLabel,
+  meta,
+  title,
+  intro,
+  spaces,
+}: {
+  href: string;
+  typeLabel: string;
+  meta?: string;
+  title: string;
+  intro: string;
+  spaces: { name: string; slug: string }[];
+}) {
+  const excerpt = intro.length > 80 ? intro.slice(0, 80).trimEnd() + "…" : intro;
+
+  return (
+    <Link href={href} className="block group space-y-3">
+      {/* 타입 + 메타 */}
+      <div className="flex items-center gap-2">
+        <span
+          className="text-xs px-2 py-0.5 border"
+          style={{ borderColor: "var(--border)", color: "var(--dim)" }}
+        >
+          {typeLabel}
+        </span>
+        {meta && <span className="text-xs" style={{ color: "var(--dim)" }}>{meta}</span>}
+      </div>
+
+      {/* 제목 */}
+      <p className="text-base font-semibold leading-snug group-hover:underline">{title}</p>
+
+      {/* 발췌 */}
+      <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>{excerpt}</p>
+
+      {/* 관련 공간 */}
+      {spaces.length > 0 && (
+        <div className="flex flex-wrap gap-x-3 gap-y-1">
+          {spaces.map((space) => (
+            <span key={space.slug} className="text-xs" style={{ color: "var(--dim)" }}>
+              {space.name}
+            </span>
+          ))}
+        </div>
+      )}
+
+      <p className="text-xs" style={{ color: "var(--dim)" }}>읽기 →</p>
+    </Link>
   );
 }
