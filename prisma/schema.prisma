@@ -175,6 +175,7 @@ model ContentStory {
   slug        String    @unique
   district    String?
   persona     String?
+  imageUrl    String?
   intro       String    @db.Text
   body        String    @db.Text
   cta         String?

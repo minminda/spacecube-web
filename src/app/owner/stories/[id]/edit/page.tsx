@@ -35,6 +35,7 @@ export default async function EditStoryPage({ params }: Props) {
     slug: story.slug,
     district: story.district,
     persona: story.persona,
+    imageUrl: story.imageUrl,
     intro: story.intro,
     body: story.body,
     cta: story.cta,

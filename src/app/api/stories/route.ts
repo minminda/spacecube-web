@@ -24,7 +24,7 @@ export async function POST(req: Request) {
   }
 
   const body = await req.json();
-  const { type, title, slug, district, persona, intro, body: bodyText, cta, publishedAt, isActive, spaceIds } = body;
+  const { type, title, slug, district, persona, imageUrl, intro, body: bodyText, cta, publishedAt, isActive, spaceIds } = body;
 
   if (!type || !title || !slug || !intro || !bodyText) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -37,6 +37,7 @@ export async function POST(req: Request) {
       slug,
       district: district || null,
       persona: persona || null,
+      imageUrl: imageUrl || null,
       intro,
       body: bodyText,
       cta: cta || null,

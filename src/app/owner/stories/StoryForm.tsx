@@ -19,6 +19,7 @@ interface StoryFormProps {
     slug: string;
     district: string | null;
     persona: string | null;
+    imageUrl: string | null;
     intro: string;
     body: string;
     cta: string | null;
@@ -39,6 +40,7 @@ export default function StoryForm({ mode, initialData, spaces }: StoryFormProps)
   const [slug, setSlug] = useState(initialData?.slug ?? "");
   const [district, setDistrict] = useState(initialData?.district ?? "");
   const [persona, setPersona] = useState(initialData?.persona ?? "");
+  const [imageUrl, setImageUrl] = useState(initialData?.imageUrl ?? "");
   const [intro, setIntro] = useState(initialData?.intro ?? "");
   const [body, setBody] = useState(initialData?.body ?? "");
   const [cta, setCta] = useState(initialData?.cta ?? "");
@@ -65,6 +67,7 @@ export default function StoryForm({ mode, initialData, spaces }: StoryFormProps)
       slug,
       district: district || null,
       persona: persona || null,
+      imageUrl: imageUrl || null,
       intro,
       body,
       cta: cta || null,
@@ -175,6 +178,28 @@ export default function StoryForm({ mode, initialData, spaces }: StoryFormProps)
           />
         </div>
       )}
+
+      {/* 대표 이미지 */}
+      <div className="space-y-2">
+        <p className={labelClass} style={labelStyle}>대표 이미지 URL (선택)</p>
+        <input
+          value={imageUrl}
+          onChange={(e) => setImageUrl(e.target.value)}
+          placeholder="https://..."
+          className={inputClass}
+          style={inputStyle}
+        />
+        {imageUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={imageUrl}
+            alt="미리보기"
+            className="w-full max-h-48 object-cover"
+            style={{ borderColor: "var(--border)" }}
+            onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+          />
+        )}
+      </div>
 
       {/* 도입부 */}
       <div className="space-y-2">

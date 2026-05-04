@@ -8,11 +8,14 @@ interface Props { params: Promise<{ slug: string }> }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
-  const story = await prisma.contentStory.findUnique({ where: { slug }, select: { title: true, intro: true } });
+  const story = await prisma.contentStory.findUnique({ where: { slug }, select: { title: true, intro: true, imageUrl: true } });
   if (!story) return {};
+  const description = story.intro.slice(0, 120);
   return {
     title: `${story.title} — 공간큐브`,
-    description: story.intro.slice(0, 120),
+    description,
+    openGraph: { title: story.title, description, images: story.imageUrl ? [{ url: story.imageUrl }] : [], type: "article" },
+    twitter: { card: "summary_large_image", title: story.title, description, images: story.imageUrl ? [story.imageUrl] : [] },
   };
 }
 
@@ -38,6 +41,20 @@ export default async function StoryPage({ params }: Props) {
 
   return (
     <main className="flex flex-col min-h-screen">
+      {/* 히어로 이미지 */}
+      {story.imageUrl && (
+        <div className="relative w-full overflow-hidden" style={{ aspectRatio: "16 / 9" }}>
+          <Image
+            src={story.imageUrl}
+            alt={story.title}
+            fill
+            className="object-cover"
+            priority
+            style={{ aspectRatio: "unset" }}
+          />
+        </div>
+      )}
+
       {/* 헤더 */}
       <div className="px-6 pt-10 pb-6 space-y-6">
         <div className="flex items-center justify-between">

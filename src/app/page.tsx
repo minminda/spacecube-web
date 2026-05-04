@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { auth } from "@/auth";
 import { isAdmin } from "@/lib/admin";
 import { getLang } from "@/lib/i18n";
@@ -85,6 +86,7 @@ export default async function Home() {
                 meta={regionStory.district ?? undefined}
                 title={regionStory.title}
                 intro={regionStory.intro}
+                imageUrl={regionStory.imageUrl ?? undefined}
                 spaces={regionStory.storySpaces.map((s) => s.space)}
               />
             )}
@@ -95,6 +97,7 @@ export default async function Home() {
                 meta={tasteStory.persona ?? undefined}
                 title={tasteStory.title}
                 intro={tasteStory.intro}
+                imageUrl={tasteStory.imageUrl ?? undefined}
                 spaces={tasteStory.storySpaces.map((s) => s.space)}
               />
             )}
@@ -152,6 +155,7 @@ function StoryCard({
   meta,
   title,
   intro,
+  imageUrl,
   spaces,
 }: {
   href: string;
@@ -159,12 +163,28 @@ function StoryCard({
   meta?: string;
   title: string;
   intro: string;
+  imageUrl?: string;
   spaces: { name: string; slug: string }[];
 }) {
   const excerpt = intro.length > 80 ? intro.slice(0, 80).trimEnd() + "…" : intro;
 
   return (
     <Link href={href} className="block group space-y-3">
+      {/* 썸네일 이미지 */}
+      {imageUrl ? (
+        <div className="relative w-full overflow-hidden" style={{ aspectRatio: "16 / 10", background: "var(--tag-bg)" }}>
+          <Image
+            src={imageUrl}
+            alt={title}
+            fill
+            className="object-cover group-hover:opacity-90 transition-opacity"
+            style={{ aspectRatio: "unset" }}
+          />
+        </div>
+      ) : (
+        <div className="w-full" style={{ aspectRatio: "16 / 10", background: "var(--tag-bg)" }} />
+      )}
+
       {/* 타입 + 메타 */}
       <div className="flex items-center gap-2">
         <span
