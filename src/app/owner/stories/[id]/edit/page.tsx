@@ -38,6 +38,7 @@ export default async function EditStoryPage({ params }: Props) {
     imageUrl: story.imageUrl,
     intro: story.intro,
     body: story.body,
+    bodyBlocks: Array.isArray(story.bodyBlocks) ? story.bodyBlocks as import("../../StoryForm").Block[] : null,
     cta: story.cta,
     publishedAt: story.publishedAt ? story.publishedAt.toISOString() : null,
     isActive: story.isActive,

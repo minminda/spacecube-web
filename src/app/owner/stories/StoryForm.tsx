@@ -10,6 +10,10 @@ interface SpaceOption {
   district: string | null;
 }
 
+export type Block =
+  | { type: "text"; content: string }
+  | { type: "image"; url: string; caption: string };
+
 interface StoryFormProps {
   mode: "new" | "edit";
   initialData?: {
@@ -22,6 +26,7 @@ interface StoryFormProps {
     imageUrl: string | null;
     intro: string;
     body: string;
+    bodyBlocks: Block[] | null;
     cta: string | null;
     publishedAt: string | null;
     isActive: boolean;
@@ -42,13 +47,38 @@ export default function StoryForm({ mode, initialData, spaces }: StoryFormProps)
   const [persona, setPersona] = useState(initialData?.persona ?? "");
   const [imageUrl, setImageUrl] = useState(initialData?.imageUrl ?? "");
   const [intro, setIntro] = useState(initialData?.intro ?? "");
-  const [body, setBody] = useState(initialData?.body ?? "");
   const [cta, setCta] = useState(initialData?.cta ?? "");
   const [publishedAt, setPublishedAt] = useState(
     initialData?.publishedAt ? initialData.publishedAt.slice(0, 16) : ""
   );
   const [isActive, setIsActive] = useState(initialData?.isActive ?? true);
   const [selectedSpaceIds, setSelectedSpaceIds] = useState<string[]>(initialData?.spaceIds ?? []);
+
+  // 블록 에디터 — bodyBlocks 있으면 그걸, 없으면 기존 body를 첫 텍스트 블록으로
+  const [blocks, setBlocks] = useState<Block[]>(() => {
+    if (initialData?.bodyBlocks && initialData.bodyBlocks.length > 0) {
+      return initialData.bodyBlocks;
+    }
+    if (initialData?.body) {
+      return [{ type: "text", content: initialData.body }];
+    }
+    return [];
+  });
+
+  function addTextBlock() {
+    setBlocks((prev) => [...prev, { type: "text", content: "" }]);
+  }
+  function addImageBlock() {
+    setBlocks((prev) => [...prev, { type: "image", url: "", caption: "" }]);
+  }
+  function removeBlock(i: number) {
+    setBlocks((prev) => prev.filter((_, idx) => idx !== i));
+  }
+  function updateBlock(i: number, patch: Partial<Block>) {
+    setBlocks((prev) =>
+      prev.map((b, idx) => (idx === i ? { ...b, ...patch } as Block : b))
+    );
+  }
 
   function toggleSpace(id: string) {
     setSelectedSpaceIds((prev) =>
@@ -61,6 +91,12 @@ export default function StoryForm({ mode, initialData, spaces }: StoryFormProps)
     setSaving(true);
     setError("");
 
+    // body는 텍스트 블록들을 이어 붙여 backward compat 유지
+    const derivedBody = blocks
+      .filter((b): b is { type: "text"; content: string } => b.type === "text")
+      .map((b) => b.content)
+      .join("\n\n") || " ";
+
     const payload = {
       type,
       title,
@@ -69,7 +105,8 @@ export default function StoryForm({ mode, initialData, spaces }: StoryFormProps)
       persona: persona || null,
       imageUrl: imageUrl || null,
       intro,
-      body,
+      body: derivedBody,
+      bodyBlocks: blocks.length > 0 ? blocks : null,
       cta: cta || null,
       publishedAt: publishedAt ? new Date(publishedAt).toISOString() : null,
       isActive,
@@ -116,7 +153,6 @@ export default function StoryForm({ mode, initialData, spaces }: StoryFormProps)
               className="text-xs px-3 py-1.5 border transition-colors"
               style={{
                 borderColor: type === t ? "var(--fg)" : "var(--border)",
-                color: type === t ? "var(--fg)" : "var(--dim)",
                 background: type === t ? "var(--fg)" : "transparent",
               }}
             >
@@ -179,9 +215,9 @@ export default function StoryForm({ mode, initialData, spaces }: StoryFormProps)
         </div>
       )}
 
-      {/* 대표 이미지 */}
+      {/* 대표 이미지 (히어로) */}
       <div className="space-y-2">
-        <p className={labelClass} style={labelStyle}>대표 이미지 URL (선택)</p>
+        <p className={labelClass} style={labelStyle}>대표 이미지 URL (히어로, 선택)</p>
         <input
           value={imageUrl}
           onChange={(e) => setImageUrl(e.target.value)}
@@ -195,7 +231,6 @@ export default function StoryForm({ mode, initialData, spaces }: StoryFormProps)
             src={imageUrl}
             alt="미리보기"
             className="w-full max-h-48 object-cover"
-            style={{ borderColor: "var(--border)" }}
             onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
           />
         )}
@@ -214,19 +249,97 @@ export default function StoryForm({ mode, initialData, spaces }: StoryFormProps)
         />
       </div>
 
-      {/* 본문 */}
-      <div className="space-y-2">
+      {/* 본문 블록 에디터 */}
+      <div className="space-y-3">
         <p className={labelClass} style={labelStyle}>
-          {type === "REGION" ? "본문 — 지역/공간의 분위기 해석" : "본문 — 취향과 장면"}
+          {type === "REGION" ? "본문 — 텍스트 + 이미지 블록" : "본문 — 취향과 장면, 텍스트 + 이미지 블록"}
         </p>
-        <textarea
-          value={body}
-          onChange={(e) => setBody(e.target.value)}
-          rows={8}
-          required
-          className={inputClass}
-          style={{ ...inputStyle, resize: "vertical" }}
-        />
+
+        {blocks.length === 0 && (
+          <p className="text-xs" style={{ color: "var(--border)" }}>
+            블록을 추가해 본문을 구성하세요.
+          </p>
+        )}
+
+        <div className="space-y-3">
+          {blocks.map((block, i) => (
+            <div
+              key={i}
+              className="border p-3 space-y-2"
+              style={{ borderColor: "var(--border)" }}
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-xs" style={{ color: "var(--dim)" }}>
+                  {block.type === "text" ? "[ 텍스트 ]" : "[ 이미지 ]"}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => removeBlock(i)}
+                  className="text-xs px-2 py-0.5"
+                  style={{ color: "var(--dim)", borderColor: "var(--border)" }}
+                >
+                  ✕
+                </button>
+              </div>
+
+              {block.type === "text" ? (
+                <textarea
+                  value={block.content}
+                  onChange={(e) => updateBlock(i, { content: e.target.value })}
+                  rows={5}
+                  placeholder="본문 텍스트..."
+                  className={inputClass}
+                  style={{ ...inputStyle, resize: "vertical" }}
+                />
+              ) : (
+                <div className="space-y-2">
+                  <input
+                    value={block.url}
+                    onChange={(e) => updateBlock(i, { url: e.target.value })}
+                    placeholder="이미지 URL (https://...)"
+                    className={inputClass}
+                    style={inputStyle}
+                  />
+                  <input
+                    value={block.caption}
+                    onChange={(e) => updateBlock(i, { caption: e.target.value })}
+                    placeholder="캡션 (선택)"
+                    className={inputClass}
+                    style={inputStyle}
+                  />
+                  {block.url && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={block.url}
+                      alt="미리보기"
+                      className="w-full max-h-56 object-cover"
+                      onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                    />
+                  )}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+
+        <div className="flex gap-3">
+          <button
+            type="button"
+            onClick={addTextBlock}
+            className="text-xs px-3 py-2 border transition-colors hover:bg-[var(--fg)] hover:text-[var(--bg)]"
+            style={{ borderColor: "var(--border)", color: "var(--dim)" }}
+          >
+            + 텍스트 블록
+          </button>
+          <button
+            type="button"
+            onClick={addImageBlock}
+            className="text-xs px-3 py-2 border transition-colors hover:bg-[var(--fg)] hover:text-[var(--bg)]"
+            style={{ borderColor: "var(--border)", color: "var(--dim)" }}
+          >
+            + 이미지 블록
+          </button>
+        </div>
       </div>
 
       {/* CTA */}

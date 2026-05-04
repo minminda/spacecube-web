@@ -294,6 +294,13 @@ export default async function SpacePage({ params }: Props) {
           )}
         </div>
 
+        {/* 조용한 소개 링크 */}
+        <div className="px-6 pb-4 text-center">
+          <Link href="/about" className="text-xs" style={{ color: "var(--border)" }}>
+            {lang === "ko" ? "공간큐브가 뭔가요? →" : lang === "ja" ? "SpaceCubeとは？ →" : lang === "zh" ? "什么是空间魔方？ →" : "About SpaceCube →"}
+          </Link>
+        </div>
+
         {/* Sticky CTA */}
         <div className="sticky bottom-0 px-6 pb-8 pt-4" style={{ background: "var(--bg)", borderTop: "1px solid var(--border)" }}>
           {session ? (

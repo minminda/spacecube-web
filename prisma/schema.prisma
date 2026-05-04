@@ -178,6 +178,7 @@ model ContentStory {
   imageUrl    String?
   intro       String    @db.Text
   body        String    @db.Text
+  bodyBlocks  Json?
   cta         String?
   publishedAt DateTime?
   isActive    Boolean   @default(true)

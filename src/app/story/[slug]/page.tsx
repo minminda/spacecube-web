@@ -6,6 +6,10 @@ import type { Metadata } from "next";
 
 interface Props { params: Promise<{ slug: string }> }
 
+type Block =
+  | { type: "text"; content: string }
+  | { type: "image"; url: string; caption?: string };
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const story = await prisma.contentStory.findUnique({ where: { slug }, select: { title: true, intro: true, imageUrl: true } });
@@ -38,6 +42,11 @@ export default async function StoryPage({ params }: Props) {
 
   const typeLabel = story.type === "REGION" ? "지역 이야기" : "취향 이야기";
   const typeMeta = story.type === "REGION" ? story.district : story.persona;
+
+  // bodyBlocks가 있으면 사용, 없으면 body 텍스트를 단일 블록으로 처리
+  const blocks: Block[] = Array.isArray(story.bodyBlocks) && story.bodyBlocks.length > 0
+    ? (story.bodyBlocks as Block[])
+    : [{ type: "text", content: story.body }];
 
   return (
     <main className="flex flex-col min-h-screen">
@@ -83,21 +92,41 @@ export default async function StoryPage({ params }: Props) {
 
       {/* 도입부 */}
       <div className="px-6 py-8">
-        <p
-          className="text-sm leading-loose whitespace-pre-line"
-          style={{ color: "var(--dim)" }}
-        >
+        <p className="text-sm leading-loose whitespace-pre-line" style={{ color: "var(--dim)" }}>
           {story.intro}
         </p>
       </div>
 
       <div style={{ borderTop: "1px solid var(--border)" }} />
 
-      {/* 본문 */}
-      <div className="px-6 py-8">
-        <p className="text-sm leading-loose whitespace-pre-line">
-          {story.body}
-        </p>
+      {/* 본문 블록 */}
+      <div className="py-2">
+        {blocks.map((block, i) =>
+          block.type === "text" ? (
+            <div key={i} className="px-6 py-6">
+              <p className="text-sm leading-loose whitespace-pre-line">
+                {block.content}
+              </p>
+            </div>
+          ) : (
+            <div key={i} className="py-4">
+              <div className="relative w-full overflow-hidden" style={{ aspectRatio: "4 / 3" }}>
+                <Image
+                  src={block.url}
+                  alt={block.caption ?? ""}
+                  fill
+                  className="object-cover"
+                  style={{ aspectRatio: "unset" }}
+                />
+              </div>
+              {block.caption && (
+                <p className="px-6 pt-2 text-xs" style={{ color: "var(--border)" }}>
+                  {block.caption}
+                </p>
+              )}
+            </div>
+          )
+        )}
       </div>
 
       {/* 관련 공간 */}
@@ -110,19 +139,10 @@ export default async function StoryPage({ params }: Props) {
             </p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {story.storySpaces.map(({ space }) => (
-                <Link
-                  key={space.id}
-                  href={`/space/${space.slug}`}
-                  className="flex gap-4 group"
-                >
+                <Link key={space.id} href={`/space/${space.slug}`} className="flex gap-4 group">
                   {space.imageUrl ? (
                     <div className="relative flex-shrink-0 w-20 h-20 overflow-hidden" style={{ background: "var(--tag-bg)" }}>
-                      <Image
-                        src={space.imageUrl}
-                        alt={space.name}
-                        fill
-                        className="object-cover group-hover:opacity-80 transition-opacity"
-                      />
+                      <Image src={space.imageUrl} alt={space.name} fill className="object-cover group-hover:opacity-80 transition-opacity" />
                     </div>
                   ) : (
                     <div className="flex-shrink-0 w-20 h-20" style={{ background: "var(--tag-bg)" }} />
@@ -155,6 +175,13 @@ export default async function StoryPage({ params }: Props) {
           style={{ borderColor: "var(--fg)" }}
         >
           공간 둘러보기 →
+        </Link>
+      </div>
+
+      {/* 조용한 소개 링크 */}
+      <div className="px-6 pb-10 text-center">
+        <Link href="/about" className="text-xs" style={{ color: "var(--border)" }}>
+          공간큐브가 뭔가요? →
         </Link>
       </div>
     </main>
