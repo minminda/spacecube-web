@@ -6,6 +6,8 @@ import { isAdmin } from "@/lib/admin";
 import { getTagLabels } from "@/lib/tags";
 import { aggregateSpaceTags, getSpaceUsageSummary, getRevisitStats } from "@/lib/spaceInsight";
 import WaitlistPanel from "./WaitlistPanel";
+import MoodPanel from "./MoodPanel";
+import NotePanel from "./NotePanel";
 
 interface Props { params: Promise<{ id: string }> }
 
@@ -13,9 +15,17 @@ function startOfDay(d: Date) {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate());
 }
 function startOfWeek(d: Date) {
-  const day = d.getDay(); // 0=일
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1); // 월요일 기준
+  const day = d.getDay();
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
   return new Date(d.getFullYear(), d.getMonth(), diff);
+}
+
+function getRevisitInsight(revisitors: number, total: number, ratio: number): string {
+  if (total === 0) return "";
+  if (revisitors === 0) return "아직 재방문 기록이 없습니다. 방문자들의 첫 인상이 쌓이고 있는 단계입니다.";
+  if (ratio >= 40) return "이 공간을 다시 찾는 방문자가 꾸준히 이어지고 있습니다.";
+  if (ratio >= 20) return "일부 방문자들이 이 공간을 다시 찾고 있습니다.";
+  return "천천히 재방문자가 생겨나고 있습니다.";
 }
 
 export default async function DashboardPage({ params }: Props) {
@@ -32,33 +42,27 @@ export default async function DashboardPage({ params }: Props) {
   const todayStart = startOfDay(now);
   const weekStart = startOfWeek(now);
 
-  // 스캔 집계
-  const [scansToday, scansWeek, scansAll] = await Promise.all([
+  const [scansToday, scansWeek, scansAll, allRecords, latestNote] = await Promise.all([
     prisma.spaceScan.count({ where: { spaceId: id, scannedAt: { gte: todayStart } } }),
     prisma.spaceScan.count({ where: { spaceId: id, scannedAt: { gte: weekStart } } }),
     prisma.spaceScan.count({ where: { spaceId: id } }),
+    prisma.record.findMany({
+      where: { spaceId: id },
+      include: { tags: true },
+      orderBy: { visitedAt: "desc" },
+    }),
+    prisma.spaceNote.findFirst({
+      where: { spaceId: id },
+      orderBy: { createdAt: "desc" },
+      select: { id: true, content: true, createdAt: true },
+    }),
   ]);
 
-  // 기록 전체 (태그 + 메모 + userId)
-  const allRecords = await prisma.record.findMany({
-    where: { spaceId: id },
-    include: { tags: true },
-    orderBy: { visitedAt: "desc" },
-  });
-
-  // 최근 익명 메모 (memo 있는 것만, 최대 5개)
-  const recentMemos = allRecords
-    .filter((r) => r.memo)
-    .slice(0, 5);
-
-  // 태그 TOP 3
+  const recentMemos = allRecords.filter((r) => r.memo).slice(0, 5);
   const topTags = aggregateSpaceTags(allRecords).slice(0, 3);
-
-  // 재방문 통계
   const { total: uniqueVisitors, revisitors, ratio: revisitRatio } = getRevisitStats(allRecords);
-
-  // 공간 사용 방식 요약
   const usageSummary = getSpaceUsageSummary(aggregateSpaceTags(allRecords), "ko");
+  const revisitInsight = getRevisitInsight(revisitors, uniqueVisitors, revisitRatio);
 
   return (
     <main className="flex flex-col min-h-screen px-6 py-8 gap-8">
@@ -76,7 +80,23 @@ export default async function DashboardPage({ params }: Props) {
         <h1 className="text-xl font-bold">{space.name}</h1>
       </div>
 
+      {/* ① 지금의 공간 상태 */}
+      <div style={{ borderTop: "1px solid var(--border)" }} />
+      <MoodPanel spaceId={space.id} initialMood={space.currentMood} />
+
+      {/* ② 공간 노트 */}
+      <div style={{ borderTop: "1px solid var(--border)" }} />
+      <NotePanel
+        spaceId={space.id}
+        initialNote={
+          latestNote
+            ? { ...latestNote, createdAt: latestNote.createdAt.toISOString() }
+            : null
+        }
+      />
+
       {/* 스캔 현황 */}
+      <div style={{ borderTop: "1px solid var(--border)" }} />
       <section className="space-y-4">
         <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>// QR 스캔</p>
         <div className="grid grid-cols-3 gap-3">
@@ -91,19 +111,20 @@ export default async function DashboardPage({ params }: Props) {
         )}
       </section>
 
-      <div style={{ borderTop: "1px solid var(--border)" }} />
-
       {/* 공간 사용 방식 요약 */}
       {usageSummary && (
-        <section className="space-y-3">
-          <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>// 공간 사용 방식</p>
-          <p
-            className="text-sm leading-relaxed pl-3"
-            style={{ borderLeft: "2px solid var(--border)", color: "var(--fg)" }}
-          >
-            {usageSummary}
-          </p>
-        </section>
+        <>
+          <div style={{ borderTop: "1px solid var(--border)" }} />
+          <section className="space-y-3">
+            <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>// 공간 사용 방식</p>
+            <p
+              className="text-sm leading-relaxed pl-3"
+              style={{ borderLeft: "2px solid var(--border)", color: "var(--fg)" }}
+            >
+              {usageSummary}
+            </p>
+          </section>
+        </>
       )}
 
       {/* 태그 TOP 3 */}
@@ -130,17 +151,22 @@ export default async function DashboardPage({ params }: Props) {
         </>
       )}
 
-      {/* 재방문 */}
+      {/* ③ 재방문 흔적 — 운영자 시점 */}
       {uniqueVisitors > 0 && (
         <>
           <div style={{ borderTop: "1px solid var(--border)" }} />
           <section className="space-y-4">
-            <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>// 방문자</p>
+            <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>// 재방문 흔적</p>
             <div className="grid grid-cols-3 gap-3">
               <StatBox label="총 기록자" value={uniqueVisitors} unit="명" />
               <StatBox label="재방문" value={revisitors} unit="명" />
               <StatBox label="재방문율" value={revisitRatio} unit="%" />
             </div>
+            {revisitInsight && (
+              <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>
+                {revisitInsight}
+              </p>
+            )}
           </section>
         </>
       )}
@@ -215,10 +241,7 @@ export default async function DashboardPage({ params }: Props) {
 
 function StatBox({ label, value, unit }: { label: string; value: number; unit: string }) {
   return (
-    <div
-      className="flex flex-col gap-1 p-4 border"
-      style={{ borderColor: "var(--border)" }}
-    >
+    <div className="flex flex-col gap-1 p-4 border" style={{ borderColor: "var(--border)" }}>
       <p className="text-xs" style={{ color: "var(--dim)" }}>{label}</p>
       <p className="text-2xl font-bold leading-none">{value}</p>
       <p className="text-xs" style={{ color: "var(--dim)" }}>{unit}</p>

@@ -96,6 +96,7 @@ model Space {
   lng             Float?
   isActive        Boolean  @default(true)
   isFullyBooked   Boolean  @default(false)
+  currentMood     String?
   createdAt       DateTime @default(now())
 
   owner           User?              @relation(fields: [ownerId], references: [id], onDelete: SetNull)
@@ -104,6 +105,7 @@ model Space {
   storySpaces     ContentStorySpace[]
   scans           SpaceScan[]
   waitlistEntries WaitlistEntry[]
+  notes           SpaceNote[]
 }
 
 model SpaceScan {
@@ -200,6 +202,15 @@ model ContentStorySpace {
   space Space        @relation(fields: [spaceId], references: [id], onDelete: Cascade)
 
   @@unique([storyId, spaceId])
+}
+
+model SpaceNote {
+  id        String   @id @default(cuid())
+  spaceId   String
+  content   String   @db.VarChar(200)
+  createdAt DateTime @default(now())
+
+  space Space @relation(fields: [spaceId], references: [id], onDelete: Cascade)
 }
 
 model WaitlistEntry {
