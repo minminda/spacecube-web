@@ -102,6 +102,11 @@ export default async function Home() {
               />
             )}
           </div>
+          <div className="text-right">
+            <Link href="/stories" className="text-xs" style={{ color: "var(--dim)" }}>
+              이야기 더 보기 →
+            </Link>
+          </div>
         </>
       )}
 
