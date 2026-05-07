@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { isAdmin } from "@/lib/admin";
 import { getTagLabels } from "@/lib/tags";
 import { aggregateSpaceTags, getSpaceUsageSummary, getRevisitStats } from "@/lib/spaceInsight";
+import WaitlistPanel from "./WaitlistPanel";
 
 interface Props { params: Promise<{ id: string }> }
 
@@ -181,6 +182,14 @@ export default async function DashboardPage({ params }: Props) {
           </p>
         </>
       )}
+
+      {/* 대기 관리 */}
+      <div style={{ borderTop: "1px solid var(--border)" }} />
+      <WaitlistPanel
+        spaceId={space.id}
+        spaceSlug={space.slug}
+        initialFullyBooked={space.isFullyBooked}
+      />
 
       {/* 바로가기 */}
       <div style={{ borderTop: "1px solid var(--border)" }} />
