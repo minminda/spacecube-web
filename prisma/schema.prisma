@@ -95,6 +95,7 @@ model Space {
   lat             Float?
   lng             Float?
   isActive        Boolean  @default(true)
+  isFullyBooked   Boolean  @default(false)
   createdAt       DateTime @default(now())
 
   owner           User?              @relation(fields: [ownerId], references: [id], onDelete: SetNull)
@@ -102,6 +103,7 @@ model Space {
   collectionItems CollectionItem[]
   storySpaces     ContentStorySpace[]
   scans           SpaceScan[]
+  waitlistEntries WaitlistEntry[]
 }
 
 model SpaceScan {
@@ -198,6 +200,22 @@ model ContentStorySpace {
   space Space        @relation(fields: [spaceId], references: [id], onDelete: Cascade)
 
   @@unique([storyId, spaceId])
+}
+
+model WaitlistEntry {
+  id        String         @id @default(cuid())
+  spaceId   String
+  name      String
+  phone     String
+  status    WaitlistStatus @default(WAITING)
+  createdAt DateTime       @default(now())
+
+  space Space @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+}
+
+enum WaitlistStatus {
+  WAITING
+  CALLED
 }
 
 enum StoryType {
