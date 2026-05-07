@@ -27,6 +27,24 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
+// 재방문 문구 생성
+function getVisitMessage(visitCount: number, firstVisitAt: Date | null): string | null {
+  if (visitCount < 2) return null;
+  const ordinals = ["두", "세", "네", "다섯", "여섯", "일곱", "여덟", "아홉", "열"];
+  const daysSince = firstVisitAt
+    ? Math.floor((Date.now() - firstVisitAt.getTime()) / 86_400_000)
+    : 0;
+  const ordinal = visitCount <= 10 ? ordinals[visitCount - 2] : null;
+  const base = ordinal ? `${ordinal} 번째 방문이네요.` : `이 공간과 ${visitCount}번 함께했네요.`;
+  if (daysSince >= 7) return `${base} 처음 기록 이후 ${daysSince}일 만에 다시 왔어요.`;
+  return base;
+}
+
+function formatNoteDate(d: Date, lang: string): string {
+  if (lang === "ko") return `${d.getMonth() + 1}월 ${d.getDate()}일`;
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
 export default async function SpacePage({ params }: Props) {
   const { slug } = await params;
   const space = await prisma.space.findUnique({ where: { slug, isActive: true } });
@@ -36,16 +54,36 @@ export default async function SpacePage({ params }: Props) {
   const lang = await getLang();
   const TAG_LABELS = getTagLabels(lang);
 
+  // 유저 방문 기록
+  let visitCount = 0;
+  let firstVisitAt: Date | null = null;
   let hasRecord = false;
+
   if (session?.user?.email) {
     const user = await prisma.user.findUnique({ where: { email: session.user.email } });
     if (user) {
-      const record = await prisma.record.findFirst({ where: { userId: user.id, spaceId: space.id } });
-      hasRecord = !!record;
+      const userRecords = await prisma.record.findMany({
+        where: { userId: user.id, spaceId: space.id },
+        orderBy: { visitedAt: "asc" },
+        select: { visitedAt: true },
+      });
+      visitCount = userRecords.length;
+      firstVisitAt = userRecords[0]?.visitedAt ?? null;
+      hasRecord = visitCount > 0;
     }
   }
 
-  // 익명 반응: memo 있는 기록 (사용자 식별 없이 memo + tags만)
+  const visitMessage = getVisitMessage(visitCount, firstVisitAt);
+  const firstVisitPrompt = !hasRecord && session;
+
+  // 최신 공간 노트
+  const latestNote = await prisma.spaceNote.findFirst({
+    where: { spaceId: space.id },
+    orderBy: { createdAt: "desc" },
+    select: { content: true, createdAt: true },
+  });
+
+  // 익명 반응
   const anonymousReactions = await prisma.record.findMany({
     where: { spaceId: space.id, memo: { not: null } },
     include: { tags: true },
@@ -53,7 +91,7 @@ export default async function SpacePage({ params }: Props) {
     take: 5,
   });
 
-  // 공간 사용 방식 요약 (전체 기록 태그 집계)
+  // 공간 사용 방식 요약
   const allTagRecords = await prisma.record.findMany({
     where: { spaceId: space.id },
     include: { tags: true },
@@ -61,7 +99,7 @@ export default async function SpacePage({ params }: Props) {
   const spaceTopTags = aggregateSpaceTags(allTagRecords);
   const usageSummary = getSpaceUsageSummary(spaceTopTags, lang);
 
-  // 비슷한 취향 기록 카드: 이 공간을 방문한 공개 사용자 최대 3명 + 그들의 다른 공간
+  // 비슷한 취향 카드
   const visitorRecords = await prisma.record.findMany({
     where: { spaceId: space.id, user: { visibility: "PARTIAL" } },
     include: {
@@ -117,11 +155,15 @@ export default async function SpacePage({ params }: Props) {
     leaveRecord:   lang === "ko" ? "이 공간, 기록 남기기" : lang === "ja" ? "この空間を記録する" : lang === "zh" ? "记录这个空间" : "Leave a Record",
     signInRecord:  lang === "ko" ? "로그인하고 기록 남기기" : lang === "ja" ? "ログインして記録する" : lang === "zh" ? "登录后记录" : "Sign In to Leave a Record",
     home:          lang === "ko" ? "홈" : lang === "ja" ? "ホーム" : lang === "zh" ? "首页" : "Home",
+    nowMood:       lang === "ko" ? "지금의 공간" : "Right now",
+    ownerNote:     lang === "ko" ? "사장님의 오늘 노트" : "Owner's note",
+    revisit:       lang === "ko" ? "다시 돌아왔네요" : "Welcome back",
+    firstVisit:    lang === "ko" ? "오늘의 느낌을 가볍게 남겨보세요." : "Leave a light record of today.",
   };
 
   return (
     <main className="flex flex-col min-h-screen md:flex-row">
-      {/* 이미지 — 모바일: 상단 전체, 데스크탑: 왼쪽 sticky 패널 */}
+      {/* 이미지 */}
       {space.imageUrl && (
         <div
           className="relative w-full flex-shrink-0 md:w-1/2 md:sticky md:top-0 md:self-start md:h-screen"
@@ -137,12 +179,10 @@ export default async function SpacePage({ params }: Props) {
         </div>
       )}
 
-      {/* QR 스캔 추적 (클라이언트, ?src=qr 감지) */}
       <Suspense fallback={null}>
         <ScanTracker spaceId={space.id} />
       </Suspense>
 
-      {/* 오른쪽 콘텐츠 패널 */}
       <div className="flex flex-col flex-1 min-w-0">
         <div className="flex flex-col gap-6 px-6 py-6 flex-1">
           {/* Breadcrumb */}
@@ -161,7 +201,24 @@ export default async function SpacePage({ params }: Props) {
             )}
           </div>
 
+          {/* ① 지금의 공간 상태 */}
+          {space.currentMood && (
+            <>
+              <div style={{ borderTop: "1px solid var(--border)" }} />
+              <section className="space-y-1.5">
+                <p className="text-xs uppercase tracking-widest" style={{ color: "var(--border)" }}>{t.nowMood}</p>
+                <p
+                  className="text-sm leading-relaxed pl-3"
+                  style={{ borderLeft: "2px solid var(--border)", color: "var(--dim)" }}
+                >
+                  {space.currentMood}
+                </p>
+              </section>
+            </>
+          )}
+
           {/* Info */}
+          <div style={{ borderTop: "1px solid var(--border)" }} />
           <div className="space-y-2 text-sm" style={{ color: "var(--dim)" }}>
             {space.naverMapUrl ? (
               <a href={space.naverMapUrl} target="_blank" rel="noopener noreferrer" className="flex items-start gap-3 hover:underline">
@@ -201,6 +258,22 @@ export default async function SpacePage({ params }: Props) {
             lang={lang}
           />
 
+          {/* ② 공간 노트 */}
+          {latestNote && (
+            <>
+              <div style={{ borderTop: "1px solid var(--border)" }} />
+              <section className="space-y-2">
+                <p className="text-xs uppercase tracking-widest" style={{ color: "var(--border)" }}>{t.ownerNote}</p>
+                <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>
+                  &ldquo;{latestNote.content}&rdquo;
+                </p>
+                <p className="text-xs" style={{ color: "var(--border)" }}>
+                  {formatNoteDate(latestNote.createdAt, lang)}
+                </p>
+              </section>
+            </>
+          )}
+
           {/* 공간 사용 방식 요약 */}
           {usageSummary && (
             <>
@@ -214,7 +287,7 @@ export default async function SpacePage({ params }: Props) {
             </>
           )}
 
-          {/* 익명 반응 — 리뷰가 아닌 "순간의 기록" */}
+          {/* 익명 반응 */}
           {anonymousReactions.length > 0 && (
             <>
               <div style={{ borderTop: "1px solid var(--border)" }} />
@@ -242,7 +315,7 @@ export default async function SpacePage({ params }: Props) {
             </>
           )}
 
-          {/* 비슷한 취향 기록 카드 — 이 공간을 좋아한 취향들 */}
+          {/* 비슷한 취향 카드 */}
           {similarTasteCards.length > 0 && (
             <>
               <div style={{ borderTop: "1px solid var(--border)" }} />
@@ -254,17 +327,12 @@ export default async function SpacePage({ params }: Props) {
                     className="space-y-3 py-4 border-l pl-4"
                     style={{ borderColor: "var(--border)" }}
                   >
-                    {/* 취향 문장 */}
                     <p className="text-sm font-medium leading-snug">{card.phrase}</p>
-
-                    {/* 이 공간에서 남긴 한 줄 */}
                     {card.memo && (
                       <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>
                         &ldquo;{card.memo}&rdquo;
                       </p>
                     )}
-
-                    {/* 이 취향이 좋아한 다른 공간 */}
                     <div className="space-y-1">
                       <p className="text-xs" style={{ color: "var(--border)" }}>{t.otherSpaces}</p>
                       {card.otherSpaces.map((s) => (
@@ -278,8 +346,6 @@ export default async function SpacePage({ params }: Props) {
                         </Link>
                       ))}
                     </div>
-
-                    {/* 이 취향 따라가기 */}
                     <Link
                       href={`/taste/${card.userId}`}
                       className="inline-block text-xs py-1 px-2 border transition-colors hover:bg-[var(--fg)] hover:text-[var(--bg)]"
@@ -290,6 +356,23 @@ export default async function SpacePage({ params }: Props) {
                   </div>
                 ))}
               </div>
+            </>
+          )}
+
+          {/* ③ 재방문 흔적 */}
+          {(visitMessage || firstVisitPrompt) && (
+            <>
+              <div style={{ borderTop: "1px solid var(--border)" }} />
+              <section className="space-y-1.5">
+                {visitMessage ? (
+                  <>
+                    <p className="text-xs uppercase tracking-widest" style={{ color: "var(--border)" }}>{t.revisit}</p>
+                    <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>{visitMessage}</p>
+                  </>
+                ) : (
+                  <p className="text-sm leading-relaxed" style={{ color: "var(--border)" }}>{t.firstVisit}</p>
+                )}
+              </section>
             </>
           )}
         </div>
