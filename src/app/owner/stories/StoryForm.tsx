@@ -35,6 +35,22 @@ interface StoryFormProps {
   spaces: SpaceOption[];
 }
 
+const CLOUDINARY_URL = `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload`;
+const UPLOAD_PRESET = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET!;
+
+async function uploadToCloudinary(file: File): Promise<string | null> {
+  const data = new FormData();
+  data.append("file", file);
+  data.append("upload_preset", UPLOAD_PRESET);
+  try {
+    const res = await fetch(CLOUDINARY_URL, { method: "POST", body: data });
+    const result = await res.json();
+    return result.secure_url ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export default function StoryForm({ mode, initialData, spaces }: StoryFormProps) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
@@ -45,7 +61,6 @@ export default function StoryForm({ mode, initialData, spaces }: StoryFormProps)
   const [slug, setSlug] = useState(initialData?.slug ?? "");
   const [district, setDistrict] = useState(initialData?.district ?? "");
   const [persona, setPersona] = useState(initialData?.persona ?? "");
-  const [imageUrl, setImageUrl] = useState(initialData?.imageUrl ?? "");
   const [intro, setIntro] = useState(initialData?.intro ?? "");
   const [cta, setCta] = useState(initialData?.cta ?? "");
   const [publishedAt, setPublishedAt] = useState(
@@ -54,7 +69,13 @@ export default function StoryForm({ mode, initialData, spaces }: StoryFormProps)
   const [isActive, setIsActive] = useState(initialData?.isActive ?? true);
   const [selectedSpaceIds, setSelectedSpaceIds] = useState<string[]>(initialData?.spaceIds ?? []);
 
-  // 블록 에디터 — bodyBlocks 있으면 그걸, 없으면 기존 body를 첫 텍스트 블록으로
+  // 대표 이미지
+  const [imageUrl, setImageUrl] = useState(initialData?.imageUrl ?? "");
+  const [imagePreview, setImagePreview] = useState(initialData?.imageUrl ?? "");
+  const [imageUploading, setImageUploading] = useState(false);
+  const [imageUploadError, setImageUploadError] = useState("");
+
+  // 블록 에디터
   const [blocks, setBlocks] = useState<Block[]>(() => {
     if (initialData?.bodyBlocks && initialData.bodyBlocks.length > 0) {
       return initialData.bodyBlocks;
@@ -64,6 +85,36 @@ export default function StoryForm({ mode, initialData, spaces }: StoryFormProps)
     }
     return [];
   });
+  const [blockUploadingIndex, setBlockUploadingIndex] = useState<number | null>(null);
+
+  async function handleHeroImageChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImagePreview(URL.createObjectURL(file));
+    setImageUploadError("");
+    setImageUploading(true);
+    const url = await uploadToCloudinary(file);
+    setImageUploading(false);
+    if (url) {
+      setImageUrl(url);
+      setImagePreview(url);
+    } else {
+      setImageUploadError("이미지 업로드에 실패했어요. 다시 시도해주세요.");
+    }
+  }
+
+  async function handleBlockImageChange(i: number, e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const localUrl = URL.createObjectURL(file);
+    updateBlock(i, { url: localUrl });
+    setBlockUploadingIndex(i);
+    const url = await uploadToCloudinary(file);
+    setBlockUploadingIndex(null);
+    if (url) {
+      updateBlock(i, { url });
+    }
+  }
 
   function addTextBlock() {
     setBlocks((prev) => [...prev, { type: "text", content: "" }]);
@@ -91,7 +142,6 @@ export default function StoryForm({ mode, initialData, spaces }: StoryFormProps)
     setSaving(true);
     setError("");
 
-    // body는 텍스트 블록들을 이어 붙여 backward compat 유지
     const derivedBody = blocks
       .filter((b): b is { type: "text"; content: string } => b.type === "text")
       .map((b) => b.content)
@@ -215,24 +265,31 @@ export default function StoryForm({ mode, initialData, spaces }: StoryFormProps)
         </div>
       )}
 
-      {/* 대표 이미지 (히어로) */}
+      {/* 대표 이미지 — 파일 업로드 */}
       <div className="space-y-2">
-        <p className={labelClass} style={labelStyle}>대표 이미지 URL (히어로, 선택)</p>
-        <input
-          value={imageUrl}
-          onChange={(e) => setImageUrl(e.target.value)}
-          placeholder="https://..."
-          className={inputClass}
-          style={inputStyle}
-        />
-        {imageUrl && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={imageUrl}
-            alt="미리보기"
-            className="w-full max-h-48 object-cover"
-            onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-          />
+        <p className={labelClass} style={labelStyle}>대표 이미지 (히어로, 선택)</p>
+        <label className="block cursor-pointer">
+          <div
+            className="w-full h-44 border flex items-center justify-center overflow-hidden relative"
+            style={{ borderColor: "var(--border)" }}
+          >
+            {imagePreview ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={imagePreview} alt="미리보기" className="w-full h-full object-cover" />
+            ) : (
+              <span className="text-xs" style={{ color: "var(--dim)" }}>클릭해서 이미지 선택</span>
+            )}
+            {imageUploading && (
+              <div className="absolute inset-0 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.5)" }}>
+                <span className="text-xs" style={{ color: "#fff" }}>업로드 중...</span>
+              </div>
+            )}
+          </div>
+          <input type="file" accept="image/*" onChange={handleHeroImageChange} className="hidden" />
+        </label>
+        {imageUploadError && <p className="text-xs" style={{ color: "#e05" }}>{imageUploadError}</p>}
+        {imageUrl && !imageUploadError && (
+          <p className="text-xs" style={{ color: "var(--dim)" }}>✓ 업로드 완료</p>
         )}
       </div>
 
@@ -263,11 +320,7 @@ export default function StoryForm({ mode, initialData, spaces }: StoryFormProps)
 
         <div className="space-y-3">
           {blocks.map((block, i) => (
-            <div
-              key={i}
-              className="border p-3 space-y-2"
-              style={{ borderColor: "var(--border)" }}
-            >
+            <div key={i} className="border p-3 space-y-2" style={{ borderColor: "var(--border)" }}>
               <div className="flex items-center justify-between">
                 <span className="text-xs" style={{ color: "var(--dim)" }}>
                   {block.type === "text" ? "[ 텍스트 ]" : "[ 이미지 ]"}
@@ -276,7 +329,7 @@ export default function StoryForm({ mode, initialData, spaces }: StoryFormProps)
                   type="button"
                   onClick={() => removeBlock(i)}
                   className="text-xs px-2 py-0.5"
-                  style={{ color: "var(--dim)", borderColor: "var(--border)" }}
+                  style={{ color: "var(--dim)" }}
                 >
                   ✕
                 </button>
@@ -293,13 +346,31 @@ export default function StoryForm({ mode, initialData, spaces }: StoryFormProps)
                 />
               ) : (
                 <div className="space-y-2">
-                  <input
-                    value={block.url}
-                    onChange={(e) => updateBlock(i, { url: e.target.value })}
-                    placeholder="이미지 URL (https://...)"
-                    className={inputClass}
-                    style={inputStyle}
-                  />
+                  {/* 이미지 파일 업로드 */}
+                  <label className="block cursor-pointer">
+                    <div
+                      className="w-full h-36 border flex items-center justify-center overflow-hidden relative"
+                      style={{ borderColor: "var(--border)" }}
+                    >
+                      {block.url ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={block.url} alt="미리보기" className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="text-xs" style={{ color: "var(--dim)" }}>클릭해서 이미지 선택</span>
+                      )}
+                      {blockUploadingIndex === i && (
+                        <div className="absolute inset-0 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.5)" }}>
+                          <span className="text-xs" style={{ color: "#fff" }}>업로드 중...</span>
+                        </div>
+                      )}
+                    </div>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => handleBlockImageChange(i, e)}
+                      className="hidden"
+                    />
+                  </label>
                   <input
                     value={block.caption}
                     onChange={(e) => updateBlock(i, { caption: e.target.value })}
@@ -307,15 +378,6 @@ export default function StoryForm({ mode, initialData, spaces }: StoryFormProps)
                     className={inputClass}
                     style={inputStyle}
                   />
-                  {block.url && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={block.url}
-                      alt="미리보기"
-                      className="w-full max-h-56 object-cover"
-                      onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-                    />
-                  )}
                 </div>
               )}
             </div>
@@ -369,7 +431,10 @@ export default function StoryForm({ mode, initialData, spaces }: StoryFormProps)
               >
                 <span
                   className="w-4 h-4 flex-shrink-0 border flex items-center justify-center text-xs"
-                  style={{ borderColor: selected ? "var(--fg)" : "var(--border)", background: selected ? "var(--fg)" : "transparent" }}
+                  style={{
+                    borderColor: selected ? "var(--fg)" : "var(--border)",
+                    background: selected ? "var(--fg)" : "transparent",
+                  }}
                 >
                   {selected && <span style={{ color: "var(--bg)" }}>✓</span>}
                 </span>
@@ -381,9 +446,7 @@ export default function StoryForm({ mode, initialData, spaces }: StoryFormProps)
             );
           })}
         </div>
-        <p className="text-xs" style={{ color: "var(--dim)" }}>
-          선택됨: {selectedSpaceIds.length}개
-        </p>
+        <p className="text-xs" style={{ color: "var(--dim)" }}>선택됨: {selectedSpaceIds.length}개</p>
       </div>
 
       {/* 발행일 */}
