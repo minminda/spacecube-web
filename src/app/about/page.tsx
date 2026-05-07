@@ -4,7 +4,7 @@ import { getLang } from "@/lib/i18n";
 
 export const metadata: Metadata = {
   title: "공간큐브 소개",
-  description: "공간을 기록하고, 그 기록을 통해 자신의 취향을 발견하는 서비스",
+  description: "공간 경험을 기록하고, 그 기록을 통해 자신의 취향을 발견하는 서비스입니다.",
 };
 
 const content = {
@@ -13,33 +13,69 @@ const content = {
     label: "공간큐브",
     badge: "ABOUT",
 
-    def_label: "공간큐브란",
-    def: "공간을 기록하고,\n그 기록을 통해 자신의 취향을 발견하는 서비스.",
+    // ① Hero
+    hero_label: "공간큐브는",
+    hero: "공간 경험을 기록하고,\n그 기록을 통해 자신의 취향을 발견하는 서비스입니다.",
+    hero_subs: [
+      "작은 문화공간의 이야기와 철학을 발견합니다.",
+      "공간을 단순 정보가 아닌 경험으로 기록합니다.",
+      "취향이 비슷한 공간들을 천천히 연결합니다.",
+    ],
 
-    problem_label: "우리가 놓치는 것",
-    problem: "우리는 많은 공간을 경험한다.\n카페에서 보낸 오후, 처음 들어간 서점, 우연히 발견한 작은 식당.\n\n하지만 그 공간과 그때의 감정을,\n우리는 너무 쉽게 잊는다.",
+    // ② 왜 만들었나
+    why_label: "왜 공간큐브를 만들었는가",
+    why_problem_label: "현재 공간 플랫폼은",
+    why_problem: [
+      "리뷰, 평점, 인기순, 빠른 소비 중심으로 움직입니다.",
+      "이미 유명한 공간만 반복 노출됩니다.",
+      "공간의 철학은 전달되지 않습니다.",
+      "사용자는 공간보다 정보만 소비하게 됩니다.",
+    ],
+    why_insight: "사람들은 많은 공간을 경험하지만,\n시간이 지나면 그 공간과 자신의 취향을 잊어버립니다.\n\n우리는 공간을 검색하고 소비하지만,\n왜 그 공간이 좋았는지는 남기지 못합니다.",
 
-    limit_label: "기존 방식의 한계",
-    limit: "리뷰, 평점, 검색 중심의 서비스에서\n공간은 소비의 대상이다.\n\n“어디가 맛있어?” “몇 점이야?”\n\n그 물음으로는 공간의 의미도,\n나의 취향도 알기 어렵다.",
+    // ③ 공간큐브가 중요하게 생각하는 공간
+    space_label: "공간큐브가 기록하는 공간",
+    space_desc: "공간큐브는 운영자의 취향과 철학이 담긴 작은 문화공간들을 기록합니다.\n단순히 유명한 공간보다, 공간만의 결이 느껴지는 곳을 중요하게 생각합니다.",
+    space_examples: [
+      "독립서점",
+      "작은 전시공간",
+      "LP바",
+      "조용한 카페",
+      "소품샵",
+      "복합문화공간",
+    ],
 
-    how_label: "공간큐브가 다른 방식",
-    how: "공간 안에 작은 큐브가 놓여 있다.\n\nQR을 스캔하면 그 공간의 이야기가 열린다.\n기획자의 의도, 공간의 철학, 오너의 메시지.\n\n정보가 아니라 맥락이다.",
-
+    // ④ 경험 흐름
     flow_label: "경험의 흐름",
+    flow_desc: "공간큐브는 기록을 강요하지 않습니다.\n사람은 기록하기 위해 공간에 가는 것이 아니라,\n공간을 경험하기 위해 방문합니다.\n기록은 경험 이후 자연스럽게 남습니다.",
     flow: [
-      "공간 방문",
+      "공간 발견",
       "큐브 발견",
       "QR 스캔",
       "공간 이야기",
-      "기록",
-      "취향 발견",
+      "짧은 기록",
+      "취향 축적",
+      "다음 공간 탐험",
     ],
 
-    diff_label: "핵심 차별점",
-    diff: "공간큐브는 공간을 추천하는 서비스가 아니다.\n\n공간을 이해하고,\n그 이해를 기록하는 서비스다.\n\n당신이 무엇을 좋아하는지는,\n당신이 어떤 공간에 감동받았는지에 담겨 있다.",
+    // ⑤ 오브젝트
+    obj_label: "공간큐브 오브젝트",
+    obj: "공간큐브는 단순한 QR 코드가 아닙니다.\n각 공간에 하나씩 놓이는 작은 오브젝트이며,\n그 공간의 이야기로 들어가는 입구 역할을 합니다.",
+    obj_roles: [
+      "공간의 중심",
+      "발견의 신호",
+      "탐험의 시작점",
+    ],
 
+    // ⑥ 연결
+    connect_label: "공간큐브가 지향하는 연결",
+    connect: "공간큐브는 사람을 팔로우하는 서비스가 아닙니다.\n공간을 통해 취향을 발견하고,\n그 취향을 따라 다른 공간으로 이어지는 경험을 만듭니다.",
+    connect_no: ["리뷰 경쟁", "별점", "인기순"],
+    connect_yes: ["기록", "감정", "탐험", "취향"],
+
+    // ⑦ 마무리
     closing_label: "공간큐브는",
-    closing: "공간을 소비하는 서비스가 아니라\n공간을 이해하는 경험이다.",
+    closing: "취향은 설명보다 경험 속에서 드러난다고 믿습니다.",
 
     cta: "공간 둘러보기 →",
     cta_href: "/discover",
@@ -49,33 +85,62 @@ const content = {
     label: "SpaceCube",
     badge: "ABOUT",
 
-    def_label: "What is SpaceCube",
-    def: "A service to record your space experiences\nand discover your own taste through those records.",
+    hero_label: "SpaceCube is",
+    hero: "A service to record your space experiences\nand discover your own taste through those records.",
+    hero_subs: [
+      "Discover the stories and philosophy of small cultural spaces.",
+      "Record spaces not as information, but as experiences.",
+      "Slowly connect spaces of similar taste.",
+    ],
 
-    problem_label: "What we tend to forget",
-    problem: "We experience many spaces.\nAn afternoon at a café, a bookstore we stumbled into, a small restaurant found by chance.\n\nBut the feeling of being in those spaces —\nwe forget it all too easily.",
+    why_label: "Why we built SpaceCube",
+    why_problem_label: "Current space platforms are built around",
+    why_problem: [
+      "Reviews, ratings, popularity, and fast consumption.",
+      "Already-famous spaces get repeated exposure.",
+      "The philosophy of a space is never conveyed.",
+      "Users end up consuming information, not spaces.",
+    ],
+    why_insight: "People experience many spaces,\nbut over time they forget those spaces — and their own taste.\n\nWe search for and consume spaces,\nbut never record why a space moved us.",
 
-    limit_label: "The limits of existing services",
-    limit: "In review- and rating-based services,\nspaces are objects of consumption.\n\n“Where’s good?” “What’s the rating?”\n\nThose questions can’t tell you what a space means —\nor what your taste actually is.",
-
-    how_label: "How SpaceCube is different",
-    how: "A small cube sits inside the space.\n\nScan the QR and the story of that space opens up.\nThe creator's intent, the space's philosophy, the owner's message.\n\nNot information — context.",
+    space_label: "Spaces SpaceCube records",
+    space_desc: "SpaceCube records small cultural spaces where the owner's taste and philosophy are present.\nWe care less about what's famous, and more about what has a distinct character.",
+    space_examples: [
+      "Independent bookstores",
+      "Small exhibition spaces",
+      "LP bars",
+      "Quiet cafés",
+      "Object shops",
+      "Mixed cultural spaces",
+    ],
 
     flow_label: "The flow of experience",
+    flow_desc: "SpaceCube does not demand that you record.\nPeople don't visit spaces to record them —\nthey visit to experience them.\nThe record comes naturally afterward.",
     flow: [
-      "Visit the space",
+      "Discover a space",
       "Find the cube",
       "Scan QR",
       "Read the story",
-      "Record",
-      "Discover your taste",
+      "Leave a short record",
+      "Accumulate taste",
+      "Explore the next space",
     ],
 
-    diff_label: "What makes it different",
-    diff: "SpaceCube is not a recommendation service.\n\nIt is a service for understanding spaces\nand recording that understanding.\n\nWhat you love is embedded\nin which spaces moved you.",
+    obj_label: "The SpaceCube object",
+    obj: "SpaceCube is not just a QR code.\nIt is a small object placed inside each space,\nserving as the entrance into that space's story.",
+    obj_roles: [
+      "The center of the space",
+      "A signal of discovery",
+      "The starting point of exploration",
+    ],
 
-    closing_label: "SpaceCube is",
-    closing: "Not a service to consume spaces —\nbut an experience to understand them.",
+    connect_label: "The connection SpaceCube seeks",
+    connect: "SpaceCube is not a service for following people.\nIt creates an experience of discovering your taste through spaces,\nand following that taste to the next space.",
+    connect_no: ["Review competition", "Star ratings", "Popularity ranking"],
+    connect_yes: ["Records", "Emotions", "Exploration", "Taste"],
+
+    closing_label: "SpaceCube believes",
+    closing: "Taste reveals itself through experience, not explanation.",
 
     cta: "Explore spaces →",
     cta_href: "/discover",
@@ -97,42 +162,63 @@ export default async function AboutPage() {
 
       <div style={{ borderTop: "1px solid var(--border)" }} />
 
-      {/* ① 한 줄 정의 */}
-      <section className="px-6 py-12 space-y-3">
-        <p className="text-xs uppercase tracking-widest" style={{ color: "var(--border)" }}>{t.def_label}</p>
-        <p className="text-xl font-bold leading-snug whitespace-pre-line">{t.def}</p>
+      {/* ① Hero */}
+      <section className="px-6 py-14 space-y-6">
+        <p className="text-xs uppercase tracking-widest" style={{ color: "var(--border)" }}>{t.hero_label}</p>
+        <p className="text-xl font-bold leading-snug whitespace-pre-line">{t.hero}</p>
+        <ul className="space-y-2 pt-2">
+          {t.hero_subs.map((s, i) => (
+            <li key={i} className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>
+              · {s}
+            </li>
+          ))}
+        </ul>
       </section>
 
       <div style={{ borderTop: "1px solid var(--border)" }} />
 
-      {/* ② 문제 제기 */}
-      <section className="px-6 py-10 space-y-3">
-        <p className="text-xs uppercase tracking-widest" style={{ color: "var(--border)" }}>{t.problem_label}</p>
-        <p className="text-sm leading-loose whitespace-pre-line" style={{ color: "var(--dim)" }}>{t.problem}</p>
+      {/* ② 왜 만들었나 */}
+      <section className="px-6 py-12 space-y-6">
+        <p className="text-xs uppercase tracking-widest" style={{ color: "var(--border)" }}>{t.why_label}</p>
+        <div className="space-y-3">
+          <p className="text-xs" style={{ color: "var(--dim)" }}>{t.why_problem_label}</p>
+          <ul className="space-y-1.5">
+            {t.why_problem.map((item, i) => (
+              <li key={i} className="text-sm leading-relaxed pl-3" style={{ color: "var(--dim)", borderLeft: "1px solid var(--border)" }}>
+                {item}
+              </li>
+            ))}
+          </ul>
+        </div>
+        <p className="text-sm leading-loose whitespace-pre-line">{t.why_insight}</p>
       </section>
 
       <div style={{ borderTop: "1px solid var(--border)" }} />
 
-      {/* ③ 기존 방식 한계 */}
-      <section className="px-6 py-10 space-y-3">
-        <p className="text-xs uppercase tracking-widest" style={{ color: "var(--border)" }}>{t.limit_label}</p>
-        <p className="text-sm leading-loose whitespace-pre-line" style={{ color: "var(--dim)" }}>{t.limit}</p>
+      {/* ③ 공간큐브가 기록하는 공간 */}
+      <section className="px-6 py-12 space-y-5">
+        <p className="text-xs uppercase tracking-widest" style={{ color: "var(--border)" }}>{t.space_label}</p>
+        <p className="text-sm leading-loose whitespace-pre-line" style={{ color: "var(--dim)" }}>{t.space_desc}</p>
+        <div className="flex flex-wrap gap-2 pt-1">
+          {t.space_examples.map((ex, i) => (
+            <span
+              key={i}
+              className="text-xs px-2.5 py-1 border"
+              style={{ borderColor: "var(--border)", color: "var(--dim)" }}
+            >
+              {ex}
+            </span>
+          ))}
+        </div>
       </section>
 
       <div style={{ borderTop: "1px solid var(--border)" }} />
 
-      {/* ④ 공간큐브 방식 */}
-      <section className="px-6 py-10 space-y-3">
-        <p className="text-xs uppercase tracking-widest" style={{ color: "var(--border)" }}>{t.how_label}</p>
-        <p className="text-sm leading-loose whitespace-pre-line">{t.how}</p>
-      </section>
-
-      <div style={{ borderTop: "1px solid var(--border)" }} />
-
-      {/* ⑤ 경험 흐름 */}
-      <section className="px-6 py-10 space-y-5">
+      {/* ④ 경험 흐름 */}
+      <section className="px-6 py-12 space-y-6">
         <p className="text-xs uppercase tracking-widest" style={{ color: "var(--border)" }}>{t.flow_label}</p>
-        <ol className="space-y-0">
+        <p className="text-sm leading-loose whitespace-pre-line" style={{ color: "var(--dim)" }}>{t.flow_desc}</p>
+        <ol className="space-y-0 pt-2">
           {t.flow.map((step, i) => (
             <li key={i} className="flex items-start gap-4">
               <div className="flex flex-col items-center">
@@ -146,8 +232,10 @@ export default async function AboutPage() {
                   <div className="w-px flex-1 my-1" style={{ background: "var(--border)", minHeight: "1.5rem" }} />
                 )}
               </div>
-              <p className={`text-sm pt-0.5 pb-4 ${i === t.flow.length - 1 ? "font-semibold" : ""}`}
-                style={{ color: i === t.flow.length - 1 ? "var(--fg)" : "var(--dim)" }}>
+              <p
+                className={`text-sm pt-0.5 pb-4 ${i === t.flow.length - 1 ? "font-semibold" : ""}`}
+                style={{ color: i === t.flow.length - 1 ? "var(--fg)" : "var(--dim)" }}
+              >
                 {step}
               </p>
             </li>
@@ -157,19 +245,50 @@ export default async function AboutPage() {
 
       <div style={{ borderTop: "1px solid var(--border)" }} />
 
-      {/* ⑥ 핵심 차별점 */}
-      <section className="px-6 py-10 space-y-3">
-        <p className="text-xs uppercase tracking-widest" style={{ color: "var(--border)" }}>{t.diff_label}</p>
-        <p className="text-sm leading-loose whitespace-pre-line">{t.diff}</p>
+      {/* ⑤ 오브젝트 */}
+      <section className="px-6 py-12 space-y-5">
+        <p className="text-xs uppercase tracking-widest" style={{ color: "var(--border)" }}>{t.obj_label}</p>
+        <p className="text-sm leading-loose whitespace-pre-line">{t.obj}</p>
+        <ul className="space-y-1.5 pt-1">
+          {t.obj_roles.map((role, i) => (
+            <li key={i} className="text-sm" style={{ color: "var(--dim)" }}>
+              · {role}
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <div style={{ borderTop: "1px solid var(--border)" }} />
+
+      {/* ⑥ 연결 */}
+      <section className="px-6 py-12 space-y-6">
+        <p className="text-xs uppercase tracking-widest" style={{ color: "var(--border)" }}>{t.connect_label}</p>
+        <p className="text-sm leading-loose whitespace-pre-line">{t.connect}</p>
+        <div className="flex flex-col gap-3 pt-1">
+          <div className="flex flex-wrap gap-2">
+            {t.connect_no.map((item, i) => (
+              <span key={i} className="text-xs px-2.5 py-1 border line-through" style={{ borderColor: "var(--border)", color: "var(--border)" }}>
+                {item}
+              </span>
+            ))}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {t.connect_yes.map((item, i) => (
+              <span key={i} className="text-xs px-2.5 py-1 border" style={{ borderColor: "var(--fg)", color: "var(--fg)" }}>
+                {item}
+              </span>
+            ))}
+          </div>
+        </div>
       </section>
 
       <div style={{ borderTop: "1px solid var(--border)" }} />
 
       {/* ⑦ 마무리 */}
-      <section className="px-6 py-12 space-y-3">
+      <section className="px-6 py-14 space-y-4">
         <p className="text-xs uppercase tracking-widest" style={{ color: "var(--border)" }}>{t.closing_label}</p>
         <p
-          className="text-lg font-bold leading-snug whitespace-pre-line pl-3"
+          className="text-lg font-bold leading-snug pl-3"
           style={{ borderLeft: "2px solid var(--fg)" }}
         >
           {t.closing}
