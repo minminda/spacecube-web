@@ -151,12 +151,7 @@ export default async function Home() {
         </Link>
       )}
 
-      {/* 조용한 소개 링크 */}
-      <div className="text-center pt-2">
-        <Link href="/about" className="text-xs" style={{ color: "var(--border)" }}>
-          {lang === "ko" ? "공간큐브가 뭔가요? →" : lang === "ja" ? "SpaceCubeとは？ →" : lang === "zh" ? "什么是空间魔方？ →" : "About SpaceCube →"}
-        </Link>
-      </div>
+
     </main>
   );
 }
