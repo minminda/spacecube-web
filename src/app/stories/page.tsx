@@ -1,7 +1,9 @@
 import Link from "next/link";
 import Image from "next/image";
+import { Suspense } from "react";
 import { prisma } from "@/lib/prisma";
 import type { Metadata } from "next";
+import SearchInput from "./SearchInput";
 
 export const metadata: Metadata = {
   title: "이야기 — 공간큐브",
@@ -13,7 +15,7 @@ const PER_PAGE = 6;
 type StoryType = "REGION" | "TASTE";
 
 interface Props {
-  searchParams: Promise<{ page?: string; type?: string }>;
+  searchParams: Promise<{ page?: string; type?: string; q?: string }>;
 }
 
 function getPageNumbers(current: number, total: number): (number | "…")[] {
@@ -35,17 +37,28 @@ function getPageNumbers(current: number, total: number): (number | "…")[] {
 }
 
 export default async function StoriesPage({ searchParams }: Props) {
-  const { page: pageParam, type: typeParam } = await searchParams;
+  const { page: pageParam, type: typeParam, q: qParam } = await searchParams;
 
   const page = Math.max(1, parseInt(pageParam ?? "1", 10) || 1);
   const typeFilter: StoryType | null =
     typeParam === "REGION" ? "REGION" : typeParam === "TASTE" ? "TASTE" : null;
+  const q = qParam?.trim() ?? "";
 
   const now = new Date();
   const where = {
     isActive: true,
     publishedAt: { not: null as null, lte: now },
     ...(typeFilter ? { type: typeFilter } : {}),
+    ...(q
+      ? {
+          OR: [
+            { title: { contains: q, mode: "insensitive" as const } },
+            { intro: { contains: q, mode: "insensitive" as const } },
+            { district: { contains: q, mode: "insensitive" as const } },
+            { persona: { contains: q, mode: "insensitive" as const } },
+          ],
+        }
+      : {}),
   };
 
   const [stories, total] = await Promise.all([
@@ -70,6 +83,7 @@ export default async function StoriesPage({ searchParams }: Props) {
   function pageHref(p: number) {
     const params = new URLSearchParams();
     if (typeFilter) params.set("type", typeFilter);
+    if (q) params.set("q", q);
     if (p > 1) params.set("page", String(p));
     const qs = params.toString();
     return `/stories${qs ? `?${qs}` : ""}`;
@@ -78,6 +92,7 @@ export default async function StoriesPage({ searchParams }: Props) {
   function typeHref(t: StoryType | null) {
     const params = new URLSearchParams();
     if (t) params.set("type", t);
+    if (q) params.set("q", q);
     const qs = params.toString();
     return `/stories${qs ? `?${qs}` : ""}`;
   }
@@ -96,6 +111,11 @@ export default async function StoriesPage({ searchParams }: Props) {
       </div>
 
       <div style={{ borderTop: "1px solid var(--border)" }} />
+
+      {/* 검색 */}
+      <Suspense>
+        <SearchInput defaultValue={q} />
+      </Suspense>
 
       {/* 타입 필터 */}
       <div className="flex gap-2">
@@ -121,7 +141,9 @@ export default async function StoriesPage({ searchParams }: Props) {
 
       {/* 이야기 목록 */}
       {stories.length === 0 ? (
-        <p className="text-sm" style={{ color: "var(--dim)" }}>아직 발행된 이야기가 없습니다.</p>
+        <p className="text-sm" style={{ color: "var(--dim)" }}>
+          {q ? `"${q}"에 대한 이야기가 없습니다.` : "아직 발행된 이야기가 없습니다."}
+        </p>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
           {stories.map((story) => (
