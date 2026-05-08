@@ -3,6 +3,7 @@ import "./globals.css";
 import ThemeToggle from "@/components/ThemeToggle";
 import LanguageToggle from "@/components/LanguageToggle";
 import OnboardingOverlay from "@/components/OnboardingOverlay";
+import Navbar from "@/components/Navbar";
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://spacecube-web.vercel.app";
 
@@ -39,6 +40,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body className="min-h-screen" style={{ background: "var(--bg)", color: "var(--fg)" }}>
+        <Navbar />
         <div className="max-w-sm md:max-w-2xl mx-auto min-h-screen">
           {children}
         </div>
