@@ -80,6 +80,9 @@ export default async function SpacePage({ params }: Props) {
   const spaceTopTags = aggregateSpaceTags(allTagRecords);
   const usageSummary = getSpaceUsageSummary(spaceTopTags);
 
+  // MVP 기간 반응 통계 섹션 비활성화 — true로 바꾸면 즉시 원상복구
+  const SHOW_REACTION_BOARD = false;
+
   const visitorRecords = await prisma.record.findMany({
     where: { spaceId: space.id, user: { visibility: "PARTIAL" } },
     include: {
@@ -203,7 +206,8 @@ export default async function SpacePage({ params }: Props) {
             ownerSocialUrl={space.ownerSocialUrl}
           />
 
-          {usageSummary && (
+          {/* MVP: SHOW_REACTION_BOARD = true 로 변경하면 원상복구 */}
+          {SHOW_REACTION_BOARD && usageSummary && (
             <>
               <div style={{ borderTop: "1px solid var(--border)" }} />
               <p className="text-sm leading-relaxed pl-3" style={{ borderLeft: "2px solid var(--border)", color: "var(--dim)" }}>
@@ -212,7 +216,7 @@ export default async function SpacePage({ params }: Props) {
             </>
           )}
 
-          {anonymousReactions.length > 0 && (
+          {SHOW_REACTION_BOARD && anonymousReactions.length > 0 && (
             <>
               <div style={{ borderTop: "1px solid var(--border)" }} />
               <div className="space-y-6">

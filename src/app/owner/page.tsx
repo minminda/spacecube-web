@@ -14,6 +14,9 @@ export default async function AdminPage() {
     orderBy: { createdAt: "desc" },
   });
 
+  // MVP 기간 반응보드 링크 비활성화 — true로 바꾸면 즉시 원상복구
+  const SHOW_REACTION_BOARD = false;
+
   return (
     <main className="flex flex-col min-h-screen px-6 py-8 gap-6">
       <div className="space-y-1" style={{ color: "var(--dim)" }}>
@@ -69,13 +72,16 @@ export default async function AdminPage() {
                 <p>url      : /space/{space.slug}</p>
               </div>
               <div className="flex gap-3 text-xs flex-wrap">
-                <Link
-                  href={`/owner/${space.id}/dashboard`}
-                  className="border px-3 py-1 hover:bg-[var(--fg)] hover:text-[var(--bg)] transition-colors"
-                  style={{ borderColor: "var(--fg)" }}
-                >
-                  [반응 보드]
-                </Link>
+                {/* MVP: SHOW_REACTION_BOARD = true 로 변경하면 원상복구 */}
+                {SHOW_REACTION_BOARD && (
+                  <Link
+                    href={`/owner/${space.id}/dashboard`}
+                    className="border px-3 py-1 hover:bg-[var(--fg)] hover:text-[var(--bg)] transition-colors"
+                    style={{ borderColor: "var(--fg)" }}
+                  >
+                    [반응 보드]
+                  </Link>
+                )}
                 <Link
                   href={`/owner/${space.id}/qr`}
                   className="border px-3 py-1 transition-colors"
