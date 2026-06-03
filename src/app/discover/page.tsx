@@ -1,6 +1,9 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { auth } from "@/auth";
+import { aggregateTags } from "@/lib/taste";
+import { scoreSpace } from "@/lib/recommend";
 import SpaceCards from "./SpaceCards";
 
 interface Props {
@@ -11,11 +14,44 @@ export default async function DiscoverPage({ searchParams }: Props) {
   const { district } = await searchParams;
   if (!district) redirect("/");
 
-  const spaces = await prisma.space.findMany({
+  // 공간 목록 조회 (취향 점수 계산용 spaceTags 포함)
+  const spacesRaw = await prisma.space.findMany({
     where: { district, isActive: true },
     orderBy: { createdAt: "desc" },
-    select: { id: true, slug: true, name: true, tagline: true, type: true, openingHours: true, imageUrl: true },
+    select: {
+      id: true, slug: true, name: true, tagline: true,
+      type: true, openingHours: true, imageUrl: true,
+      district: true, spaceTags: true,
+    },
   });
+
+  // 기본: 등록 순 정렬
+  let tasteSort = false;
+  let spaces = spacesRaw.map(({ spaceTags: _t, district: _d, ...rest }) => rest);
+
+  // 로그인 사용자 기록이 3개 이상이면 취향 기반 정렬
+  const session = await auth();
+  if (session?.user?.email && spacesRaw.length > 0) {
+    const user = await prisma.user.findUnique({
+      where: { email: session.user.email },
+      select: { id: true },
+    });
+    if (user) {
+      const userRecords = await prisma.record.findMany({
+        where: { userId: user.id },
+        include: { tags: true },
+      });
+      if (userRecords.length >= 3) {
+        const userTopTags = aggregateTags(userRecords).slice(0, 3).map(([t]) => t);
+        // SpaceCandidate 타입 손실 없이 spacesRaw 원본을 점수 기준으로 직접 정렬
+        const sorted = [...spacesRaw].sort(
+          (a, b) => scoreSpace(b, userTopTags) - scoreSpace(a, userTopTags),
+        );
+        spaces = sorted.map(({ spaceTags: _t, district: _d, ...rest }) => rest);
+        tasteSort = true;
+      }
+    }
+  }
 
   return (
     <main className="flex flex-col min-h-screen px-6 py-8 gap-8">
@@ -40,7 +76,16 @@ export default async function DiscoverPage({ searchParams }: Props) {
         </div>
       ) : (
         <>
-          <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>{spaces.length}곳 발견</p>
+          <div className="space-y-1">
+            <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>
+              {spaces.length}곳 발견
+            </p>
+            {tasteSort && (
+              <p className="text-xs" style={{ color: "var(--dim)" }}>
+                당신의 취향과 닮은 순으로 정렬되었습니다.
+              </p>
+            )}
+          </div>
           <SpaceCards spaces={spaces} />
         </>
       )}

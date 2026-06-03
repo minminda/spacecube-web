@@ -6,6 +6,7 @@ import { TAG_LABELS } from "@/lib/tags";
 import SettingsPanel from "@/components/SettingsPanel";
 import CollectionManager from "@/components/CollectionManager";
 import { aggregateTags, getTastePhrase, tagOverlap } from "@/lib/taste";
+import { rankSpaces, getRecommendReason } from "@/lib/recommend";
 
 function formatDate(d: Date) {
   return new Date(d).toLocaleDateString("ko-KR", { year: "numeric", month: "2-digit", day: "2-digit" });
@@ -55,6 +56,17 @@ export default async function ArchivePage() {
   const tastePhrase  = getTastePhrase(topTags);
   const maxCount     = topTags[0]?.[1] ?? 1;
   const myTopTagList = topTags.slice(0, 3).map(([t]) => t);
+
+  // 취향 발견: 방문하지 않은 공간 중 태그 유사도 상위 3개
+  const visitedIds = new Set(allRecords.map((r) => r.space.id));
+  const recommendCandidates = allRecords.length >= 3 && myTopTagList.length > 0
+    ? await prisma.space.findMany({
+        where: { isActive: true, id: { notIn: [...visitedIds] } },
+        select: { id: true, name: true, slug: true, tagline: true, imageUrl: true, type: true, district: true, spaceTags: true },
+        take: 30,
+      })
+    : [];
+  const recommended = rankSpaces(recommendCandidates, myTopTagList, 3);
 
   const memos = allRecords.filter((r) => r.memo);
   const wantAgainMap = new Map<string, typeof allRecords[0]>();
@@ -152,6 +164,52 @@ export default async function ArchivePage() {
           {allRecords.length > 0 && (
             <>
               <Divider className="md:hidden" />
+
+              {/* 취향 발견 섹션 */}
+              {allRecords.length < 3 ? (
+                <>
+                  <section className="mb-10 space-y-2 pl-4 border-l" style={{ borderColor: "var(--border)" }}>
+                    <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>
+                      아직 취향을 파악하는 중입니다.<br />
+                      공간 3곳을 기록하면<br />
+                      당신의 취향과 닮은 공간을 보여드립니다.
+                    </p>
+                    <p className="text-xs" style={{ color: "var(--border)" }}>
+                      {allRecords.length} / 3 기록됨
+                    </p>
+                  </section>
+                  <Divider />
+                </>
+              ) : (
+                <>
+                  <section className="mb-10">
+                    <SectionLabel>// 취향과 닮은 공간</SectionLabel>
+                    {recommended.length > 0 ? (
+                      <div className="space-y-5">
+                        {recommended.map((rec) => {
+                          const reason = getRecommendReason(rec, myTopTagList);
+                          return (
+                            <Link key={rec.id} href={`/space/${rec.slug}`} className="block group space-y-0.5">
+                              <p className="text-sm font-medium group-hover:underline">{rec.name}</p>
+                              {rec.district && (
+                                <p className="text-xs" style={{ color: "var(--dim)" }}>{rec.district}</p>
+                              )}
+                              {reason && (
+                                <p className="text-xs" style={{ color: "var(--dim)" }}>{reason}</p>
+                              )}
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <p className="text-sm" style={{ color: "var(--dim)" }}>
+                        아직 추천할 공간이 없습니다.
+                      </p>
+                    )}
+                  </section>
+                  <Divider />
+                </>
+              )}
 
               <section className="mb-10">
                 <SectionLabel>내가 다녀온 곳</SectionLabel>

@@ -5,6 +5,7 @@ import { TAG_LABELS } from "@/lib/tags";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 import { rankSpaces } from "@/lib/recommend";
+import { aggregateTags } from "@/lib/taste";
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -27,21 +28,28 @@ export default async function DonePage({ params, searchParams }: Props) {
   if (space && session?.user?.email) {
     const user = await prisma.user.findUnique({ where: { email: session.user.email } });
     if (user) {
-      const visited = await prisma.record.findMany({ where: { userId: user.id }, select: { spaceId: true } });
-      const visitedIds = new Set(visited.map((r) => r.spaceId));
+      // 누적 기록 태그로 취향 계산 (없으면 현재 세션 태그 fallback)
+      const userRecords = await prisma.record.findMany({
+        where: { userId: user.id },
+        include: { tags: true },
+      });
+      const visitedIds = new Set(userRecords.map((r) => r.spaceId));
+      const userTopTags = aggregateTags(userRecords).slice(0, 3).map(([t]) => t);
+      const effectiveTags = userTopTags.length > 0 ? userTopTags : tagList;
+
       const candidates = await prisma.space.findMany({
         where: { isActive: true, id: { notIn: [...visitedIds] }, ...(space.district ? { district: space.district } : {}) },
         select: { id: true, name: true, slug: true, tagline: true, imageUrl: true, type: true, district: true, spaceTags: true },
         take: 20,
       });
-      recommended = rankSpaces(candidates, tagList, "similar", 2);
+      recommended = rankSpaces(candidates, effectiveTags, 2);
       if (recommended.length === 0 && space.district) {
         const broader = await prisma.space.findMany({
           where: { isActive: true, id: { notIn: [...visitedIds] } },
           select: { id: true, name: true, slug: true, tagline: true, imageUrl: true, type: true, district: true, spaceTags: true },
           take: 20,
         });
-        recommended = rankSpaces(broader, tagList, "similar", 2);
+        recommended = rankSpaces(broader, effectiveTags, 2);
       }
     }
   }
@@ -72,7 +80,7 @@ export default async function DonePage({ params, searchParams }: Props) {
         <>
           <div className="space-y-5">
             <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>
-              {space?.district ? `${space.district} 근처 추천 공간` : "취향 기반 추천"}
+              당신의 취향과 닮은 공간
             </p>
             {recommended.map((rec) => (
               <Link key={rec.id} href={`/space/${rec.slug}`} className="flex gap-4 group">
