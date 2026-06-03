@@ -1,33 +1,19 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
-import type { Lang } from "@/lib/i18n";
 
 interface SpaceOption { id: string; name: string; slug: string; }
 interface CollectionItem { spaceId: string; space: { id: string; name: string; slug: string }; }
 interface Collection { id: string; name: string; items: CollectionItem[]; }
-interface Props { collections: Collection[]; visitedSpaces: SpaceOption[]; lang: Lang; }
+interface Props { collections: Collection[]; visitedSpaces: SpaceOption[]; }
 
-export default function CollectionManager({ collections: initial, visitedSpaces, lang }: Props) {
+export default function CollectionManager({ collections: initial, visitedSpaces }: Props) {
   const [collections, setCollections] = useState(initial);
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [addingTo, setAddingTo] = useState<string | null>(null);
-
-  const t = {
-    save:     lang === "ko" ? "[저장]"   : lang === "ja" ? "[保存]"         : lang === "zh" ? "[保存]"   : "[Save]",
-    cancel:   lang === "ko" ? "[취소]"   : lang === "ja" ? "[キャンセル]"   : lang === "zh" ? "[取消]"   : "[Cancel]",
-    edit:     lang === "ko" ? "수정"     : lang === "ja" ? "編集"           : lang === "zh" ? "编辑"     : "Edit",
-    delete:   lang === "ko" ? "삭제"     : lang === "ja" ? "削除"           : lang === "zh" ? "删除"     : "Delete",
-    noSpace:  lang === "ko" ? "추가할 공간이 없어" : lang === "ja" ? "追加できる空間がありません" : lang === "zh" ? "没有可添加的空间" : "No spaces to add",
-    close:    lang === "ko" ? "[닫기]"   : lang === "ja" ? "[閉じる]"       : lang === "zh" ? "[关闭]"   : "[Close]",
-    addSpace: lang === "ko" ? "공간 추가" : lang === "ja" ? "空間を追加"    : lang === "zh" ? "添加空间" : "Add Space",
-    colName:  lang === "ko" ? "컬렉션 이름..." : lang === "ja" ? "コレクション名..." : lang === "zh" ? "收藏名称..." : "Collection name...",
-    create:   lang === "ko" ? "[만들기]" : lang === "ja" ? "[作成]"         : lang === "zh" ? "[创建]"   : "[Create]",
-    newCol:   lang === "ko" ? "새 컬렉션" : lang === "ja" ? "新しいコレクション" : lang === "zh" ? "新建收藏" : "New Collection",
-  };
 
   async function createCollection() {
     if (!newName.trim()) return;
@@ -70,14 +56,14 @@ export default function CollectionManager({ collections: initial, visitedSpaces,
                   <input autoFocus value={editName} onChange={(e) => setEditName(e.target.value.slice(0, 30))}
                     onKeyDown={(e) => { if (e.key === "Enter") renameCollection(col.id); if (e.key === "Escape") setEditingId(null); }}
                     className="flex-1 text-xs bg-transparent border-b outline-none pb-0.5" style={{ borderColor: "var(--dim)", color: "var(--fg)" }} />
-                  <button onClick={() => renameCollection(col.id)} className="text-xs" style={{ color: "var(--dim)" }}>{t.save}</button>
-                  <button onClick={() => setEditingId(null)} className="text-xs" style={{ color: "var(--dim)" }}>{t.cancel}</button>
+                  <button onClick={() => renameCollection(col.id)} className="text-xs" style={{ color: "var(--dim)" }}>[저장]</button>
+                  <button onClick={() => setEditingId(null)} className="text-xs" style={{ color: "var(--dim)" }}>[취소]</button>
                 </div>
               ) : (
                 <>
                   <p className="text-xs flex-1" style={{ color: "var(--fg)" }}>{col.name}<span style={{ color: "var(--dim)" }}> ({col.items.length})</span></p>
-                  <button onClick={() => { setEditingId(col.id); setEditName(col.name); }} className="text-xs" style={{ color: "var(--dim)" }}>{t.edit}</button>
-                  <button onClick={() => deleteCollection(col.id)} className="text-xs" style={{ color: "var(--dim)" }}>{t.delete}</button>
+                  <button onClick={() => { setEditingId(col.id); setEditName(col.name); }} className="text-xs" style={{ color: "var(--dim)" }}>수정</button>
+                  <button onClick={() => deleteCollection(col.id)} className="text-xs" style={{ color: "var(--dim)" }}>삭제</button>
                 </>
               )}
             </div>
@@ -97,14 +83,14 @@ export default function CollectionManager({ collections: initial, visitedSpaces,
             {addingTo === col.id ? (
               <div className="pl-2 space-y-1">
                 {available.length === 0
-                  ? <p className="text-xs" style={{ color: "var(--dim)" }}>{t.noSpace}</p>
+                  ? <p className="text-xs" style={{ color: "var(--dim)" }}>추가할 공간이 없어</p>
                   : available.map((s) => (
                     <button key={s.id} onClick={() => addSpace(col.id, s.id)} className="block text-xs w-full text-left py-0.5" style={{ color: "var(--dim)" }}>+ {s.name}</button>
                   ))}
-                <button onClick={() => setAddingTo(null)} className="text-xs" style={{ color: "var(--dim)" }}>{t.close}</button>
+                <button onClick={() => setAddingTo(null)} className="text-xs" style={{ color: "var(--dim)" }}>[닫기]</button>
               </div>
             ) : (
-              <button onClick={() => setAddingTo(col.id)} className="text-xs pl-2" style={{ color: "var(--dim)" }}>+ {t.addSpace}</button>
+              <button onClick={() => setAddingTo(col.id)} className="text-xs pl-2" style={{ color: "var(--dim)" }}>+ 공간 추가</button>
             )}
           </div>
         );
@@ -112,14 +98,14 @@ export default function CollectionManager({ collections: initial, visitedSpaces,
 
       {creating ? (
         <div className="flex gap-2 items-center">
-          <input autoFocus value={newName} onChange={(e) => setNewName(e.target.value.slice(0, 30))} placeholder={t.colName}
+          <input autoFocus value={newName} onChange={(e) => setNewName(e.target.value.slice(0, 30))} placeholder="컬렉션 이름..."
             onKeyDown={(e) => { if (e.key === "Enter") createCollection(); if (e.key === "Escape") { setCreating(false); setNewName(""); } }}
             className="flex-1 text-xs bg-transparent border-b outline-none pb-0.5" style={{ borderColor: "var(--dim)", color: "var(--fg)" }} />
-          <button onClick={createCollection} className="text-xs" style={{ color: "var(--dim)" }}>{t.create}</button>
-          <button onClick={() => { setCreating(false); setNewName(""); }} className="text-xs" style={{ color: "var(--dim)" }}>{t.cancel}</button>
+          <button onClick={createCollection} className="text-xs" style={{ color: "var(--dim)" }}>[만들기]</button>
+          <button onClick={() => { setCreating(false); setNewName(""); }} className="text-xs" style={{ color: "var(--dim)" }}>[취소]</button>
         </div>
       ) : (
-        <button onClick={() => setCreating(true)} className="text-xs" style={{ color: "var(--dim)" }}>+ {t.newCol}</button>
+        <button onClick={() => setCreating(true)} className="text-xs" style={{ color: "var(--dim)" }}>+ 새 컬렉션</button>
       )}
     </div>
   );

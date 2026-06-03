@@ -1,7 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
-import { getLang } from "@/lib/i18n";
 import RecordForm from "./RecordForm";
 
 interface Props {
@@ -29,15 +28,12 @@ export default async function RecordPage({ params }: Props) {
   const visitCount = previousRecords.length;
   const lastRecord = previousRecords[0] ?? null;
 
-  const lang = await getLang();
-
   return (
     <RecordForm
       space={{ id: space.id, name: space.name, slug: space.slug }}
       spaceTags={space.spaceTags}
       visitCount={visitCount}
       previousRecord={lastRecord ? { tags: lastRecord.tags.map((t) => t.tag), memo: lastRecord.memo ?? "" } : null}
-      lang={lang}
     />
   );
 }

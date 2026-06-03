@@ -2,13 +2,24 @@
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
-import type { Lang } from "@/lib/i18n";
 
 type Visibility = "PRIVATE" | "PARTIAL" | "LINK_ONLY";
 
-interface Props { nickname: string | null; visibility: Visibility; userId: string; lang: Lang; }
+const VISIBILITY_LABELS: Record<Visibility, string> = {
+  PRIVATE: "나만 보기",
+  LINK_ONLY: "링크로만 공개",
+  PARTIAL: "일부 공개",
+};
 
-export default function SettingsPanel({ nickname, visibility, userId, lang }: Props) {
+const VIS_HINT: Record<Visibility, string> = {
+  PRIVATE: "나만 볼 수 있어",
+  LINK_ONLY: "링크를 아는 사람만 볼 수 있어",
+  PARTIAL: "비슷한 취향에서 발견될 수 있어",
+};
+
+interface Props { nickname: string | null; visibility: Visibility; userId: string; }
+
+export default function SettingsPanel({ nickname, visibility, userId }: Props) {
   const [open, setOpen] = useState(false);
   const [nickValue, setNickValue] = useState(nickname ?? "");
   const [vis, setVis] = useState<Visibility>(visibility);
@@ -16,29 +27,6 @@ export default function SettingsPanel({ nickname, visibility, userId, lang }: Pr
   const [copied, setCopied] = useState(false);
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
-
-  const VISIBILITY_LABELS: Record<Visibility, string> =
-    lang === "ko" ? { PRIVATE: "나만 보기",  LINK_ONLY: "링크로만 공개",   PARTIAL: "일부 공개" }
-    : lang === "ja" ? { PRIVATE: "自分のみ", LINK_ONLY: "リンクのみ公開",  PARTIAL: "一部公開" }
-    : lang === "zh" ? { PRIVATE: "仅自己",  LINK_ONLY: "仅链接可见",      PARTIAL: "部分公开" }
-    : { PRIVATE: "Only Me", LINK_ONLY: "Link Only", PARTIAL: "Partially Public" };
-
-  const VIS_HINT: Record<Visibility, string> =
-    lang === "ko" ? { PRIVATE: "나만 볼 수 있어", LINK_ONLY: "링크를 아는 사람만 볼 수 있어", PARTIAL: "비슷한 취향에서 발견될 수 있어" }
-    : lang === "ja" ? { PRIVATE: "自分だけが見られます", LINK_ONLY: "リンクを知っている人だけが見られます", PARTIAL: "似た好みの人から発見される可能性があります" }
-    : lang === "zh" ? { PRIVATE: "只有你自己可以看", LINK_ONLY: "只有知道链接的人可以看", PARTIAL: "可能被品味相似的人发现" }
-    : { PRIVATE: "Only you can see this", LINK_ONLY: "Only people with the link can see this", PARTIAL: "You can be discovered by similar tastes" };
-
-  const t = {
-    settings:   lang === "ko" ? "설정"       : lang === "ja" ? "設定"          : lang === "zh" ? "设置"      : "Settings",
-    nickname:   lang === "ko" ? "닉네임"     : lang === "ja" ? "ニックネーム"   : lang === "zh" ? "昵称"      : "Nickname",
-    nickMax:    lang === "ko" ? "최대 20자"  : lang === "ja" ? "最大20文字"     : lang === "zh" ? "最多20个字符" : "Max 20 characters",
-    visibility: lang === "ko" ? "공개 범위"  : lang === "ja" ? "公開設定"       : lang === "zh" ? "公开设置"   : "Visibility",
-    copyLink:   lang === "ko" ? "공유 링크 복사" : lang === "ja" ? "共有リンクをコピー" : lang === "zh" ? "复制分享链接" : "Copy Share Link",
-    linkCopied: lang === "ko" ? "링크 복사됨 ✓"    : lang === "ja" ? "リンクをコピーしました ✓" : lang === "zh" ? "链接已复制 ✓" : "Link Copied ✓",
-    save:       lang === "ko" ? "저장"       : lang === "ja" ? "保存"           : lang === "zh" ? "保存"      : "Save",
-    signOut:    lang === "ko" ? "로그아웃"   : lang === "ja" ? "ログアウト"      : lang === "zh" ? "退出登录"  : "Sign Out",
-  };
 
   useEffect(() => { if (open) inputRef.current?.focus(); }, [open]);
 
@@ -49,14 +37,14 @@ export default function SettingsPanel({ nickname, visibility, userId, lang }: Pr
   }
 
   function copyLink() {
-    navigator.clipboard.writeText(`${window.location.origin}/u/${userId}`).then(() => {
+    navigator.clipboard.writeText(`${window.location.origin}/taste/${userId}`).then(() => {
       setCopied(true); setTimeout(() => setCopied(false), 2000);
     });
   }
 
   return (
     <>
-      <button onClick={() => setOpen(true)} className="text-xs" style={{ color: "var(--dim)" }} aria-label={t.settings}>⚙</button>
+      <button onClick={() => setOpen(true)} className="text-xs" style={{ color: "var(--dim)" }} aria-label="설정">⚙</button>
 
       {open && (
         <div
@@ -66,17 +54,17 @@ export default function SettingsPanel({ nickname, visibility, userId, lang }: Pr
         >
           <div className="w-full max-w-sm p-6 space-y-6" style={{ background: "var(--bg)", borderTop: "1px solid var(--border)" }}>
             <div className="flex justify-between items-center">
-              <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>{t.settings}</p>
+              <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>설정</p>
               <button onClick={() => setOpen(false)} className="text-lg leading-none" style={{ color: "var(--dim)" }}>×</button>
             </div>
 
             <div className="space-y-2">
-              <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>{t.nickname}</p>
+              <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>닉네임</p>
               <input
                 ref={inputRef}
                 value={nickValue}
                 onChange={(e) => setNickValue(e.target.value.slice(0, 20))}
-                placeholder={t.nickMax}
+                placeholder="최대 20자"
                 maxLength={20}
                 className="w-full text-sm bg-transparent border-b outline-none pb-2"
                 style={{ borderColor: "var(--border)", color: "var(--fg)" }}
@@ -85,7 +73,7 @@ export default function SettingsPanel({ nickname, visibility, userId, lang }: Pr
             </div>
 
             <div className="space-y-2">
-              <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>{t.visibility}</p>
+              <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>공개 범위</p>
               <div className="space-y-1">
                 {(["PRIVATE", "LINK_ONLY", "PARTIAL"] as Visibility[]).map((v) => (
                   <button
@@ -107,7 +95,7 @@ export default function SettingsPanel({ nickname, visibility, userId, lang }: Pr
                 className="w-full text-left text-sm py-2.5 px-3 border"
                 style={{ borderColor: "var(--border)", color: "var(--dim)" }}
               >
-                {copied ? t.linkCopied : t.copyLink}
+                {copied ? "링크 복사됨 ✓" : "공유 링크 복사"}
               </button>
             )}
 
@@ -117,7 +105,7 @@ export default function SettingsPanel({ nickname, visibility, userId, lang }: Pr
               className="w-full text-sm font-medium py-3 border transition-colors hover:bg-[var(--fg)] hover:text-[var(--bg)]"
               style={{ borderColor: "var(--fg)", color: "var(--fg)" }}
             >
-              {saving ? "..." : t.save}
+              {saving ? "..." : "저장"}
             </button>
 
             <button
@@ -125,7 +113,7 @@ export default function SettingsPanel({ nickname, visibility, userId, lang }: Pr
               className="text-xs w-full text-left py-2 border-t"
               style={{ borderColor: "var(--border)", color: "var(--dim)" }}
             >
-              {t.signOut}
+              로그아웃
             </button>
           </div>
         </div>

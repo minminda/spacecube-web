@@ -3,11 +3,10 @@ import Link from "next/link";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { isAdmin } from "@/lib/admin";
-import { getTagLabels } from "@/lib/tags";
+import { TAG_LABELS } from "@/lib/tags";
 import { aggregateSpaceTags, getSpaceUsageSummary, getRevisitStats } from "@/lib/spaceInsight";
 import WaitlistPanel from "./WaitlistPanel";
 import MoodPanel from "./MoodPanel";
-import NotePanel from "./NotePanel";
 
 interface Props { params: Promise<{ id: string }> }
 
@@ -37,12 +36,11 @@ export default async function DashboardPage({ params }: Props) {
   const space = await prisma.space.findUnique({ where: { id } });
   if (!space) notFound();
 
-  const TAG_LABELS = getTagLabels("ko");
   const now = new Date();
   const todayStart = startOfDay(now);
   const weekStart = startOfWeek(now);
 
-  const [scansToday, scansWeek, scansAll, allRecords, latestNote] = await Promise.all([
+  const [scansToday, scansWeek, scansAll, allRecords] = await Promise.all([
     prisma.spaceScan.count({ where: { spaceId: id, scannedAt: { gte: todayStart } } }),
     prisma.spaceScan.count({ where: { spaceId: id, scannedAt: { gte: weekStart } } }),
     prisma.spaceScan.count({ where: { spaceId: id } }),
@@ -51,22 +49,16 @@ export default async function DashboardPage({ params }: Props) {
       include: { tags: true },
       orderBy: { visitedAt: "desc" },
     }),
-    prisma.spaceNote.findFirst({
-      where: { spaceId: id },
-      orderBy: { createdAt: "desc" },
-      select: { id: true, content: true, createdAt: true },
-    }),
   ]);
 
   const recentMemos = allRecords.filter((r) => r.memo).slice(0, 5);
   const topTags = aggregateSpaceTags(allRecords).slice(0, 3);
   const { total: uniqueVisitors, revisitors, ratio: revisitRatio } = getRevisitStats(allRecords);
-  const usageSummary = getSpaceUsageSummary(aggregateSpaceTags(allRecords), "ko");
+  const usageSummary = getSpaceUsageSummary(aggregateSpaceTags(allRecords));
   const revisitInsight = getRevisitInsight(revisitors, uniqueVisitors, revisitRatio);
 
   return (
     <main className="flex flex-col min-h-screen px-6 py-8 gap-8">
-      {/* 헤더 */}
       <div className="space-y-1" style={{ color: "var(--dim)" }}>
         <div className="flex justify-between">
           <p className="text-xs">공간큐브 / DASHBOARD</p>
@@ -80,20 +72,9 @@ export default async function DashboardPage({ params }: Props) {
         <h1 className="text-xl font-bold">{space.name}</h1>
       </div>
 
-      {/* ① 지금의 공간 상태 */}
+      {/* 지금의 공간 상태 */}
       <div style={{ borderTop: "1px solid var(--border)" }} />
       <MoodPanel spaceId={space.id} initialMood={space.currentMood} />
-
-      {/* ② 공간 노트 */}
-      <div style={{ borderTop: "1px solid var(--border)" }} />
-      <NotePanel
-        spaceId={space.id}
-        initialNote={
-          latestNote
-            ? { ...latestNote, createdAt: latestNote.createdAt.toISOString() }
-            : null
-        }
-      />
 
       {/* 스캔 현황 */}
       <div style={{ borderTop: "1px solid var(--border)" }} />
@@ -111,23 +92,18 @@ export default async function DashboardPage({ params }: Props) {
         )}
       </section>
 
-      {/* 공간 사용 방식 요약 */}
       {usageSummary && (
         <>
           <div style={{ borderTop: "1px solid var(--border)" }} />
           <section className="space-y-3">
             <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>// 공간 사용 방식</p>
-            <p
-              className="text-sm leading-relaxed pl-3"
-              style={{ borderLeft: "2px solid var(--border)", color: "var(--fg)" }}
-            >
+            <p className="text-sm leading-relaxed pl-3" style={{ borderLeft: "2px solid var(--border)", color: "var(--fg)" }}>
               {usageSummary}
             </p>
           </section>
         </>
       )}
 
-      {/* 태그 TOP 3 */}
       {topTags.length > 0 && (
         <>
           <div style={{ borderTop: "1px solid var(--border)" }} />
@@ -151,7 +127,6 @@ export default async function DashboardPage({ params }: Props) {
         </>
       )}
 
-      {/* ③ 재방문 흔적 — 운영자 시점 */}
       {uniqueVisitors > 0 && (
         <>
           <div style={{ borderTop: "1px solid var(--border)" }} />
@@ -163,15 +138,12 @@ export default async function DashboardPage({ params }: Props) {
               <StatBox label="재방문율" value={revisitRatio} unit="%" />
             </div>
             {revisitInsight && (
-              <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>
-                {revisitInsight}
-              </p>
+              <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>{revisitInsight}</p>
             )}
           </section>
         </>
       )}
 
-      {/* 최근 익명 메모 */}
       {recentMemos.length > 0 ? (
         <>
           <div style={{ borderTop: "1px solid var(--border)" }} />
@@ -185,11 +157,7 @@ export default async function DashboardPage({ params }: Props) {
                   {r.tags.length > 0 && (
                     <div className="flex gap-2 flex-wrap">
                       {r.tags.map((t) => (
-                        <span
-                          key={t.id}
-                          className="text-xs px-2 py-0.5 border"
-                          style={{ borderColor: "var(--border)", color: "var(--dim)" }}
-                        >
+                        <span key={t.id} className="text-xs px-2 py-0.5 border" style={{ borderColor: "var(--border)", color: "var(--dim)" }}>
                           {TAG_LABELS[t.tag]}
                         </span>
                       ))}
@@ -209,29 +177,15 @@ export default async function DashboardPage({ params }: Props) {
         </>
       )}
 
-      {/* 대기 관리 */}
       <div style={{ borderTop: "1px solid var(--border)" }} />
-      <WaitlistPanel
-        spaceId={space.id}
-        spaceSlug={space.slug}
-        initialFullyBooked={space.isFullyBooked}
-      />
+      <WaitlistPanel spaceId={space.id} spaceSlug={space.slug} initialFullyBooked={space.isFullyBooked} />
 
-      {/* 바로가기 */}
       <div style={{ borderTop: "1px solid var(--border)" }} />
       <div className="flex gap-3 text-xs">
-        <Link
-          href={`/space/${space.slug}`}
-          className="border px-3 py-1.5 transition-colors"
-          style={{ borderColor: "var(--border)", color: "var(--dim)" }}
-        >
+        <Link href={`/space/${space.slug}`} className="border px-3 py-1.5 transition-colors" style={{ borderColor: "var(--border)", color: "var(--dim)" }}>
           공간 페이지 보기 →
         </Link>
-        <Link
-          href={`/owner/${id}/qr`}
-          className="border px-3 py-1.5 transition-colors"
-          style={{ borderColor: "var(--border)", color: "var(--dim)" }}
-        >
+        <Link href={`/owner/${id}/qr`} className="border px-3 py-1.5 transition-colors" style={{ borderColor: "var(--border)", color: "var(--dim)" }}>
           QR 관리
         </Link>
       </div>

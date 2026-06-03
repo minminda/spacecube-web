@@ -3,8 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Tag } from "@prisma/client";
-import { getTagLabels, ALL_TAGS } from "@/lib/tags";
-import type { Lang } from "@/lib/i18n";
+import { TAG_LABELS, ALL_TAGS } from "@/lib/tags";
 import TagChip from "@/components/TagChip";
 
 const MAX_TAGS = 2;
@@ -15,11 +14,9 @@ interface Props {
   spaceTags: Tag[];
   visitCount: number;
   previousRecord: { tags: Tag[]; memo: string } | null;
-  lang: Lang;
 }
 
-export default function RecordForm({ space, spaceTags, visitCount, previousRecord, lang }: Props) {
-  const TAG_LABELS = getTagLabels(lang);
+export default function RecordForm({ space, spaceTags, visitCount, previousRecord }: Props) {
   const tagsToShow = spaceTags.length > 0 ? spaceTags : ALL_TAGS;
   const router = useRouter();
   const [selectedTags, setSelectedTags] = useState<Tag[]>([]);
@@ -28,19 +25,6 @@ export default function RecordForm({ space, spaceTags, visitCount, previousRecor
 
   const isRevisit = visitCount > 0;
   const visitNumber = visitCount + 1;
-
-  const t = {
-    howWas:      lang === "ko" ? "이 공간 어땠나요?" : lang === "ja" ? "この空間はいかがでしたか？" : lang === "zh" ? "这个空间怎么样？" : "How was this space?",
-    howWasAgain: lang === "ko" ? "이번엔 어땠나요?" : lang === "ja" ? "今回はいかがでしたか？" : lang === "zh" ? "这次怎么样？" : "How was it this time?",
-    maxTags:     lang === "ko" ? `최대 ${MAX_TAGS}개까지 고를 수 있어.` : lang === "ja" ? `最大${MAX_TAGS}つまで選べます。` : lang === "zh" ? `最多可以选择 ${MAX_TAGS} 个标签。` : `You can select up to ${MAX_TAGS} tags.`,
-    leaveNote:   lang === "ko" ? "기록을 남겨볼까요? (선택)" : lang === "ja" ? "メモを残しませんか？（任意）" : lang === "zh" ? "留下记录吧？（可选）" : "Want to leave a note? (optional)",
-    placeholder: lang === "ko" ? "오늘 어떤 생각이 들었나요... 한 줄로 남겨도 좋아요." : lang === "ja" ? "今日どんな気持ちでしたか... 一言でも大丈夫です。" : lang === "zh" ? "今天有什么感受... 一句话也可以。" : "What did you feel today... even one line is enough.",
-    saving:      lang === "ko" ? "// 저장 중..." : lang === "ja" ? "// 保存中..." : lang === "zh" ? "// 保存中..." : "// Saving...",
-    save:        lang === "ko" ? "[[ 저장하기 ]]" : lang === "ja" ? "[[ 保存する ]]" : lang === "zh" ? "[[ 保存 ]]" : "[[ Save ]]",
-    visitLabel:  lang === "ko" ? `// ${visitNumber}번째 방문입니다` : lang === "ja" ? `// ${visitNumber}回目の訪問です` : lang === "zh" ? `// 第 ${visitNumber} 次到访` : `// Visit #${visitNumber}`,
-    lastTime:    lang === "ko" ? "지난번:" : lang === "ja" ? "前回:" : lang === "zh" ? "上次:" : "Last time:",
-    noMemo:      lang === "ko" ? "기록 없음" : lang === "ja" ? "メモなし" : lang === "zh" ? "无记录" : "No note left",
-  };
 
   function toggleTag(tag: Tag) {
     setSelectedTags((prev) => {
@@ -75,11 +59,11 @@ export default function RecordForm({ space, spaceTags, visitCount, previousRecor
 
       {isRevisit && (
         <div className="space-y-2 p-3 border" style={{ borderColor: "var(--border)" }}>
-          <p className="text-xs" style={{ color: "var(--fg)" }}>{t.visitLabel}</p>
+          <p className="text-xs" style={{ color: "var(--fg)" }}>// {visitNumber}번째 방문입니다</p>
           <div className="flex items-start gap-2 text-xs" style={{ color: "var(--dim)" }}>
-            <span className="flex-shrink-0">{t.lastTime}</span>
+            <span className="flex-shrink-0">지난번:</span>
             <span className="italic leading-relaxed">
-              &ldquo;{previousRecord?.memo || t.noMemo}&rdquo;
+              &ldquo;{previousRecord?.memo || "기록 없음"}&rdquo;
             </span>
           </div>
           {previousRecord && previousRecord.tags.length > 0 && (
@@ -98,7 +82,7 @@ export default function RecordForm({ space, spaceTags, visitCount, previousRecor
 
       <div className="space-y-3">
         <div className="flex justify-between items-center">
-          <p className="text-xs" style={{ color: "var(--dim)" }}>// {isRevisit ? t.howWasAgain : t.howWas}</p>
+          <p className="text-xs" style={{ color: "var(--dim)" }}>// {isRevisit ? "이번엔 어땠나요?" : "이 공간 어땠나요?"}</p>
           <p className="text-xs" style={{ color: selectedTags.length >= MAX_TAGS ? "var(--fg)" : "var(--dim)" }}>{selectedTags.length}/{MAX_TAGS}</p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -107,15 +91,17 @@ export default function RecordForm({ space, spaceTags, visitCount, previousRecor
               onClick={() => toggleTag(tag)} disabled={!selectedTags.includes(tag) && selectedTags.length >= MAX_TAGS} />
           ))}
         </div>
-        {selectedTags.length >= MAX_TAGS && <p className="text-xs" style={{ color: "var(--dim)" }}>&gt; {t.maxTags}</p>}
+        {selectedTags.length >= MAX_TAGS && (
+          <p className="text-xs" style={{ color: "var(--dim)" }}>&gt; 최대 {MAX_TAGS}개까지 고를 수 있어.</p>
+        )}
       </div>
 
       <p className="text-xs" style={{ color: "var(--border)" }}>─────────────────────────────</p>
 
       <div className="space-y-2">
-        <p className="text-xs" style={{ color: "var(--dim)" }}>// {t.leaveNote}</p>
+        <p className="text-xs" style={{ color: "var(--dim)" }}>// 기록을 남겨볼까요? (선택)</p>
         <textarea value={memo} onChange={(e) => { if (e.target.value.length <= MAX_MEMO) setMemo(e.target.value); }}
-          placeholder={t.placeholder} rows={4}
+          placeholder="오늘 어떤 생각이 들었나요... 한 줄로 남겨도 좋아요." rows={4}
           className="w-full text-sm p-3 resize-none outline-none border"
           style={{ background: "var(--bg)", color: "var(--fg)", borderColor: memo.length > 80 ? "var(--fg)" : "var(--border)", transition: "border-color 0.2s" }} />
       </div>
@@ -123,7 +109,7 @@ export default function RecordForm({ space, spaceTags, visitCount, previousRecor
       <button onClick={handleSubmit} disabled={selectedTags.length === 0 || loading}
         className="w-full text-sm py-2 px-4 border hover:bg-[var(--fg)] hover:text-[var(--bg)] transition-colors disabled:opacity-30"
         style={{ borderColor: "var(--fg)" }}>
-        {loading ? t.saving : t.save}
+        {loading ? "// 저장 중..." : "[[ 저장하기 ]]"}
       </button>
     </main>
   );

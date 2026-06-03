@@ -3,22 +3,13 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import DistrictMap from "./DistrictMap";
-import type { Lang } from "@/lib/i18n";
 
 const DISTRICTS = ["서촌", "성수", "망원", "북촌", "가로수길", "이태원", "홍대", "연남동"];
 
-interface Props { lang: Lang; }
-
-export default function DiscoverEntry({ lang }: Props) {
+export default function DiscoverEntry() {
   const router = useRouter();
   const [input, setInput] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
-
-  const placeholder =
-    lang === "ko" ? "지역 직접 입력" :
-    lang === "ja" ? "エリアを直接入力" :
-    lang === "zh" ? "直接输入区域" :
-    "Enter district name";
 
   function go(district: string) { setSelected(district); }
 
@@ -56,7 +47,7 @@ export default function DiscoverEntry({ lang }: Props) {
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder={placeholder}
+          placeholder="지역 직접 입력"
           className="flex-1 text-sm bg-transparent outline-none"
           style={{ color: "var(--fg)" }}
         />
