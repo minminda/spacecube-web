@@ -3,6 +3,7 @@ import Link from "next/link";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { isAdmin } from "@/lib/admin";
+import DeleteSpaceButton from "./DeleteSpaceButton";
 
 export default async function AdminPage() {
   const session = await auth();
@@ -89,6 +90,7 @@ export default async function AdminPage() {
                 >
                   [수정]
                 </Link>
+                <DeleteSpaceButton spaceId={space.id} spaceName={space.name} />
                 <Link
                   href={`/space/${space.slug}`}
                   className="text-xs self-center"
