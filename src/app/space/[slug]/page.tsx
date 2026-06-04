@@ -66,8 +66,15 @@ export default async function SpacePage({ params }: Props) {
   const visitMessage = getVisitMessage(visitCount, firstVisitAt);
   const firstVisitPrompt = !hasRecord && session;
 
+  // 메모 또는 태그가 있는 기록을 최근 순으로 조회 (공개 가능한 방문자 기록)
   const anonymousReactions = await prisma.record.findMany({
-    where: { spaceId: space.id, memo: { not: null } },
+    where: {
+      spaceId: space.id,
+      OR: [
+        { memo: { not: null } },
+        { tags: { some: {} } },
+      ],
+    },
     include: { tags: true },
     orderBy: { visitedAt: "desc" },
     take: 5,
@@ -206,7 +213,7 @@ export default async function SpacePage({ params }: Props) {
             ownerSocialUrl={space.ownerSocialUrl}
           />
 
-          {/* MVP: SHOW_REACTION_BOARD = true 로 변경하면 원상복구 */}
+          {/* 반응보드 통계 — MVP 기간 비활성 (SHOW_REACTION_BOARD = true 로 복구) */}
           {SHOW_REACTION_BOARD && usageSummary && (
             <>
               <div style={{ borderTop: "1px solid var(--border)" }} />
@@ -216,14 +223,19 @@ export default async function SpacePage({ params }: Props) {
             </>
           )}
 
-          {SHOW_REACTION_BOARD && anonymousReactions.length > 0 && (
+          {/* 방문자 기록 — 반응보드와 별개, 항상 표시 */}
+          {anonymousReactions.length > 0 && (
             <>
               <div style={{ borderTop: "1px solid var(--border)" }} />
               <div className="space-y-6">
-                <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>이 공간을 경험한 사람들의 순간</p>
+                <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>
+                  이 공간을 경험한 사람들의 기록
+                </p>
                 {anonymousReactions.map((r) => (
                   <div key={r.id} className="space-y-2">
-                    <p className="text-sm leading-relaxed">&ldquo;{r.memo}&rdquo;</p>
+                    {r.memo && (
+                      <p className="text-sm leading-relaxed">&ldquo;{r.memo}&rdquo;</p>
+                    )}
                     {r.tags.length > 0 && (
                       <div className="flex gap-2 flex-wrap">
                         {r.tags.map((tag) => (
