@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 const NAV_ITEMS = [
   { label: "공간들", href: "/discover", match: (p: string) => p === "/" || p.startsWith("/discover") || p.startsWith("/stories") || p.startsWith("/story") || p.startsWith("/space") },
   { label: "공간큐브", href: "/about", match: (p: string) => p.startsWith("/about") },
+  { label: "추천 방식", href: "/recommendation", match: (p: string) => p.startsWith("/recommendation") },
 ];
 
 export default function Navbar() {

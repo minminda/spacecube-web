@@ -3,6 +3,7 @@ import Link from "next/link";
 import { auth } from "@/auth";
 import { isAdmin } from "@/lib/admin";
 import { prisma } from "@/lib/prisma";
+import DeleteStoryButton from "./DeleteStoryButton";
 
 export default async function StoriesAdminPage() {
   const session = await auth();
@@ -67,7 +68,7 @@ export default async function StoriesAdminPage() {
                 <p>spaces   : {story.storySpaces.length}개</p>
                 <p>url      : /story/{story.slug}</p>
               </div>
-              <div className="flex gap-3 text-xs">
+              <div className="flex gap-3 text-xs flex-wrap">
                 <Link
                   href={`/owner/stories/${story.id}/edit`}
                   className="border px-3 py-1 transition-colors"
@@ -82,6 +83,7 @@ export default async function StoriesAdminPage() {
                 >
                   보기 →
                 </Link>
+                <DeleteStoryButton storyId={story.id} storyTitle={story.title} />
               </div>
             </div>
           ))}
