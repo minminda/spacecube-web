@@ -42,8 +42,8 @@ export default async function Home() {
     <main className="flex flex-col min-h-screen px-6 pt-16 pb-12 gap-10">
       <div className="space-y-4">
         <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>공간큐브</p>
-        <h1 className="text-3xl font-bold leading-tight whitespace-pre-line">
-          공간 경험을 기록하고,{"\n"}취향을 발견해봐
+        <h1 className="text-3xl font-bold leading-tight">
+          좋은 공간보다,<br />나와 맞는 공간을 발견하세요
         </h1>
       </div>
 

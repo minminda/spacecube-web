@@ -32,8 +32,8 @@ export default function DiscoverEntry() {
           <button
             key={d}
             onClick={() => go(d)}
-            className="text-xs px-3 py-1.5 border transition-colors hover:border-[var(--fg)] hover:text-[var(--fg)]"
-            style={{ borderColor: "var(--border)", color: "var(--dim)" }}
+            className="text-sm px-3 py-1.5 border transition-colors hover:border-[var(--fg)]"
+            style={{ borderColor: "var(--border)", color: "var(--fg)" }}
           >
             {d}
           </button>
