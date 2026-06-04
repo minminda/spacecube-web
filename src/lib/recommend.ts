@@ -12,6 +12,17 @@ export interface SpaceCandidate {
   spaceTags: Tag[];
 }
 
+/**
+ * 빈도 가중 CBF 점수 — 사용자가 많이 선택한 태그일수록 높은 점수
+ * 예) 사용자: {QUIET:3, FOCUSED:2} / 공간: [QUIET, FOCUSED] → 점수 = 5
+ */
+export function scoreSpaceWeighted(
+  space: SpaceCandidate,
+  userTagCounts: Partial<Record<Tag, number>>,
+): number {
+  return space.spaceTags.reduce((sum, tag) => sum + (userTagCounts[tag] ?? 0), 0);
+}
+
 /** 태그 겹침 기반 CBF 점수 (0~1) */
 export function scoreSpace(space: SpaceCandidate, userTopTags: Tag[]): number {
   if (userTopTags.length === 0 || space.spaceTags.length === 0) return 0;

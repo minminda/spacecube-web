@@ -1,9 +1,11 @@
 import Link from "next/link";
+import Image from "next/image";
 import { redirect } from "next/navigation";
+import { Tag } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 import { aggregateTags } from "@/lib/taste";
-import { scoreSpace } from "@/lib/recommend";
+import { scoreSpaceWeighted, getRecommendReason } from "@/lib/recommend";
 import SpaceCards from "./SpaceCards";
 
 interface Props {
@@ -14,7 +16,9 @@ export default async function DiscoverPage({ searchParams }: Props) {
   const { district } = await searchParams;
   if (!district) redirect("/");
 
-  // 공간 목록 조회 (취향 점수 계산용 spaceTags 포함)
+  const session = await auth();
+
+  // ── 공간 목록 조회 (spaceTags, district 포함) ──────────────────────
   const spacesRaw = await prisma.space.findMany({
     where: { district, isActive: true },
     orderBy: { createdAt: "desc" },
@@ -25,13 +29,14 @@ export default async function DiscoverPage({ searchParams }: Props) {
     },
   });
 
-  // 기본: 등록 순 정렬
-  let tasteSort = false;
-  let spaces = spacesRaw.map(({ spaceTags: _t, district: _d, ...rest }) => rest);
+  // ── 사용자 취향 데이터 ────────────────────────────────────────────
+  let hasEnoughRecords = false;
+  let recordCount = 0;
+  let visitedSpaceIds: string[] = [];
+  let userTopTags: Tag[] = [];
+  let userTagCountMap: Partial<Record<Tag, number>> = {};
 
-  // 로그인 사용자 기록이 3개 이상이면 취향 기반 정렬
-  const session = await auth();
-  if (session?.user?.email && spacesRaw.length > 0) {
+  if (session?.user?.email) {
     const user = await prisma.user.findUnique({
       where: { email: session.user.email },
       select: { id: true },
@@ -41,17 +46,49 @@ export default async function DiscoverPage({ searchParams }: Props) {
         where: { userId: user.id },
         include: { tags: true },
       });
-      if (userRecords.length >= 3) {
-        const userTopTags = aggregateTags(userRecords).slice(0, 3).map(([t]) => t);
-        // SpaceCandidate 타입 손실 없이 spacesRaw 원본을 점수 기준으로 직접 정렬
-        const sorted = [...spacesRaw].sort(
-          (a, b) => scoreSpace(b, userTopTags) - scoreSpace(a, userTopTags),
-        );
-        spaces = sorted.map(({ spaceTags: _t, district: _d, ...rest }) => rest);
-        tasteSort = true;
+      recordCount = userRecords.length;
+      // 방문한 공간 ID (중복 제거)
+      visitedSpaceIds = [...new Set(userRecords.map((r) => r.spaceId))];
+
+      if (recordCount >= 3) {
+        hasEnoughRecords = true;
+        const tagCounts = aggregateTags(userRecords);
+        userTagCountMap = Object.fromEntries(tagCounts) as Partial<Record<Tag, number>>;
+        userTopTags = tagCounts.slice(0, 3).map(([t]) => t);
       }
     }
   }
+
+  // ── 각 공간에 점수 부여 ───────────────────────────────────────────
+  const spacesWithScore = spacesRaw.map((s) => ({
+    ...s,
+    score: hasEnoughRecords ? scoreSpaceWeighted(s, userTagCountMap) : 0,
+  }));
+
+  // ── 추천 섹션: 방문하지 않은 공간, 점수 > 0, 상위 3개 ─────────────
+  const visitedSet = new Set(visitedSpaceIds);
+  const recommendedSpaces = hasEnoughRecords
+    ? [...spacesWithScore]
+        .filter((s) => !visitedSet.has(s.id) && s.score > 0)
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 3)
+    : [];
+
+  // ── 전체 공간 리스트: 기록 3개 이상이면 점수 기반 정렬 ──────────────
+  const sortedSpaces = hasEnoughRecords
+    ? [...spacesWithScore].sort((a, b) => b.score - a.score)
+    : spacesWithScore;
+
+  // SpaceCards 형태로 변환 (spaceTags·district·score 제거)
+  const spacesForCards = sortedSpaces.map((s) => ({
+    id: s.id,
+    slug: s.slug,
+    name: s.name,
+    tagline: s.tagline,
+    type: s.type,
+    openingHours: s.openingHours,
+    imageUrl: s.imageUrl,
+  }));
 
   return (
     <main className="flex flex-col min-h-screen px-6 py-8 gap-8">
@@ -67,7 +104,7 @@ export default async function DiscoverPage({ searchParams }: Props) {
         <h1 className="text-3xl font-bold">{district}</h1>
       </div>
 
-      {spaces.length === 0 ? (
+      {spacesRaw.length === 0 ? (
         <div className="flex-1 flex flex-col justify-center gap-4">
           <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>
             아직 {district}에 등록된 공간이 없어. 조금 기다려봐.
@@ -76,17 +113,76 @@ export default async function DiscoverPage({ searchParams }: Props) {
         </div>
       ) : (
         <>
+          {/* ── 추천 섹션 (기록 3개 이상 + 매칭 공간 있을 때) ── */}
+          {hasEnoughRecords && recommendedSpaces.length > 0 && (
+            <>
+              <section className="space-y-4">
+                <div className="space-y-1">
+                  <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>
+                    // 내 취향과 닮은 공간
+                  </p>
+                  <p className="text-xs" style={{ color: "var(--dim)" }}>
+                    최근 기록한 공간의 태그를 바탕으로 골랐습니다.
+                  </p>
+                </div>
+                <div className="space-y-5">
+                  {recommendedSpaces.map((rec) => {
+                    const reason = getRecommendReason(rec, userTopTags);
+                    return (
+                      <Link
+                        key={rec.id}
+                        href={`/space/${rec.slug}`}
+                        className="flex gap-4 group"
+                      >
+                        {rec.imageUrl && (
+                          <div className="relative w-16 h-16 flex-shrink-0 overflow-hidden">
+                            <Image
+                              src={rec.imageUrl}
+                              alt={rec.name}
+                              fill
+                              className="object-cover transition-transform duration-500 group-hover:scale-105"
+                            />
+                          </div>
+                        )}
+                        <div className="flex flex-col justify-center gap-0.5 min-w-0">
+                          <p className="text-sm font-semibold truncate group-hover:underline">
+                            {rec.name}
+                          </p>
+                          {rec.tagline && (
+                            <p className="text-xs truncate" style={{ color: "var(--dim)" }}>
+                              {rec.tagline}
+                            </p>
+                          )}
+                          {reason && (
+                            <p className="text-xs" style={{ color: "var(--dim)" }}>{reason}</p>
+                          )}
+                        </div>
+                      </Link>
+                    );
+                  })}
+                </div>
+              </section>
+              <div style={{ borderTop: "1px solid var(--border)" }} />
+            </>
+          )}
+
+          {/* ── 전체 공간 리스트 ── */}
           <div className="space-y-1">
             <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>
-              {spaces.length}곳 발견
+              {spacesForCards.length}곳 발견
             </p>
-            {tasteSort && (
+            {hasEnoughRecords && (
               <p className="text-xs" style={{ color: "var(--dim)" }}>
                 당신의 취향과 닮은 순으로 정렬되었습니다.
               </p>
             )}
+            {session && !hasEnoughRecords && recordCount > 0 && (
+              <p className="text-xs" style={{ color: "var(--dim)" }}>
+                공간 {recordCount}/3을 기록하면 취향과 닮은 공간을 먼저 보여드립니다.
+              </p>
+            )}
           </div>
-          <SpaceCards spaces={spaces} />
+          <SpaceCards spaces={spacesForCards} visitedSpaceIds={visitedSpaceIds} />
         </>
       )}
     </main>
