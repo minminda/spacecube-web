@@ -7,3 +7,13 @@
  */
 export const ENABLE_REGION_STORIES = false;
 export const ENABLE_TASTE_STORIES = false;
+
+/**
+ * 기록·추천 UX 전환 플래그.
+ * - RECORD_TAG_SELECTION: 기존 태그 2개 선택 방식 (보존용, 현재 꺼짐)
+ * - TASTE_SCORE_RECOMMENDATION: 취향 적합도 1~5점 기반 가중치 추천 (현재 기본)
+ * - RECOMMENDATION_PLAYLIST_UI: 추천 카드를 좌우 스와이프 플레이리스트로 표시
+ */
+export const ENABLE_RECORD_TAG_SELECTION = false;
+export const ENABLE_TASTE_SCORE_RECOMMENDATION = true;
+export const ENABLE_RECOMMENDATION_PLAYLIST_UI = true;

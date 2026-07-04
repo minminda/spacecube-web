@@ -117,11 +117,12 @@ model SpaceScan {
 }
 
 model Record {
-  id        String   @id @default(cuid())
-  userId    String
-  spaceId   String
-  memo      String?  @db.VarChar(120)
-  visitedAt DateTime @default(now())
+  id         String   @id @default(cuid())
+  userId     String
+  spaceId    String
+  memo       String?  @db.VarChar(120)
+  tasteScore Int? // 취향 적합도 1~5 (신규 기록 UX)
+  visitedAt  DateTime @default(now())
 
   user  User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   space Space       @relation(fields: [spaceId], references: [id], onDelete: Cascade)

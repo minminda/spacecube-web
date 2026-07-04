@@ -5,7 +5,16 @@ import { Tag } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 import { aggregateTags } from "@/lib/taste";
-import { scoreSpaceWeighted, getRecommendReason } from "@/lib/recommend";
+import {
+  scoreSpaceWeighted, getRecommendReason,
+  buildTasteVector, vectorTopTags, getVectorReason,
+} from "@/lib/recommend";
+import { TAG_LABELS } from "@/lib/tags";
+import {
+  ENABLE_TASTE_SCORE_RECOMMENDATION,
+  ENABLE_RECOMMENDATION_PLAYLIST_UI,
+} from "@/lib/features";
+import RecommendPlaylist from "@/components/RecommendPlaylist";
 import SpaceCards from "./SpaceCards";
 
 interface Props {
@@ -44,7 +53,7 @@ export default async function DiscoverPage({ searchParams }: Props) {
     if (user) {
       const userRecords = await prisma.record.findMany({
         where: { userId: user.id },
-        include: { tags: true },
+        include: { tags: true, space: { select: { spaceTags: true } } },
       });
       recordCount = userRecords.length;
       // 방문한 공간 ID (중복 제거)
@@ -52,9 +61,16 @@ export default async function DiscoverPage({ searchParams }: Props) {
 
       if (recordCount >= 3) {
         hasEnoughRecords = true;
-        const tagCounts = aggregateTags(userRecords);
-        userTagCountMap = Object.fromEntries(tagCounts) as Partial<Record<Tag, number>>;
-        userTopTags = tagCounts.slice(0, 3).map(([t]) => t);
+        if (ENABLE_TASTE_SCORE_RECOMMENDATION) {
+          // tasteScore 가중 벡터 — 높은 점수를 준 공간의 태그가 더 강하게 반영
+          userTagCountMap = buildTasteVector(userRecords);
+          userTopTags = vectorTopTags(userTagCountMap).slice(0, 3).map(([t]) => t);
+        } else {
+          // 레거시: 태그 선택 빈도 기반
+          const tagCounts = aggregateTags(userRecords);
+          userTagCountMap = Object.fromEntries(tagCounts) as Partial<Record<Tag, number>>;
+          userTopTags = tagCounts.slice(0, 3).map(([t]) => t);
+        }
       }
     }
   }
@@ -122,45 +138,65 @@ export default async function DiscoverPage({ searchParams }: Props) {
                     // 내 취향과 닮은 공간
                   </p>
                   <p className="text-xs" style={{ color: "var(--dim)" }}>
-                    최근 기록한 공간의 태그를 바탕으로 골랐습니다.
+                    {ENABLE_TASTE_SCORE_RECOMMENDATION
+                      ? "높은 점수를 남긴 공간들의 결을 바탕으로 골랐어요."
+                      : "최근 기록한 공간의 태그를 바탕으로 골랐습니다."}
                   </p>
                 </div>
-                <div className="space-y-5">
-                  {recommendedSpaces.map((rec) => {
-                    const reason = getRecommendReason(rec, userTopTags);
-                    return (
-                      <Link
-                        key={rec.id}
-                        href={`/space/${rec.slug}`}
-                        className="flex gap-4 group"
-                      >
-                        {rec.imageUrl && (
-                          <div className="relative w-16 h-16 flex-shrink-0 overflow-hidden">
-                            <Image
-                              src={rec.imageUrl}
-                              alt={rec.name}
-                              fill
-                              className="object-cover transition-transform duration-500 group-hover:scale-105"
-                            />
-                          </div>
-                        )}
-                        <div className="flex flex-col justify-center gap-0.5 min-w-0">
-                          <p className="text-sm font-semibold truncate group-hover:underline">
-                            {rec.name}
-                          </p>
-                          {rec.tagline && (
-                            <p className="text-xs truncate" style={{ color: "var(--dim)" }}>
-                              {rec.tagline}
+
+                {ENABLE_RECOMMENDATION_PLAYLIST_UI ? (
+                  <RecommendPlaylist
+                    cards={recommendedSpaces.map((rec) => ({
+                      id: rec.id,
+                      slug: rec.slug,
+                      name: rec.name,
+                      district: rec.district,
+                      imageUrl: rec.imageUrl,
+                      tagLabels: rec.spaceTags.slice(0, 3).map((t) => TAG_LABELS[t]),
+                      reason: ENABLE_TASTE_SCORE_RECOMMENDATION
+                        ? getVectorReason(rec, userTagCountMap)
+                        : getRecommendReason(rec, userTopTags),
+                    }))}
+                  />
+                ) : (
+                  /* 레거시: 정적 리스트 (플래그 복구용 보존) */
+                  <div className="space-y-5">
+                    {recommendedSpaces.map((rec) => {
+                      const reason = getRecommendReason(rec, userTopTags);
+                      return (
+                        <Link
+                          key={rec.id}
+                          href={`/space/${rec.slug}`}
+                          className="flex gap-4 group"
+                        >
+                          {rec.imageUrl && (
+                            <div className="relative w-16 h-16 flex-shrink-0 overflow-hidden">
+                              <Image
+                                src={rec.imageUrl}
+                                alt={rec.name}
+                                fill
+                                className="object-cover transition-transform duration-500 group-hover:scale-105"
+                              />
+                            </div>
+                          )}
+                          <div className="flex flex-col justify-center gap-0.5 min-w-0">
+                            <p className="text-sm font-semibold truncate group-hover:underline">
+                              {rec.name}
                             </p>
-                          )}
-                          {reason && (
-                            <p className="text-xs" style={{ color: "var(--dim)" }}>{reason}</p>
-                          )}
-                        </div>
-                      </Link>
-                    );
-                  })}
-                </div>
+                            {rec.tagline && (
+                              <p className="text-xs truncate" style={{ color: "var(--dim)" }}>
+                                {rec.tagline}
+                              </p>
+                            )}
+                            {reason && (
+                              <p className="text-xs" style={{ color: "var(--dim)" }}>{reason}</p>
+                            )}
+                          </div>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
               </section>
               <div style={{ borderTop: "1px solid var(--border)" }} />
             </>

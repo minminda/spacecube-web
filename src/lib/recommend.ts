@@ -52,3 +52,58 @@ export function rankSpaces(
     .slice(0, limit)
     .map(({ space }) => space);
 }
+
+/* ── tasteScore 가중치 추천 (ENABLE_TASTE_SCORE_RECOMMENDATION) ──────────
+   사용자가 높은 점수를 준 공간의 태그일수록 취향 벡터에서 더 큰 가중치.
+   예) 공간A [조용한,사색적인] 5점 + 공간C [따뜻한,조용한] 4점
+       → 조용한 9, 사색적인 5, 따뜻한 4                                   */
+
+export type TasteVector = Partial<Record<Tag, number>>;
+
+export interface VectorRecord {
+  tasteScore: number | null;
+  tags: { tag: Tag }[]; // 레거시 RecordTag (spaceTags 없을 때 fallback)
+  space: { spaceTags: Tag[] };
+}
+
+/** 기록 목록 → tasteScore 가중 취향 벡터 */
+export function buildTasteVector(records: VectorRecord[]): TasteVector {
+  const vector: TasteVector = {};
+  for (const r of records) {
+    const tags = r.space.spaceTags.length > 0 ? r.space.spaceTags : r.tags.map((t) => t.tag);
+    const weight = r.tasteScore ?? 3; // 점수 없는 레거시 기록은 중립 가중치
+    for (const tag of tags) {
+      vector[tag] = (vector[tag] ?? 0) + weight;
+    }
+  }
+  return vector;
+}
+
+/** 벡터 상위 태그 목록 ([Tag, weight][] 내림차순) */
+export function vectorTopTags(vector: TasteVector): [Tag, number][] {
+  return (Object.entries(vector) as [Tag, number][]).sort((a, b) => b[1] - a[1]);
+}
+
+/** 벡터 기반 추천: 겹치는 태그 가중치 합산, 점수 높은 순 상위 N개 (0점 제외) */
+export function rankSpacesByVector<T extends { spaceTags: Tag[] }>(
+  candidates: T[],
+  vector: TasteVector,
+  limit = 3,
+): (T & { score: number })[] {
+  return candidates
+    .map((s) => ({ ...s, score: s.spaceTags.reduce((sum, t) => sum + (vector[t] ?? 0), 0) }))
+    .filter((s) => s.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, limit);
+}
+
+/** 벡터 기반 추천 이유 — 기술적 느낌 없이 "결이 닮은" 문장으로 */
+export function getVectorReason(space: { spaceTags: Tag[] }, vector: TasteVector): string {
+  const matched = space.spaceTags
+    .filter((t) => (vector[t] ?? 0) > 0)
+    .sort((a, b) => (vector[b] ?? 0) - (vector[a] ?? 0))
+    .slice(0, 2);
+  if (matched.length === 0) return "당신이 좋아한 공간들의 분위기와 가장 가까운 공간이에요.";
+  const labels = matched.map((t) => `'${TAG_LABELS[t]}'`).join(", ");
+  return `최근 높은 점수를 준 공간들과 ${labels} 결이 닮아 있어요.`;
+}

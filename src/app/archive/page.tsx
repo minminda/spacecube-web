@@ -6,7 +6,15 @@ import { TAG_LABELS } from "@/lib/tags";
 import SettingsPanel from "@/components/SettingsPanel";
 import CollectionManager from "@/components/CollectionManager";
 import { aggregateTags, getTastePhrase, tagOverlap } from "@/lib/taste";
-import { rankSpaces, getRecommendReason } from "@/lib/recommend";
+import {
+  rankSpaces, getRecommendReason,
+  buildTasteVector, vectorTopTags, rankSpacesByVector, getVectorReason,
+} from "@/lib/recommend";
+import {
+  ENABLE_TASTE_SCORE_RECOMMENDATION,
+  ENABLE_RECOMMENDATION_PLAYLIST_UI,
+} from "@/lib/features";
+import RecommendPlaylist, { type PlaylistCard } from "@/components/RecommendPlaylist";
 
 function formatDate(d: Date) {
   return new Date(d).toLocaleDateString("ko-KR", { year: "numeric", month: "2-digit", day: "2-digit" });
@@ -50,14 +58,17 @@ export default async function ArchivePage() {
   });
   if (!user) redirect("/login");
 
-  const allRecords   = user.records;
-  const allTags      = aggregateTags(allRecords);
+  const allRecords = user.records;
+
+  // 취향 프로파일: tasteScore 가중 벡터(신규) 또는 태그 빈도(레거시)
+  const tasteVector = ENABLE_TASTE_SCORE_RECOMMENDATION ? buildTasteVector(allRecords) : null;
+  const allTags      = tasteVector ? vectorTopTags(tasteVector) : aggregateTags(allRecords);
   const topTags      = allTags.slice(0, 5);
   const tastePhrase  = getTastePhrase(topTags);
   const maxCount     = topTags[0]?.[1] ?? 1;
   const myTopTagList = topTags.slice(0, 3).map(([t]) => t);
 
-  // 취향 발견: 방문하지 않은 공간 중 태그 유사도 상위 3개
+  // 취향 발견: 방문하지 않은 공간 중 취향 점수 상위 3개
   const visitedIds = new Set(allRecords.map((r) => r.space.id));
   const recommendCandidates = allRecords.length >= 3 && myTopTagList.length > 0
     ? await prisma.space.findMany({
@@ -66,7 +77,21 @@ export default async function ArchivePage() {
         take: 30,
       })
     : [];
-  const recommended = rankSpaces(recommendCandidates, myTopTagList, 3);
+  const recommended = tasteVector
+    ? rankSpacesByVector(recommendCandidates, tasteVector, 3)
+    : rankSpaces(recommendCandidates, myTopTagList, 3);
+
+  const playlistCards: PlaylistCard[] = tasteVector
+    ? recommended.map((s) => ({
+        id: s.id,
+        slug: s.slug,
+        name: s.name,
+        district: s.district,
+        imageUrl: s.imageUrl,
+        tagLabels: s.spaceTags.slice(0, 3).map((t) => TAG_LABELS[t]),
+        reason: getVectorReason(s, tasteVector),
+      }))
+    : [];
 
   const memos = allRecords.filter((r) => r.memo);
   const wantAgainMap = new Map<string, typeof allRecords[0]>();
@@ -183,8 +208,16 @@ export default async function ArchivePage() {
               ) : (
                 <>
                   <section className="mb-10">
-                    <SectionLabel>// 취향과 닮은 공간</SectionLabel>
-                    {recommended.length > 0 ? (
+                    <SectionLabel>// 내 취향과 닮은 공간</SectionLabel>
+                    {ENABLE_RECOMMENDATION_PLAYLIST_UI && playlistCards.length > 0 ? (
+                      <div className="space-y-4">
+                        <p className="text-xs -mt-3" style={{ color: "var(--dim)" }}>
+                          높은 점수를 남긴 공간들의 결을 바탕으로 골랐어요.
+                        </p>
+                        <RecommendPlaylist cards={playlistCards} />
+                      </div>
+                    ) : recommended.length > 0 ? (
+                      /* 레거시: 정적 리스트 (플래그 복구용 보존) */
                       <div className="space-y-5">
                         {recommended.map((rec) => {
                           const reason = getRecommendReason(rec, myTopTagList);
@@ -220,11 +253,15 @@ export default async function ArchivePage() {
                         <span className="text-sm font-medium group-hover:underline">{r.space.name}</span>
                         <span className="text-xs flex-shrink-0 ml-4" style={{ color: "var(--dim)" }}>{formatDate(r.visitedAt)}</span>
                       </div>
-                      {r.tags.length > 0 && (
+                      {r.tasteScore != null ? (
+                        <span className="text-xs" style={{ color: "var(--dim)" }}>
+                          취향 적합도 {r.tasteScore}/5
+                        </span>
+                      ) : r.tags.length > 0 ? (
                         <span className="text-xs" style={{ color: "var(--dim)" }}>
                           {r.tags.slice(0, 2).map((t) => TAG_LABELS[t.tag]).join(" · ")}
                         </span>
-                      )}
+                      ) : null}
                     </Link>
                   ))}
                 </div>

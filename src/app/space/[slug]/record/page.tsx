@@ -33,7 +33,7 @@ export default async function RecordPage({ params }: Props) {
       space={{ id: space.id, name: space.name, slug: space.slug }}
       spaceTags={space.spaceTags}
       visitCount={visitCount}
-      previousRecord={lastRecord ? { tags: lastRecord.tags.map((t) => t.tag), memo: lastRecord.memo ?? "" } : null}
+      previousRecord={lastRecord ? { tags: lastRecord.tags.map((t) => t.tag), memo: lastRecord.memo ?? "", tasteScore: lastRecord.tasteScore } : null}
     />
   );
 }
