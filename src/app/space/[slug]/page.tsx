@@ -10,6 +10,7 @@ import type { Metadata } from "next";
 import { type StoryItem } from "./SpaceStory";
 import StoryTabs from "./StoryTabs";
 import ScanTracker from "@/components/ScanTracker";
+import SpaceUnlockScreen from "./SpaceUnlockScreen";
 import { aggregateSpaceTags, getSpaceUsageSummary } from "@/lib/spaceInsight";
 
 interface Props { params: Promise<{ slug: string }> }
@@ -144,6 +145,7 @@ export default async function SpacePage({ params }: Props) {
 
       <Suspense fallback={null}>
         <ScanTracker spaceId={space.id} />
+        <SpaceUnlockScreen />
       </Suspense>
 
       <div className="flex flex-col flex-1 min-w-0">
