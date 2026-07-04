@@ -14,7 +14,7 @@ import {
   ENABLE_TASTE_SCORE_RECOMMENDATION,
   ENABLE_RECOMMENDATION_PLAYLIST_UI,
 } from "@/lib/features";
-import RecommendPlaylist from "@/components/RecommendPlaylist";
+import RecommendationPlaylist from "@/components/RecommendationPlaylist";
 import SpaceCards from "./SpaceCards";
 
 interface Props {
@@ -145,7 +145,7 @@ export default async function DiscoverPage({ searchParams }: Props) {
                 </div>
 
                 {ENABLE_RECOMMENDATION_PLAYLIST_UI ? (
-                  <RecommendPlaylist
+                  <RecommendationPlaylist
                     cards={recommendedSpaces.map((rec) => ({
                       id: rec.id,
                       slug: rec.slug,

@@ -14,7 +14,7 @@ import {
   ENABLE_TASTE_SCORE_RECOMMENDATION,
   ENABLE_RECOMMENDATION_PLAYLIST_UI,
 } from "@/lib/features";
-import RecommendPlaylist, { type PlaylistCard } from "@/components/RecommendPlaylist";
+import RecommendationPlaylist, { type PlaylistCard } from "@/components/RecommendationPlaylist";
 
 function formatDate(d: Date) {
   return new Date(d).toLocaleDateString("ko-KR", { year: "numeric", month: "2-digit", day: "2-digit" });
@@ -214,7 +214,7 @@ export default async function ArchivePage() {
                         <p className="text-xs -mt-3" style={{ color: "var(--dim)" }}>
                           높은 점수를 남긴 공간들의 결을 바탕으로 골랐어요.
                         </p>
-                        <RecommendPlaylist cards={playlistCards} />
+                        <RecommendationPlaylist cards={playlistCards} />
                       </div>
                     ) : recommended.length > 0 ? (
                       /* 레거시: 정적 리스트 (플래그 복구용 보존) */

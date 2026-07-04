@@ -16,7 +16,7 @@ import {
   ENABLE_TASTE_SCORE_RECOMMENDATION,
   ENABLE_RECOMMENDATION_PLAYLIST_UI,
 } from "@/lib/features";
-import RecommendPlaylist, { type PlaylistCard } from "@/components/RecommendPlaylist";
+import RecommendationPlaylist, { type PlaylistCard } from "@/components/RecommendationPlaylist";
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -163,7 +163,7 @@ export default async function DonePage({ params, searchParams }: Props) {
                 높은 점수를 남긴 공간들의 결을 바탕으로 골랐어요.
               </p>
             </div>
-            <RecommendPlaylist cards={playlistCards} />
+            <RecommendationPlaylist cards={playlistCards} />
           </section>
           <div style={{ borderTop: "1px solid var(--border)" }} />
         </>
