@@ -3,6 +3,7 @@ import Link from "next/link";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { isAdmin } from "@/lib/admin";
+import { ENABLE_REGION_STORIES, ENABLE_TASTE_STORIES } from "@/lib/features";
 import DeleteSpaceButton from "./DeleteSpaceButton";
 
 export default async function AdminPage() {
@@ -35,13 +36,16 @@ export default async function AdminPage() {
         >
           [[ + 새 공간 등록 ]]
         </Link>
-        <Link
-          href="/owner/stories"
-          className="flex-1 block text-sm py-2 px-4 border transition-colors text-center"
-          style={{ borderColor: "var(--border)", color: "var(--dim)" }}
-        >
-          [[ 스토리 관리 ]]
-        </Link>
+        {/* MVP: 지역/취향 이야기 비활성화 — features.ts 플래그를 true로 바꾸면 원상복구 */}
+        {(ENABLE_REGION_STORIES || ENABLE_TASTE_STORIES) && (
+          <Link
+            href="/owner/stories"
+            className="flex-1 block text-sm py-2 px-4 border transition-colors text-center"
+            style={{ borderColor: "var(--border)", color: "var(--dim)" }}
+          >
+            [[ 스토리 관리 ]]
+          </Link>
+        )}
       </div>
 
       {spaces.length === 0 ? (

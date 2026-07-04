@@ -3,6 +3,7 @@ import Image from "next/image";
 import { auth } from "@/auth";
 import { isAdmin } from "@/lib/admin";
 import { prisma } from "@/lib/prisma";
+import { ENABLE_REGION_STORIES, ENABLE_TASTE_STORIES } from "@/lib/features";
 import DiscoverEntry from "./DiscoverEntry";
 
 export default async function Home() {
@@ -12,28 +13,32 @@ export default async function Home() {
   const now = new Date();
 
   const [regionStory, tasteStory] = await Promise.all([
-    prisma.contentStory.findFirst({
-      where: { type: "REGION", isActive: true, publishedAt: { not: null, lte: now } },
-      orderBy: { publishedAt: "desc" },
-      include: {
-        storySpaces: {
-          orderBy: { order: "asc" },
-          take: 3,
-          include: { space: { select: { name: true, slug: true } } },
-        },
-      },
-    }),
-    prisma.contentStory.findFirst({
-      where: { type: "TASTE", isActive: true, publishedAt: { not: null, lte: now } },
-      orderBy: { publishedAt: "desc" },
-      include: {
-        storySpaces: {
-          orderBy: { order: "asc" },
-          take: 3,
-          include: { space: { select: { name: true, slug: true } } },
-        },
-      },
-    }),
+    ENABLE_REGION_STORIES
+      ? prisma.contentStory.findFirst({
+          where: { type: "REGION", isActive: true, publishedAt: { not: null, lte: now } },
+          orderBy: { publishedAt: "desc" },
+          include: {
+            storySpaces: {
+              orderBy: { order: "asc" },
+              take: 3,
+              include: { space: { select: { name: true, slug: true } } },
+            },
+          },
+        })
+      : Promise.resolve(null),
+    ENABLE_TASTE_STORIES
+      ? prisma.contentStory.findFirst({
+          where: { type: "TASTE", isActive: true, publishedAt: { not: null, lte: now } },
+          orderBy: { publishedAt: "desc" },
+          include: {
+            storySpaces: {
+              orderBy: { order: "asc" },
+              take: 3,
+              include: { space: { select: { name: true, slug: true } } },
+            },
+          },
+        })
+      : Promise.resolve(null),
   ]);
 
   const hasStories = regionStory || tasteStory;

@@ -3,6 +3,7 @@ import Image from "next/image";
 import { Suspense } from "react";
 import { prisma } from "@/lib/prisma";
 import type { Metadata } from "next";
+import { ENABLE_REGION_STORIES, ENABLE_TASTE_STORIES } from "@/lib/features";
 import SearchInput from "./SearchInput";
 
 export const metadata: Metadata = {
@@ -40,15 +41,24 @@ export default async function StoriesPage({ searchParams }: Props) {
   const { page: pageParam, type: typeParam, q: qParam } = await searchParams;
 
   const page = Math.max(1, parseInt(pageParam ?? "1", 10) || 1);
-  const typeFilter: StoryType | null =
+  const requestedType: StoryType | null =
     typeParam === "REGION" ? "REGION" : typeParam === "TASTE" ? "TASTE" : null;
   const q = qParam?.trim() ?? "";
+
+  // MVP 기간 비활성 타입 제외 — 둘 다 false면 결과 없음
+  const enabledTypes: StoryType[] = [
+    ...(ENABLE_REGION_STORIES ? (["REGION"] as const) : []),
+    ...(ENABLE_TASTE_STORIES ? (["TASTE"] as const) : []),
+  ];
+  // URL에 비활성 타입이 직접 지정돼도 무시 (플래그 우회 방지)
+  const typeFilter: StoryType | null =
+    requestedType && enabledTypes.includes(requestedType) ? requestedType : null;
 
   const now = new Date();
   const where = {
     isActive: true,
     publishedAt: { not: null as null, lte: now },
-    ...(typeFilter ? { type: typeFilter } : {}),
+    type: { in: typeFilter ? [typeFilter] : enabledTypes },
     ...(q
       ? {
           OR: [
@@ -117,9 +127,10 @@ export default async function StoriesPage({ searchParams }: Props) {
         <SearchInput defaultValue={q} />
       </Suspense>
 
-      {/* 타입 필터 */}
+      {/* 타입 필터 — 활성 타입이 2개 이상일 때만 노출 */}
+      {enabledTypes.length > 1 && (
       <div className="flex gap-2">
-        {([null, "REGION", "TASTE"] as (StoryType | null)[]).map((t) => {
+        {([null, ...enabledTypes] as (StoryType | null)[]).map((t) => {
           const label = t === null ? "전체" : t === "REGION" ? "지역 이야기" : "취향 이야기";
           const active = typeFilter === t;
           return (
@@ -138,6 +149,7 @@ export default async function StoriesPage({ searchParams }: Props) {
           );
         })}
       </div>
+      )}
 
       {/* 이야기 목록 */}
       {stories.length === 0 ? (
