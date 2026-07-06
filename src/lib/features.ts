@@ -17,3 +17,10 @@ export const ENABLE_TASTE_STORIES = false;
 export const ENABLE_RECORD_TAG_SELECTION = false;
 export const ENABLE_TASTE_SCORE_RECOMMENDATION = true;
 export const ENABLE_RECOMMENDATION_PLAYLIST_UI = true;
+
+/**
+ * 디지털 방명록 UX 실험 (더미 데이터, 백엔드 미연동).
+ * 공간 상세에서 운영자 이야기를 읽은 뒤 "방문자들의 이야기"를
+ * 발견하는 포스트잇 벽. 켜져 있는 동안 기존 방문자 기록 리스트는 숨김.
+ */
+export const ENABLE_GUESTBOOK_WALL = true;

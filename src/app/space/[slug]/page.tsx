@@ -11,6 +11,8 @@ import { type StoryItem } from "./SpaceStory";
 import StoryTabs from "./StoryTabs";
 import ScanTracker from "@/components/ScanTracker";
 import SpaceUnlockScreen from "./SpaceUnlockScreen";
+import GuestbookWall from "./GuestbookWall";
+import { ENABLE_GUESTBOOK_WALL } from "@/lib/features";
 import { aggregateSpaceTags, getSpaceUsageSummary } from "@/lib/spaceInsight";
 
 interface Props { params: Promise<{ slug: string }> }
@@ -215,6 +217,14 @@ export default async function SpacePage({ params }: Props) {
             ownerSocialUrl={space.ownerSocialUrl}
           />
 
+          {/* 디지털 방명록 UX 실험 — 운영자 이야기 이후 발견되는 포스트잇 벽 */}
+          {ENABLE_GUESTBOOK_WALL && (
+            <>
+              <div style={{ borderTop: "1px solid var(--border)" }} />
+              <GuestbookWall />
+            </>
+          )}
+
           {/* 반응보드 통계 — MVP 기간 비활성 (SHOW_REACTION_BOARD = true 로 복구) */}
           {SHOW_REACTION_BOARD && usageSummary && (
             <>
@@ -225,8 +235,8 @@ export default async function SpacePage({ params }: Props) {
             </>
           )}
 
-          {/* 방문자 기록 — 반응보드와 별개, 항상 표시 */}
-          {anonymousReactions.length > 0 && (
+          {/* 방문자 기록 리스트 — 방명록 실험 중에는 중복이라 숨김 (실험 종료 시 복구) */}
+          {!ENABLE_GUESTBOOK_WALL && anonymousReactions.length > 0 && (
             <>
               <div style={{ borderTop: "1px solid var(--border)" }} />
               <div className="space-y-6">
