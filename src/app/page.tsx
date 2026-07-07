@@ -4,6 +4,7 @@ import { isAdmin } from "@/lib/admin";
 import { prisma } from "@/lib/prisma";
 import { ENABLE_REGION_STORIES, ENABLE_TASTE_STORIES } from "@/lib/features";
 import HomeStoryCard from "./HomeStoryCard";
+import QrScanSheet from "./QrScanSheet";
 
 const FLOW_STEPS = ["큐브 발견", "QR 스캔", "공간 이야기", "취향 저장", "흔적 남기기", "다음 공간 추천"];
 
@@ -85,13 +86,7 @@ export default async function Home() {
 
       {/* 메인 CTA — 지금 무엇을 누르면 되는지 */}
       <div className="space-y-4">
-        <Link
-          href="/scan"
-          className="block w-full text-center text-base font-semibold py-4 transition-opacity hover:opacity-85"
-          style={{ background: "var(--fg)", color: "var(--bg)" }}
-        >
-          QR 스캔하기
-        </Link>
+        <QrScanSheet />
         <div className="text-center space-y-1">
           <p className="text-xs" style={{ color: "var(--dim)" }}>QR이 없나요?</p>
           <Link href="/discover" className="text-sm" style={{ color: "var(--fg)" }}>
