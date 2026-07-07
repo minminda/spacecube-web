@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 export const dynamic = "force-dynamic";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 
 const MAX_CONTENT = 80;
 const DEFAULT_COLOR = "#F6E7A8"; // MVP: 노란 포스트잇 단일 색상
@@ -36,28 +37,44 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Space not found" }, { status: 404 });
   }
 
-  const note = await prisma.guestbookNote.create({
-    data: {
-      userId: user.id,
-      spaceId,
-      content: text,
-      x,
-      y,
-      rotation: typeof rotation === "number" && isFinite(rotation) ? rotation : 0,
-      color: DEFAULT_COLOR,
-    },
+  // 한 공간에 사용자당 흔적 하나만 — UI에서도 막지만 동시 요청 대비 서버에서도 확인
+  const existing = await prisma.guestbookNote.findUnique({
+    where: { userId_spaceId: { userId: user.id, spaceId } },
+    select: { id: true },
   });
+  if (existing) {
+    return NextResponse.json({ error: "이미 이 공간에 흔적을 남기셨어요." }, { status: 409 });
+  }
 
-  return NextResponse.json(
-    {
-      id: note.id,
-      content: note.content,
-      x: note.x,
-      y: note.y,
-      rotation: note.rotation,
-      color: note.color,
-      createdAt: note.createdAt.toISOString(),
-    },
-    { status: 201 },
-  );
+  try {
+    const note = await prisma.guestbookNote.create({
+      data: {
+        userId: user.id,
+        spaceId,
+        content: text,
+        x,
+        y,
+        rotation: typeof rotation === "number" && isFinite(rotation) ? rotation : 0,
+        color: DEFAULT_COLOR,
+      },
+    });
+
+    return NextResponse.json(
+      {
+        id: note.id,
+        content: note.content,
+        x: note.x,
+        y: note.y,
+        rotation: note.rotation,
+        color: note.color,
+        createdAt: note.createdAt.toISOString(),
+      },
+      { status: 201 },
+    );
+  } catch (err) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+      return NextResponse.json({ error: "이미 이 공간에 흔적을 남기셨어요." }, { status: 409 });
+    }
+    throw err;
+  }
 }

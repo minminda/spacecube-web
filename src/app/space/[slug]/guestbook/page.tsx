@@ -32,18 +32,27 @@ export default async function GuestbookPage({ params }: Props) {
 
   const space = await prisma.space.findUnique({
     where: { slug, isActive: true },
-    select: { id: true, name: true, slug: true, imageUrl: true },
+    select: { id: true, name: true, slug: true },
   });
   if (!space) notFound();
 
-  const [session, dbNotes] = await Promise.all([
-    auth(),
+  const session = await auth();
+  let myNoteId: string | null = null;
+
+  const [dbNotes, user] = await Promise.all([
     prisma.guestbookNote.findMany({
       where: { spaceId: space.id },
       orderBy: { createdAt: "asc" },
-      select: { id: true, content: true, x: true, y: true, rotation: true, color: true, createdAt: true },
+      select: { id: true, userId: true, content: true, x: true, y: true, rotation: true, color: true, createdAt: true },
     }),
+    session?.user?.email
+      ? prisma.user.findUnique({ where: { email: session.user.email }, select: { id: true } })
+      : Promise.resolve(null),
   ]);
+
+  if (user) {
+    myNoteId = dbNotes.find((n) => n.userId === user.id)?.id ?? null;
+  }
 
   const initialNotes: GuestbookNoteData[] = dbNotes.map((n) => ({
     id: n.id,
@@ -62,6 +71,7 @@ export default async function GuestbookPage({ params }: Props) {
           space={space}
           initialNotes={initialNotes}
           isLoggedIn={!!session?.user?.email}
+          initialMyNoteId={myNoteId}
         />
       </Suspense>
     </main>

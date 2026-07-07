@@ -124,6 +124,8 @@ model GuestbookNote {
 
   user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
   space Space @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, spaceId]) // 한 공간에 사용자당 흔적 하나만
 }
 
 model SpaceScan {

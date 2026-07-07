@@ -4,8 +4,9 @@
    실사용 기록은 GuestbookNote 테이블에서 오고, 더미는 그 위에 섞인다.
 ──────────────────────────────────────────────────────────── */
 
-export const WORLD_W = 3200;
-export const WORLD_H = 2400;
+// 정사각형 + 대폭 확장 — 상하좌우 어느 방향으로도 동일하게 자유로운 팬
+export const WORLD_W = 5000;
+export const WORLD_H = 5000;
 export const NOTE_W = 170;
 export const POSTIT_COLOR = "#F6E7A8"; // MVP 대표 노란색 (따뜻한 베이지 노랑)
 
