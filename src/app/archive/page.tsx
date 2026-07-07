@@ -93,6 +93,13 @@ export default async function ArchivePage() {
       }))
     : [];
 
+  // 내가 남긴 흔적 — 공간별 방명록 포스트잇
+  const myGuestbookNotes = await prisma.guestbookNote.findMany({
+    where: { userId: user.id },
+    orderBy: { createdAt: "desc" },
+    include: { space: { select: { name: true, slug: true, spaceTags: true } } },
+  });
+
   const memos = allRecords.filter((r) => r.memo);
   const wantAgainMap = new Map<string, typeof allRecords[0]>();
   allRecords.filter((r) => r.tags.some((t) => t.tag === "WANT_AGAIN")).forEach((r) => {
@@ -239,6 +246,58 @@ export default async function ArchivePage() {
                         아직 추천할 공간이 없습니다.
                       </p>
                     )}
+                  </section>
+                  <Divider />
+                </>
+              )}
+
+              {/* 내가 남긴 흔적 — 공간마다 남긴 노란 포스트잇 플레이리스트 */}
+              {myGuestbookNotes.length > 0 && (
+                <>
+                  <section className="mb-10">
+                    <SectionLabel>// 내가 남긴 흔적</SectionLabel>
+                    <p className="text-xs -mt-3 mb-5" style={{ color: "var(--dim)" }}>
+                      공간마다 남겨진 작은 흔적이 모였습니다.
+                    </p>
+                    <div
+                      className="flex gap-3 overflow-x-auto snap-x pb-3 -mx-6 px-6"
+                      style={{ scrollbarWidth: "none" }}
+                    >
+                      {myGuestbookNotes.map((note, i) => (
+                        <Link
+                          key={note.id}
+                          href={`/space/${note.space.slug}/guestbook?focus=${note.id}`}
+                          className="flex-shrink-0 w-40 snap-start p-3.5 relative"
+                          style={{
+                            background: note.color,
+                            transform: `rotate(${i % 2 === 0 ? -1.4 : 1.2}deg)`,
+                            boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
+                          }}
+                        >
+                          <span
+                            aria-hidden
+                            className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-8 h-2.5"
+                            style={{ background: "#00000018" }}
+                          />
+                          <p
+                            className="text-[13px] leading-relaxed break-keep line-clamp-4"
+                            style={{ color: "#3d3524" }}
+                          >
+                            {note.content}
+                          </p>
+                          <div className="mt-3 space-y-0.5">
+                            <p className="text-[11px] font-medium" style={{ color: "#3d3524" }}>
+                              {note.space.name}
+                            </p>
+                            <p className="text-[10px]" style={{ color: "#8a7d5c" }}>
+                              {formatDate(note.createdAt)}
+                              {note.space.spaceTags.length > 0 &&
+                                ` · ${note.space.spaceTags.slice(0, 2).map((t) => TAG_LABELS[t]).join(" · ")}`}
+                            </p>
+                          </div>
+                        </Link>
+                      ))}
+                    </div>
                   </section>
                   <Divider />
                 </>

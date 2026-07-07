@@ -19,8 +19,9 @@ export const ENABLE_TASTE_SCORE_RECOMMENDATION = true;
 export const ENABLE_RECOMMENDATION_PLAYLIST_UI = true;
 
 /**
- * 디지털 방명록 UX 실험 (더미 데이터, 백엔드 미연동).
- * 공간 상세에서 운영자 이야기를 읽은 뒤 "방문자들의 이야기"를
- * 발견하는 포스트잇 벽. 켜져 있는 동안 기존 방문자 기록 리스트는 숨김.
+ * 디지털 방명록 — 공간별 /space/[slug]/guestbook 캔버스 페이지.
+ * 공간 상세의 "방문자들의 이야기 열어보기" 입구와
+ * 기존 방문자 기록 리스트 숨김을 함께 제어.
+ * 실제 흔적은 GuestbookNote 테이블에 저장, 더미 60개가 분위기를 채움.
  */
 export const ENABLE_GUESTBOOK_WALL = true;

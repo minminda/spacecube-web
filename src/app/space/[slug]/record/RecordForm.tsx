@@ -8,7 +8,6 @@ import TagChip from "@/components/TagChip";
 import { ENABLE_RECORD_TAG_SELECTION } from "@/lib/features";
 
 const MAX_TAGS = 2;
-const MAX_MEMO = 120;
 
 const SCORE_LABELS: Record<number, string> = {
   1: "전혀 맞지 않음",
@@ -22,7 +21,7 @@ interface Props {
   space: { id: string; name: string; slug: string };
   spaceTags: Tag[];
   visitCount: number;
-  previousRecord: { tags: Tag[]; memo: string; tasteScore: number | null } | null;
+  previousRecord: { tags: Tag[]; tasteScore: number | null } | null;
 }
 
 export default function RecordForm({ space, spaceTags, visitCount, previousRecord }: Props) {
@@ -30,7 +29,6 @@ export default function RecordForm({ space, spaceTags, visitCount, previousRecor
   const router = useRouter();
   const [selectedTags, setSelectedTags] = useState<Tag[]>([]);
   const [tasteScore, setTasteScore] = useState<number | null>(null);
-  const [memo, setMemo] = useState("");
   const [loading, setLoading] = useState(false);
 
   const isRevisit = visitCount > 0;
@@ -57,16 +55,13 @@ export default function RecordForm({ space, spaceTags, visitCount, previousRecor
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         spaceId: space.id,
-        memo,
         tasteScore,
         ...(ENABLE_RECORD_TAG_SELECTION ? { tags: selectedTags } : {}),
       }),
     });
     if (res.ok) {
-      const params = new URLSearchParams({ name: space.name });
-      if (tasteScore !== null) params.set("score", String(tasteScore));
-      if (ENABLE_RECORD_TAG_SELECTION && selectedTags.length > 0) params.set("tags", selectedTags.join(","));
-      router.push(`/space/${space.slug}/done?${params.toString()}`);
+      // 취향 저장 후 방명록 캔버스에서 흔적 남기기
+      router.push(`/space/${space.slug}/guestbook?mode=write`);
     } else {
       setLoading(false);
     }
@@ -85,34 +80,19 @@ export default function RecordForm({ space, spaceTags, visitCount, previousRecor
       </div>
 
       {isRevisit && (
-        <div className="space-y-2 p-3 border" style={{ borderColor: "var(--border)" }}>
+        <div className="space-y-1.5 p-3 border" style={{ borderColor: "var(--border)" }}>
           <p className="text-xs" style={{ color: "var(--fg)" }}>// {visitNumber}번째 방문입니다</p>
           {previousRecord?.tasteScore != null && (
             <p className="text-xs" style={{ color: "var(--dim)" }}>
               지난번 취향 적합도: {previousRecord.tasteScore}/5
             </p>
           )}
-          <div className="flex items-start gap-2 text-xs" style={{ color: "var(--dim)" }}>
-            <span className="flex-shrink-0">지난번:</span>
-            <span className="italic leading-relaxed">
-              &ldquo;{previousRecord?.memo || "기록 없음"}&rdquo;
-            </span>
-          </div>
-          {previousRecord && previousRecord.tags.length > 0 && (
-            <div className="flex gap-1.5 flex-wrap">
-              {previousRecord.tags.map((tag) => (
-                <span key={tag} className="text-xs px-2 py-0.5 border" style={{ borderColor: "var(--border)", color: "var(--dim)" }}>
-                  {TAG_LABELS[tag]}
-                </span>
-              ))}
-            </div>
-          )}
         </div>
       )}
 
       <p className="text-xs" style={{ color: "var(--border)" }}>─────────────────────────────</p>
 
-      {/* A. 공간 취향 태그 — 선택 불가, 공간의 결 설명용 */}
+      {/* 공간 취향 태그 — 선택 불가, 공간의 결 설명용 */}
       {!ENABLE_RECORD_TAG_SELECTION && spaceTags.length > 0 && (
         <div className="space-y-3">
           <p className="text-xs" style={{ color: "var(--dim)" }}>// 이 공간은 이런 결을 가지고 있어요</p>
@@ -130,7 +110,7 @@ export default function RecordForm({ space, spaceTags, visitCount, previousRecor
         </div>
       )}
 
-      {/* B. 취향 적합도 평가 (필수) */}
+      {/* 취향 적합도 평가 (필수) */}
       {!ENABLE_RECORD_TAG_SELECTION && (
         <div className="space-y-3">
           <p className="text-xs" style={{ color: "var(--dim)" }}>// 이 공간은 당신의 취향과 얼마나 가까웠나요?</p>
@@ -180,27 +160,21 @@ export default function RecordForm({ space, spaceTags, visitCount, previousRecor
                 onClick={() => toggleTag(tag)} disabled={!selectedTags.includes(tag) && selectedTags.length >= MAX_TAGS} />
             ))}
           </div>
-          {selectedTags.length >= MAX_TAGS && (
-            <p className="text-xs" style={{ color: "var(--dim)" }}>&gt; 최대 {MAX_TAGS}개까지 고를 수 있어.</p>
-          )}
         </div>
       )}
 
       <p className="text-xs" style={{ color: "var(--border)" }}>─────────────────────────────</p>
 
-      {/* C. 한 줄 기록 (선택) */}
-      <div className="space-y-2">
-        <p className="text-xs" style={{ color: "var(--dim)" }}>// 한 줄로 남겨볼까요? (선택)</p>
-        <textarea value={memo} onChange={(e) => { if (e.target.value.length <= MAX_MEMO) setMemo(e.target.value); }}
-          placeholder="오늘 이 공간은 어떤 느낌이었나요?" rows={4}
-          className="w-full text-sm p-3 resize-none outline-none border"
-          style={{ background: "var(--bg)", color: "var(--fg)", borderColor: memo.length > 80 ? "var(--fg)" : "var(--border)", transition: "border-color 0.2s" }} />
-      </div>
+      <p className="text-xs leading-relaxed" style={{ color: "var(--dim)" }}>
+        저장하면 이 공간의 방명록에서
+        <br />
+        원하는 위치에 흔적을 남길 수 있어요.
+      </p>
 
       <button onClick={handleSubmit} disabled={!canSubmit || loading}
-        className="w-full text-sm py-2 px-4 border hover:bg-[var(--fg)] hover:text-[var(--bg)] transition-colors disabled:opacity-30"
+        className="w-full text-sm py-3 px-4 border hover:bg-[var(--fg)] hover:text-[var(--bg)] transition-colors disabled:opacity-30"
         style={{ borderColor: "var(--fg)" }}>
-        {loading ? "// 저장 중..." : "[[ 저장하기 ]]"}
+        {loading ? "// 저장 중..." : "[[ 취향 저장하고 흔적 남기기 ]]"}
       </button>
     </main>
   );

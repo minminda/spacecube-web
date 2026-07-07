@@ -11,7 +11,6 @@ import { type StoryItem } from "./SpaceStory";
 import StoryTabs from "./StoryTabs";
 import ScanTracker from "@/components/ScanTracker";
 import SpaceUnlockScreen from "./SpaceUnlockScreen";
-import GuestbookWall from "./GuestbookWall";
 import { ENABLE_GUESTBOOK_WALL } from "@/lib/features";
 import { aggregateSpaceTags, getSpaceUsageSummary } from "@/lib/spaceInsight";
 
@@ -217,11 +216,22 @@ export default async function SpacePage({ params }: Props) {
             ownerSocialUrl={space.ownerSocialUrl}
           />
 
-          {/* 디지털 방명록 UX 실험 — 운영자 이야기 이후 발견되는 포스트잇 벽 */}
+          {/* 디지털 방명록 — 운영자 이야기 이후 발견되는 흔적 페이지 입구 */}
           {ENABLE_GUESTBOOK_WALL && (
             <>
               <div style={{ borderTop: "1px solid var(--border)" }} />
-              <GuestbookWall />
+              <section className="space-y-5">
+                <p className="text-sm leading-relaxed whitespace-pre-line" style={{ color: "var(--dim)" }}>
+                  {"이 공간에는\n다른 사람들의 흔적도 남아 있습니다."}
+                </p>
+                <Link
+                  href={`/space/${space.slug}/guestbook`}
+                  className="inline-block text-sm py-2.5 px-5 border hover:bg-[var(--fg)] hover:text-[var(--bg)] transition-colors"
+                  style={{ borderColor: "var(--fg)" }}
+                >
+                  방문자들의 이야기 열어보기 →
+                </Link>
+              </section>
             </>
           )}
 

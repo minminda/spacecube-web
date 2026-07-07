@@ -19,13 +19,14 @@ model User {
   visibility    Visibility @default(PRIVATE)
   createdAt     DateTime   @default(now())
 
-  accounts      Account[]
-  sessions      Session[]
-  records       Record[]
-  spaces        Space[]
-  collections   Collection[]
-  savedTastes   SavedTaste[] @relation("SavedBy")
-  savedByOthers SavedTaste[] @relation("SavedTarget")
+  accounts       Account[]
+  sessions       Session[]
+  records        Record[]
+  spaces         Space[]
+  collections    Collection[]
+  savedTastes    SavedTaste[] @relation("SavedBy")
+  savedByOthers  SavedTaste[] @relation("SavedTarget")
+  guestbookNotes GuestbookNote[]
 }
 
 model Account {
@@ -106,6 +107,23 @@ model Space {
   scans           SpaceScan[]
   waitlistEntries WaitlistEntry[]
   notes           SpaceNote[]
+  guestbookNotes  GuestbookNote[]
+}
+
+// 디지털 방명록 포스트잇 — 캔버스 위 좌표에 남는 짧은 흔적
+model GuestbookNote {
+  id        String   @id @default(cuid())
+  userId    String
+  spaceId   String
+  content   String   @db.VarChar(80)
+  x         Float
+  y         Float
+  rotation  Float    @default(0)
+  color     String   @default("#F6E7A8")
+  createdAt DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  space Space @relation(fields: [spaceId], references: [id], onDelete: Cascade)
 }
 
 model SpaceScan {
