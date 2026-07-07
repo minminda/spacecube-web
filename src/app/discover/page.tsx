@@ -1,6 +1,5 @@
 import Link from "next/link";
 import Image from "next/image";
-import { redirect } from "next/navigation";
 import { Tag } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
@@ -15,6 +14,7 @@ import {
   ENABLE_RECOMMENDATION_PLAYLIST_UI,
 } from "@/lib/features";
 import RecommendationPlaylist from "@/components/RecommendationPlaylist";
+import DiscoverEntry from "../DiscoverEntry";
 import SpaceCards from "./SpaceCards";
 
 interface Props {
@@ -23,7 +23,24 @@ interface Props {
 
 export default async function DiscoverPage({ searchParams }: Props) {
   const { district } = await searchParams;
-  if (!district) redirect("/");
+
+  // district 미지정 — 지역을 고르는 진입 화면 (홈에서 "공간 둘러보기"로 옴)
+  if (!district) {
+    return (
+      <main className="flex flex-col min-h-screen px-6 py-8 gap-8">
+        <nav className="flex items-center justify-between">
+          <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>공간큐브</p>
+          <Link href="/" className="text-xs" style={{ color: "var(--dim)" }}>← 홈</Link>
+        </nav>
+        <div style={{ borderTop: "1px solid var(--border)" }} />
+        <div className="space-y-1">
+          <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>공간 둘러보기</p>
+          <h1 className="text-2xl font-bold">어디로 갈까</h1>
+        </div>
+        <DiscoverEntry />
+      </main>
+    );
+  }
 
   const session = await auth();
 
