@@ -225,7 +225,7 @@ export default async function SpacePage({ params }: Props) {
                   {"이 공간에는\n다른 사람들의 흔적도 남아 있습니다."}
                 </p>
                 <Link
-                  href={`/space/${space.slug}/guestbook`}
+                  href={hasRecord ? `/space/${space.slug}/guestbook` : `/space/${space.slug}/record?intent=unlock`}
                   className="inline-block text-sm py-2.5 px-5 border hover:bg-[var(--fg)] hover:text-[var(--bg)] transition-colors"
                   style={{ borderColor: "var(--fg)" }}
                 >

@@ -117,20 +117,32 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  /** 특정 포스트잇을 화면 중앙에 확대해서 카메라 이동 (딥링크·"내 기록 보기" 공용) */
+  const jumpToNote = useCallback((note: GuestbookNoteData, scale = 1, duration = 700) => {
+    const viewport = viewportRef.current;
+    const ctrl = transformRef.current;
+    if (!viewport || !ctrl) return;
+    const { clientWidth, clientHeight } = viewport;
+    const px = clientWidth / 2 - (note.x + NOTE_W / 2) * scale;
+    const py = clientHeight / 2 - (note.y + 60) * scale;
+    ctrl.setTransform(px, py, scale, duration, "easeOut");
+  }, []);
+
   // focus=noteId — 아카이브에서 진입 시 내 포스트잇 위치로 카메라 이동
   useEffect(() => {
     if (!focusId) return;
     const target = initialNotes.find((n) => n.id === focusId);
-    const viewport = viewportRef.current;
-    const ctrl = transformRef.current;
-    if (!target || !viewport || !ctrl) return;
-    const { clientWidth, clientHeight } = viewport;
-    const scale = 1;
-    const px = clientWidth / 2 - (target.x + NOTE_W / 2) * scale;
-    const py = clientHeight / 2 - (target.y + 60) * scale;
-    const t = setTimeout(() => ctrl.setTransform(px, py, scale, 700, "easeOut"), 80);
+    if (!target) return;
+    const t = setTimeout(() => jumpToNote(target, 1, 700), 80);
     return () => clearTimeout(t);
-  }, [focusId, initialNotes]);
+  }, [focusId, initialNotes, jumpToNote]);
+
+  /** [내 기록 보기] — 이미 캔버스가 열려 있는 상태에서 내 포스트잇으로 카메라 이동 */
+  function goToMyNote() {
+    const mine = allNotes.find((n) => n.id === myNoteId);
+    if (!mine) return;
+    jumpToNote(mine, 1.15, 900);
+  }
 
   function enterWriteMode() {
     if (!isLoggedIn) {
@@ -436,9 +448,9 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
         </TransformWrapper>
       </div>
 
-      {/* ── 하단 컨트롤 ── */}
+      {/* ── 하단 컨트롤 (줌 / 액션 두 줄로 분리해 좁은 화면에서도 안 겹치게) ── */}
       <div
-        className="flex items-center justify-between pl-6 pr-16 md:pr-6 py-3 gap-3 transition-opacity"
+        className="flex flex-col gap-2.5 pl-6 pr-16 md:pr-6 py-3 transition-opacity"
         style={{ opacity: introPlaying ? 0.3 : 1, pointerEvents: introPlaying ? "none" : "auto" }}
       >
         <div className="flex items-center gap-1.5">
@@ -446,19 +458,19 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
             type="button"
             aria-label="줌 아웃"
             onClick={() => transformRef.current?.zoomOut(0.35)}
-            className="w-8 h-8 border text-sm"
+            className="w-8 h-8 border text-sm flex-shrink-0"
             style={{ borderColor: "#333", color: "#999" }}
           >
             −
           </button>
-          <span className="text-xs w-12 text-center tabular-nums" style={{ color: "#999" }}>
+          <span className="text-xs w-12 text-center tabular-nums flex-shrink-0" style={{ color: "#999" }}>
             {scalePct}%
           </span>
           <button
             type="button"
             aria-label="줌 인"
             onClick={() => transformRef.current?.zoomIn(0.35)}
-            className="w-8 h-8 border text-sm"
+            className="w-8 h-8 border text-sm flex-shrink-0"
             style={{ borderColor: "#333", color: "#999" }}
           >
             +
@@ -466,7 +478,7 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
           <button
             type="button"
             onClick={() => transformRef.current?.resetTransform(400)}
-            className="h-8 px-2.5 border text-xs ml-1"
+            className="h-8 px-2.5 border text-xs ml-1 flex-shrink-0"
             style={{ borderColor: "#333", color: "#999" }}
           >
             초기 위치
@@ -474,19 +486,29 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
         </div>
 
         {myNoteId ? (
-          <Link
-            href="/archive"
-            className="text-xs py-2 px-4 border hover:bg-white hover:text-black transition-colors whitespace-nowrap"
-            style={{ borderColor: "#fff", color: "#fff" }}
-          >
-            내 아카이브 보기
-          </Link>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={goToMyNote}
+              className="flex-1 text-xs py-2.5 px-3 border hover:bg-white hover:text-black transition-colors whitespace-nowrap"
+              style={{ borderColor: "#fff", color: "#fff" }}
+            >
+              내 기록 보기
+            </button>
+            <Link
+              href="/archive"
+              className="flex-1 text-xs py-2.5 px-3 border text-center hover:bg-white hover:text-black transition-colors whitespace-nowrap"
+              style={{ borderColor: "#fff", color: "#fff" }}
+            >
+              내 아카이브 보기
+            </Link>
+          </div>
         ) : (
           !writeMode && (
             <button
               type="button"
               onClick={enterWriteMode}
-              className="text-xs py-2 px-4 border hover:bg-white hover:text-black transition-colors whitespace-nowrap"
+              className="w-full text-xs py-2.5 px-4 border hover:bg-white hover:text-black transition-colors"
               style={{ borderColor: "#fff", color: "#fff" }}
             >
               나도 흔적 남기기

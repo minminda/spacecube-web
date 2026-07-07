@@ -18,20 +18,23 @@ const SCORE_LABELS: Record<number, string> = {
 };
 
 interface Props {
-  space: { id: string; name: string; slug: string };
+  space: { id: string; name: string; slug: string; tagline?: string | null };
   spaceTags: Tag[];
   visitCount: number;
   previousRecord: { tags: Tag[]; tasteScore: number | null } | null;
+  /** unlock: "방문자들의 이야기 보기"에서 진입한 1회성 입장 화면 (기록 카운트 없이 가볍게) */
+  intent?: "record" | "unlock";
 }
 
-export default function RecordForm({ space, spaceTags, visitCount, previousRecord }: Props) {
+export default function RecordForm({ space, spaceTags, visitCount, previousRecord, intent = "record" }: Props) {
+  const isUnlock = intent === "unlock";
   const tagsToShow = spaceTags.length > 0 ? spaceTags : ALL_TAGS;
   const router = useRouter();
   const [selectedTags, setSelectedTags] = useState<Tag[]>([]);
   const [tasteScore, setTasteScore] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const isRevisit = visitCount > 0;
+  const isRevisit = !isUnlock && visitCount > 0;
   const visitNumber = visitCount + 1;
 
   // 레거시 태그 선택 (ENABLE_RECORD_TAG_SELECTION 켜졌을 때만 사용)
@@ -60,8 +63,8 @@ export default function RecordForm({ space, spaceTags, visitCount, previousRecor
       }),
     });
     if (res.ok) {
-      // 취향 저장 후 방명록 캔버스에서 흔적 남기기
-      router.push(`/space/${space.slug}/guestbook?mode=write`);
+      // unlock: 흔적을 보러 감(view) / record: 흔적을 남기러 감(write)
+      router.push(isUnlock ? `/space/${space.slug}/guestbook` : `/space/${space.slug}/guestbook?mode=write`);
     } else {
       setLoading(false);
     }
@@ -70,7 +73,7 @@ export default function RecordForm({ space, spaceTags, visitCount, previousRecor
   return (
     <main className="flex flex-col min-h-screen px-6 py-8 gap-6">
       <div className="space-y-1" style={{ color: "var(--dim)" }}>
-        <p className="text-xs">공간큐브 / RECORD</p>
+        <p className="text-xs">공간큐브 / {isUnlock ? "GUESTBOOK" : "RECORD"}</p>
         <p className="text-xs">─────────────────────────────</p>
       </div>
 
@@ -79,21 +82,32 @@ export default function RecordForm({ space, spaceTags, visitCount, previousRecor
         <p className="text-base">&gt; {space.name}</p>
       </div>
 
-      {isRevisit && (
-        <div className="space-y-1.5 p-3 border" style={{ borderColor: "var(--border)" }}>
-          <p className="text-xs" style={{ color: "var(--fg)" }}>// {visitNumber}번째 방문입니다</p>
-          {previousRecord?.tasteScore != null && (
-            <p className="text-xs" style={{ color: "var(--dim)" }}>
-              지난번 취향 적합도: {previousRecord.tasteScore}/5
-            </p>
+      {isUnlock ? (
+        <div className="space-y-2">
+          <p className="text-base font-medium leading-relaxed whitespace-pre-line">
+            {"이 공간에는\n다른 사람들의 흔적이 남아 있습니다."}
+          </p>
+          {space.tagline && (
+            <p className="text-sm italic leading-relaxed" style={{ color: "var(--dim)" }}>{space.tagline}</p>
           )}
         </div>
+      ) : (
+        isRevisit && (
+          <div className="space-y-1.5 p-3 border" style={{ borderColor: "var(--border)" }}>
+            <p className="text-xs" style={{ color: "var(--fg)" }}>// {visitNumber}번째 방문입니다</p>
+            {previousRecord?.tasteScore != null && (
+              <p className="text-xs" style={{ color: "var(--dim)" }}>
+                지난번 취향 적합도: {previousRecord.tasteScore}/5
+              </p>
+            )}
+          </div>
+        )
       )}
 
       <p className="text-xs" style={{ color: "var(--border)" }}>─────────────────────────────</p>
 
-      {/* 공간 취향 태그 — 선택 불가, 공간의 결 설명용 */}
-      {!ENABLE_RECORD_TAG_SELECTION && spaceTags.length > 0 && (
+      {/* 공간 취향 태그 — 선택 불가, 공간의 결 설명용 (unlock 화면에서는 생략, 태그 없이 담백하게) */}
+      {!ENABLE_RECORD_TAG_SELECTION && !isUnlock && spaceTags.length > 0 && (
         <div className="space-y-3">
           <p className="text-xs" style={{ color: "var(--dim)" }}>// 이 공간은 이런 결을 가지고 있어요</p>
           <div className="flex flex-wrap gap-2">
@@ -113,7 +127,9 @@ export default function RecordForm({ space, spaceTags, visitCount, previousRecor
       {/* 취향 적합도 평가 (필수) */}
       {!ENABLE_RECORD_TAG_SELECTION && (
         <div className="space-y-3">
-          <p className="text-xs" style={{ color: "var(--dim)" }}>// 이 공간은 당신의 취향과 얼마나 가까웠나요?</p>
+          <p className="text-xs" style={{ color: "var(--dim)" }}>
+            {isUnlock ? "// 먼저, 이 공간이 당신과 얼마나 잘 맞았나요?" : "// 이 공간은 당신의 취향과 얼마나 가까웠나요?"}
+          </p>
           <div className="flex gap-2">
             {[1, 2, 3, 4, 5].map((n) => {
               const active = tasteScore === n;
@@ -166,15 +182,25 @@ export default function RecordForm({ space, spaceTags, visitCount, previousRecor
       <p className="text-xs" style={{ color: "var(--border)" }}>─────────────────────────────</p>
 
       <p className="text-xs leading-relaxed" style={{ color: "var(--dim)" }}>
-        저장하면 이 공간의 방명록에서
-        <br />
-        원하는 위치에 흔적을 남길 수 있어요.
+        {isUnlock ? (
+          <>
+            당신의 경험을 먼저 남기면,
+            <br />
+            이 공간에 쌓인 다른 사람들의 흔적도 함께 열립니다.
+          </>
+        ) : (
+          <>
+            저장하면 이 공간의 방명록에서
+            <br />
+            원하는 위치에 흔적을 남길 수 있어요.
+          </>
+        )}
       </p>
 
       <button onClick={handleSubmit} disabled={!canSubmit || loading}
         className="w-full text-sm py-3 px-4 border hover:bg-[var(--fg)] hover:text-[var(--bg)] transition-colors disabled:opacity-30"
         style={{ borderColor: "var(--fg)" }}>
-        {loading ? "// 저장 중..." : "[[ 취향 저장하고 흔적 남기기 ]]"}
+        {loading ? "// 저장 중..." : isUnlock ? "[[ 흔적 보러가기 ]]" : "[[ 취향 저장하고 흔적 남기기 ]]"}
       </button>
     </main>
   );

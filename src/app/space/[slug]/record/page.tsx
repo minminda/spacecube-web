@@ -5,10 +5,13 @@ import RecordForm from "./RecordForm";
 
 interface Props {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ intent?: string }>;
 }
 
-export default async function RecordPage({ params }: Props) {
+export default async function RecordPage({ params, searchParams }: Props) {
   const { slug } = await params;
+  const { intent: intentParam } = await searchParams;
+  const intent = intentParam === "unlock" ? "unlock" : "record";
 
   const session = await auth();
   if (!session?.user?.email) redirect("/login");
@@ -30,10 +33,11 @@ export default async function RecordPage({ params }: Props) {
 
   return (
     <RecordForm
-      space={{ id: space.id, name: space.name, slug: space.slug }}
+      space={{ id: space.id, name: space.name, slug: space.slug, tagline: space.tagline }}
       spaceTags={space.spaceTags}
       visitCount={visitCount}
       previousRecord={lastRecord ? { tags: lastRecord.tags.map((t) => t.tag), tasteScore: lastRecord.tasteScore } : null}
+      intent={intent}
     />
   );
 }
