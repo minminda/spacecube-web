@@ -150,3 +150,30 @@ export function buildWeightedTasteVector(records: WeightedVectorRecord[]): Taste
   }
   return vector;
 }
+
+/* ── 사용자 간 취향 유사도 (코사인) — '내 취향과 닮은 사람' 추천용 ────────
+   두 태그 가중치 벡터(TasteVector)의 방향이 얼마나 비슷한지를 0~1로 나타낸다.
+   벡터 크기(방문 횟수·점수 총합)가 달라도 "분포 모양"이 비슷하면 높은 점수가 나온다. */
+
+/** 코사인 유사도 (0~1, 겹치는 태그가 전혀 없으면 0) */
+export function cosineSimilarity(a: TasteVector, b: TasteVector): number {
+  const keys = new Set<TagKey>([...Object.keys(a), ...Object.keys(b)] as TagKey[]);
+  let dot = 0, normA = 0, normB = 0;
+  for (const k of keys) {
+    const av = a[k] ?? 0;
+    const bv = b[k] ?? 0;
+    dot += av * bv;
+    normA += av * av;
+    normB += bv * bv;
+  }
+  if (normA === 0 || normB === 0) return 0;
+  return dot / (Math.sqrt(normA) * Math.sqrt(normB));
+}
+
+/** 유사도 점수를 숫자 대신 담백한 문장으로 */
+export function getSimilarityPhrase(score: number): string {
+  if (score >= 0.85) return "당신과 취향이 매우 닮았습니다.";
+  if (score >= 0.6) return "당신과 취향이 많이 닮았습니다.";
+  if (score >= 0.35) return "당신과 결이 비슷합니다.";
+  return "당신과 취향이 살짝 겹칩니다.";
+}

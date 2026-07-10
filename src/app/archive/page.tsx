@@ -5,10 +5,13 @@ import { auth } from "@/auth";
 import { TAG_LABELS } from "@/lib/tags";
 import SettingsPanel from "@/components/SettingsPanel";
 import CollectionManager from "@/components/CollectionManager";
-import { aggregateTags, getTastePhrase, tagOverlap } from "@/lib/taste";
+import TasteProfileCard from "@/components/TasteProfileCard";
+import VisitedSpacesPager, { type VisitedRow } from "@/components/VisitedSpacesPager";
+import { aggregateTags, getTastePhrase } from "@/lib/taste";
 import {
   rankSpaces, getRecommendReason,
   buildWeightedTasteVector, vectorTopTags, rankSpacesByVector, getVectorReason,
+  cosineSimilarity, getSimilarityPhrase,
 } from "@/lib/recommend";
 import {
   ENABLE_TASTE_SCORE_RECOMMENDATION,
@@ -31,6 +34,8 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
     </p>
   );
 }
+
+const MIN_RECORDS_FOR_SIMILARITY = 2; // 취향 데이터가 지나치게 부족한 사용자 제외 기준
 
 export default async function ArchivePage() {
   const session = await auth();
@@ -59,7 +64,7 @@ export default async function ArchivePage() {
       },
       savedSpaces: {
         orderBy: { createdAt: "desc" },
-        include: { space: { select: { id: true, name: true, slug: true, type: true, district: true, imageUrl: true, tagline: true } } },
+        include: { space: { select: { id: true, name: true, slug: true, type: true, district: true, imageUrl: true, tagline: true, spaceTags: true } } },
       },
     },
   });
@@ -67,7 +72,7 @@ export default async function ArchivePage() {
 
   const allRecords = user.records;
 
-  // 취향 프로파일: tasteScore × 태그 가중치 벡터(신규) 또는 태그 빈도(레거시)
+  // 취향 프로파일: tasteScore × 태그 가중치 벡터(신규) 또는 태그 빈도(레거시, 플래그 복구용 보존)
   const tasteVector = ENABLE_TASTE_SCORE_RECOMMENDATION ? buildWeightedTasteVector(allRecords) : null;
   const allTags      = tasteVector ? vectorTopTags(tasteVector) : aggregateTags(allRecords);
   const topTags      = allTags.slice(0, 5);
@@ -75,15 +80,42 @@ export default async function ArchivePage() {
   const maxCount     = topTags[0]?.[1] ?? 1;
   const myTopTagList = topTags.slice(0, 3).map(([t]) => t);
 
-  // 취향 발견: 방문하지 않은 공간 중 취향 점수 상위 3개
   const visitedIds = new Set(allRecords.map((r) => r.space.id));
-  const recommendCandidates = allRecords.length >= 3 && myTopTagList.length > 0
-    ? await prisma.space.findMany({
-        where: { isActive: true, id: { notIn: [...visitedIds] } },
-        select: { id: true, name: true, slug: true, tagline: true, imageUrl: true, type: true, district: true, spaceTags: true },
-        take: 30,
-      })
-    : [];
+  const savedTargetIds = new Set(user.savedTastes.map((st) => st.targetUserId));
+
+  // 취향 발견(닮은 공간) / 내가 남긴 흔적 / 취향 닮은 사람 — 서로 독립적이라 병렬로 조회
+  const [recommendCandidates, myGuestbookNotes, similarCandidates] = await Promise.all([
+    allRecords.length >= 3 && myTopTagList.length > 0
+      ? prisma.space.findMany({
+          where: { isActive: true, id: { notIn: [...visitedIds] } },
+          select: { id: true, name: true, slug: true, tagline: true, imageUrl: true, type: true, district: true, spaceTags: true },
+          take: 30,
+        })
+      : Promise.resolve([]),
+    prisma.guestbookNote.findMany({
+      where: { userId: user.id },
+      orderBy: { createdAt: "desc" },
+      include: { space: { select: { name: true, slug: true, spaceTags: true } } },
+    }),
+    allRecords.length >= 3
+      ? prisma.user.findMany({
+          where: { visibility: "PARTIAL", id: { not: user.id, notIn: [...savedTargetIds] }, records: { some: {} } },
+          select: {
+            id: true,
+            nickname: true,
+            records: {
+              orderBy: { visitedAt: "desc" },
+              include: {
+                tags: true,
+                space: { select: { id: true, name: true, slug: true, spaceTags: true, spaceTagLinks: { include: { tag: true } } } },
+              },
+            },
+          },
+          take: 50,
+        })
+      : Promise.resolve([]),
+  ]);
+
   const recommended = tasteVector
     ? rankSpacesByVector(recommendCandidates, tasteVector, 3)
     : rankSpaces(recommendCandidates, myTopTagList, 3);
@@ -100,14 +132,40 @@ export default async function ArchivePage() {
       }))
     : [];
 
-  // 내가 남긴 흔적 — 공간별 방명록 포스트잇
-  const myGuestbookNotes = await prisma.guestbookNote.findMany({
-    where: { userId: user.id },
-    orderBy: { createdAt: "desc" },
-    include: { space: { select: { name: true, slug: true, spaceTags: true } } },
-  });
+  // 저장한 공간도 같은 플레이리스트 카드 형태로 재사용
+  const savedSpaceCards: PlaylistCard[] = user.savedSpaces.map((s) => ({
+    id: s.space.id,
+    slug: s.space.slug,
+    name: s.space.name,
+    district: s.space.district,
+    imageUrl: s.space.imageUrl,
+    tagLabels: s.space.spaceTags.slice(0, 3).map((t) => TAG_LABELS[t]),
+    reason: s.space.tagline ?? [s.space.type, s.space.district].filter(Boolean).join(" · "),
+  }));
 
-  const memos = allRecords.filter((r) => r.memo);
+  // 내 취향과 닮은 사람 — 코사인 유사도 상위 3명 (취향 데이터 부족/미방문 사용자 제외)
+  const similar = !tasteVector ? [] : similarCandidates
+    .filter((u) => u.records.length >= MIN_RECORDS_FOR_SIMILARITY)
+    .map((u) => {
+      const theirVector = buildWeightedTasteVector(u.records);
+      const score = cosineSimilarity(tasteVector, theirVector);
+      const tagLabels = aggregateTags(u.records).slice(0, 3).map(([t]) => TAG_LABELS[t]);
+      const phrase = getTastePhrase(aggregateTags(u.records).slice(0, 5));
+      const seenSpaces = new Set<string>();
+      const spaces = u.records
+        .filter((r) => {
+          if (seenSpaces.has(r.space.id)) return false;
+          seenSpaces.add(r.space.id);
+          return true;
+        })
+        .slice(0, 3)
+        .map((r) => r.space);
+      return { id: u.id, nickname: u.nickname, phrase, tagLabels, spaces, score };
+    })
+    .filter((u) => u.score > 0.05 && u.spaces.length > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 3);
+
   const wantAgainMap = new Map<string, typeof allRecords[0]>();
   allRecords.filter((r) => r.tags.some((t) => t.tag === "WANT_AGAIN")).forEach((r) => {
     if (!wantAgainMap.has(r.space.id)) wantAgainMap.set(r.space.id, r);
@@ -116,9 +174,16 @@ export default async function ArchivePage() {
   const visitedSpaces = allRecords.map((r) => ({ id: r.space.id, name: r.space.name, slug: r.space.slug }));
   const displayName   = user.nickname || user.name?.split(" ")[0] || "나";
 
+  const visitedRows: VisitedRow[] = allRecords.map((r) => ({
+    id: r.id,
+    name: r.space.name,
+    visitedAt: formatDate(r.visitedAt),
+    tasteScore: r.tasteScore,
+  }));
+
   const savedTasteCards = user.savedTastes.map((st) => {
-    const tTags = aggregateTags(st.target.records).slice(0, 5);
-    const phrase = getTastePhrase(tTags);
+    const tTags = aggregateTags(st.target.records).slice(0, 3).map(([t]) => TAG_LABELS[t]);
+    const phrase = getTastePhrase(aggregateTags(st.target.records).slice(0, 5));
     const seenSpaces = new Set<string>();
     const spaces = st.target.records
       .filter((r) => {
@@ -128,37 +193,8 @@ export default async function ArchivePage() {
       })
       .slice(0, 3)
       .map((r) => r.space);
-    return { id: st.target.id, phrase, spaces };
+    return { id: st.target.id, phrase, tagLabels: tTags, spaces };
   });
-
-  const savedTargetIds = new Set(user.savedTastes.map((st) => st.targetUserId));
-  const similar = myTopTagList.length > 0
-    ? await prisma.user.findMany({
-        where: { visibility: "PARTIAL", id: { not: user.id, notIn: [...savedTargetIds] }, records: { some: {} } },
-        include: {
-          records: {
-            orderBy: { visitedAt: "desc" },
-            include: { space: { select: { id: true, name: true, slug: true } }, tags: true },
-          },
-        },
-        take: 50,
-      }).then((users) =>
-        users.map((u) => {
-          const their = aggregateTags(u.records).slice(0, 3).map(([t]) => t);
-          const phrase = getTastePhrase(aggregateTags(u.records).slice(0, 5));
-          const seenSpaces = new Set<string>();
-          const spaces = u.records
-            .filter((r) => {
-              if (seenSpaces.has(r.space.id)) return false;
-              seenSpaces.add(r.space.id);
-              return true;
-            })
-            .slice(0, 3)
-            .map((r) => r.space);
-          return { id: u.id, phrase, spaces, score: tagOverlap(myTopTagList, their) };
-        }).filter((u) => u.score > 0).sort((a, b) => b.score - a.score).slice(0, 3)
-      )
-    : [];
 
   return (
     <main className="flex flex-col min-h-screen px-6 pt-8 pb-16">
@@ -168,7 +204,7 @@ export default async function ArchivePage() {
       </nav>
 
       <div className="md:grid md:grid-cols-2 md:gap-12 md:items-start">
-        {/* 왼쪽 패널: 프로필 + 취향 차트 */}
+        {/* 왼쪽 패널: 프로필 + 취향 차트 (1. 내 취향 요약) */}
         <div className="md:sticky md:top-8">
           <section className="mb-10 space-y-2">
             <h1 className="text-2xl font-bold">{displayName}</h1>
@@ -204,7 +240,7 @@ export default async function ArchivePage() {
             <>
               <Divider className="md:hidden" />
 
-              {/* 취향 발견 섹션 */}
+              {/* 2. 내 취향과 닮은 공간 */}
               {allRecords.length < 3 ? (
                 <>
                   <section className="mb-10 space-y-2 pl-4 border-l" style={{ borderColor: "var(--border)" }}>
@@ -230,7 +266,7 @@ export default async function ArchivePage() {
                         </p>
                         <RecommendationPlaylist cards={playlistCards} />
                       </div>
-                    ) : recommended.length > 0 ? (
+                    ) : !ENABLE_RECOMMENDATION_PLAYLIST_UI && recommended.length > 0 ? (
                       /* 레거시: 정적 리스트 (플래그 복구용 보존) */
                       <div className="space-y-5">
                         {recommended.map((rec) => {
@@ -255,12 +291,81 @@ export default async function ArchivePage() {
                     )}
                   </section>
                   <Divider />
+
+                  {/* 3. 내 취향과 닮은 사람 TOP 3 */}
+                  <section className="mb-10">
+                    <SectionLabel>// 내 취향과 닮은 사람</SectionLabel>
+                    <p className="text-xs -mt-3 mb-5" style={{ color: "var(--dim)" }}>
+                      비슷한 공간에 머문 사람들의 취향입니다.
+                    </p>
+                    {similar.length > 0 ? (
+                      <div className="space-y-6">
+                        {similar.map((card) => (
+                          <TasteProfileCard
+                            key={card.id}
+                            href={`/taste/${card.id}`}
+                            nickname={card.nickname}
+                            phrase={card.phrase}
+                            tagLabels={card.tagLabels}
+                            spaces={card.spaces}
+                            note={getSimilarityPhrase(card.score)}
+                          />
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>
+                        취향 기록이 더 쌓이면<br />비슷한 취향의 사람을 만날 수 있습니다.
+                      </p>
+                    )}
+                  </section>
+                  <Divider />
                 </>
               )}
 
-              {/* 내가 남긴 흔적 — 공간마다 남긴 노란 포스트잇 플레이리스트 */}
+              {/* 4. 내가 방문한 공간 — 5개씩 묶어 페이지 넘김 */}
+              <section className="mb-10">
+                <SectionLabel>내가 방문한 공간</SectionLabel>
+                <VisitedSpacesPager records={visitedRows} />
+              </section>
+
+              {/* 5. 저장한 공간 — 닮은 공간과 동일한 플레이리스트 UI 재사용 */}
+              <Divider />
+              <section className="mb-10">
+                <SectionLabel>저장한 공간</SectionLabel>
+                {savedSpaceCards.length > 0 ? (
+                  <RecommendationPlaylist cards={savedSpaceCards} />
+                ) : (
+                  <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>
+                    아직 저장한 공간이 없습니다.<br />마음에 남는 공간을 저장해보세요.
+                  </p>
+                )}
+              </section>
+
+              {/* 6. 관심 있는 취향 — 저장한 공간 바로 아래 */}
+              {savedTasteCards.length > 0 && (
+                <>
+                  <Divider />
+                  <section className="mb-10">
+                    <SectionLabel>관심 있는 취향</SectionLabel>
+                    <div className="space-y-6">
+                      {savedTasteCards.map((card) => (
+                        <TasteProfileCard
+                          key={card.id}
+                          href={`/taste/${card.id}`}
+                          phrase={card.phrase}
+                          tagLabels={card.tagLabels}
+                          spaces={card.spaces}
+                        />
+                      ))}
+                    </div>
+                  </section>
+                </>
+              )}
+
+              {/* 7. 내가 남긴 흔적 — 방명록 포스트잇 (아카이브에서 유일하게 사용자 문장이 보이는 곳) */}
               {myGuestbookNotes.length > 0 && (
                 <>
+                  <Divider />
                   <section className="mb-10">
                     <SectionLabel>// 내가 남긴 흔적</SectionLabel>
                     <p className="text-xs -mt-3 mb-5" style={{ color: "var(--dim)" }}>
@@ -306,71 +411,11 @@ export default async function ArchivePage() {
                       ))}
                     </div>
                   </section>
-                  <Divider />
                 </>
               )}
 
-              <section className="mb-10">
-                <SectionLabel>내가 방문한 공간</SectionLabel>
-                <div className="space-y-4">
-                  {allRecords.map((r) => (
-                    <Link key={r.id} href={`/archive/${r.id}`} className="flex flex-col gap-0.5 group">
-                      <div className="flex justify-between items-baseline">
-                        <span className="text-sm font-medium group-hover:underline">{r.space.name}</span>
-                        <span className="text-xs flex-shrink-0 ml-4" style={{ color: "var(--dim)" }}>{formatDate(r.visitedAt)}</span>
-                      </div>
-                      {r.tasteScore != null ? (
-                        <span className="text-xs" style={{ color: "var(--dim)" }}>
-                          취향 적합도 {r.tasteScore}/5
-                        </span>
-                      ) : r.tags.length > 0 ? (
-                        <span className="text-xs" style={{ color: "var(--dim)" }}>
-                          {r.tags.slice(0, 2).map((t) => TAG_LABELS[t.tag]).join(" · ")}
-                        </span>
-                      ) : null}
-                    </Link>
-                  ))}
-                </div>
-              </section>
-
-              {user.savedSpaces.length > 0 && (
-                <>
-                  <Divider />
-                  <section className="mb-10">
-                    <SectionLabel>저장한 공간</SectionLabel>
-                    <div className="space-y-4">
-                      {user.savedSpaces.map((s) => (
-                        <Link key={s.id} href={`/space/${s.space.slug}`} className="flex flex-col gap-0.5 group">
-                          <span className="text-sm font-medium group-hover:underline">{s.space.name}</span>
-                          <span className="text-xs" style={{ color: "var(--dim)" }}>
-                            {[s.space.type, s.space.district].filter(Boolean).join(" · ")}
-                          </span>
-                        </Link>
-                      ))}
-                    </div>
-                  </section>
-                </>
-              )}
-
-              {memos.length > 0 && (
-                <>
-                  <Divider />
-                  <section className="mb-10">
-                    <SectionLabel>그때 내가 남긴 말</SectionLabel>
-                    <div className="space-y-5">
-                      {memos.map((r) => (
-                        <div key={r.id} className="space-y-1">
-                          <p className="text-sm leading-relaxed">&ldquo;{r.memo}&rdquo;</p>
-                          <p className="text-xs" style={{ color: "var(--dim)" }}>— {r.space.name}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </section>
-                </>
-              )}
-
+              {/* 기존 기능 보존 — 이번 작업 대상 밖, 위치만 맨 뒤로 */}
               <Divider />
-
               <section className="mb-10">
                 <SectionLabel>묶어둔 곳들</SectionLabel>
                 <CollectionManager collections={user.collections} visitedSpaces={visitedSpaces} />
@@ -387,72 +432,6 @@ export default async function ArchivePage() {
                           <span style={{ color: "var(--border)" }}>·</span>
                           <span className="text-sm font-medium group-hover:underline">{r.space.name}</span>
                         </Link>
-                      ))}
-                    </div>
-                  </section>
-                </>
-              )}
-
-              {savedTasteCards.length > 0 && (
-                <>
-                  <Divider />
-                  <section className="mb-10">
-                    <SectionLabel>관심 있는 취향</SectionLabel>
-                    <div className="space-y-6">
-                      {savedTasteCards.map((card) => (
-                        <div key={card.id} className="space-y-3 pl-4 border-l" style={{ borderColor: "var(--border)" }}>
-                          <p className="text-sm font-medium leading-snug">{card.phrase}</p>
-                          {card.spaces.length > 0 && (
-                            <div className="space-y-1">
-                              <p className="text-xs" style={{ color: "var(--border)" }}>다녀온 공간</p>
-                              {card.spaces.map((s) => (
-                                <Link key={s.id} href={`/space/${s.slug}`} className="block text-sm hover:underline" style={{ color: "var(--dim)" }}>
-                                  · {s.name}
-                                </Link>
-                              ))}
-                            </div>
-                          )}
-                          <Link
-                            href={`/taste/${card.id}`}
-                            className="inline-block text-xs py-1 px-2 border transition-colors hover:bg-[var(--fg)] hover:text-[var(--bg)]"
-                            style={{ borderColor: "var(--border)", color: "var(--dim)" }}
-                          >
-                            이 취향 따라가기 →
-                          </Link>
-                        </div>
-                      ))}
-                    </div>
-                  </section>
-                </>
-              )}
-
-              {similar.length > 0 && (
-                <>
-                  <Divider />
-                  <section className="mb-10">
-                    <SectionLabel>비슷한 취향</SectionLabel>
-                    <div className="space-y-6">
-                      {similar.map((card) => (
-                        <div key={card.id} className="space-y-3 pl-4 border-l" style={{ borderColor: "var(--border)" }}>
-                          <p className="text-sm font-medium leading-snug">{card.phrase}</p>
-                          {card.spaces.length > 0 && (
-                            <div className="space-y-1">
-                              <p className="text-xs" style={{ color: "var(--border)" }}>다녀온 공간</p>
-                              {card.spaces.map((s) => (
-                                <Link key={s.id} href={`/space/${s.slug}`} className="block text-sm hover:underline" style={{ color: "var(--dim)" }}>
-                                  · {s.name}
-                                </Link>
-                              ))}
-                            </div>
-                          )}
-                          <Link
-                            href={`/taste/${card.id}`}
-                            className="inline-block text-xs py-1 px-2 border transition-colors hover:bg-[var(--fg)] hover:text-[var(--bg)]"
-                            style={{ borderColor: "var(--border)", color: "var(--dim)" }}
-                          >
-                            이 취향 따라가기 →
-                          </Link>
-                        </div>
                       ))}
                     </div>
                   </section>

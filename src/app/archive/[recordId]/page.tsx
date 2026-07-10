@@ -3,7 +3,6 @@ import Link from "next/link";
 import Image from "next/image";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
-import { TAG_LABELS } from "@/lib/tags";
 import DeleteRecordButton from "@/components/DeleteRecordButton";
 
 interface Props {
@@ -20,7 +19,7 @@ export default async function RecordDetailPage({ params }: Props) {
 
   const record = await prisma.record.findUnique({
     where: { id: recordId },
-    include: { space: true, tags: true },
+    include: { space: true },
   });
   if (!record || record.userId !== user.id) notFound();
 
@@ -67,37 +66,6 @@ export default async function RecordDetailPage({ params }: Props) {
       <p className="text-xs" style={{ color: "var(--border)" }}>
         ─────────────────────────────
       </p>
-
-      {/* 태그 */}
-      {record.tags.length > 0 && (
-        <div className="space-y-2">
-          <p className="text-xs" style={{ color: "var(--dim)" }}>그때 내가 느낀 것</p>
-          <div className="flex flex-wrap gap-2">
-            {record.tags.map((t) => (
-              <span
-                key={t.id}
-                className="text-xs px-3 py-1 border"
-                style={{ borderColor: "var(--fg)", color: "var(--fg)" }}
-              >
-                {TAG_LABELS[t.tag]}
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* 메모 */}
-      {record.memo && (
-        <div className="space-y-2">
-          <p className="text-xs" style={{ color: "var(--dim)" }}>내가 남긴 말</p>
-          <p
-            className="text-sm p-3 border leading-loose"
-            style={{ borderColor: "var(--border)", color: "var(--fg)" }}
-          >
-            &ldquo;{record.memo}&rdquo;
-          </p>
-        </div>
-      )}
 
       {/* 공간 바로가기 */}
       <Link
