@@ -1,18 +1,18 @@
-import { Tag } from "@prisma/client";
+import { TagKey } from "@prisma/client";
 
 export function aggregateTags(
-  records: { tags: { tag: Tag }[] }[]
-): [Tag, number][] {
-  const count: Partial<Record<Tag, number>> = {};
+  records: { tags: { tag: TagKey }[] }[]
+): [TagKey, number][] {
+  const count: Partial<Record<TagKey, number>> = {};
   for (const r of records) {
     for (const rt of r.tags) {
       count[rt.tag] = (count[rt.tag] ?? 0) + 1;
     }
   }
-  return (Object.entries(count) as [Tag, number][]).sort((a, b) => b[1] - a[1]);
+  return (Object.entries(count) as [TagKey, number][]).sort((a, b) => b[1] - a[1]);
 }
 
-export function getTastePhrase(topTags: [Tag, number][]): string {
+export function getTastePhrase(topTags: [TagKey, number][]): string {
   if (topTags.length === 0) return "나만의 공간을 탐험하는 사람";
   const tags = topTags.map(([t]) => t);
 
@@ -25,7 +25,7 @@ export function getTastePhrase(topTags: [Tag, number][]): string {
   if (tags.includes("INSPIRING") && tags.includes("SENSIBLE"))     return "영감 있고 감각적인 공간에 끌리는 사람";
   if (tags.includes("COMFORTABLE") && tags.includes("WANT_AGAIN")) return "편안해서 다시 찾고 싶은 공간을 좋아하는 사람";
 
-  const fallback: Partial<Record<Tag, string>> = {
+  const fallback: Partial<Record<TagKey, string>> = {
     QUIET:      "조용한 공간에서 오래 머무는 사람",
     INSPIRING:  "영감을 주는 공간을 찾는 사람",
     COMFORTABLE:"편안한 공간을 즐기는 사람",
@@ -38,7 +38,7 @@ export function getTastePhrase(topTags: [Tag, number][]): string {
   return fallback[tags[0]] ?? "나만의 공간을 탐험하는 사람";
 }
 
-export function tagOverlap(a: Tag[], b: Tag[]): number {
+export function tagOverlap(a: TagKey[], b: TagKey[]): number {
   const setB = new Set(b);
   return a.filter((t) => setB.has(t)).length;
 }

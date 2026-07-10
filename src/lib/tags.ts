@@ -1,6 +1,6 @@
-import { Tag } from "@prisma/client";
+import { TagKey } from "@prisma/client";
 
-export const TAG_LABELS: Record<Tag, string> = {
+export const TAG_LABELS: Record<TagKey, string> = {
   QUIET: "조용한",
   INSPIRING: "영감 있는",
   COMFORTABLE: "편안한",
@@ -11,4 +11,4 @@ export const TAG_LABELS: Record<Tag, string> = {
   FOCUSED: "집중되는",
 };
 
-export const ALL_TAGS = Object.keys(TAG_LABELS) as Tag[];
+export const ALL_TAGS = Object.keys(TAG_LABELS) as TagKey[];

@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 export const dynamic = "force-dynamic";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { Tag } from "@prisma/client";
+import { TagKey } from "@prisma/client";
 import { ENABLE_RECORD_TAG_SELECTION, ENABLE_TASTE_SCORE_RECOMMENDATION } from "@/lib/features";
 
 export async function POST(req: NextRequest) {
@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
       tasteScore: validScore,
       // 태그 선택 저장은 플래그 뒤로 보존 — 나중에 재사용 가능
       ...(ENABLE_RECORD_TAG_SELECTION && tags?.length > 0
-        ? { tags: { create: tags.map((tag: Tag) => ({ tag })) } }
+        ? { tags: { create: tags.map((tag: TagKey) => ({ tag })) } }
         : {}),
     },
   });

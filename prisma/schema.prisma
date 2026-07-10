@@ -27,6 +27,8 @@ model User {
   savedTastes    SavedTaste[] @relation("SavedBy")
   savedByOthers  SavedTaste[] @relation("SavedTarget")
   guestbookNotes GuestbookNote[]
+  episodeReads   EpisodeRead[]
+  savedSpaces    SavedSpace[]
 }
 
 model Account {
@@ -92,7 +94,7 @@ model Space {
   ownerPlaylistUrl String?
   ownerBlogUrl    String?
   ownerSocialUrl  String?
-  spaceTags       Tag[]
+  spaceTags       TagKey[] // 레거시 enum 배열 — SpaceTag로 이전 예정, 당분간 병행 유지
   lat             Float?
   lng             Float?
   isActive        Boolean  @default(true)
@@ -100,14 +102,18 @@ model Space {
   currentMood     String?
   createdAt       DateTime @default(now())
 
-  owner           User?              @relation(fields: [ownerId], references: [id], onDelete: SetNull)
-  records         Record[]
-  collectionItems CollectionItem[]
-  storySpaces     ContentStorySpace[]
-  scans           SpaceScan[]
-  waitlistEntries WaitlistEntry[]
-  notes           SpaceNote[]
-  guestbookNotes  GuestbookNote[]
+  owner             User?               @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+  records           Record[]
+  collectionItems   CollectionItem[]
+  storySpaces       ContentStorySpace[]
+  scans             SpaceScan[]
+  waitlistEntries   WaitlistEntry[]
+  notes             SpaceNote[]
+  guestbookNotes    GuestbookNote[]
+  episodes          Episode[]
+  guestbookSettings GuestbookSettings?
+  spaceTagLinks     SpaceTag[]
+  savedByUsers      SavedSpace[]
 }
 
 // 디지털 방명록 포스트잇 — 캔버스 위 좌표에 남는 짧은 흔적
@@ -116,16 +122,41 @@ model GuestbookNote {
   userId    String
   spaceId   String
   content   String   @db.VarChar(80)
+  nickname  String? // 작성자 닉네임 (showNickname 설정에 따라 노출)
+  imageUrl  String? // 포스트잇 첨부 사진 (allowImage 설정에 따라 허용)
   x         Float
   y         Float
   rotation  Float    @default(0)
+  scale     Float    @default(1)
   color     String   @default("#F6E7A8")
   createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
 
   user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
   space Space @relation(fields: [spaceId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, spaceId]) // 한 공간에 사용자당 흔적 하나만
+  @@unique([userId, spaceId]) // 한 공간에 사용자당 흔적 하나만 — 정책 유지
+}
+
+// 공간별 방명록 배경/레이아웃 설정 — 없으면 앱 기본값 사용
+model GuestbookSettings {
+  spaceId            String   @id
+  backgroundType     String   @default("color") // "color" | "image"
+  backgroundColor    String?  @default("#F5F1E8")
+  backgroundImageUrl String?
+  backgroundOpacity  Float    @default(1)
+  layoutType         String   @default("scatter") // "scatter" | "grid" 등
+  defaultPostitColor String   @default("#F6E7A8")
+  initialZoom        Float    @default(1)
+  initialX           Float    @default(0)
+  initialY           Float    @default(0)
+  allowRotation      Boolean  @default(true)
+  allowImage         Boolean  @default(false)
+  showNickname       Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  space Space @relation(fields: [spaceId], references: [id], onDelete: Cascade)
 }
 
 model SpaceScan {
@@ -150,11 +181,13 @@ model Record {
 }
 
 model RecordTag {
-  id       String @id @default(cuid())
+  id       String  @id @default(cuid())
   recordId String
-  tag      Tag
+  tag      TagKey // 레거시 enum 값 — 데이터 보존, tagId로 점진 이전
+  tagId    String? // 신규 Tag 테이블 참조 (백필 스크립트로 채움, 당분간 nullable)
 
   record Record @relation(fields: [recordId], references: [id], onDelete: Cascade)
+  tagRef Tag?   @relation(fields: [tagId], references: [id], onDelete: SetNull)
 }
 
 model Collection {
@@ -189,6 +222,111 @@ model SavedTaste {
   target User @relation("SavedTarget", fields: [targetUserId], references: [id], onDelete: Cascade)
 
   @@unique([userId, targetUserId])
+}
+
+// 사용자가 저장(찜)한 장소 — 동일 공간 중복 저장 불가
+model SavedSpace {
+  id        String   @id @default(cuid())
+  userId    String
+  spaceId   String
+  createdAt DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  space Space @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, spaceId])
+}
+
+// ─── 태그 관리 (관리자 CRUD) ──────────────────────────────────
+// 기존 enum Tag는 TagKey로 이름만 변경(@@map으로 DB enum 타입명은 "Tag" 그대로 유지, 데이터 변경 없음).
+// 신규 Tag 모델이 관리자 CRUD 가능한 태그 마스터 테이블.
+
+model Tag {
+  id                   String    @id @default(cuid())
+  name                 String // 관리자가 수정 가능한 표시명 (예: "조용한")
+  category             String? // 태그 그룹 (예: "분위기", "용도")
+  description          String?
+  displayOrder         Int       @default(0)
+  isActive             Boolean   @default(true) // 실제 삭제 대신 비활성화
+  useForRecommendation Boolean   @default(true)
+  legacyKey            TagKey?   @unique // 기존 enum 값과의 매핑 (마이그레이션용, 신규 태그는 null)
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  spaceLinks SpaceTag[]
+  recordTags RecordTag[]
+
+  @@map("tags")
+}
+
+// 공간-태그 연결 + 가중치 (추천 로직에서 활용)
+model SpaceTag {
+  id        String   @id @default(cuid())
+  spaceId   String
+  tagId     String
+  weight    Float    @default(1)
+  isPrimary Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  space Space @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  tag   Tag   @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([spaceId, tagId])
+  @@map("space_tags")
+}
+
+// ─── 스토리(에피소드) 레이어 ──────────────────────────────────
+// 공간별 다회차 스토리. 방문 횟수에 따라 잠금 해제되는 여러 Episode,
+// 각 Episode는 여러 Scene(텍스트+이미지 블록)으로 구성.
+
+model Episode {
+  id               String   @id @default(cuid())
+  spaceId          String
+  episodeNumber    Int
+  title            String
+  description      String?  @db.Text
+  unlockVisitCount Int      @default(0) // 이 방문 횟수부터 열람 가능 (0 = 항상 공개)
+  displayOrder     Int      @default(0)
+  published        Boolean  @default(false)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  space  Space         @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  scenes Scene[]
+  reads  EpisodeRead[]
+
+  @@unique([spaceId, episodeNumber])
+}
+
+model Scene {
+  id               String   @id @default(cuid())
+  episodeId        String
+  title            String?
+  content          String   @db.Text
+  displayOrder     Int      @default(0)
+  imageUrl         String?
+  imageZoom        Float?   @default(1)
+  imagePositionX   Float?   @default(0.5)
+  imagePositionY   Float?   @default(0.5)
+  imageAspectRatio String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  episode Episode @relation(fields: [episodeId], references: [id], onDelete: Cascade)
+}
+
+// 사용자별 Episode 열람 상태
+model EpisodeRead {
+  id          String    @id @default(cuid())
+  userId      String
+  episodeId   String
+  openedAt    DateTime  @default(now())
+  completedAt DateTime?
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  episode Episode @relation(fields: [episodeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, episodeId])
 }
 
 // ─── 콘텐츠 레이어 ────────────────────────────────────────────
@@ -261,7 +399,9 @@ enum Visibility {
   LINK_ONLY
 }
 
-enum Tag {
+// 레거시 방문자 태그 enum. Prisma 식별자만 TagKey로 변경(신규 Tag 모델과 이름 충돌 회피),
+// @@map으로 실제 DB enum 타입명은 "Tag" 그대로 유지 — 기존 컬럼 데이터 변경 없음.
+enum TagKey {
   QUIET
   INSPIRING
   COMFORTABLE
@@ -270,4 +410,6 @@ enum Tag {
   SENSIBLE
   WARM
   FOCUSED
+
+  @@map("Tag")
 }

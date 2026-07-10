@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
-import { Tag } from "@prisma/client";
+import { TagKey } from "@prisma/client";
 import { TAG_LABELS } from "@/lib/tags";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
@@ -36,7 +36,7 @@ export default async function DonePage({ params, searchParams }: Props) {
   const { name, tags, score } = await searchParams;
 
   const spaceName = name ? decodeURIComponent(name) : "이 공간";
-  const tagList = tags ? (tags.split(",").filter((t) => t in TAG_LABELS) as Tag[]) : [];
+  const tagList = tags ? (tags.split(",").filter((t) => t in TAG_LABELS) as TagKey[]) : [];
   const scoreNum = score ? parseInt(score, 10) : null;
   const tasteScore = scoreNum && scoreNum >= 1 && scoreNum <= 5 ? scoreNum : null;
 

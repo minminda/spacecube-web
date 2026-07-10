@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
-import { Tag } from "@prisma/client";
+import { TagKey } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 import { aggregateTags } from "@/lib/taste";
@@ -59,8 +59,8 @@ export default async function DiscoverPage({ searchParams }: Props) {
   let hasEnoughRecords = false;
   let recordCount = 0;
   let visitedSpaceIds: string[] = [];
-  let userTopTags: Tag[] = [];
-  let userTagCountMap: Partial<Record<Tag, number>> = {};
+  let userTopTags: TagKey[] = [];
+  let userTagCountMap: Partial<Record<TagKey, number>> = {};
 
   if (session?.user?.email) {
     const user = await prisma.user.findUnique({
@@ -85,7 +85,7 @@ export default async function DiscoverPage({ searchParams }: Props) {
         } else {
           // 레거시: 태그 선택 빈도 기반
           const tagCounts = aggregateTags(userRecords);
-          userTagCountMap = Object.fromEntries(tagCounts) as Partial<Record<Tag, number>>;
+          userTagCountMap = Object.fromEntries(tagCounts) as Partial<Record<TagKey, number>>;
           userTopTags = tagCounts.slice(0, 3).map(([t]) => t);
         }
       }

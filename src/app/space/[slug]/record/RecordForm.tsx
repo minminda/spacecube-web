@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Tag } from "@prisma/client";
+import { TagKey } from "@prisma/client";
 import { TAG_LABELS, ALL_TAGS } from "@/lib/tags";
 import TagChip from "@/components/TagChip";
 import { ENABLE_RECORD_TAG_SELECTION } from "@/lib/features";
@@ -19,9 +19,9 @@ const SCORE_LABELS: Record<number, string> = {
 
 interface Props {
   space: { id: string; name: string; slug: string; tagline?: string | null };
-  spaceTags: Tag[];
+  spaceTags: TagKey[];
   visitCount: number;
-  previousRecord: { tags: Tag[]; tasteScore: number | null } | null;
+  previousRecord: { tags: TagKey[]; tasteScore: number | null } | null;
   /** unlock: "방문자들의 이야기 보기"에서 진입한 1회성 입장 화면 (기록 카운트 없이 가볍게) */
   intent?: "record" | "unlock";
 }
@@ -30,7 +30,7 @@ export default function RecordForm({ space, spaceTags, visitCount, previousRecor
   const isUnlock = intent === "unlock";
   const tagsToShow = spaceTags.length > 0 ? spaceTags : ALL_TAGS;
   const router = useRouter();
-  const [selectedTags, setSelectedTags] = useState<Tag[]>([]);
+  const [selectedTags, setSelectedTags] = useState<TagKey[]>([]);
   const [tasteScore, setTasteScore] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -38,7 +38,7 @@ export default function RecordForm({ space, spaceTags, visitCount, previousRecor
   const visitNumber = visitCount + 1;
 
   // 레거시 태그 선택 (ENABLE_RECORD_TAG_SELECTION 켜졌을 때만 사용)
-  function toggleTag(tag: Tag) {
+  function toggleTag(tag: TagKey) {
     setSelectedTags((prev) => {
       if (prev.includes(tag)) return prev.filter((t) => t !== tag);
       if (prev.length >= MAX_TAGS) return prev;

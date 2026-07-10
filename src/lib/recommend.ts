@@ -1,4 +1,4 @@
-import { Tag } from "@prisma/client";
+import { TagKey } from "@prisma/client";
 import { TAG_LABELS } from "@/lib/tags";
 
 export interface SpaceCandidate {
@@ -9,7 +9,7 @@ export interface SpaceCandidate {
   imageUrl: string | null;
   type: string;
   district: string | null;
-  spaceTags: Tag[];
+  spaceTags: TagKey[];
 }
 
 /**
@@ -18,13 +18,13 @@ export interface SpaceCandidate {
  */
 export function scoreSpaceWeighted(
   space: SpaceCandidate,
-  userTagCounts: Partial<Record<Tag, number>>,
+  userTagCounts: Partial<Record<TagKey, number>>,
 ): number {
   return space.spaceTags.reduce((sum, tag) => sum + (userTagCounts[tag] ?? 0), 0);
 }
 
 /** 태그 겹침 기반 CBF 점수 (0~1) */
-export function scoreSpace(space: SpaceCandidate, userTopTags: Tag[]): number {
+export function scoreSpace(space: SpaceCandidate, userTopTags: TagKey[]): number {
   if (userTopTags.length === 0 || space.spaceTags.length === 0) return 0;
   const overlap = userTopTags.filter((t) => space.spaceTags.includes(t)).length;
   const maxLen = Math.max(userTopTags.length, space.spaceTags.length, 1);
@@ -32,7 +32,7 @@ export function scoreSpace(space: SpaceCandidate, userTopTags: Tag[]): number {
 }
 
 /** 추천 이유 문구 생성 */
-export function getRecommendReason(space: SpaceCandidate, userTopTags: Tag[]): string {
+export function getRecommendReason(space: SpaceCandidate, userTopTags: TagKey[]): string {
   const matched = userTopTags.filter((t) => space.spaceTags.includes(t));
   if (matched.length === 0) return "";
   if (matched.length === 1) return `${TAG_LABELS[matched[0]]} 공간을 자주 기록하셨습니다.`;
@@ -43,7 +43,7 @@ export function getRecommendReason(space: SpaceCandidate, userTopTags: Tag[]): s
 /** 취향 기반 추천 공간 목록 (상위 N개) */
 export function rankSpaces(
   candidates: SpaceCandidate[],
-  userTopTags: Tag[],
+  userTopTags: TagKey[],
   limit = 3,
 ): SpaceCandidate[] {
   return candidates
@@ -58,12 +58,12 @@ export function rankSpaces(
    예) 공간A [조용한,사색적인] 5점 + 공간C [따뜻한,조용한] 4점
        → 조용한 9, 사색적인 5, 따뜻한 4                                   */
 
-export type TasteVector = Partial<Record<Tag, number>>;
+export type TasteVector = Partial<Record<TagKey, number>>;
 
 export interface VectorRecord {
   tasteScore: number | null;
-  tags: { tag: Tag }[]; // 레거시 RecordTag (spaceTags 없을 때 fallback)
-  space: { spaceTags: Tag[] };
+  tags: { tag: TagKey }[]; // 레거시 RecordTag (spaceTags 없을 때 fallback)
+  space: { spaceTags: TagKey[] };
 }
 
 /** 기록 목록 → tasteScore 가중 취향 벡터 */
@@ -79,13 +79,13 @@ export function buildTasteVector(records: VectorRecord[]): TasteVector {
   return vector;
 }
 
-/** 벡터 상위 태그 목록 ([Tag, weight][] 내림차순) */
-export function vectorTopTags(vector: TasteVector): [Tag, number][] {
-  return (Object.entries(vector) as [Tag, number][]).sort((a, b) => b[1] - a[1]);
+/** 벡터 상위 태그 목록 ([TagKey, weight][] 내림차순) */
+export function vectorTopTags(vector: TasteVector): [TagKey, number][] {
+  return (Object.entries(vector) as [TagKey, number][]).sort((a, b) => b[1] - a[1]);
 }
 
 /** 벡터 기반 추천: 겹치는 태그 가중치 합산, 점수 높은 순 상위 N개 (0점 제외) */
-export function rankSpacesByVector<T extends { spaceTags: Tag[] }>(
+export function rankSpacesByVector<T extends { spaceTags: TagKey[] }>(
   candidates: T[],
   vector: TasteVector,
   limit = 3,
@@ -98,7 +98,7 @@ export function rankSpacesByVector<T extends { spaceTags: Tag[] }>(
 }
 
 /** 벡터 기반 추천 이유 — 기술적 느낌 없이 "결이 닮은" 문장으로 */
-export function getVectorReason(space: { spaceTags: Tag[] }, vector: TasteVector): string {
+export function getVectorReason(space: { spaceTags: TagKey[] }, vector: TasteVector): string {
   const matched = space.spaceTags
     .filter((t) => (vector[t] ?? 0) > 0)
     .sort((a, b) => (vector[b] ?? 0) - (vector[a] ?? 0))

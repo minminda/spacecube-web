@@ -1,9 +1,9 @@
-import type { Tag } from "@prisma/client";
+import type { TagKey } from "@prisma/client";
 
 export function aggregateSpaceTags(
-  records: { tags: { tag: Tag }[] }[]
-): [Tag, number][] {
-  const counts = new Map<Tag, number>();
+  records: { tags: { tag: TagKey }[] }[]
+): [TagKey, number][] {
+  const counts = new Map<TagKey, number>();
   for (const r of records) {
     for (const t of r.tags) {
       counts.set(t.tag, (counts.get(t.tag) ?? 0) + 1);
@@ -12,7 +12,7 @@ export function aggregateSpaceTags(
   return [...counts.entries()].sort((a, b) => b[1] - a[1]);
 }
 
-export function getSpaceUsageSummary(topTags: [Tag, number][]): string | null {
+export function getSpaceUsageSummary(topTags: [TagKey, number][]): string | null {
   if (topTags.length === 0) return null;
 
   const top = topTags[0][0];

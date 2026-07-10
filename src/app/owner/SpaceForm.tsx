@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Tag } from "@prisma/client";
+import { TagKey } from "@prisma/client";
 import { TAG_LABELS, ALL_TAGS } from "@/lib/tags";
 import Image from "next/image";
 
@@ -84,8 +84,8 @@ export default function SpaceForm({ mode, space }: Props) {
   const [storyItems, setStoryItems] = useState<StoryItem[]>(space?.storyItems ?? []);
   const [uploadingIndex, setUploadingIndex] = useState<number | null>(null);
 
-  const [selectedSpaceTags, setSelectedSpaceTags] = useState<Tag[]>(
-    (space?.spaceTags ?? []) as Tag[]
+  const [selectedSpaceTags, setSelectedSpaceTags] = useState<TagKey[]>(
+    (space?.spaceTags ?? []) as TagKey[]
   );
 
   const [form, setForm] = useState({
@@ -190,7 +190,7 @@ export default function SpaceForm({ mode, space }: Props) {
     }
   }
 
-  function toggleSpaceTag(tag: Tag) {
+  function toggleSpaceTag(tag: TagKey) {
     setSelectedSpaceTags((prev) => {
       if (prev.includes(tag)) return prev.filter((t) => t !== tag);
       if (prev.length >= MAX_SPACE_TAGS) return prev;
