@@ -38,11 +38,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       tagline: tagline || null,
       openingHours: openingHours || null,
       naverMapUrl: naverMapUrl || null,
-      description, philosophy: philosophy || "",
-      ownerMessage: ownerMessage || null,
-      experienceGuide: experienceGuide || null,
-      spacePoints: spacePoints || null,
-      storyItems: storyItems ?? null,
+      description,
       spaceTags: spaceTags ?? [],
       imageUrl: imageUrl || null,
       imageZoom: typeof imageZoom === "number" ? imageZoom : 1,
@@ -55,6 +51,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       ownerPlaylistUrl: ownerPlaylistUrl || null,
       ownerBlogUrl: ownerBlogUrl || null,
       ownerSocialUrl: ownerSocialUrl || null,
+      // '대표 글' 관련 레거시 필드는 Episode로 통합되어 더 이상 이 폼에서 편집하지 않는다.
+      // 요청 본문에 값이 없으면(폼이 보내지 않으면) 기존 값을 그대로 보존한다 — 의도치 않은 데이터 삭제 방지.
+      ...(philosophy !== undefined ? { philosophy: philosophy || "" } : {}),
+      ...(ownerMessage !== undefined ? { ownerMessage: ownerMessage || null } : {}),
+      ...(experienceGuide !== undefined ? { experienceGuide: experienceGuide || null } : {}),
+      ...(spacePoints !== undefined ? { spacePoints: spacePoints || null } : {}),
+      ...(storyItems !== undefined ? { storyItems: storyItems ?? null } : {}),
     },
   });
 

@@ -7,10 +7,6 @@ import { TAG_LABELS, ALL_TAGS } from "@/lib/tags";
 import Image from "next/image";
 import ImagePositionEditor from "@/components/ImagePositionEditor";
 
-type StoryItem =
-  | { type: "qa"; q: string; a: string }
-  | { type: "image"; url: string };
-
 interface SpaceData {
   id: string;
   name: string;
@@ -22,7 +18,6 @@ interface SpaceData {
   openingHours: string;
   naverMapUrl: string;
   description: string;
-  storyItems?: StoryItem[];
   spaceTags: string[];
   imageUrl?: string;
   imageZoom?: number;
@@ -86,10 +81,6 @@ export default function SpaceForm({ mode, space }: Props) {
     positionY: space?.imagePositionY ?? 0.5,
   });
 
-  // 인터뷰 스토리 아이템
-  const [storyItems, setStoryItems] = useState<StoryItem[]>(space?.storyItems ?? []);
-  const [uploadingIndex, setUploadingIndex] = useState<number | null>(null);
-
   const [selectedSpaceTags, setSelectedSpaceTags] = useState<TagKey[]>(
     (space?.spaceTags ?? []) as TagKey[]
   );
@@ -137,49 +128,6 @@ export default function SpaceForm({ mode, space }: Props) {
     });
   }
 
-  // 스토리 아이템 조작
-  function addQA() {
-    setStoryItems((prev) => [...prev, { type: "qa", q: "", a: "" }]);
-  }
-  function addImage() {
-    setStoryItems((prev) => [...prev, { type: "image", url: "" }]);
-  }
-  function removeItem(i: number) {
-    setStoryItems((prev) => prev.filter((_, idx) => idx !== i));
-  }
-  function moveItem(i: number, dir: -1 | 1) {
-    setStoryItems((prev) => {
-      const arr = [...prev];
-      const j = i + dir;
-      if (j < 0 || j >= arr.length) return arr;
-      [arr[i], arr[j]] = [arr[j], arr[i]];
-      return arr;
-    });
-  }
-  function updateQA(i: number, field: "q" | "a", value: string) {
-    setStoryItems((prev) =>
-      prev.map((item, idx) =>
-        idx === i && item.type === "qa" ? { ...item, [field]: value } : item
-      )
-    );
-  }
-  async function handleStoryImageChange(i: number, e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const localUrl = URL.createObjectURL(file);
-    setStoryItems((prev) =>
-      prev.map((item, idx) => idx === i && item.type === "image" ? { ...item, url: localUrl } : item)
-    );
-    setUploadingIndex(i);
-    const url = await uploadToCloudinary(file);
-    setUploadingIndex(null);
-    if (url) {
-      setStoryItems((prev) =>
-        prev.map((item, idx) => idx === i && item.type === "image" ? { ...item, url } : item)
-      );
-    }
-  }
-
   function toggleSpaceTag(tag: TagKey) {
     setSelectedSpaceTags((prev) => {
       if (prev.includes(tag)) return prev.filter((t) => t !== tag);
@@ -203,7 +151,6 @@ export default function SpaceForm({ mode, space }: Props) {
         imageZoom: heroImage.zoom,
         imagePositionX: heroImage.positionX,
         imagePositionY: heroImage.positionY,
-        storyItems: storyItems.length > 0 ? storyItems : null,
         spaceTags: selectedSpaceTags,
         ...ownerForm,
         ownerPhotoUrl: ownerPhotoUrl || null,
@@ -293,95 +240,25 @@ export default function SpaceForm({ mode, space }: Props) {
             className="w-full text-sm px-3 py-2.5 border" style={inputStyle} />
         </Field>
 
-        {/* 공간 이야기 */}
+        {/* 기본 소개 */}
         <div style={{ borderTop: "1px solid var(--border)" }} />
-        <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>공간 이야기</p>
+        <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>기본 소개</p>
 
-        <Field label="리드 텍스트 *">
+        <Field label="간단 소개 * (검색 결과·공유 링크에 노출됩니다)">
           <textarea name="description" value={form.description} onChange={handleChange} required
-            placeholder="이 공간이 어떤 곳인지 소개해줘. 독자가 처음 읽는 문단이야."
-            rows={4} className="w-full text-sm px-3 py-2.5 border resize-none" style={inputStyle} />
+            placeholder="이 공간을 한두 문장으로 짧게 소개해줘."
+            rows={3} className="w-full text-sm px-3 py-2.5 border resize-none" style={inputStyle} />
         </Field>
 
-        {/* 동적 인터뷰 아이템 */}
-        {storyItems.length > 0 && (
-          <div className="space-y-4">
-            {storyItems.map((item, i) => (
-              <div key={i} className="border p-4 space-y-3" style={{ borderColor: "var(--border)" }}>
-                {/* 컨트롤 */}
-                <div className="flex items-center justify-between">
-                  <span className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>
-                    {item.type === "qa" ? "Q&A" : "이미지"}
-                  </span>
-                  <div className="flex items-center gap-3">
-                    <button type="button" onClick={() => moveItem(i, -1)} disabled={i === 0}
-                      className="text-xs disabled:opacity-20" style={{ color: "var(--dim)" }}>↑</button>
-                    <button type="button" onClick={() => moveItem(i, 1)} disabled={i === storyItems.length - 1}
-                      className="text-xs disabled:opacity-20" style={{ color: "var(--dim)" }}>↓</button>
-                    <button type="button" onClick={() => removeItem(i)}
-                      className="text-xs" style={{ color: "var(--dim)" }}>×</button>
-                  </div>
-                </div>
-
-                {item.type === "qa" && (
-                  <>
-                    <input
-                      value={item.q}
-                      onChange={(e) => updateQA(i, "q", e.target.value)}
-                      placeholder="질문을 입력해줘 (예: 이 공간을 만든 이유가 뭔가요?)"
-                      className="w-full text-sm px-3 py-2.5 border"
-                      style={inputStyle}
-                    />
-                    <textarea
-                      value={item.a}
-                      onChange={(e) => updateQA(i, "a", e.target.value)}
-                      placeholder="답변을 입력해줘"
-                      rows={4}
-                      className="w-full text-sm px-3 py-2.5 border resize-none"
-                      style={inputStyle}
-                    />
-                  </>
-                )}
-
-                {item.type === "image" && (
-                  <label className="block cursor-pointer">
-                    <div className="w-full h-40 border flex items-center justify-center overflow-hidden relative"
-                      style={{ borderColor: "var(--border)" }}>
-                      {item.url ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={item.url} alt="" className="w-full h-full object-cover" />
-                      ) : (
-                        <span className="text-xs" style={{ color: "var(--dim)" }}>
-                          {uploadingIndex === i ? "업로드 중..." : "클릭해서 이미지 선택"}
-                        </span>
-                      )}
-                      {uploadingIndex === i && (
-                        <div className="absolute inset-0 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.5)" }}>
-                          <span className="text-xs" style={{ color: "var(--fg)" }}>업로드 중...</span>
-                        </div>
-                      )}
-                    </div>
-                    <input type="file" accept="image/*" onChange={(e) => handleStoryImageChange(i, e)} className="hidden" />
-                  </label>
-                )}
-              </div>
-            ))}
-          </div>
+        {mode === "edit" && space && (
+          <a
+            href={`/owner/${space.id}/episodes`}
+            className="block text-xs py-2.5 px-3 border transition-colors hover:bg-[var(--fg)] hover:text-[var(--bg)]"
+            style={{ borderColor: "var(--border)", color: "var(--dim)" }}
+          >
+            방문자에게 보여줄 이야기는 에피소드에서 관리해 →
+          </a>
         )}
-
-        {/* 아이템 추가 버튼 */}
-        <div className="flex gap-3">
-          <button type="button" onClick={addQA}
-            className="flex-1 text-sm py-2.5 border transition-colors hover:border-[var(--fg)]"
-            style={{ borderColor: "var(--border)", color: "var(--dim)" }}>
-            + 질문 추가
-          </button>
-          <button type="button" onClick={addImage}
-            className="flex-1 text-sm py-2.5 border transition-colors hover:border-[var(--fg)]"
-            style={{ borderColor: "var(--border)", color: "var(--dim)" }}>
-            + 이미지 추가
-          </button>
-        </div>
 
         {/* 운영자 이야기 */}
         <div style={{ borderTop: "1px solid var(--border)" }} />

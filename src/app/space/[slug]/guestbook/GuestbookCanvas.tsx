@@ -33,6 +33,9 @@ const INTRO_HOLD_MS = 260; // 시작 지점에서 잠깐 머무는 시간
 const INTRO_DURATION_MS = 2600; // 줌아웃 애니메이션 길이
 const GRID_CELL_W = 220;
 const GRID_CELL_H = 260;
+const COMPOSE_SCALE = 1.15; // 작성 중 편하게 볼 수 있는 확대 비율
+const COMPOSE_DURATION_MS = 550; // 포스트잇 생성 직후 줌인 애니메이션 길이
+const CANCEL_DURATION_MS = 420; // 취소 시 이전 화면으로 되돌아가는 애니메이션 길이
 
 const CLOUDINARY_URL = `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload`;
 const UPLOAD_PRESET = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET!;
@@ -90,6 +93,8 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
   const transformRef = useRef<ReactZoomPanPinchContentRef>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
   const downPos = useRef<{ x: number; y: number } | null>(null);
+  const lastTransformRef = useRef({ positionX: 0, positionY: 0, scale: INTRO_SCALE });
+  const preComposeTransformRef = useRef<{ positionX: number; positionY: number; scale: number } | null>(null);
 
   const focusId = searchParams.get("focus");
 
@@ -169,15 +174,22 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const jumpToNote = useCallback((note: GuestbookNoteData, scale = 1, duration = 700) => {
+  /** 캔버스 위 임의의 월드 좌표로 부드럽게 이동/확대하는 공통 함수.
+      screenYOffset은 화면 세로 방향으로 초점을 얼마나 밀어올릴지(모바일 키보드 회피용). */
+  const focusOnPoint = useCallback((worldX: number, worldY: number, scale: number, duration = 700, screenYOffset = 0) => {
     const viewport = viewportRef.current;
     const ctrl = transformRef.current;
     if (!viewport || !ctrl) return;
     const { clientWidth, clientHeight } = viewport;
-    const px = clientWidth / 2 - (note.x + NOTE_W / 2) * scale;
-    const py = clientHeight / 2 - (note.y + 60) * scale;
+    const px = clientWidth / 2 - worldX * scale;
+    const py = clientHeight / 2 - worldY * scale + screenYOffset;
     ctrl.setTransform(px, py, scale, duration, "easeOut");
   }, []);
+
+  /** 특정 포스트잇으로 이동/확대 (딥링크·"내 기록 보기" 등에서 재사용) */
+  const jumpToNote = useCallback((note: GuestbookNoteData, scale = 1, duration = 700) => {
+    focusOnPoint(note.x + NOTE_W / 2, note.y + 60, scale, duration);
+  }, [focusOnPoint]);
 
   useEffect(() => {
     if (!focusId) return;
@@ -254,10 +266,30 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
     };
   }
 
+  /** 작성 취소 — 빈 포스트잇을 남기지 않고, 클릭 직전의 카메라 위치로 자연스럽게 복귀 */
+  function cancelCompose() {
+    setComposer(null);
+    setContent("");
+    setPhotoPreview(null);
+    setPhotoUrl(null);
+    const prev = preComposeTransformRef.current;
+    const ctrl = transformRef.current;
+    if (prev && ctrl) {
+      ctrl.setTransform(prev.positionX, prev.positionY, prev.scale, CANCEL_DURATION_MS, "easeOut");
+    }
+    preComposeTransformRef.current = null;
+  }
+
   function handleWorldClick(e: React.MouseEvent<HTMLDivElement>) {
-    if (!writeMode || composer) return;
+    if (!writeMode) return;
     const down = downPos.current;
-    if (down && Math.hypot(e.clientX - down.x, e.clientY - down.y) > CLICK_TOLERANCE) return;
+    if (down && Math.hypot(e.clientX - down.x, e.clientY - down.y) > CLICK_TOLERANCE) return; // 팬이었음
+
+    // 이미 작성창이 열려 있는데 배경을 눌렀다 → 취소하고 캔버스로 복귀
+    if (composer) {
+      cancelCompose();
+      return;
+    }
 
     const rect = e.currentTarget.getBoundingClientRect();
     const scale = rect.width / WORLD_W;
@@ -265,11 +297,30 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
     const wy = (e.clientY - rect.top) / scale;
     const snapped = snapToGrid(wx - NOTE_W / 2, wy - 20);
 
-    setComposer({
-      x: Math.min(Math.max(snapped.x, 40), WORLD_W - NOTE_W - 40),
-      y: Math.min(Math.max(snapped.y, 40), WORLD_H - 220),
-    });
+    const x = Math.min(Math.max(snapped.x, 40), WORLD_W - NOTE_W - 40);
+    const y = Math.min(Math.max(snapped.y, 40), WORLD_H - 220);
+
+    // 생성 직후 해당 위치로 부드럽게 이동/확대하고, 취소 시 되돌아갈 이전 위치를 기억해둔다
+    preComposeTransformRef.current = { ...lastTransformRef.current };
+    setComposer({ x, y });
+    focusOnPoint(x + NOTE_W / 2, y + 70, COMPOSE_SCALE, COMPOSE_DURATION_MS);
   }
+
+  // 모바일 키보드가 열리면 작성창이 가려지지 않도록 초점을 위로 밀어 재조정
+  useEffect(() => {
+    if (!composer) return;
+    const vv = window.visualViewport;
+    if (!vv) return;
+    function onViewportResize() {
+      if (!vv || !composer) return;
+      const keyboardHeight = window.innerHeight - vv.height;
+      if (keyboardHeight > 100) {
+        focusOnPoint(composer.x + NOTE_W / 2, composer.y + 70, COMPOSE_SCALE, 300, -keyboardHeight / 2);
+      }
+    }
+    vv.addEventListener("resize", onViewportResize);
+    return () => vv.removeEventListener("resize", onViewportResize);
+  }, [composer, focusOnPoint]);
 
   async function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -321,6 +372,7 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
       setContent("");
       setPhotoPreview(null);
       setPhotoUrl(null);
+      preComposeTransformRef.current = null; // 저장 완료 — 취소 시 되돌아갈 위치는 더 이상 필요 없음, 지금 확대 상태 유지
       exitWriteMode();
       showToast("이 공간에 당신의 흔적이 남았습니다.");
     } finally {
@@ -472,7 +524,10 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
           pinch={{ step: 6 }}
           doubleClick={{ disabled: true }}
           panning={{ excluded: ["composer-block", "textarea", "button"] }}
-          onTransform={(_ref, state) => setScalePct(Math.round(state.scale * 100))}
+          onTransform={(_ref, state) => {
+            setScalePct(Math.round(state.scale * 100));
+            lastTransformRef.current = { positionX: state.positionX, positionY: state.positionY, scale: state.scale };
+          }}
         >
           <TransformComponent
             wrapperStyle={{ width: "100%", height: "100%" }}
@@ -588,7 +643,7 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
                   <div className="flex items-center justify-between mt-2">
                     <span className="text-[10px]" style={{ color: INK_DIM }}>{content.length}/{MAX_CONTENT}</span>
                     <div className="flex gap-2">
-                      <button type="button" onClick={() => { setComposer(null); setContent(""); setPhotoPreview(null); setPhotoUrl(null); }} className="text-xs px-2.5 py-1" style={{ color: INK_DIM }}>
+                      <button type="button" onClick={cancelCompose} className="text-xs px-2.5 py-1" style={{ color: INK_DIM }}>
                         취소
                       </button>
                       <button type="button" onClick={handleSubmit} disabled={!content.trim() || saving || photoUploading} className="text-xs px-3 py-1 border disabled:opacity-40" style={{ borderColor: INK, color: INK }}>

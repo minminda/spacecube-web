@@ -44,7 +44,14 @@ export default function SettingsPanel({ nickname, visibility, userId }: Props) {
 
   return (
     <>
-      <button onClick={() => setOpen(true)} className="text-xs" style={{ color: "var(--dim)" }} aria-label="설정">⚙</button>
+      <button
+        onClick={() => setOpen(true)}
+        className="inline-flex items-center justify-center w-11 h-11 -m-2.5 text-base flex-shrink-0"
+        style={{ color: "var(--dim)" }}
+        aria-label="설정"
+      >
+        ⚙
+      </button>
 
       {open && (
         <div

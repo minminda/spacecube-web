@@ -3,7 +3,6 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { isAdmin } from "@/lib/admin";
 import SpaceForm from "../../SpaceForm";
-import type { StoryItem } from "@/app/space/[slug]/SpaceStory";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -37,7 +36,6 @@ export default async function EditSpacePage({ params }: Props) {
         imageZoom: space.imageZoom ?? 1,
         imagePositionX: space.imagePositionX ?? 0.5,
         imagePositionY: space.imagePositionY ?? 0.5,
-        storyItems: (space.storyItems as StoryItem[]) ?? [],
         ownerName: space.ownerName ?? "",
         ownerPhotoUrl: space.ownerPhotoUrl ?? "",
         ownerBio: space.ownerBio ?? "",

@@ -1,27 +1,14 @@
-"use client";
+import Link from "next/link";
 
-import { useState } from "react";
-
-interface SceneData {
-  id: string;
-  title: string | null;
-  content: string;
-  imageUrl: string | null;
-  imageZoom: number;
-  imagePositionX: number;
-  imagePositionY: number;
-  imageAspectRatio: string;
-}
-
-interface EpisodeData {
+interface EpisodeSummary {
   id: string;
   episodeNumber: number;
   title: string;
   description: string | null;
+  imageUrl: string | null;
   unlockVisitCount: number;
   unlocked: boolean;
   isRead: boolean;
-  scenes: SceneData[];
 }
 
 export type BannerInfo =
@@ -30,26 +17,12 @@ export type BannerInfo =
   | null;
 
 interface Props {
-  episodes: EpisodeData[];
+  spaceSlug: string;
+  episodes: EpisodeSummary[];
   banner: BannerInfo;
 }
 
-export default function EpisodeSection({ episodes, banner }: Props) {
-  const [openId, setOpenId] = useState<string | null>(null);
-  const [readIds, setReadIds] = useState<Set<string>>(
-    () => new Set(episodes.filter((e) => e.isRead).map((e) => e.id)),
-  );
-
-  function toggle(ep: EpisodeData) {
-    if (!ep.unlocked) return;
-    const next = openId === ep.id ? null : ep.id;
-    setOpenId(next);
-    if (next && !readIds.has(ep.id)) {
-      setReadIds((prev) => new Set(prev).add(ep.id));
-      fetch(`/api/episodes/${ep.id}/read`, { method: "POST" }).catch(() => {});
-    }
-  }
-
+export default function EpisodeSection({ spaceSlug, episodes, banner }: Props) {
   if (episodes.length === 0) return null;
 
   return (
@@ -75,73 +48,46 @@ export default function EpisodeSection({ episodes, banner }: Props) {
 
       <div className="space-y-2">
         {episodes.map((ep) => {
-          const open = openId === ep.id;
-          const read = readIds.has(ep.id);
-          const remaining = ep.unlockVisitCount - (ep.unlocked ? 0 : 1); // 잠금 상태에서만 의미 있음
+          const remaining = ep.unlockVisitCount - (ep.unlocked ? 0 : 1);
+          const body = (
+            <div className="flex gap-3 items-center px-4 py-3">
+              {ep.unlocked && ep.imageUrl && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={ep.imageUrl} alt="" className="w-14 h-14 object-cover flex-shrink-0" />
+              )}
+              <div className="flex-1 min-w-0 space-y-0.5">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-sm font-medium truncate" style={{ color: ep.unlocked ? "var(--fg)" : "var(--dim)" }}>
+                    EP.{ep.episodeNumber} {ep.unlocked ? ep.title : ""}
+                  </span>
+                  {ep.unlocked ? (
+                    <span className="text-xs flex-shrink-0" style={{ color: ep.isRead ? "var(--dim)" : "var(--fg)" }}>
+                      {ep.isRead ? "읽기 →" : "● 안읽음"}
+                    </span>
+                  ) : (
+                    <span className="text-xs flex-shrink-0" style={{ color: "var(--border)" }}>🔒</span>
+                  )}
+                </div>
+                {ep.unlocked && ep.description && (
+                  <p className="text-xs truncate" style={{ color: "var(--dim)" }}>{ep.description}</p>
+                )}
+                {!ep.unlocked && (
+                  <p className="text-xs" style={{ color: "var(--dim)" }}>
+                    {remaining <= 1 ? "다음 방문에서 열립니다." : `앞으로 ${remaining}번 더 방문하면 열립니다.`}
+                  </p>
+                )}
+              </div>
+            </div>
+          );
 
           return (
             <div key={ep.id} className="border" style={{ borderColor: "var(--border)" }}>
-              <button
-                type="button"
-                onClick={() => toggle(ep)}
-                disabled={!ep.unlocked}
-                className="w-full flex items-center justify-between px-4 py-3 text-left transition-colors disabled:cursor-default"
-              >
-                <span className="text-sm font-medium" style={{ color: ep.unlocked ? "var(--fg)" : "var(--dim)" }}>
-                  EP.{ep.episodeNumber} {ep.unlocked ? ep.title : ""}
-                </span>
-                {ep.unlocked ? (
-                  <span className="text-xs flex-shrink-0 ml-3" style={{ color: read ? "var(--dim)" : "var(--fg)" }}>
-                    {read ? (open ? "닫기" : "열기") : "● 안읽음"}
-                  </span>
-                ) : (
-                  <span className="text-xs flex-shrink-0 ml-3" style={{ color: "var(--border)" }}>🔒</span>
-                )}
-              </button>
-
-              {!ep.unlocked && (
-                <p className="px-4 pb-3 text-xs" style={{ color: "var(--dim)" }}>
-                  {remaining <= 1 ? "다음 방문에서 열립니다." : `앞으로 ${remaining}번 더 방문하면 열립니다.`}
-                </p>
-              )}
-
-              {ep.unlocked && open && (
-                <div className="px-4 pb-4 space-y-5" style={{ borderTop: "1px solid var(--border)" }}>
-                  {ep.description && (
-                    <p className="text-xs leading-relaxed pt-4" style={{ color: "var(--dim)" }}>{ep.description}</p>
-                  )}
-                  {ep.scenes.map((scene) => (
-                    <div key={scene.id} className="space-y-2">
-                      {scene.imageUrl && (
-                        <div
-                          className="relative w-full overflow-hidden"
-                          style={{ aspectRatio: scene.imageAspectRatio, borderColor: "var(--border)" }}
-                        >
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={scene.imageUrl}
-                            alt={scene.title ?? ""}
-                            className="w-full h-full object-cover"
-                            style={{
-                              objectPosition: `${scene.imagePositionX * 100}% ${scene.imagePositionY * 100}%`,
-                              transform: `scale(${scene.imageZoom})`,
-                              transformOrigin: "center center",
-                            }}
-                          />
-                        </div>
-                      )}
-                      {scene.title && (
-                        <p className="text-sm font-medium">{scene.title}</p>
-                      )}
-                      <p className="text-sm leading-relaxed whitespace-pre-line" style={{ color: "var(--dim)" }}>
-                        {scene.content}
-                      </p>
-                    </div>
-                  ))}
-                  {ep.scenes.length === 0 && (
-                    <p className="text-xs pt-4" style={{ color: "var(--border)" }}>아직 준비 중인 이야기예요.</p>
-                  )}
-                </div>
+              {ep.unlocked ? (
+                <Link href={`/space/${spaceSlug}/episodes/${ep.id}`} className="block transition-colors hover:bg-[var(--tag-bg)]">
+                  {body}
+                </Link>
+              ) : (
+                body
               )}
             </div>
           );

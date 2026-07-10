@@ -6,8 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 import { TAG_LABELS } from "@/lib/tags";
 import type { Metadata } from "next";
-import { type StoryItem } from "./SpaceStory";
-import StoryTabs from "./StoryTabs";
+import OwnerStory from "./OwnerStory";
 import ScanTracker from "@/components/ScanTracker";
 import SpaceUnlockScreen from "./SpaceUnlockScreen";
 import SaveSpaceButton from "@/components/SaveSpaceButton";
@@ -43,7 +42,6 @@ export default async function SpacePage({ params }: Props) {
     prisma.episode.findMany({
       where: { spaceId: space.id, published: true },
       orderBy: { displayOrder: "asc" },
-      include: { scenes: { where: { isActive: true }, orderBy: { displayOrder: "asc" } } },
     }),
     // MVP 기간 비활성 기능 — 삭제하지 않고 그대로 보존 (플래그 true 시 즉시 복구)
     prisma.record.findMany({
@@ -89,19 +87,10 @@ export default async function SpacePage({ params }: Props) {
     episodeNumber: ep.episodeNumber,
     title: ep.title,
     description: ep.description,
+    imageUrl: ep.imageUrl,
     unlockVisitCount: ep.unlockVisitCount,
     unlocked: ep.unlockVisitCount <= visitCount,
     isRead: readEpisodeIds.has(ep.id),
-    scenes: ep.scenes.map((s) => ({
-      id: s.id,
-      title: s.title,
-      content: s.content,
-      imageUrl: s.imageUrl,
-      imageZoom: s.imageZoom ?? 1,
-      imagePositionX: s.imagePositionX ?? 0.5,
-      imagePositionY: s.imagePositionY ?? 0.5,
-      imageAspectRatio: s.imageAspectRatio ?? "3/2",
-    })),
   }));
 
   // 재방문 알림: 이번 방문으로 새로 열린 것 / 예전에 열렸지만 안읽은 것 / 앞으로 열릴 것
@@ -124,6 +113,7 @@ export default async function SpacePage({ params }: Props) {
 
   const recordHref = `/space/${slug}/record`;
   const ctaHref = session ? recordHref : `/login?callbackUrl=${encodeURIComponent(recordHref)}`;
+  const hasOwnerStory = !!(space.ownerBio || space.ownerValues || space.ownerPlaylistUrl || space.ownerBlogUrl || space.ownerSocialUrl);
 
   return (
     <main className="flex flex-col min-h-screen md:flex-row">
@@ -183,28 +173,28 @@ export default async function SpacePage({ params }: Props) {
             </>
           )}
 
-          <div style={{ borderTop: "1px solid var(--border)" }} />
-
-          <StoryTabs
-            description={space.description}
-            philosophy={space.philosophy}
-            ownerMessage={space.ownerMessage}
-            experienceGuide={space.experienceGuide}
-            spacePoints={space.spacePoints}
-            storyItems={space.storyItems as StoryItem[] | null}
-            ownerName={space.ownerName}
-            ownerPhotoUrl={space.ownerPhotoUrl}
-            ownerBio={space.ownerBio}
-            ownerValues={space.ownerValues}
-            ownerPlaylistUrl={space.ownerPlaylistUrl}
-            ownerBlogUrl={space.ownerBlogUrl}
-            ownerSocialUrl={space.ownerSocialUrl}
-          />
-
           {episodes.length > 0 && (
             <>
               <div style={{ borderTop: "1px solid var(--border)" }} />
-              <EpisodeSection episodes={episodes} banner={banner} />
+              <EpisodeSection spaceSlug={space.slug} episodes={episodes} banner={banner} />
+            </>
+          )}
+
+          {hasOwnerStory && (
+            <>
+              <div style={{ borderTop: "1px solid var(--border)" }} />
+              <section className="space-y-4">
+                <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>운영자의 이야기</p>
+                <OwnerStory
+                  ownerName={space.ownerName}
+                  ownerPhotoUrl={space.ownerPhotoUrl}
+                  ownerBio={space.ownerBio}
+                  ownerValues={space.ownerValues}
+                  ownerPlaylistUrl={space.ownerPlaylistUrl}
+                  ownerBlogUrl={space.ownerBlogUrl}
+                  ownerSocialUrl={space.ownerSocialUrl}
+                />
+              </section>
             </>
           )}
 
