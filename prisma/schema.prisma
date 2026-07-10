@@ -24,8 +24,8 @@ model User {
   records        Record[]
   spaces         Space[]
   collections    Collection[]
-  savedTastes    SavedTaste[] @relation("SavedBy")
-  savedByOthers  SavedTaste[] @relation("SavedTarget")
+  savedTastes    SavedTaste[]    @relation("SavedBy")
+  savedByOthers  SavedTaste[]    @relation("SavedTarget")
   guestbookNotes GuestbookNote[]
   episodeReads   EpisodeRead[]
   savedSpaces    SavedSpace[]
@@ -70,40 +70,40 @@ model VerificationToken {
 // ─── 공간큐브 Core ────────────────────────────────────────────
 
 model Space {
-  id              String   @id @default(cuid())
-  ownerId         String?
-  name            String
-  slug            String   @unique
-  type            String
-  district        String?
-  location        String
-  tagline         String?
-  openingHours    String?
-  naverMapUrl     String?
-  description     String   @db.Text
-  philosophy      String   @db.Text
-  ownerMessage    String?  @db.Text
-  experienceGuide String?  @db.Text
-  spacePoints     String?  @db.Text
-  storyItems      Json?
-  imageUrl        String?
-  imageZoom       Float?   @default(1)
-  imagePositionX  Float?   @default(0.5)
-  imagePositionY  Float?   @default(0.5)
-  ownerName       String?
-  ownerPhotoUrl   String?
-  ownerBio        String?  @db.Text
-  ownerValues     String?  @db.Text
+  id               String   @id @default(cuid())
+  ownerId          String?
+  name             String
+  slug             String   @unique
+  type             String
+  district         String?
+  location         String
+  tagline          String?
+  openingHours     String?
+  naverMapUrl      String?
+  description      String   @db.Text
+  philosophy       String   @db.Text
+  ownerMessage     String?  @db.Text
+  experienceGuide  String?  @db.Text
+  spacePoints      String?  @db.Text
+  storyItems       Json?
+  imageUrl         String?
+  imageZoom        Float?   @default(1)
+  imagePositionX   Float?   @default(0.5)
+  imagePositionY   Float?   @default(0.5)
+  ownerName        String?
+  ownerPhotoUrl    String?
+  ownerBio         String?  @db.Text
+  ownerValues      String?  @db.Text
   ownerPlaylistUrl String?
-  ownerBlogUrl    String?
-  ownerSocialUrl  String?
-  spaceTags       TagKey[] // 레거시 enum 배열 — SpaceTag로 이전 예정, 당분간 병행 유지
-  lat             Float?
-  lng             Float?
-  isActive        Boolean  @default(true)
-  isFullyBooked   Boolean  @default(false)
-  currentMood     String?
-  createdAt       DateTime @default(now())
+  ownerBlogUrl     String?
+  ownerSocialUrl   String?
+  spaceTags        TagKey[] // 레거시 enum 배열 — SpaceTag로 이전 예정, 당분간 병행 유지
+  lat              Float?
+  lng              Float?
+  isActive         Boolean  @default(true)
+  isFullyBooked    Boolean  @default(false)
+  currentMood      String?
+  createdAt        DateTime @default(now())
 
   owner             User?               @relation(fields: [ownerId], references: [id], onDelete: SetNull)
   records           Record[]
@@ -117,6 +117,7 @@ model Space {
   guestbookSettings GuestbookSettings?
   spaceTagLinks     SpaceTag[]
   savedByUsers      SavedSpace[]
+  kpis              SpaceKPI[]
 }
 
 // 디지털 방명록 포스트잇 — 캔버스 위 좌표에 남는 짧은 흔적
@@ -170,6 +171,40 @@ model SpaceScan {
   space Space @relation(fields: [spaceId], references: [id], onDelete: Cascade)
 }
 
+// 공간별 KPI 일별 스냅샷 — 관리자 KPI 화면이 매번 다시 계산하지 않도록
+// 이벤트(기록 생성/수정, 방명록 작성) 발생 시 그날 날짜(KST 기준)의 행을 재계산해 저장한다.
+// date 기준으로 누적되므로 추후 월별 리포트는 이 테이블을 월 단위로 묶어서 만들 수 있다.
+model SpaceKPI {
+  id      String   @id @default(cuid())
+  spaceId String
+  date    DateTime @db.Date // KST 기준 집계일
+
+  qrUsersToday Int @default(0) // 오늘 방문 기록을 남긴 고유 사용자 수
+  qrUsersMonth Int @default(0) // 이번 달 방문 기록을 남긴 고유 사용자 수
+  qrUsersTotal Int @default(0) // 누적 방문 기록을 남긴 고유 사용자 수
+
+  revisitUsersTotal Int   @default(0) // 12시간 재방문 정책 기준 재방문자 수 (누적)
+  revisitRate       Float @default(0) // revisitUsersTotal / qrUsersTotal (0~1)
+
+  guestbookUsersTotal Int   @default(0) // 방명록 작성자 수 (누적)
+  guestbookRate       Float @default(0) // guestbookUsersTotal / qrUsersTotal (0~1)
+  totalGuestbookCount Int   @default(0) // 누적 포스트잇 수
+
+  averageTasteScore Float? // 취향 적합도(1~5) 평균, 기록 없으면 null
+  tasteScoreCount   Int    @default(0) // 평균 계산에 쓰인 기록 수 (월별 가중평균용)
+
+  topTags      Json? // [{ tag, label, count }] 상위 3개, 기록 없으면 null
+  usageSummary String? @db.Text // generateSpaceUsageSummary() 결과
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  space Space @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+
+  @@unique([spaceId, date])
+  @@map("space_kpi")
+}
+
 model Record {
   id         String   @id @default(cuid())
   userId     String
@@ -194,20 +229,20 @@ model RecordTag {
 }
 
 model Collection {
-  id        String           @id @default(cuid())
+  id        String   @id @default(cuid())
   userId    String
   name      String
-  createdAt DateTime         @default(now())
+  createdAt DateTime @default(now())
 
   user  User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   items CollectionItem[]
 }
 
 model CollectionItem {
-  id           String     @id @default(cuid())
+  id           String   @id @default(cuid())
   collectionId String
   spaceId      String
-  addedAt      DateTime   @default(now())
+  addedAt      DateTime @default(now())
 
   collection Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
   space      Space      @relation(fields: [spaceId], references: [id], onDelete: Cascade)
@@ -221,7 +256,7 @@ model SavedTaste {
   targetUserId String
   savedAt      DateTime @default(now())
 
-  user   User @relation("SavedBy",     fields: [userId],       references: [id], onDelete: Cascade)
+  user   User @relation("SavedBy", fields: [userId], references: [id], onDelete: Cascade)
   target User @relation("SavedTarget", fields: [targetUserId], references: [id], onDelete: Cascade)
 
   @@unique([userId, targetUserId])
@@ -245,16 +280,16 @@ model SavedSpace {
 // 신규 Tag 모델이 관리자 CRUD 가능한 태그 마스터 테이블.
 
 model Tag {
-  id                   String    @id @default(cuid())
+  id                   String   @id @default(cuid())
   name                 String // 관리자가 수정 가능한 표시명 (예: "조용한")
   category             String? // 태그 그룹 (예: "분위기", "용도")
   description          String?
-  displayOrder         Int       @default(0)
-  isActive             Boolean   @default(true) // 실제 삭제 대신 비활성화
-  useForRecommendation Boolean   @default(true)
-  legacyKey            TagKey?   @unique // 기존 enum 값과의 매핑 (마이그레이션용, 신규 태그는 null)
-  createdAt            DateTime  @default(now())
-  updatedAt            DateTime  @updatedAt
+  displayOrder         Int      @default(0)
+  isActive             Boolean  @default(true) // 실제 삭제 대신 비활성화
+  useForRecommendation Boolean  @default(true)
+  legacyKey            TagKey?  @unique // 기존 enum 값과의 매핑 (마이그레이션용, 신규 태그는 null)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
 
   spaceLinks SpaceTag[]
   recordTags RecordTag[]

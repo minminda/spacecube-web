@@ -4,6 +4,7 @@ export const dynamic = "force-dynamic";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
+import { recomputeSpaceKPI } from "@/lib/kpi";
 
 const MAX_CONTENT = 80;
 const DEFAULT_COLOR = "#F6E7A8"; // 관리자 설정이 없을 때 기본 노란 포스트잇
@@ -72,6 +73,8 @@ export async function POST(req: NextRequest) {
         color: space.guestbookSettings?.defaultPostitColor ?? DEFAULT_COLOR,
       },
     });
+
+    await recomputeSpaceKPI(spaceId);
 
     return NextResponse.json(
       {

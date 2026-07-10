@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { TagKey } from "@prisma/client";
 import { ENABLE_RECORD_TAG_SELECTION, ENABLE_TASTE_SCORE_RECOMMENDATION } from "@/lib/features";
 import { isNewVisit } from "@/lib/visit";
+import { recomputeSpaceKPI } from "@/lib/kpi";
 
 export async function POST(req: NextRequest) {
   const session = await auth();
@@ -58,6 +59,7 @@ export async function POST(req: NextRequest) {
           : {}),
       },
     });
+    await recomputeSpaceKPI(spaceId);
     return NextResponse.json(updated, { status: 200 });
   }
 
@@ -74,5 +76,6 @@ export async function POST(req: NextRequest) {
     },
   });
 
+  await recomputeSpaceKPI(spaceId);
   return NextResponse.json(record, { status: 201 });
 }
