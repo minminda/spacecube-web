@@ -140,7 +140,18 @@ export default async function SpacePage({ params }: Props) {
           className="relative w-full flex-shrink-0 md:w-1/2 md:sticky md:top-0 md:self-start md:h-screen"
           style={{ aspectRatio: "16 / 11" }}
         >
-          <Image src={space.imageUrl} alt={space.name} fill className="object-cover" style={{ aspectRatio: "unset" }} />
+          <Image
+            src={space.imageUrl}
+            alt={space.name}
+            fill
+            className="object-cover"
+            style={{
+              aspectRatio: "unset",
+              objectPosition: `${(space.imagePositionX ?? 0.5) * 100}% ${(space.imagePositionY ?? 0.5) * 100}%`,
+              transform: `scale(${space.imageZoom ?? 1})`,
+              transformOrigin: "center center",
+            }}
+          />
         </div>
       )}
 

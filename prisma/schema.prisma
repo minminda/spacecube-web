@@ -87,6 +87,9 @@ model Space {
   spacePoints     String?  @db.Text
   storyItems      Json?
   imageUrl        String?
+  imageZoom       Float?   @default(1)
+  imagePositionX  Float?   @default(0.5)
+  imagePositionY  Float?   @default(0.5)
   ownerName       String?
   ownerPhotoUrl   String?
   ownerBio        String?  @db.Text
@@ -261,12 +264,13 @@ model Tag {
 
 // 공간-태그 연결 + 가중치 (추천 로직에서 활용)
 model SpaceTag {
-  id        String   @id @default(cuid())
-  spaceId   String
-  tagId     String
-  weight    Float    @default(1)
-  isPrimary Boolean  @default(false)
-  createdAt DateTime @default(now())
+  id             String   @id @default(cuid())
+  spaceId        String
+  tagId          String
+  weight         Float    @default(1)
+  isPrimary      Boolean  @default(false)
+  visibleToUsers Boolean  @default(true) // 사용자 기록 화면(태그 선택 등)에 노출할지 여부
+  createdAt      DateTime @default(now())
 
   space Space @relation(fields: [spaceId], references: [id], onDelete: Cascade)
   tag   Tag   @relation(fields: [tagId], references: [id], onDelete: Cascade)
@@ -288,6 +292,11 @@ model Episode {
   unlockVisitCount Int      @default(0) // 이 방문 횟수부터 열람 가능 (0 = 항상 공개)
   displayOrder     Int      @default(0)
   published        Boolean  @default(false)
+  imageUrl         String?
+  imageZoom        Float?   @default(1)
+  imagePositionX   Float?   @default(0.5)
+  imagePositionY   Float?   @default(0.5)
+  imageAspectRatio String?  @default("4/3")
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
@@ -304,11 +313,12 @@ model Scene {
   title            String?
   content          String   @db.Text
   displayOrder     Int      @default(0)
+  isActive         Boolean  @default(true) // 비활성화 시 사용자 화면에서 숨김 (삭제 대안)
   imageUrl         String?
   imageZoom        Float?   @default(1)
   imagePositionX   Float?   @default(0.5)
   imagePositionY   Float?   @default(0.5)
-  imageAspectRatio String?
+  imageAspectRatio String?  @default("3/2")
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 

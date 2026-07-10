@@ -25,6 +25,9 @@ export async function POST(req: NextRequest) {
     storyItems,
     spaceTags,
     imageUrl,
+    imageZoom,
+    imagePositionX,
+    imagePositionY,
   } = await req.json();
 
   if (!name || !slug || !type || !district || !location || !description) {
@@ -50,6 +53,9 @@ export async function POST(req: NextRequest) {
       storyItems: storyItems ?? null,
       spaceTags: spaceTags ?? [],
       imageUrl: imageUrl || null,
+      imageZoom: typeof imageZoom === "number" ? imageZoom : 1,
+      imagePositionX: typeof imagePositionX === "number" ? imagePositionX : 0.5,
+      imagePositionY: typeof imagePositionY === "number" ? imagePositionY : 0.5,
     },
   });
 

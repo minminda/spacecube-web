@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { TagKey } from "@prisma/client";
 import { TAG_LABELS, ALL_TAGS } from "@/lib/tags";
 import Image from "next/image";
+import ImagePositionEditor from "@/components/ImagePositionEditor";
 
 type StoryItem =
   | { type: "qa"; q: string; a: string }
@@ -24,6 +25,9 @@ interface SpaceData {
   storyItems?: StoryItem[];
   spaceTags: string[];
   imageUrl?: string;
+  imageZoom?: number;
+  imagePositionX?: number;
+  imagePositionY?: number;
   ownerName?: string;
   ownerPhotoUrl?: string;
   ownerBio?: string;
@@ -74,11 +78,13 @@ export default function SpaceForm({ mode, space }: Props) {
     ownerSocialUrl: space?.ownerSocialUrl ?? "",
   });
 
-  // 대표 이미지
-  const [imageUrl, setImageUrl] = useState(space?.imageUrl ?? "");
-  const [imagePreview, setImagePreview] = useState(space?.imageUrl ?? "");
-  const [imageUploading, setImageUploading] = useState(false);
-  const [imageError, setImageError] = useState("");
+  // 대표 이미지 — 위치/확대 조절 포함
+  const [heroImage, setHeroImage] = useState({
+    imageUrl: space?.imageUrl ?? "",
+    zoom: space?.imageZoom ?? 1,
+    positionX: space?.imagePositionX ?? 0.5,
+    positionY: space?.imagePositionY ?? 0.5,
+  });
 
   // 인터뷰 스토리 아이템
   const [storyItems, setStoryItems] = useState<StoryItem[]>(space?.storyItems ?? []);
@@ -129,22 +135,6 @@ export default function SpaceForm({ mode, space }: Props) {
       }
       return next;
     });
-  }
-
-  async function handleMainImageChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setImagePreview(URL.createObjectURL(file));
-    setImageError("");
-    setImageUploading(true);
-    const url = await uploadToCloudinary(file);
-    setImageUploading(false);
-    if (url) {
-      setImageUrl(url);
-      setImagePreview(url);
-    } else {
-      setImageError("이미지 업로드에 실패했어요. 다시 시도해봐.");
-    }
   }
 
   // 스토리 아이템 조작
@@ -209,7 +199,10 @@ export default function SpaceForm({ mode, space }: Props) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         ...form,
-        imageUrl: imageUrl || null,
+        imageUrl: heroImage.imageUrl || null,
+        imageZoom: heroImage.zoom,
+        imagePositionX: heroImage.positionX,
+        imagePositionY: heroImage.positionY,
         storyItems: storyItems.length > 0 ? storyItems : null,
         spaceTags: selectedSpaceTags,
         ...ownerForm,
@@ -241,27 +234,13 @@ export default function SpaceForm({ mode, space }: Props) {
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-6">
 
-        {/* 대표 이미지 */}
-        <Field label="대표 이미지 (선택)">
-          <label className="block cursor-pointer">
-            <div className="w-full h-44 border flex items-center justify-center overflow-hidden relative" style={{ borderColor: "var(--border)" }}>
-              {imagePreview ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={imagePreview} alt="preview" className="w-full h-full object-cover" />
-              ) : (
-                <span className="text-xs" style={{ color: "var(--dim)" }}>클릭해서 이미지 선택</span>
-              )}
-              {imageUploading && (
-                <div className="absolute inset-0 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.5)" }}>
-                  <span className="text-xs" style={{ color: "var(--fg)" }}>업로드 중...</span>
-                </div>
-              )}
-            </div>
-            <input type="file" accept="image/*" onChange={handleMainImageChange} className="hidden" />
-          </label>
-          {imageError && <p className="text-xs mt-1 text-red-400">{imageError}</p>}
-          {imageUrl && !imageError && <p className="text-xs mt-1" style={{ color: "var(--dim)" }}>✓ 업로드 완료</p>}
-        </Field>
+        {/* 대표 이미지 — 공간 상세 페이지 비율(16:11) 고정, 위치/확대 조절 가능 */}
+        <ImagePositionEditor
+          label="대표 이미지 (선택)"
+          value={heroImage}
+          onChange={setHeroImage}
+          aspectRatio="16/11"
+        />
 
         {/* 기본 정보 */}
         <div style={{ borderTop: "1px solid var(--border)" }} />
@@ -490,7 +469,7 @@ export default function SpaceForm({ mode, space }: Props) {
 
         {error && <p className="text-xs text-red-400">{error}</p>}
 
-        <button type="submit" disabled={loading || imageUploading}
+        <button type="submit" disabled={loading}
           className="w-full text-sm font-medium py-3 border hover:bg-[var(--fg)] hover:text-[var(--bg)] transition-colors disabled:opacity-30"
           style={{ borderColor: "var(--fg)" }}>
           {loading ? "저장 중..." : mode === "new" ? "공간 등록하기" : "수정 완료"}
