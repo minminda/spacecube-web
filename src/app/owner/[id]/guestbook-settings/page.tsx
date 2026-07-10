@@ -10,7 +10,7 @@ interface Props { params: Promise<{ id: string }> }
 // 설정하지 않은 공간이 사용할 앱 기본값
 const DEFAULTS = {
   backgroundType: "color" as const,
-  backgroundColor: "#0a0a08",
+  backgroundColor: "#000000",
   backgroundImageUrl: "",
   backgroundOpacity: 1,
   layoutType: "scatter" as const,

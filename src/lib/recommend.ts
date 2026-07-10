@@ -107,3 +107,46 @@ export function getVectorReason(space: { spaceTags: TagKey[] }, vector: TasteVec
   const labels = matched.map((t) => `'${TAG_LABELS[t]}'`).join(", ");
   return `최근 높은 점수를 준 공간들과 ${labels} 결이 닮아 있어요.`;
 }
+
+/* ── 관리자 태그 가중치(SpaceTag.weight) 반영 취향 벡터 ─────────────────
+   기존 buildTasteVector를 대체하지 않고 확장한다. 공간에 SpaceTag 연결이
+   있으면 가중치를 곱해서 반영하고(예: 조용한 weight 1.0 → tasteScore*1.0),
+   아직 관리자가 태그를 연결하지 않은 공간은 기존 spaceTags 배열(가중치 1)로
+   자연스럽게 폴백해 기존 기록 기반 추천이 계속 동작한다.
+   결과 타입은 기존 TasteVector(TagKey 기준)와 동일해 rankSpacesByVector,
+   getVectorReason 등 기존 함수를 그대로 재사용할 수 있다.
+──────────────────────────────────────────────────────────────────── */
+
+export interface WeightedVectorRecord {
+  tasteScore: number | null;
+  space: {
+    spaceTags: TagKey[]; // 레거시 폴백
+    spaceTagLinks?: {
+      weight: number;
+      tag: { legacyKey: TagKey | null; isActive: boolean; useForRecommendation: boolean };
+    }[];
+  };
+}
+
+/** 기록 목록 → 태그 가중치(SpaceTag.weight)까지 반영한 취향 벡터 */
+export function buildWeightedTasteVector(records: WeightedVectorRecord[]): TasteVector {
+  const vector: TasteVector = {};
+  for (const r of records) {
+    const score = r.tasteScore ?? 3; // 점수 없는 레거시 기록은 중립 가중치
+    const links = (r.space.spaceTagLinks ?? []).filter(
+      (l) => l.tag.isActive && l.tag.useForRecommendation && l.tag.legacyKey,
+    );
+    if (links.length > 0) {
+      for (const link of links) {
+        const key = link.tag.legacyKey as TagKey;
+        vector[key] = (vector[key] ?? 0) + score * link.weight;
+      }
+    } else {
+      // 아직 SpaceTag가 연결되지 않은 공간 — 기존 방식(가중치 1)으로 폴백
+      for (const tag of r.space.spaceTags) {
+        vector[tag] = (vector[tag] ?? 0) + score;
+      }
+    }
+  }
+  return vector;
+}

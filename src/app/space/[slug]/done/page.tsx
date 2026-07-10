@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 import {
   rankSpaces,
-  buildTasteVector,
+  buildWeightedTasteVector,
   rankSpacesByVector,
   getVectorReason,
   type SpaceCandidate,
@@ -54,7 +54,10 @@ export default async function DonePage({ params, searchParams }: Props) {
     if (user) {
       const userRecords = await prisma.record.findMany({
         where: { userId: user.id },
-        include: { tags: true, space: { select: { spaceTags: true } } },
+        include: {
+          tags: true,
+          space: { select: { spaceTags: true, spaceTagLinks: { include: { tag: true } } } },
+        },
       });
       const visitedIds = new Set(userRecords.map((r) => r.spaceId));
 
@@ -71,8 +74,8 @@ export default async function DonePage({ params, searchParams }: Props) {
       });
 
       if (ENABLE_TASTE_SCORE_RECOMMENDATION) {
-        // tasteScore 가중 벡터 기반 추천
-        const vector = buildTasteVector(userRecords);
+        // tasteScore × 관리자 태그 가중치(SpaceTag.weight) 기반 추천 벡터
+        const vector = buildWeightedTasteVector(userRecords);
         let ranked = rankSpacesByVector(candidates, vector, 3);
         if (ranked.length === 0 && space.district) {
           candidates = await prisma.space.findMany({

@@ -8,7 +8,7 @@ import CollectionManager from "@/components/CollectionManager";
 import { aggregateTags, getTastePhrase, tagOverlap } from "@/lib/taste";
 import {
   rankSpaces, getRecommendReason,
-  buildTasteVector, vectorTopTags, rankSpacesByVector, getVectorReason,
+  buildWeightedTasteVector, vectorTopTags, rankSpacesByVector, getVectorReason,
 } from "@/lib/recommend";
 import {
   ENABLE_TASTE_SCORE_RECOMMENDATION,
@@ -39,7 +39,10 @@ export default async function ArchivePage() {
   const user = await prisma.user.findUnique({
     where: { email: session.user.email },
     include: {
-      records: { orderBy: { visitedAt: "desc" }, include: { space: true, tags: true } },
+      records: {
+        orderBy: { visitedAt: "desc" },
+        include: { space: { include: { spaceTagLinks: { include: { tag: true } } } }, tags: true },
+      },
       collections: { orderBy: { createdAt: "asc" }, include: { items: { orderBy: { addedAt: "asc" }, include: { space: true } } } },
       savedTastes: {
         orderBy: { savedAt: "desc" },
@@ -54,14 +57,18 @@ export default async function ArchivePage() {
           },
         },
       },
+      savedSpaces: {
+        orderBy: { createdAt: "desc" },
+        include: { space: { select: { id: true, name: true, slug: true, type: true, district: true, imageUrl: true, tagline: true } } },
+      },
     },
   });
   if (!user) redirect("/login");
 
   const allRecords = user.records;
 
-  // 취향 프로파일: tasteScore 가중 벡터(신규) 또는 태그 빈도(레거시)
-  const tasteVector = ENABLE_TASTE_SCORE_RECOMMENDATION ? buildTasteVector(allRecords) : null;
+  // 취향 프로파일: tasteScore × 태그 가중치 벡터(신규) 또는 태그 빈도(레거시)
+  const tasteVector = ENABLE_TASTE_SCORE_RECOMMENDATION ? buildWeightedTasteVector(allRecords) : null;
   const allTags      = tasteVector ? vectorTopTags(tasteVector) : aggregateTags(allRecords);
   const topTags      = allTags.slice(0, 5);
   const tastePhrase  = getTastePhrase(topTags);
@@ -304,7 +311,7 @@ export default async function ArchivePage() {
               )}
 
               <section className="mb-10">
-                <SectionLabel>내가 다녀온 곳</SectionLabel>
+                <SectionLabel>내가 방문한 공간</SectionLabel>
                 <div className="space-y-4">
                   {allRecords.map((r) => (
                     <Link key={r.id} href={`/archive/${r.id}`} className="flex flex-col gap-0.5 group">
@@ -325,6 +332,25 @@ export default async function ArchivePage() {
                   ))}
                 </div>
               </section>
+
+              {user.savedSpaces.length > 0 && (
+                <>
+                  <Divider />
+                  <section className="mb-10">
+                    <SectionLabel>저장한 공간</SectionLabel>
+                    <div className="space-y-4">
+                      {user.savedSpaces.map((s) => (
+                        <Link key={s.id} href={`/space/${s.space.slug}`} className="flex flex-col gap-0.5 group">
+                          <span className="text-sm font-medium group-hover:underline">{s.space.name}</span>
+                          <span className="text-xs" style={{ color: "var(--dim)" }}>
+                            {[s.space.type, s.space.district].filter(Boolean).join(" · ")}
+                          </span>
+                        </Link>
+                      ))}
+                    </div>
+                  </section>
+                </>
+              )}
 
               {memos.length > 0 && (
                 <>

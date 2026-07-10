@@ -4,16 +4,16 @@ import { useEffect, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 
 /* ── Cube Unlock 인트로 ──────────────────────────────────────
-   QR 스캔(?src=qr) 진입 시에만 표시되는 2초 리츄얼 화면.
-   Phase 1 (0~0.5s)   큐브 fade-in + scale 0.95→1
-   Phase 2 (0.5~1.5s) 엣지 글로우 펄스
-   Phase 3 (1.5~2.0s) 앞면이 문처럼 열림
-   Phase 4 (2.0s~)    화면 전체가 공간 페이지로 페이드
+   QR 스캔(?src=qr) 진입 시에만 표시되는 약 3초 리츄얼 화면.
+   Phase 1 (0~0.5s)     큐브 fade-in + scale 0.95→1
+   Phase 2 (0.5~1.9s)   엣지 글로우 펄스
+   Phase 3 (1.9~2.4s)   앞면이 문처럼 열림
+   Phase 4 (2.55s~)     화면 전체가 공간 페이지로 페이드
    종료 후 URL에서 src 파라미터를 제거해 새로고침/뒤로가기 시
    재생되지 않게 한다.
 ──────────────────────────────────────────────────────────── */
 
-const PLAY_MS = 2000;
+const PLAY_MS = 2550;
 const FADE_MS = 450;
 
 export default function SpaceUnlockScreen() {
@@ -81,7 +81,7 @@ export default function SpaceUnlockScreen() {
           width: 100%;
           height: 100%;
           transform-style: preserve-3d;
-          animation: unlockDrift 2s ease-in-out both;
+          animation: unlockDrift 2.55s ease-in-out both;
         }
         .unlock-face {
           position: absolute;
@@ -95,7 +95,7 @@ export default function SpaceUnlockScreen() {
           transform-origin: left center;
           animation:
             unlockPulse 1s ease-in-out 0.5s 1,
-            unlockDoor 0.5s cubic-bezier(0.45, 0, 0.2, 1) 1.5s forwards;
+            unlockDoor 0.5s cubic-bezier(0.45, 0, 0.2, 1) 1.9s forwards;
         }
         .uf-back   { transform: rotateY(180deg) translateZ(48px); }
         .uf-right  { transform: rotateY(90deg)  translateZ(48px); }

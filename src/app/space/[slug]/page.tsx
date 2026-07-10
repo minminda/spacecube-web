@@ -5,12 +5,13 @@ import { Suspense } from "react";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 import { TAG_LABELS } from "@/lib/tags";
-import { aggregateTags, getTastePhrase } from "@/lib/taste";
 import type { Metadata } from "next";
 import { type StoryItem } from "./SpaceStory";
 import StoryTabs from "./StoryTabs";
 import ScanTracker from "@/components/ScanTracker";
 import SpaceUnlockScreen from "./SpaceUnlockScreen";
+import SaveSpaceButton from "@/components/SaveSpaceButton";
+import EpisodeSection, { type BannerInfo } from "./EpisodeSection";
 import { ENABLE_GUESTBOOK_WALL } from "@/lib/features";
 import { aggregateSpaceTags, getSpaceUsageSummary } from "@/lib/spaceInsight";
 
@@ -28,110 +29,101 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-function getVisitMessage(visitCount: number, firstVisitAt: Date | null): string | null {
-  if (visitCount < 2) return null;
-  const ordinals = ["두", "세", "네", "다섯", "여섯", "일곱", "여덟", "아홉", "열"];
-  const daysSince = firstVisitAt
-    ? Math.floor((Date.now() - firstVisitAt.getTime()) / 86_400_000)
-    : 0;
-  const ordinal = visitCount <= 10 ? ordinals[visitCount - 2] : null;
-  const base = ordinal ? `${ordinal} 번째 방문이네요.` : `이 공간과 ${visitCount}번 함께했네요.`;
-  if (daysSince >= 7) return `${base} 처음 기록 이후 ${daysSince}일 만에 다시 왔어요.`;
-  return base;
-}
-
 export default async function SpacePage({ params }: Props) {
   const { slug } = await params;
-  const space = await prisma.space.findUnique({ where: { slug, isActive: true } });
+
+  const [space, session] = await Promise.all([
+    prisma.space.findUnique({ where: { slug, isActive: true } }),
+    auth(),
+  ]);
   if (!space) notFound();
 
-  const session = await auth();
+  const [user, episodesRaw, anonymousReactions, allTagRecords] = await Promise.all([
+    session?.user?.email ? prisma.user.findUnique({ where: { email: session.user.email } }) : Promise.resolve(null),
+    prisma.episode.findMany({
+      where: { spaceId: space.id, published: true },
+      orderBy: { displayOrder: "asc" },
+      include: { scenes: { where: { isActive: true }, orderBy: { displayOrder: "asc" } } },
+    }),
+    // MVP 기간 비활성 기능 — 삭제하지 않고 그대로 보존 (플래그 true 시 즉시 복구)
+    prisma.record.findMany({
+      where: { spaceId: space.id, OR: [{ memo: { not: null } }, { tags: { some: {} } }] },
+      include: { tags: true },
+      orderBy: { visitedAt: "desc" },
+      take: 5,
+    }),
+    prisma.record.findMany({ where: { spaceId: space.id }, include: { tags: true } }),
+  ]);
 
   let visitCount = 0;
-  let firstVisitAt: Date | null = null;
   let hasRecord = false;
+  let isSaved = false;
+  let userId: string | null = null;
 
-  if (session?.user?.email) {
-    const user = await prisma.user.findUnique({ where: { email: session.user.email } });
-    if (user) {
-      const userRecords = await prisma.record.findMany({
-        where: { userId: user.id, spaceId: space.id },
-        orderBy: { visitedAt: "asc" },
-        select: { visitedAt: true },
-      });
-      visitCount = userRecords.length;
-      firstVisitAt = userRecords[0]?.visitedAt ?? null;
-      hasRecord = visitCount > 0;
-    }
+  if (user) {
+    userId = user.id;
+    const [vc, saved] = await Promise.all([
+      prisma.record.count({ where: { userId: user.id, spaceId: space.id } }),
+      prisma.savedSpace.findUnique({
+        where: { userId_spaceId: { userId: user.id, spaceId: space.id } },
+        select: { id: true },
+      }),
+    ]);
+    visitCount = vc;
+    hasRecord = vc > 0;
+    isSaved = !!saved;
   }
 
-  const visitMessage = getVisitMessage(visitCount, firstVisitAt);
-  const firstVisitPrompt = !hasRecord && session;
+  // ── Episode / Scene — 방문 횟수에 따라 열림 여부 결정 ──
+  let readEpisodeIds = new Set<string>();
+  if (userId && episodesRaw.length > 0) {
+    const reads = await prisma.episodeRead.findMany({
+      where: { userId, episodeId: { in: episodesRaw.map((e) => e.id) } },
+      select: { episodeId: true },
+    });
+    readEpisodeIds = new Set(reads.map((r) => r.episodeId));
+  }
 
-  // 메모 또는 태그가 있는 기록을 최근 순으로 조회 (공개 가능한 방문자 기록)
-  const anonymousReactions = await prisma.record.findMany({
-    where: {
-      spaceId: space.id,
-      OR: [
-        { memo: { not: null } },
-        { tags: { some: {} } },
-      ],
-    },
-    include: { tags: true },
-    orderBy: { visitedAt: "desc" },
-    take: 5,
-  });
+  const episodes = episodesRaw.map((ep) => ({
+    id: ep.id,
+    episodeNumber: ep.episodeNumber,
+    title: ep.title,
+    description: ep.description,
+    unlockVisitCount: ep.unlockVisitCount,
+    unlocked: ep.unlockVisitCount <= visitCount,
+    isRead: readEpisodeIds.has(ep.id),
+    scenes: ep.scenes.map((s) => ({
+      id: s.id,
+      title: s.title,
+      content: s.content,
+      imageUrl: s.imageUrl,
+      imageZoom: s.imageZoom ?? 1,
+      imagePositionX: s.imagePositionX ?? 0.5,
+      imagePositionY: s.imagePositionY ?? 0.5,
+      imageAspectRatio: s.imageAspectRatio ?? "3/2",
+    })),
+  }));
 
-  const allTagRecords = await prisma.record.findMany({
-    where: { spaceId: space.id },
-    include: { tags: true },
-  });
+  // 재방문 알림: 이번 방문으로 새로 열린 것 / 예전에 열렸지만 안읽은 것 / 앞으로 열릴 것
+  const newlyUnlocked = episodes.filter((e) => e.unlocked && !e.isRead && e.unlockVisitCount === visitCount);
+  const unreadOld = episodes.filter((e) => e.unlocked && !e.isRead && e.unlockVisitCount < visitCount);
+  const locked = episodes.filter((e) => !e.unlocked);
+
+  let banner: BannerInfo = null;
+  if (hasRecord && newlyUnlocked.length > 0) {
+    banner = { type: "new", count: newlyUnlocked.length };
+  } else if (hasRecord && unreadOld.length > 0) {
+    banner = { type: "unread", count: unreadOld.length };
+  } else if (locked.length > 0) {
+    banner = { type: "locked", count: locked.length };
+  }
+
   const spaceTopTags = aggregateSpaceTags(allTagRecords);
   const usageSummary = getSpaceUsageSummary(spaceTopTags);
-
-  // MVP 기간 반응 통계 섹션 비활성화 — true로 바꾸면 즉시 원상복구
   const SHOW_REACTION_BOARD = false;
 
-  const visitorRecords = await prisma.record.findMany({
-    where: { spaceId: space.id, user: { visibility: "PARTIAL" } },
-    include: {
-      tags: true,
-      user: {
-        include: {
-          records: {
-            include: { space: { select: { id: true, name: true, slug: true } }, tags: true },
-            orderBy: { visitedAt: "desc" },
-            take: 20,
-          },
-        },
-      },
-    },
-    orderBy: { visitedAt: "desc" },
-    take: 10,
-  });
-
-  const seenUserIds = new Set<string>();
-  const similarTasteCards = visitorRecords
-    .filter((r) => {
-      if (seenUserIds.has(r.user.id)) return false;
-      seenUserIds.add(r.user.id);
-      return true;
-    })
-    .slice(0, 3)
-    .map((r) => {
-      const phrase = getTastePhrase(aggregateTags(r.user.records).slice(0, 5));
-      const seenSpaces = new Set<string>([space.id]);
-      const otherSpaces = r.user.records
-        .filter((ur) => {
-          if (seenSpaces.has(ur.space.id)) return false;
-          seenSpaces.add(ur.space.id);
-          return true;
-        })
-        .slice(0, 3)
-        .map((ur) => ur.space);
-      return { userId: r.user.id, phrase, memo: r.memo, otherSpaces };
-    })
-    .filter((c) => c.otherSpaces.length > 0);
+  const recordHref = `/space/${slug}/record`;
+  const ctaHref = session ? recordHref : `/login?callbackUrl=${encodeURIComponent(recordHref)}`;
 
   return (
     <main className="flex flex-col min-h-screen md:flex-row">
@@ -170,7 +162,10 @@ export default async function SpacePage({ params }: Props) {
           <div style={{ borderTop: "1px solid var(--border)" }} />
 
           <div className="space-y-2">
-            <h1 className="text-2xl font-bold leading-tight">{space.name}</h1>
+            <div className="flex items-start justify-between gap-3">
+              <h1 className="text-2xl font-bold leading-tight">{space.name}</h1>
+              <SaveSpaceButton spaceId={space.id} initialSaved={isSaved} isLoggedIn={!!session} />
+            </div>
             {space.tagline && (
               <p className="text-sm leading-relaxed italic" style={{ color: "var(--dim)" }}>{space.tagline}</p>
             )}
@@ -187,27 +182,6 @@ export default async function SpacePage({ params }: Props) {
               </section>
             </>
           )}
-
-          <div style={{ borderTop: "1px solid var(--border)" }} />
-          <div className="space-y-2 text-sm" style={{ color: "var(--dim)" }}>
-            {space.naverMapUrl ? (
-              <a href={space.naverMapUrl} target="_blank" rel="noopener noreferrer" className="flex items-start gap-3 hover:underline">
-                <span className="text-xs uppercase tracking-widest flex-shrink-0 mt-0.5">위치</span>
-                <span>{space.location} ↗</span>
-              </a>
-            ) : (
-              <div className="flex items-start gap-3">
-                <span className="text-xs uppercase tracking-widest flex-shrink-0 mt-0.5">위치</span>
-                <span>{space.location}</span>
-              </div>
-            )}
-            {space.openingHours && (
-              <div className="flex items-start gap-3">
-                <span className="text-xs uppercase tracking-widest flex-shrink-0 mt-0.5">운영</span>
-                <span>{space.openingHours}</span>
-              </div>
-            )}
-          </div>
 
           <div style={{ borderTop: "1px solid var(--border)" }} />
 
@@ -227,22 +201,10 @@ export default async function SpacePage({ params }: Props) {
             ownerSocialUrl={space.ownerSocialUrl}
           />
 
-          {/* 디지털 방명록 — 운영자 이야기 이후 발견되는 흔적 페이지 입구 */}
-          {ENABLE_GUESTBOOK_WALL && (
+          {episodes.length > 0 && (
             <>
               <div style={{ borderTop: "1px solid var(--border)" }} />
-              <section className="space-y-5">
-                <p className="text-sm leading-relaxed whitespace-pre-line" style={{ color: "var(--dim)" }}>
-                  {"이 공간에는\n다른 사람들의 흔적도 남아 있습니다."}
-                </p>
-                <Link
-                  href={hasRecord ? `/space/${space.slug}/guestbook` : `/space/${space.slug}/record?intent=unlock`}
-                  className="inline-block text-sm py-2.5 px-5 border hover:bg-[var(--fg)] hover:text-[var(--bg)] transition-colors"
-                  style={{ borderColor: "var(--fg)" }}
-                >
-                  방문자들의 이야기 열어보기 →
-                </Link>
-              </section>
+              <EpisodeSection episodes={episodes} banner={banner} />
             </>
           )}
 
@@ -283,54 +245,6 @@ export default async function SpacePage({ params }: Props) {
               </div>
             </>
           )}
-
-          {similarTasteCards.length > 0 && (
-            <>
-              <div style={{ borderTop: "1px solid var(--border)" }} />
-              <div className="space-y-6">
-                <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>이 공간을 좋아한 취향들</p>
-                {similarTasteCards.map((card) => (
-                  <div key={card.userId} className="space-y-3 py-4 border-l pl-4" style={{ borderColor: "var(--border)" }}>
-                    <p className="text-sm font-medium leading-snug">{card.phrase}</p>
-                    {card.memo && (
-                      <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>&ldquo;{card.memo}&rdquo;</p>
-                    )}
-                    <div className="space-y-1">
-                      <p className="text-xs" style={{ color: "var(--border)" }}>이 취향이 좋아한 다른 공간</p>
-                      {card.otherSpaces.map((s) => (
-                        <Link key={s.id} href={`/space/${s.slug}`} className="block text-sm hover:underline" style={{ color: "var(--dim)" }}>
-                          · {s.name}
-                        </Link>
-                      ))}
-                    </div>
-                    <Link
-                      href={`/taste/${card.userId}`}
-                      className="inline-block text-xs py-1 px-2 border transition-colors hover:bg-[var(--fg)] hover:text-[var(--bg)]"
-                      style={{ borderColor: "var(--border)", color: "var(--dim)" }}
-                    >
-                      이 취향 따라가기 →
-                    </Link>
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
-
-          {(visitMessage || firstVisitPrompt) && (
-            <>
-              <div style={{ borderTop: "1px solid var(--border)" }} />
-              <section className="space-y-1.5">
-                {visitMessage ? (
-                  <>
-                    <p className="text-xs uppercase tracking-widest" style={{ color: "var(--border)" }}>다시 돌아왔네요</p>
-                    <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>{visitMessage}</p>
-                  </>
-                ) : (
-                  <p className="text-sm leading-relaxed" style={{ color: "var(--border)" }}>오늘의 느낌을 가볍게 남겨보세요.</p>
-                )}
-              </section>
-            </>
-          )}
         </div>
 
         <div className="px-6 pb-4 text-center">
@@ -340,23 +254,13 @@ export default async function SpacePage({ params }: Props) {
         </div>
 
         <div className="sticky bottom-0 px-6 pb-8 pt-4" style={{ background: "var(--bg)", borderTop: "1px solid var(--border)" }}>
-          {session ? (
-            <Link
-              href={`/space/${slug}/record`}
-              className="block w-full text-center text-sm font-medium py-3 border hover:bg-[var(--fg)] hover:text-[var(--bg)] transition-colors"
-              style={{ borderColor: "var(--fg)" }}
-            >
-              {hasRecord ? "다시 기록하기" : "이 공간, 기록 남기기"}
-            </Link>
-          ) : (
-            <Link
-              href="/login"
-              className="block w-full text-center text-sm font-medium py-3 border hover:bg-[var(--fg)] hover:text-[var(--bg)] transition-colors"
-              style={{ borderColor: "var(--fg)" }}
-            >
-              로그인하고 기록 남기기
-            </Link>
-          )}
+          <Link
+            href={ctaHref}
+            className="block w-full text-center text-sm font-medium py-3 border hover:bg-[var(--fg)] hover:text-[var(--bg)] transition-colors"
+            style={{ borderColor: "var(--fg)" }}
+          >
+            기록하고 흔적 열기
+          </Link>
         </div>
       </div>
     </main>

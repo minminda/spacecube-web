@@ -20,13 +20,15 @@ const SCORE_LABELS: Record<number, string> = {
 interface Props {
   space: { id: string; name: string; slug: string; tagline?: string | null };
   spaceTags: TagKey[];
+  /** 관리자가 이 공간에 연결한 활성 태그 이름 (있으면 이걸 우선 표시, 없으면 spaceTags로 폴백) */
+  displayTags?: string[] | null;
   visitCount: number;
   previousRecord: { tags: TagKey[]; tasteScore: number | null } | null;
   /** unlock: "방문자들의 이야기 보기"에서 진입한 1회성 입장 화면 (기록 카운트 없이 가볍게) */
   intent?: "record" | "unlock";
 }
 
-export default function RecordForm({ space, spaceTags, visitCount, previousRecord, intent = "record" }: Props) {
+export default function RecordForm({ space, spaceTags, displayTags, visitCount, previousRecord, intent = "record" }: Props) {
   const isUnlock = intent === "unlock";
   const tagsToShow = spaceTags.length > 0 ? spaceTags : ALL_TAGS;
   const router = useRouter();
@@ -106,18 +108,19 @@ export default function RecordForm({ space, spaceTags, visitCount, previousRecor
 
       <p className="text-xs" style={{ color: "var(--border)" }}>─────────────────────────────</p>
 
-      {/* 공간 취향 태그 — 선택 불가, 공간의 결 설명용 (unlock 화면에서는 생략, 태그 없이 담백하게) */}
-      {!ENABLE_RECORD_TAG_SELECTION && !isUnlock && spaceTags.length > 0 && (
+      {/* 공간 취향 태그 — 선택 불가, 공간의 결 설명용 (unlock 화면에서는 생략, 태그 없이 담백하게).
+          관리자가 연결한 활성 태그(displayTags)가 있으면 그걸 쓰고, 없으면 레거시 spaceTags로 폴백 */}
+      {!ENABLE_RECORD_TAG_SELECTION && !isUnlock && ((displayTags?.length ?? 0) > 0 || spaceTags.length > 0) && (
         <div className="space-y-3">
           <p className="text-xs" style={{ color: "var(--dim)" }}>// 이 공간은 이런 결을 가지고 있어요</p>
           <div className="flex flex-wrap gap-2">
-            {spaceTags.map((tag) => (
+            {(displayTags ?? spaceTags.map((t) => TAG_LABELS[t])).map((label) => (
               <span
-                key={tag}
+                key={label}
                 className="text-xs px-2.5 py-1 border select-none"
                 style={{ borderColor: "var(--border)", color: "var(--dim)" }}
               >
-                {TAG_LABELS[tag]}
+                {label}
               </span>
             ))}
           </div>

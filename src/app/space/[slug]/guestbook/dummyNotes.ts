@@ -12,13 +12,21 @@ export const POSTIT_COLOR = "#F6E7A8"; // MVP 대표 노란색 (따뜻한 베이
 
 export interface GuestbookNoteData {
   id: string;
+  userId?: string; // 더미 데이터에는 없음 — 실제 흔적만 작성자 아카이브 링크 제공
   content: string;
+  nickname?: string | null;
+  imageUrl?: string | null;
   x: number;
   y: number;
   rotation: number;
   color: string;
   createdAt: string; // YYYY.MM.DD
 }
+
+const NICKNAME_POOL = [
+  "혼자만의시간", "책방고양이", "창가자리", "천천히걷기", "오후의빛",
+  "골목산책자", "조용한손님", "가끔들르는", "말없이", "느린하루",
+];
 
 const POOL = [
   "오늘은 생각보다 오래 머물렀다.",
@@ -90,6 +98,7 @@ function generate(): GuestbookNoteData[] {
       notes.push({
         id: `dummy-${idx}`,
         content: POOL[idx % POOL.length],
+        nickname: NICKNAME_POOL[idx % NICKNAME_POOL.length],
         x,
         y,
         rotation: rand() * 6 - 3,

@@ -25,7 +25,7 @@ export async function PUT(req: Request, { params }: Props) {
 
   const data = {
     backgroundType,
-    backgroundColor: body.backgroundColor || "#0a0a08",
+    backgroundColor: body.backgroundColor || "#000000",
     backgroundImageUrl: body.backgroundImageUrl || null,
     backgroundOpacity: typeof body.backgroundOpacity === "number" ? clamp01(body.backgroundOpacity) : 1,
     layoutType,

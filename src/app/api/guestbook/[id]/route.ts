@@ -17,14 +17,7 @@ export async function PATCH(req: NextRequest, { params }: Props) {
   }
 
   const { id } = await params;
-  const { content } = await req.json();
-  const text = typeof content === "string" ? content.trim() : "";
-  if (!text) {
-    return NextResponse.json({ error: "content is required" }, { status: 400 });
-  }
-  if (text.length > MAX_CONTENT) {
-    return NextResponse.json({ error: `content must be ${MAX_CONTENT} characters or less` }, { status: 400 });
-  }
+  const body = await req.json();
 
   const user = await prisma.user.findUnique({ where: { email: session.user.email } });
   if (!user) {
@@ -39,12 +32,25 @@ export async function PATCH(req: NextRequest, { params }: Props) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const updated = await prisma.guestbookNote.update({
-    where: { id },
-    data: { content: text },
-  });
+  const data: { content?: string; imageUrl?: string | null } = {};
 
-  return NextResponse.json({ id: updated.id, content: updated.content });
+  if ("content" in body) {
+    const text = typeof body.content === "string" ? body.content.trim() : "";
+    if (!text) {
+      return NextResponse.json({ error: "content is required" }, { status: 400 });
+    }
+    if (text.length > MAX_CONTENT) {
+      return NextResponse.json({ error: `content must be ${MAX_CONTENT} characters or less` }, { status: 400 });
+    }
+    data.content = text;
+  }
+
+  if ("imageUrl" in body) {
+    data.imageUrl = typeof body.imageUrl === "string" && body.imageUrl ? body.imageUrl : null;
+  }
+
+  const updated = await prisma.guestbookNote.update({ where: { id }, data });
+  return NextResponse.json({ id: updated.id, content: updated.content, imageUrl: updated.imageUrl });
 }
 
 export async function DELETE(_req: NextRequest, { params }: Props) {

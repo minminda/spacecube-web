@@ -14,8 +14,14 @@ export async function PATCH(req: Request) {
   const data: { nickname?: string | null; visibility?: Visibility } = {};
 
   if ("nickname" in body) {
-    const n = typeof body.nickname === "string" ? body.nickname.trim().slice(0, 20) : null;
-    data.nickname = n || null;
+    const raw = typeof body.nickname === "string" ? body.nickname.trim() : "";
+    if (raw.length === 0) {
+      data.nickname = null;
+    } else if (raw.length < 2 || raw.length > 12) {
+      return NextResponse.json({ error: "닉네임은 2~12자로 입력해주세요." }, { status: 400 });
+    } else {
+      data.nickname = raw;
+    }
   }
 
   if ("visibility" in body) {

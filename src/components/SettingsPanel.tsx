@@ -63,9 +63,9 @@ export default function SettingsPanel({ nickname, visibility, userId }: Props) {
               <input
                 ref={inputRef}
                 value={nickValue}
-                onChange={(e) => setNickValue(e.target.value.slice(0, 20))}
-                placeholder="최대 20자"
-                maxLength={20}
+                onChange={(e) => setNickValue(e.target.value.slice(0, 12))}
+                placeholder="2~12자"
+                maxLength={12}
                 className="w-full text-sm bg-transparent border-b outline-none pb-2"
                 style={{ borderColor: "var(--border)", color: "var(--fg)" }}
                 onKeyDown={(e) => { if (e.key === "Enter") handleSave(); }}

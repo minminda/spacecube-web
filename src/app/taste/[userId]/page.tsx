@@ -8,6 +8,10 @@ import SaveTasteButton from "@/components/SaveTasteButton";
 
 interface Props { params: Promise<{ userId: string }> }
 
+function formatDate(d: Date) {
+  return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
+}
+
 export default async function TasteJourneyPage({ params }: Props) {
   const { userId } = await params;
   const session = await auth();
@@ -22,11 +26,24 @@ export default async function TasteJourneyPage({ params }: Props) {
     },
   });
 
-  if (!target || target.visibility === "PRIVATE") notFound();
+  // 존재하지 않는 사용자는 404, 비공개 사용자는 안내 문구를 보여준다 (구분 노출은 하지 않는다는 원칙과 무관하게
+  // "존재 자체를 숨겨야 하는" 요구사항은 없으므로 자연스러운 안내로 처리)
+  if (!target) notFound();
 
   if (session?.user?.email === target.email) {
     const { redirect } = await import("next/navigation");
     redirect("/archive");
+  }
+
+  const displayName = target.nickname || "이 사용자";
+
+  if (target.visibility === "PRIVATE") {
+    return (
+      <main className="flex flex-col items-center justify-center min-h-screen px-6 text-center gap-3">
+        <p className="text-sm" style={{ color: "var(--dim)" }}>이 사용자의 아카이브는 공개되지 않았습니다.</p>
+        <Link href="/" className="text-xs" style={{ color: "var(--border)" }}>← 홈으로</Link>
+      </main>
+    );
   }
 
   const topTags = aggregateTags(target.records).slice(0, 5);
@@ -37,6 +54,14 @@ export default async function TasteJourneyPage({ params }: Props) {
     if (seenSpaces.has(r.space.id)) return false;
     seenSpaces.add(r.space.id);
     return true;
+  });
+
+  // 이 사용자가 남긴 방명록 포스트잇 — 공개 아카이브에 노출 가능한 정보만 선택
+  // (이메일/정확한 방문 시각/로그인 정보/관리자 여부/비공개 기록은 노출하지 않음)
+  const guestbookNotes = await prisma.guestbookNote.findMany({
+    where: { userId: target.id },
+    orderBy: { createdAt: "desc" },
+    select: { id: true, content: true, imageUrl: true, createdAt: true, space: { select: { name: true, slug: true } } },
   });
 
   let isLoggedIn = false;
@@ -64,7 +89,7 @@ export default async function TasteJourneyPage({ params }: Props) {
       </div>
 
       <section className="space-y-3">
-        <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>취향 흐름</p>
+        <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>{displayName}의 아카이브</p>
         <h1 className="text-xl font-bold leading-snug">{tastePhrase}</h1>
       </section>
 
@@ -118,6 +143,37 @@ export default async function TasteJourneyPage({ params }: Props) {
           </div>
         )}
       </section>
+
+      {guestbookNotes.length > 0 && (
+        <>
+          <div style={{ borderTop: "1px solid var(--border)" }} />
+          <section className="space-y-4">
+            <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>공간마다 남긴 방명록</p>
+            <div className="flex gap-3 overflow-x-auto snap-x pb-3 -mx-6 px-6" style={{ scrollbarWidth: "none" }}>
+              {guestbookNotes.map((note, i) => (
+                <Link
+                  key={note.id}
+                  href={`/space/${note.space.slug}/guestbook?focus=${note.id}`}
+                  className="flex-shrink-0 w-40 snap-start p-3.5 relative"
+                  style={{ background: "#F6E7A8", transform: `rotate(${i % 2 === 0 ? -1.4 : 1.2}deg)`, boxShadow: "0 2px 8px rgba(0,0,0,0.12)" }}
+                >
+                  {note.imageUrl && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={note.imageUrl} alt="" className="w-full h-20 object-cover mb-2" />
+                  )}
+                  <p className="text-[13px] leading-relaxed break-keep line-clamp-4" style={{ color: "#3d3524" }}>
+                    {note.content}
+                  </p>
+                  <div className="mt-3 space-y-0.5">
+                    <p className="text-[11px] font-medium" style={{ color: "#3d3524" }}>{note.space.name}</p>
+                    <p className="text-[10px]" style={{ color: "#8a7d5c" }}>{formatDate(note.createdAt)}</p>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </section>
+        </>
+      )}
 
       {!isSelf && (
         <>
