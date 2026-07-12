@@ -1,8 +1,13 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import type { Metadata } from "next";
+import { cookies, headers } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
+import { LOCALE_COOKIE_NAME, resolveInitialLocale, availableLocalesForSpace } from "@/lib/localeResolve";
+import { resolveLocalizedField } from "@/lib/i18nContent";
+import { DEFAULT_LOCALE, type LocaleCode } from "@/lib/locales";
 
 interface Props {
   params: Promise<{ slug: string; episodeId: string }>;
@@ -25,7 +30,10 @@ export default async function EpisodeDetailPage({ params }: Props) {
   const { slug, episodeId } = await params;
 
   const [space, session] = await Promise.all([
-    prisma.space.findUnique({ where: { slug, isActive: true }, select: { id: true, name: true, slug: true } }),
+    prisma.space.findUnique({
+      where: { slug, isActive: true },
+      select: { id: true, name: true, slug: true, multilingualEnabled: true, supportedLocales: true },
+    }),
     auth(),
   ]);
   if (!space) notFound();
@@ -35,6 +43,48 @@ export default async function EpisodeDetailPage({ params }: Props) {
     include: { scenes: { where: { isActive: true }, orderBy: { displayOrder: "asc" } } },
   });
   if (!episode || episode.spaceId !== space.id || !episode.published) notFound();
+
+  // ── 다국어: 공간 페이지와 동일한 쿠키/헤더 기준으로 언어를 감지해 같은 언어 상태를 유지한다.
+  let locale: LocaleCode = DEFAULT_LOCALE;
+  let usedContentFallback = false;
+  let localizedTitle = episode.title;
+  let localizedSubtitle = episode.description;
+  const localizedScenes = episode.scenes.map((s) => ({ id: s.id, title: s.title as string | null, content: s.content as string }));
+
+  if (space.multilingualEnabled && space.supportedLocales.length > 0) {
+    const [cookieStore, headerList] = await Promise.all([cookies(), headers()]);
+    locale = resolveInitialLocale({
+      cookieLocale: cookieStore.get(LOCALE_COOKIE_NAME)?.value ?? null,
+      acceptLanguageHeader: headerList.get("accept-language"),
+      spaceSupportedLocales: space.supportedLocales,
+    });
+
+    if (locale !== "ko") {
+      const [epTranslations, sceneTranslations] = await Promise.all([
+        prisma.episodeTranslation.findMany({ where: { episodeId: episode.id, locale: { in: [locale, "en"] } } }),
+        prisma.sceneTranslation.findMany({ where: { sceneId: { in: episode.scenes.map((s) => s.id) }, locale: { in: [locale, "en"] } } }),
+      ]);
+      const epPrimary = epTranslations.find((t) => t.locale === locale);
+      const epEnglish = epTranslations.find((t) => t.locale === "en");
+      const titleResult = resolveLocalizedField(locale, episode.title, epPrimary?.title, epEnglish?.title);
+      const subtitleResult = resolveLocalizedField(locale, episode.description, epPrimary?.subtitle, epEnglish?.subtitle);
+      localizedTitle = titleResult.value ?? episode.title;
+      localizedSubtitle = subtitleResult.value;
+
+      let anySceneFallback = false;
+      for (let i = 0; i < localizedScenes.length; i++) {
+        const scene = episode.scenes[i];
+        const primary = sceneTranslations.find((t) => t.sceneId === scene.id && t.locale === locale);
+        const english = sceneTranslations.find((t) => t.sceneId === scene.id && t.locale === "en");
+        const titleR = resolveLocalizedField(locale, scene.title, primary?.title, english?.title);
+        const contentR = resolveLocalizedField(locale, scene.content, primary?.content, english?.content);
+        localizedScenes[i] = { id: scene.id, title: titleR.value, content: contentR.value ?? scene.content };
+        if (contentR.usedFallback) anySceneFallback = true;
+      }
+
+      usedContentFallback = titleResult.usedFallback || subtitleResult.usedFallback || anySceneFallback;
+    }
+  }
 
   let visitCount = 0;
   let userId: string | null = null;
@@ -86,14 +136,25 @@ export default async function EpisodeDetailPage({ params }: Props) {
     <main className="flex flex-col min-h-screen px-6 py-8 gap-8">
       <div className="flex items-center justify-between">
         <Link href={`/space/${space.slug}`} className="text-xs" style={{ color: "var(--dim)" }}>← {space.name}</Link>
-        <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>EP.{episode.episodeNumber}</p>
+        <div className="flex items-center gap-2">
+          {space.multilingualEnabled && space.supportedLocales.length > 0 && (
+            <LanguageSwitcher currentLocale={locale} availableLocales={availableLocalesForSpace(space.supportedLocales)} />
+          )}
+          <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>EP.{episode.episodeNumber}</p>
+        </div>
       </div>
+
+      {usedContentFallback && (
+        <p className="text-xs leading-relaxed" style={{ color: "var(--border)" }}>
+          이 이야기는 아직 선택한 언어로 준비되지 않아 다른 언어로 보여드리고 있어요.
+        </p>
+      )}
 
       <div className="space-y-4">
         <div className="space-y-2">
-          <h1 className="text-2xl font-bold leading-tight">{episode.title}</h1>
-          {episode.description && (
-            <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>{episode.description}</p>
+          <h1 className="text-2xl font-bold leading-tight">{localizedTitle}</h1>
+          {localizedSubtitle && (
+            <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>{localizedSubtitle}</p>
           )}
         </div>
 
@@ -115,29 +176,32 @@ export default async function EpisodeDetailPage({ params }: Props) {
       </div>
 
       <div className="space-y-10">
-        {episode.scenes.map((scene) => (
-          <div key={scene.id} className="space-y-3">
-            {scene.imageUrl && (
-              <div className="relative w-full overflow-hidden" style={{ aspectRatio: scene.imageAspectRatio ?? "3/2" }}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={scene.imageUrl}
-                  alt={scene.title ?? ""}
-                  className="w-full h-full object-cover"
-                  style={{
-                    objectPosition: `${(scene.imagePositionX ?? 0.5) * 100}% ${(scene.imagePositionY ?? 0.5) * 100}%`,
-                    transform: `scale(${scene.imageZoom ?? 1})`,
-                    transformOrigin: "center center",
-                  }}
-                />
-              </div>
-            )}
-            {scene.title && <p className="text-sm font-medium">{scene.title}</p>}
-            {scene.content && (
-              <p className="text-base leading-8 whitespace-pre-line">{scene.content}</p>
-            )}
-          </div>
-        ))}
+        {episode.scenes.map((scene, i) => {
+          const localized = localizedScenes[i];
+          return (
+            <div key={scene.id} className="space-y-3">
+              {scene.imageUrl && (
+                <div className="relative w-full overflow-hidden" style={{ aspectRatio: scene.imageAspectRatio ?? "3/2" }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={scene.imageUrl}
+                    alt={localized.title ?? ""}
+                    className="w-full h-full object-cover"
+                    style={{
+                      objectPosition: `${(scene.imagePositionX ?? 0.5) * 100}% ${(scene.imagePositionY ?? 0.5) * 100}%`,
+                      transform: `scale(${scene.imageZoom ?? 1})`,
+                      transformOrigin: "center center",
+                    }}
+                  />
+                </div>
+              )}
+              {localized.title && <p className="text-sm font-medium">{localized.title}</p>}
+              {localized.content && (
+                <p className="text-base leading-8 whitespace-pre-line">{localized.content}</p>
+              )}
+            </div>
+          );
+        })}
       </div>
 
       <div style={{ borderTop: "1px solid var(--border)" }} />

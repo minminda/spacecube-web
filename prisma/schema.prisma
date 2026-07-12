@@ -105,6 +105,10 @@ model Space {
   currentMood      String?
   createdAt        DateTime @default(now())
 
+  // 공간별 다국어 사용 여부 및 지원 언어 — 둘 다 기본값(false, [])이면 기존 한국어 전용 동작과 완전히 동일
+  multilingualEnabled Boolean  @default(false)
+  supportedLocales    String[] @default([])
+
   owner             User?               @relation(fields: [ownerId], references: [id], onDelete: SetNull)
   records           Record[]
   collectionItems   CollectionItem[]
@@ -118,6 +122,35 @@ model Space {
   spaceTagLinks     SpaceTag[]
   savedByUsers      SavedSpace[]
   kpis              SpaceKPI[]
+  translations      SpaceTranslation[]
+}
+
+// 공간/에피소드/씬 번역 공통 상태값 — NOT_CREATED는 행이 아예 없는 상태로 표현(별도 값 불필요)
+enum TranslationStatus {
+  READY
+  OUTDATED
+  ERROR
+}
+
+// 공간 소개/한 줄 설명/운영자 이야기의 언어별 번역본.
+// 한국어 원문(Space 테이블)은 그대로 두고 이 테이블에만 번역 결과를 저장한다.
+model SpaceTranslation {
+  id           String            @id @default(cuid())
+  spaceId      String
+  locale       String
+  tagline      String?
+  description  String?           @db.Text
+  ownerBio     String?           @db.Text
+  status       TranslationStatus @default(READY)
+  sourceHash   String? // 번역 시점의 원문 해시 — 원문이 바뀌면 달라져서 OUTDATED 판단에 사용
+  errorMessage String?           @db.Text
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  space Space @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+
+  @@unique([spaceId, locale])
+  @@map("space_translations")
 }
 
 // 디지털 방명록 포스트잇 — 캔버스 위 좌표에 남는 짧은 흔적
@@ -335,11 +368,31 @@ model Episode {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
-  space  Space         @relation(fields: [spaceId], references: [id], onDelete: Cascade)
-  scenes Scene[]
-  reads  EpisodeRead[]
+  space        Space                @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  scenes       Scene[]
+  reads        EpisodeRead[]
+  translations EpisodeTranslation[]
 
   @@unique([spaceId, episodeNumber])
+}
+
+// 에피소드 제목/부제(description)의 언어별 번역본
+model EpisodeTranslation {
+  id           String            @id @default(cuid())
+  episodeId    String
+  locale       String
+  title        String?
+  subtitle     String?           @db.Text
+  status       TranslationStatus @default(READY)
+  sourceHash   String?
+  errorMessage String?           @db.Text
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  episode Episode @relation(fields: [episodeId], references: [id], onDelete: Cascade)
+
+  @@unique([episodeId, locale])
+  @@map("episode_translations")
 }
 
 model Scene {
@@ -357,7 +410,27 @@ model Scene {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
-  episode Episode @relation(fields: [episodeId], references: [id], onDelete: Cascade)
+  episode      Episode            @relation(fields: [episodeId], references: [id], onDelete: Cascade)
+  translations SceneTranslation[]
+}
+
+// Scene 제목/본문(content)의 언어별 번역본 — "에피소드 본문"의 실제 저장 단위
+model SceneTranslation {
+  id           String            @id @default(cuid())
+  sceneId      String
+  locale       String
+  title        String?
+  content      String?           @db.Text
+  status       TranslationStatus @default(READY)
+  sourceHash   String?
+  errorMessage String?           @db.Text
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  scene Scene @relation(fields: [sceneId], references: [id], onDelete: Cascade)
+
+  @@unique([sceneId, locale])
+  @@map("scene_translations")
 }
 
 // 사용자별 Episode 열람 상태

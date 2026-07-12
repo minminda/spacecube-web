@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { Suspense } from "react";
+import { cookies, headers } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 import { TAG_LABELS } from "@/lib/tags";
@@ -10,9 +11,13 @@ import OwnerStory from "./OwnerStory";
 import ScanTracker from "@/components/ScanTracker";
 import SpaceUnlockScreen from "./SpaceUnlockScreen";
 import SaveSpaceButton from "@/components/SaveSpaceButton";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
 import EpisodeSection, { type BannerInfo } from "./EpisodeSection";
 import { ENABLE_GUESTBOOK_WALL } from "@/lib/features";
 import { aggregateSpaceTags, getSpaceUsageSummary } from "@/lib/spaceInsight";
+import { LOCALE_COOKIE_NAME, resolveInitialLocale, availableLocalesForSpace } from "@/lib/localeResolve";
+import { resolveLocalizedField } from "@/lib/i18nContent";
+import { DEFAULT_LOCALE, type LocaleCode } from "@/lib/locales";
 
 interface Props { params: Promise<{ slug: string }> }
 
@@ -36,6 +41,36 @@ export default async function SpacePage({ params }: Props) {
     auth(),
   ]);
   if (!space) notFound();
+
+  // ── 다국어: 이 공간이 다국어를 켠 경우에만 언어를 감지하고 번역을 불러온다.
+  // 꺼진 공간은 쿠키/헤더를 조회하지 않고 기존과 완전히 동일하게 한국어만 렌더링한다.
+  let locale: LocaleCode = DEFAULT_LOCALE;
+  let usedOwnerBioFallback = false;
+  let localizedTagline = space.tagline;
+  let localizedOwnerBio = space.ownerBio;
+
+  if (space.multilingualEnabled && space.supportedLocales.length > 0) {
+    const [cookieStore, headerList] = await Promise.all([cookies(), headers()]);
+    locale = resolveInitialLocale({
+      cookieLocale: cookieStore.get(LOCALE_COOKIE_NAME)?.value ?? null,
+      acceptLanguageHeader: headerList.get("accept-language"),
+      spaceSupportedLocales: space.supportedLocales,
+    });
+
+    if (locale !== "ko") {
+      const rows = await prisma.spaceTranslation.findMany({
+        where: { spaceId: space.id, locale: { in: [locale, "en"] } },
+      });
+      const primary = rows.find((r) => r.locale === locale);
+      const english = rows.find((r) => r.locale === "en");
+
+      const taglineResult = resolveLocalizedField(locale, space.tagline, primary?.tagline, english?.tagline);
+      const ownerBioResult = resolveLocalizedField(locale, space.ownerBio, primary?.ownerBio, english?.ownerBio);
+      localizedTagline = taglineResult.value;
+      localizedOwnerBio = ownerBioResult.value;
+      usedOwnerBioFallback = ownerBioResult.usedFallback && !!space.ownerBio;
+    }
+  }
 
   const [user, episodesRaw, anonymousReactions, allTagRecords] = await Promise.all([
     session?.user?.email ? prisma.user.findUnique({ where: { email: session.user.email } }) : Promise.resolve(null),
@@ -82,16 +117,28 @@ export default async function SpacePage({ params }: Props) {
     readEpisodeIds = new Set(reads.map((r) => r.episodeId));
   }
 
-  const episodes = episodesRaw.map((ep) => ({
-    id: ep.id,
-    episodeNumber: ep.episodeNumber,
-    title: ep.title,
-    description: ep.description,
-    imageUrl: ep.imageUrl,
-    unlockVisitCount: ep.unlockVisitCount,
-    unlocked: ep.unlockVisitCount <= visitCount,
-    isRead: readEpisodeIds.has(ep.id),
-  }));
+  // 에피소드 목록도 상세 페이지와 같은 언어로 보여준다.
+  const episodeTranslations =
+    locale !== "ko" && episodesRaw.length > 0
+      ? await prisma.episodeTranslation.findMany({
+          where: { episodeId: { in: episodesRaw.map((e) => e.id) }, locale: { in: [locale, "en"] } },
+        })
+      : [];
+
+  const episodes = episodesRaw.map((ep) => {
+    const primary = episodeTranslations.find((t) => t.episodeId === ep.id && t.locale === locale);
+    const english = episodeTranslations.find((t) => t.episodeId === ep.id && t.locale === "en");
+    return {
+      id: ep.id,
+      episodeNumber: ep.episodeNumber,
+      title: resolveLocalizedField(locale, ep.title, primary?.title, english?.title).value ?? ep.title,
+      description: resolveLocalizedField(locale, ep.description, primary?.subtitle, english?.subtitle).value,
+      imageUrl: ep.imageUrl,
+      unlockVisitCount: ep.unlockVisitCount,
+      unlocked: ep.unlockVisitCount <= visitCount,
+      isRead: readEpisodeIds.has(ep.id),
+    };
+  });
 
   // 재방문 알림: 이번 방문으로 새로 열린 것 / 예전에 열렸지만 안읽은 것 / 앞으로 열릴 것
   const newlyUnlocked = episodes.filter((e) => e.unlocked && !e.isRead && e.unlockVisitCount === visitCount);
@@ -146,7 +193,12 @@ export default async function SpacePage({ params }: Props) {
         <div className="flex flex-col gap-6 px-6 py-6 flex-1">
           <div className="flex items-center justify-between">
             <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>공간큐브</p>
-            <Link href="/" className="text-xs" style={{ color: "var(--dim)" }}>← 홈</Link>
+            <div className="flex items-center gap-2">
+              {space.multilingualEnabled && space.supportedLocales.length > 0 && (
+                <LanguageSwitcher currentLocale={locale} availableLocales={availableLocalesForSpace(space.supportedLocales)} />
+              )}
+              <Link href="/" className="text-xs" style={{ color: "var(--dim)" }}>← 홈</Link>
+            </div>
           </div>
 
           <div style={{ borderTop: "1px solid var(--border)" }} />
@@ -156,8 +208,8 @@ export default async function SpacePage({ params }: Props) {
               <h1 className="text-2xl font-bold leading-tight">{space.name}</h1>
               <SaveSpaceButton spaceId={space.id} initialSaved={isSaved} isLoggedIn={!!session} />
             </div>
-            {space.tagline && (
-              <p className="text-sm leading-relaxed italic" style={{ color: "var(--dim)" }}>{space.tagline}</p>
+            {localizedTagline && (
+              <p className="text-sm leading-relaxed italic" style={{ color: "var(--dim)" }}>{localizedTagline}</p>
             )}
           </div>
 
@@ -185,10 +237,15 @@ export default async function SpacePage({ params }: Props) {
               <div style={{ borderTop: "1px solid var(--border)" }} />
               <section className="space-y-4">
                 <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>운영자의 이야기</p>
+                {usedOwnerBioFallback && (
+                  <p className="text-xs leading-relaxed" style={{ color: "var(--border)" }}>
+                    이 이야기는 아직 선택한 언어로 준비되지 않아 다른 언어로 보여드리고 있어요.
+                  </p>
+                )}
                 <OwnerStory
                   ownerName={space.ownerName}
                   ownerPhotoUrl={space.ownerPhotoUrl}
-                  ownerBio={space.ownerBio}
+                  ownerBio={localizedOwnerBio}
                   ownerValues={space.ownerValues}
                   ownerPlaylistUrl={space.ownerPlaylistUrl}
                   ownerBlogUrl={space.ownerBlogUrl}
