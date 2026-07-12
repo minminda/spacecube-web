@@ -29,6 +29,7 @@ model User {
   guestbookNotes GuestbookNote[]
   episodeReads   EpisodeRead[]
   savedSpaces    SavedSpace[]
+  spaceScans     SpaceScan[]
 }
 
 model Account {
@@ -123,6 +124,7 @@ model Space {
   savedByUsers      SavedSpace[]
   kpis              SpaceKPI[]
   translations      SpaceTranslation[]
+  cube              Cube?
 }
 
 // 공간/에피소드/씬 번역 공통 상태값 — NOT_CREATED는 행이 아예 없는 상태로 표현(별도 값 불필요)
@@ -201,7 +203,44 @@ model SpaceScan {
   spaceId   String
   scannedAt DateTime @default(now())
 
+  // 큐브 QR(/c/[code]) 경유 스캔에서만 채워지는 부가 정보 — 개인정보 최소화를 위해
+  // IP는 저장하지 않고, userId도 로그인 상태였을 때만 채운다.
+  cubeId    String?
+  userId    String?
+  userAgent String? @db.VarChar(300)
+  referrer  String? @db.VarChar(300)
+  locale    String?
+
   space Space @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  cube  Cube? @relation(fields: [cubeId], references: [id], onDelete: SetNull)
+  user  User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+}
+
+// 큐브 QR 연결 상태 — 미등록/연결됨/비활성화
+enum CubeStatus {
+  UNASSIGNED
+  ASSIGNED
+  DISABLED
+}
+
+// 큐브별 고유 QR과 공간의 연결 정보. 공간마다 QR을 새로 만드는 대신,
+// 큐브를 미리 여러 개 만들어두고 실제 설치 시점에 공간과 연결한다.
+// spaceId를 @unique로 둬서 "공간 하나엔 큐브 하나만" 정책을 DB 제약으로 보장한다.
+model Cube {
+  id     String     @id @default(cuid())
+  code   String     @unique // 예: SC-0001, 생성 후 변경 불가
+  status CubeStatus @default(UNASSIGNED)
+
+  spaceId String? @unique
+  space   Space?  @relation(fields: [spaceId], references: [id], onDelete: SetNull)
+
+  activatedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  scans SpaceScan[]
+
+  @@map("cubes")
 }
 
 // 공간별 KPI 일별 스냅샷 — 관리자 KPI 화면이 매번 다시 계산하지 않도록

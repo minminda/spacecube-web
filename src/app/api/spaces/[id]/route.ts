@@ -75,6 +75,10 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     return NextResponse.json({ error: "공간을 찾을 수 없어요." }, { status: 404 });
   }
 
-  await prisma.space.delete({ where: { id } });
+  // 공간에 연결된 큐브가 있으면 큐브 자체는 남기고 연결만 해제한다(비활성화 아님, 미등록으로 되돌림).
+  await prisma.$transaction([
+    prisma.cube.updateMany({ where: { spaceId: id }, data: { spaceId: null, status: "UNASSIGNED", activatedAt: null } }),
+    prisma.space.delete({ where: { id } }),
+  ]);
   return NextResponse.json({ ok: true });
 }
