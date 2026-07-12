@@ -5,6 +5,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { recomputeSpaceKPI } from "@/lib/kpi";
+import { buildRewardSummary } from "@/lib/guestbookReward";
 
 const MAX_CONTENT = 80;
 const DEFAULT_COLOR = "#F6E7A8"; // 관리자 설정이 없을 때 기본 노란 포스트잇
@@ -75,6 +76,7 @@ export async function POST(req: NextRequest) {
     });
 
     await recomputeSpaceKPI(spaceId);
+    const rewardSummary = await buildRewardSummary(user.id, spaceId);
 
     return NextResponse.json(
       {
@@ -88,6 +90,7 @@ export async function POST(req: NextRequest) {
         rotation: note.rotation,
         color: note.color,
         createdAt: note.createdAt.toISOString(),
+        rewardSummary,
       },
       { status: 201 },
     );

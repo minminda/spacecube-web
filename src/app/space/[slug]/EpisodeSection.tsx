@@ -9,6 +9,8 @@ interface EpisodeSummary {
   unlockVisitCount: number;
   unlocked: boolean;
   isRead: boolean;
+  /** 아직 관리자가 만들지 않은, "다음에 올" 이야기 자리 — 재방문 동기를 위한 예고 카드 */
+  isPlaceholder?: boolean;
 }
 
 export type BannerInfo =
@@ -48,6 +50,24 @@ export default function EpisodeSection({ spaceSlug, episodes, banner }: Props) {
 
       <div className="space-y-2">
         {episodes.map((ep) => {
+          if (ep.isPlaceholder) {
+            return (
+              <div
+                key={ep.id}
+                className="border border-dashed px-4 py-3 flex items-center gap-3"
+                style={{ borderColor: "var(--border)", opacity: 0.55 }}
+              >
+                <span className="text-xs flex-shrink-0" style={{ color: "var(--dim)" }}>🔒</span>
+                <div className="flex-1 min-w-0 space-y-0.5">
+                  <span className="text-sm font-medium" style={{ color: "var(--dim)" }}>
+                    EP.{ep.episodeNumber}
+                  </span>
+                  <p className="text-xs" style={{ color: "var(--dim)" }}>다음 이야기가 준비되고 있어요. (예정)</p>
+                </div>
+              </div>
+            );
+          }
+
           const remaining = ep.unlockVisitCount - (ep.unlocked ? 0 : 1);
           const body = (
             <div className="flex gap-3 items-center px-4 py-3">
@@ -55,17 +75,18 @@ export default function EpisodeSection({ spaceSlug, episodes, banner }: Props) {
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={ep.imageUrl} alt="" className="w-14 h-14 object-cover flex-shrink-0" />
               )}
+              {!ep.unlocked && (
+                <span className="text-sm flex-shrink-0" aria-hidden>🔒</span>
+              )}
               <div className="flex-1 min-w-0 space-y-0.5">
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-sm font-medium truncate" style={{ color: ep.unlocked ? "var(--fg)" : "var(--dim)" }}>
                     EP.{ep.episodeNumber} {ep.unlocked ? ep.title : ""}
                   </span>
-                  {ep.unlocked ? (
+                  {ep.unlocked && (
                     <span className="text-xs flex-shrink-0" style={{ color: ep.isRead ? "var(--dim)" : "var(--fg)" }}>
                       {ep.isRead ? "읽기 →" : "● 안읽음"}
                     </span>
-                  ) : (
-                    <span className="text-xs flex-shrink-0" style={{ color: "var(--border)" }}>🔒</span>
                   )}
                 </div>
                 {ep.unlocked && ep.description && (
@@ -80,15 +101,23 @@ export default function EpisodeSection({ spaceSlug, episodes, banner }: Props) {
             </div>
           );
 
-          return (
-            <div key={ep.id} className="border" style={{ borderColor: "var(--border)" }}>
-              {ep.unlocked ? (
+          if (ep.unlocked) {
+            return (
+              <div key={ep.id} className="border" style={{ borderColor: "var(--border)" }}>
                 <Link href={`/space/${spaceSlug}/episodes/${ep.id}`} className="block transition-colors hover:bg-[var(--tag-bg)]">
                   {body}
                 </Link>
-              ) : (
-                body
-              )}
+              </div>
+            );
+          }
+
+          return (
+            <div
+              key={ep.id}
+              className="border cursor-not-allowed transition-opacity opacity-[0.45] hover:opacity-[0.7]"
+              style={{ borderColor: "var(--border)" }}
+            >
+              {body}
             </div>
           );
         })}

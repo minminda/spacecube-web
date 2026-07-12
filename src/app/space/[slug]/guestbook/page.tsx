@@ -57,6 +57,9 @@ export default async function GuestbookPage({ params }: Props) {
   let myNoteId: string | null = null;
   let hasRecord = false;
   let nickname: string | null = null;
+  // 직전 방문 시각 — 이 시각 이후에 생긴 남의 흔적을 "새로운 흔적"으로 취급한다.
+  // 첫 방문(직전 방문이 없음)이면 null — 아무 것도 "새로 생긴 것"으로 표시하지 않는다.
+  let previousVisitAt: Date | null = null;
 
   const user = session?.user?.email
     ? await prisma.user.findUnique({ where: { email: session.user.email }, select: { id: true, nickname: true } })
@@ -64,8 +67,14 @@ export default async function GuestbookPage({ params }: Props) {
 
   if (user) {
     nickname = user.nickname;
-    const recordCount = await prisma.record.count({ where: { userId: user.id, spaceId: space.id } });
-    hasRecord = recordCount > 0;
+    const recentRecords = await prisma.record.findMany({
+      where: { userId: user.id, spaceId: space.id },
+      orderBy: { visitedAt: "desc" },
+      take: 2,
+      select: { visitedAt: true },
+    });
+    hasRecord = recentRecords.length > 0;
+    previousVisitAt = recentRecords.length > 1 ? recentRecords[1].visitedAt : null;
   }
 
   // 기록을 완료해야 방명록을 볼 수 있음 — 로그인 전이거나 기록이 없으면 여기서 막는다
@@ -103,6 +112,11 @@ export default async function GuestbookPage({ params }: Props) {
     myNoteId = dbNotes.find((n) => n.userId === user.id)?.id ?? null;
   }
 
+  const isNewNote = (n: (typeof dbNotes)[number]) =>
+    !!previousVisitAt && n.userId !== user?.id && n.createdAt > previousVisitAt;
+
+  const newNotesCount = dbNotes.filter(isNewNote).length;
+
   const initialNotes: GuestbookNoteData[] = dbNotes.map((n) => ({
     id: n.id,
     userId: n.userId,
@@ -114,6 +128,7 @@ export default async function GuestbookPage({ params }: Props) {
     rotation: n.rotation,
     color: n.color,
     createdAt: formatDate(n.createdAt),
+    isNew: isNewNote(n),
   }));
 
   const settings = settingsRow
@@ -143,6 +158,7 @@ export default async function GuestbookPage({ params }: Props) {
           initialMyNoteId={myNoteId}
           nickname={nickname}
           settings={settings}
+          newNotesCount={newNotesCount}
         />
       </Suspense>
     </main>

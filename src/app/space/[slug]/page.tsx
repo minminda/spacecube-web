@@ -154,6 +154,26 @@ export default async function SpacePage({ params }: Props) {
     banner = { type: "locked", count: locked.length };
   }
 
+  // 아직 관리자가 만들지 않은 다음 이야기를 "예정" 카드로 예고 — 재방문 동기 부여용.
+  // 배너 집계(locked 등)에는 영향을 주지 않도록 화면 표시용 배열에만 덧붙인다.
+  const episodesForDisplay =
+    episodes.length > 0
+      ? [
+          ...episodes,
+          {
+            id: "__upcoming__",
+            episodeNumber: episodes[episodes.length - 1].episodeNumber + 1,
+            title: "",
+            description: null,
+            imageUrl: null,
+            unlockVisitCount: 0,
+            unlocked: false,
+            isRead: false,
+            isPlaceholder: true as const,
+          },
+        ]
+      : episodes;
+
   const spaceTopTags = aggregateSpaceTags(allTagRecords);
   const usageSummary = getSpaceUsageSummary(spaceTopTags);
   const SHOW_REACTION_BOARD = false;
@@ -228,7 +248,7 @@ export default async function SpacePage({ params }: Props) {
           {episodes.length > 0 && (
             <>
               <div style={{ borderTop: "1px solid var(--border)" }} />
-              <EpisodeSection spaceSlug={space.slug} episodes={episodes} banner={banner} />
+              <EpisodeSection spaceSlug={space.slug} episodes={episodesForDisplay} banner={banner} />
             </>
           )}
 

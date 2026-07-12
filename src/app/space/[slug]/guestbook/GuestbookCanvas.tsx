@@ -17,6 +17,8 @@ import {
   NOTE_W,
   type GuestbookNoteData,
 } from "./dummyNotes";
+import PostSubmitReward from "./PostSubmitReward";
+import type { RewardSummary } from "@/lib/guestbookReward";
 
 /* ── 방명록 캔버스 (전체 화면, 진짜 무한 캔버스) ──────────────────
    관리자가 설정한 배경/포스트잇 색/레이아웃을 반영한다. 설정이 없으면
@@ -81,13 +83,15 @@ interface Props {
   initialMyNoteId: string | null;
   nickname: string | null;
   settings: GuestbookDisplaySettings;
+  /** 내 직전 방문 이후 새로 생긴(남의) 흔적 수 — 0이면 재방문 안내를 띄우지 않는다 */
+  newNotesCount: number;
 }
 
 // 포스트잇 텍스트는 노란 종이 위 고정 잉크색 (테마 무관)
 const INK = "#3d3524";
 const INK_DIM = "#8a7d5c";
 
-export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initialMyNoteId, nickname, settings }: Props) {
+export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initialMyNoteId, nickname, settings, newNotesCount }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const transformRef = useRef<ReactZoomPanPinchContentRef>(null);
@@ -113,6 +117,8 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
   const [toast, setToast] = useState<string | null>(null);
   const [scalePct, setScalePct] = useState(100);
   const [introPlaying, setIntroPlaying] = useState(!focusId);
+  const [revisitNoticeOpen, setRevisitNoticeOpen] = useState(newNotesCount > 0);
+  const [rewardSummary, setRewardSummary] = useState<RewardSummary | null>(null);
 
   const [nicknamePrompt, setNicknamePrompt] = useState(false);
   const [nicknameInput, setNicknameInput] = useState("");
@@ -363,18 +369,19 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
         showToast(data.error ?? "저장에 실패했습니다.");
         return;
       }
-      const saved: GuestbookNoteData = await res.json();
-      const d = new Date(saved.createdAt);
-      saved.createdAt = `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
-      setNotes((prev) => [...prev, saved]);
-      setMyNoteId(saved.id);
+      const saved: GuestbookNoteData & { rewardSummary: RewardSummary } = await res.json();
+      const { rewardSummary: reward, ...noteFields } = saved;
+      const d = new Date(noteFields.createdAt);
+      noteFields.createdAt = `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
+      setNotes((prev) => [...prev, noteFields]);
+      setMyNoteId(noteFields.id);
       setComposer(null);
       setContent("");
       setPhotoPreview(null);
       setPhotoUrl(null);
       preComposeTransformRef.current = null; // 저장 완료 — 취소 시 되돌아갈 위치는 더 이상 필요 없음, 지금 확대 상태 유지
       exitWriteMode();
-      showToast("이 공간에 당신의 흔적이 남았습니다.");
+      setRewardSummary(reward);
     } finally {
       setSaving(false);
     }
@@ -559,10 +566,11 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
               {/* 포스트잇들 */}
               {allNotes.map((note) => {
                 const mine = note.id === myNoteId;
+                const isNew = !mine && !!note.isNew;
                 return (
                   <div
                     key={note.id}
-                    className={`absolute p-3 select-none transition-transform ${mine ? "note-glow" : ""}`}
+                    className={`absolute p-3 select-none transition-transform ${mine ? "note-glow" : isNew ? "note-new-glow" : ""}`}
                     style={{
                       left: note.x,
                       top: note.y,
@@ -575,6 +583,14 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
                     }}
                     onClick={(e) => { e.stopPropagation(); openFocused(note); }}
                   >
+                    {isNew && (
+                      <span
+                        className="absolute -top-2 -right-2 text-[9px] font-semibold px-1.5 py-0.5 leading-none"
+                        style={{ background: "#7dd3fc", color: "#0c2733" }}
+                      >
+                        NEW
+                      </span>
+                    )}
                     <span
                       aria-hidden
                       className="absolute -top-1.5 left-1/2 w-8 h-2.5"
@@ -845,6 +861,42 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
         )}
       </AnimatePresence>
 
+      {/* ── 재방문 안내 — Guestbook 진입 전, 직전 방문 이후 새로 생긴 흔적을 알려준다 ── */}
+      <AnimatePresence>
+        {revisitNoticeOpen && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center px-8"
+            style={{ background: "rgba(0,0,0,0.88)" }}
+          >
+            <motion.div
+              initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+              transition={{ duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] }}
+              className="w-full max-w-xs p-7 text-center space-y-4"
+              style={{ background: "#111", border: "1px solid #2a2a2a" }}
+            >
+              <p className="text-sm leading-relaxed" style={{ color: "#eee" }}>
+                지난 방문 이후
+                <br />새로운 흔적 {newNotesCount}개가 추가되었습니다.
+              </p>
+              <button
+                type="button"
+                onClick={() => setRevisitNoticeOpen(false)}
+                className="w-full text-xs py-2.5 border transition-colors hover:bg-white hover:text-black"
+                style={{ borderColor: "#eee", color: "#eee" }}
+              >
+                확인
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── 방명록 저장 직후 보상 시퀀스 ── */}
+      <AnimatePresence>
+        {rewardSummary && <PostSubmitReward summary={rewardSummary} onClose={() => setRewardSummary(null)} />}
+      </AnimatePresence>
+
       <style>{`
         @keyframes noteGlowPulse {
           0%, 100% { box-shadow: 0 2px 10px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.2); }
@@ -853,8 +905,15 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
         .note-glow {
           animation: noteGlowPulse 2.8s ease-in-out infinite;
         }
+        @keyframes noteNewGlowPulse {
+          0%, 100% { box-shadow: 0 2px 10px rgba(0,0,0,0.5), 0 0 0 1.5px rgba(125,211,252,0.55); }
+          50%      { box-shadow: 0 2px 10px rgba(0,0,0,0.5), 0 0 12px 2px rgba(125,211,252,0.45), 0 0 0 1.5px rgba(125,211,252,0.8); }
+        }
+        .note-new-glow {
+          animation: noteNewGlowPulse 2.8s ease-in-out infinite;
+        }
         @media (prefers-reduced-motion: reduce) {
-          .note-glow { animation: none; box-shadow: 0 0 0 1.5px rgba(255,255,255,0.6); }
+          .note-glow, .note-new-glow { animation: none; box-shadow: 0 0 0 1.5px rgba(255,255,255,0.6); }
         }
       `}</style>
     </div>

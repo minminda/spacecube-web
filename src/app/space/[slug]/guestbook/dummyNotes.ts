@@ -21,6 +21,8 @@ export interface GuestbookNoteData {
   rotation: number;
   color: string;
   createdAt: string; // YYYY.MM.DD
+  /** 내 직전 방문 이후 생긴 흔적인지 — 더미 데이터는 항상 false(대상 아님) */
+  isNew?: boolean;
 }
 
 const NICKNAME_POOL = [
