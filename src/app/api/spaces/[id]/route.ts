@@ -27,8 +27,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     imageZoom,
     imagePositionX,
     imagePositionY,
-    ownerName, ownerPhotoUrl, ownerBio, ownerValues,
-    ownerPlaylistUrl, ownerBlogUrl, ownerSocialUrl,
+    ownerName, ownerPhotoUrl, ownerBio,
+    ownerValues, ownerPlaylistUrl, ownerBlogUrl, ownerSocialUrl,
   } = await req.json();
 
   const updated = await prisma.space.update({
@@ -47,17 +47,18 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       ownerName: ownerName || null,
       ownerPhotoUrl: ownerPhotoUrl || null,
       ownerBio: ownerBio || null,
-      ownerValues: ownerValues || null,
-      ownerPlaylistUrl: ownerPlaylistUrl || null,
-      ownerBlogUrl: ownerBlogUrl || null,
-      ownerSocialUrl: ownerSocialUrl || null,
-      // '대표 글' 관련 레거시 필드는 Episode로 통합되어 더 이상 이 폼에서 편집하지 않는다.
-      // 요청 본문에 값이 없으면(폼이 보내지 않으면) 기존 값을 그대로 보존한다 — 의도치 않은 데이터 삭제 방지.
+      // '대표 글' 관련 레거시 필드, 그리고 공간 페이지에서 더 이상 보여주지 않는
+      // 가치/링크 필드는 이 폼에서 편집하지 않는다. 요청 본문에 값이 없으면(폼이
+      // 보내지 않으면) 기존 값을 그대로 보존한다 — 의도치 않은 데이터 삭제 방지.
       ...(philosophy !== undefined ? { philosophy: philosophy || "" } : {}),
       ...(ownerMessage !== undefined ? { ownerMessage: ownerMessage || null } : {}),
       ...(experienceGuide !== undefined ? { experienceGuide: experienceGuide || null } : {}),
       ...(spacePoints !== undefined ? { spacePoints: spacePoints || null } : {}),
       ...(storyItems !== undefined ? { storyItems: storyItems ?? null } : {}),
+      ...(ownerValues !== undefined ? { ownerValues: ownerValues || null } : {}),
+      ...(ownerPlaylistUrl !== undefined ? { ownerPlaylistUrl: ownerPlaylistUrl || null } : {}),
+      ...(ownerBlogUrl !== undefined ? { ownerBlogUrl: ownerBlogUrl || null } : {}),
+      ...(ownerSocialUrl !== undefined ? { ownerSocialUrl: ownerSocialUrl || null } : {}),
     },
   });
 

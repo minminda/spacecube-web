@@ -39,10 +39,6 @@ export default async function EditSpacePage({ params }: Props) {
         ownerName: space.ownerName ?? "",
         ownerPhotoUrl: space.ownerPhotoUrl ?? "",
         ownerBio: space.ownerBio ?? "",
-        ownerValues: space.ownerValues ?? "",
-        ownerPlaylistUrl: space.ownerPlaylistUrl ?? "",
-        ownerBlogUrl: space.ownerBlogUrl ?? "",
-        ownerSocialUrl: space.ownerSocialUrl ?? "",
       }}
     />
   );

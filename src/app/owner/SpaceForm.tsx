@@ -26,10 +26,6 @@ interface SpaceData {
   ownerName?: string;
   ownerPhotoUrl?: string;
   ownerBio?: string;
-  ownerValues?: string;
-  ownerPlaylistUrl?: string;
-  ownerBlogUrl?: string;
-  ownerSocialUrl?: string;
 }
 
 interface Props {
@@ -60,17 +56,13 @@ export default function SpaceForm({ mode, space }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // 운영자 이야기
+  // 운영자 한마디
   const [ownerPhotoUrl, setOwnerPhotoUrl] = useState(space?.ownerPhotoUrl ?? "");
   const [ownerPhotoPreview, setOwnerPhotoPreview] = useState(space?.ownerPhotoUrl ?? "");
   const [ownerPhotoUploading, setOwnerPhotoUploading] = useState(false);
   const [ownerForm, setOwnerForm] = useState({
     ownerName: space?.ownerName ?? "",
     ownerBio: space?.ownerBio ?? "",
-    ownerValues: space?.ownerValues ?? "",
-    ownerPlaylistUrl: space?.ownerPlaylistUrl ?? "",
-    ownerBlogUrl: space?.ownerBlogUrl ?? "",
-    ownerSocialUrl: space?.ownerSocialUrl ?? "",
   });
 
   // 대표 이미지 — 위치/확대 조절 포함
@@ -260,9 +252,9 @@ export default function SpaceForm({ mode, space }: Props) {
           </a>
         )}
 
-        {/* 운영자 이야기 */}
+        {/* 운영자 한마디 */}
         <div style={{ borderTop: "1px solid var(--border)" }} />
-        <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>운영자의 이야기</p>
+        <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>운영자 한마디</p>
 
         <Field label="운영자 이름/닉네임 (선택)">
           <input name="ownerName" value={ownerForm.ownerName} onChange={handleOwnerChange}
@@ -288,31 +280,10 @@ export default function SpaceForm({ mode, space }: Props) {
           </label>
         </Field>
 
-        <Field label="운영자 이야기 (선택)">
+        <Field label="운영자 한마디 (선택)">
           <textarea name="ownerBio" value={ownerForm.ownerBio} onChange={handleOwnerChange}
-            placeholder="어떻게 이 공간을 시작하게 됐는지, 어떤 사람인지 자유롭게 써줘."
-            rows={5} className="w-full text-sm px-3 py-2.5 border resize-none" style={inputStyle} />
-        </Field>
-
-        <Field label="가장 중요하게 생각하는 가치 (선택)">
-          <textarea name="ownerValues" value={ownerForm.ownerValues} onChange={handleOwnerChange}
-            placeholder="공간을 운영하면서 가장 지키고 싶은 것, 손님에게 전하고 싶은 것"
-            rows={3} className="w-full text-sm px-3 py-2.5 border resize-none" style={inputStyle} />
-        </Field>
-
-        <Field label="플레이리스트 링크 (선택)">
-          <input name="ownerPlaylistUrl" value={ownerForm.ownerPlaylistUrl} onChange={handleOwnerChange}
-            placeholder="https://open.spotify.com/..." className="w-full text-sm px-3 py-2.5 border" style={inputStyle} />
-        </Field>
-
-        <Field label="블로그 링크 (선택)">
-          <input name="ownerBlogUrl" value={ownerForm.ownerBlogUrl} onChange={handleOwnerChange}
-            placeholder="https://brunch.co.kr/..." className="w-full text-sm px-3 py-2.5 border" style={inputStyle} />
-        </Field>
-
-        <Field label="SNS 링크 (선택)">
-          <input name="ownerSocialUrl" value={ownerForm.ownerSocialUrl} onChange={handleOwnerChange}
-            placeholder="https://instagram.com/..." className="w-full text-sm px-3 py-2.5 border" style={inputStyle} />
+            placeholder="방문객에게 남기고 싶은 짧은 한마디 (예: 오늘도 편하게 머물다 가셨으면 좋겠습니다.)"
+            rows={2} className="w-full text-sm px-3 py-2.5 border resize-none" style={inputStyle} />
         </Field>
 
         {/* 태그 */}
