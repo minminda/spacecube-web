@@ -4,8 +4,6 @@ interface EpisodeSummary {
   id: string;
   episodeNumber: number;
   title: string;
-  description: string | null;
-  imageUrl: string | null;
   unlockVisitCount: number;
   unlocked: boolean;
   isRead: boolean;
@@ -48,56 +46,28 @@ export default function EpisodeSection({ spaceSlug, episodes, banner }: Props) {
         </div>
       )}
 
-      <div className="space-y-2">
+      <div className="space-y-1.5">
         {episodes.map((ep) => {
           if (ep.isPlaceholder) {
             return (
               <div
                 key={ep.id}
-                className="border border-dashed px-4 py-3 flex items-center gap-3"
-                style={{ borderColor: "var(--border)", opacity: 0.55 }}
+                className="flex items-center gap-2.5 px-4 py-3 border border-dashed"
+                style={{ borderColor: "var(--border)", opacity: 0.5 }}
               >
-                <span className="text-xs flex-shrink-0" style={{ color: "var(--dim)" }}>🔒</span>
-                <div className="flex-1 min-w-0 space-y-0.5">
-                  <span className="text-sm font-medium" style={{ color: "var(--dim)" }}>
-                    EP.{ep.episodeNumber}
-                  </span>
-                  <p className="text-xs" style={{ color: "var(--dim)" }}>다음 이야기가 준비되고 있어요. (예정)</p>
-                </div>
+                <span className="text-xs" style={{ color: "var(--dim)" }}>EP.{ep.episodeNumber}</span>
+                <span className="text-sm" style={{ color: "var(--dim)" }}>다음 이야기 (예정)</span>
               </div>
             );
           }
 
-          const remaining = ep.unlockVisitCount - (ep.unlocked ? 0 : 1);
           const body = (
-            <div className="flex gap-3 items-center px-4 py-3">
-              {ep.unlocked && ep.imageUrl && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={ep.imageUrl} alt="" className="w-14 h-14 object-cover flex-shrink-0" />
-              )}
-              {!ep.unlocked && (
-                <span className="text-sm flex-shrink-0" aria-hidden>🔒</span>
-              )}
-              <div className="flex-1 min-w-0 space-y-0.5">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-sm font-medium truncate" style={{ color: ep.unlocked ? "var(--fg)" : "var(--dim)" }}>
-                    EP.{ep.episodeNumber} {ep.unlocked ? ep.title : ""}
-                  </span>
-                  {ep.unlocked && (
-                    <span className="text-xs flex-shrink-0" style={{ color: ep.isRead ? "var(--dim)" : "var(--fg)" }}>
-                      {ep.isRead ? "읽기 →" : "● 안읽음"}
-                    </span>
-                  )}
-                </div>
-                {ep.unlocked && ep.description && (
-                  <p className="text-xs truncate" style={{ color: "var(--dim)" }}>{ep.description}</p>
-                )}
-                {!ep.unlocked && (
-                  <p className="text-xs" style={{ color: "var(--dim)" }}>
-                    {remaining <= 1 ? "다음 방문에서 열립니다." : `앞으로 ${remaining}번 더 방문하면 열립니다.`}
-                  </p>
-                )}
-              </div>
+            <div className="flex items-center gap-2.5 px-4 py-3.5">
+              <span className="text-xs flex-shrink-0" style={{ color: "var(--dim)" }}>EP.{ep.episodeNumber}</span>
+              <span className="text-sm flex-1 min-w-0 truncate" style={{ color: ep.unlocked ? "var(--fg)" : "var(--dim)" }}>
+                {ep.title}
+              </span>
+              {!ep.unlocked && <span className="text-xs flex-shrink-0" aria-hidden>🔒</span>}
             </div>
           );
 

@@ -132,8 +132,6 @@ export default async function SpacePage({ params }: Props) {
       id: ep.id,
       episodeNumber: ep.episodeNumber,
       title: resolveLocalizedField(locale, ep.title, primary?.title, english?.title).value ?? ep.title,
-      description: resolveLocalizedField(locale, ep.description, primary?.subtitle, english?.subtitle).value,
-      imageUrl: ep.imageUrl,
       unlockVisitCount: ep.unlockVisitCount,
       unlocked: ep.unlockVisitCount <= visitCount,
       isRead: readEpisodeIds.has(ep.id),
@@ -164,8 +162,6 @@ export default async function SpacePage({ params }: Props) {
             id: "__upcoming__",
             episodeNumber: episodes[episodes.length - 1].episodeNumber + 1,
             title: "",
-            description: null,
-            imageUrl: null,
             unlockVisitCount: 0,
             unlocked: false,
             isRead: false,
@@ -180,7 +176,7 @@ export default async function SpacePage({ params }: Props) {
 
   const recordHref = `/space/${slug}/record`;
   const ctaHref = session ? recordHref : `/login?callbackUrl=${encodeURIComponent(recordHref)}`;
-  const hasOwnerStory = !!(space.ownerBio || space.ownerValues || space.ownerPlaylistUrl || space.ownerBlogUrl || space.ownerSocialUrl);
+  const hasOwnerNote = !!localizedOwnerBio;
 
   return (
     <main className="flex flex-col min-h-screen md:flex-row">
@@ -233,18 +229,6 @@ export default async function SpacePage({ params }: Props) {
             )}
           </div>
 
-          {space.currentMood && (
-            <>
-              <div style={{ borderTop: "1px solid var(--border)" }} />
-              <section className="space-y-1.5">
-                <p className="text-xs uppercase tracking-widest" style={{ color: "var(--border)" }}>지금의 공간</p>
-                <p className="text-sm leading-relaxed pl-3" style={{ borderLeft: "2px solid var(--border)", color: "var(--dim)" }}>
-                  {space.currentMood}
-                </p>
-              </section>
-            </>
-          )}
-
           {episodes.length > 0 && (
             <>
               <div style={{ borderTop: "1px solid var(--border)" }} />
@@ -252,24 +236,20 @@ export default async function SpacePage({ params }: Props) {
             </>
           )}
 
-          {hasOwnerStory && (
+          {hasOwnerNote && (
             <>
               <div style={{ borderTop: "1px solid var(--border)" }} />
-              <section className="space-y-4">
-                <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>운영자의 이야기</p>
+              <section className="space-y-3">
+                <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>운영자 한마디</p>
                 {usedOwnerBioFallback && (
                   <p className="text-xs leading-relaxed" style={{ color: "var(--border)" }}>
-                    이 이야기는 아직 선택한 언어로 준비되지 않아 다른 언어로 보여드리고 있어요.
+                    이 한마디는 아직 선택한 언어로 준비되지 않아 다른 언어로 보여드리고 있어요.
                   </p>
                 )}
                 <OwnerStory
                   ownerName={space.ownerName}
                   ownerPhotoUrl={space.ownerPhotoUrl}
                   ownerBio={localizedOwnerBio}
-                  ownerValues={space.ownerValues}
-                  ownerPlaylistUrl={space.ownerPlaylistUrl}
-                  ownerBlogUrl={space.ownerBlogUrl}
-                  ownerSocialUrl={space.ownerSocialUrl}
                 />
               </section>
             </>
