@@ -128,9 +128,11 @@ export default async function EpisodeDetailPage({ params }: Props) {
     prisma.episode.findFirst({
       where: { spaceId: space.id, published: true, displayOrder: { gt: episode.displayOrder } },
       orderBy: { displayOrder: "asc" },
-      select: { id: true, episodeNumber: true, title: true },
+      select: { id: true, episodeNumber: true, title: true, unlockVisitCount: true },
     }),
   ]);
+
+  const nextEpisodeUnlocked = !!nextEpisode && nextEpisode.unlockVisitCount <= visitCount;
 
   return (
     <main className="flex flex-col min-h-screen px-6 py-8 gap-8">
@@ -150,28 +152,12 @@ export default async function EpisodeDetailPage({ params }: Props) {
         </p>
       )}
 
-      <div className="space-y-4">
-        <div className="space-y-2">
-          <h1 className="text-2xl font-bold leading-tight">{localizedTitle}</h1>
-          {localizedSubtitle && (
-            <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>{localizedSubtitle}</p>
-          )}
-        </div>
-
-        {episode.imageUrl && (
-          <div className="relative w-full overflow-hidden" style={{ aspectRatio: episode.imageAspectRatio ?? "4/3" }}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={episode.imageUrl}
-              alt={episode.title}
-              className="w-full h-full object-cover"
-              style={{
-                objectPosition: `${(episode.imagePositionX ?? 0.5) * 100}% ${(episode.imagePositionY ?? 0.5) * 100}%`,
-                transform: `scale(${episode.imageZoom ?? 1})`,
-                transformOrigin: "center center",
-              }}
-            />
-          </div>
+      {/* 대표 사진은 공간 페이지에서 이미 보여줬으므로 여기서는 반복하지 않는다 —
+          "이제부터 이야기가 시작된다"는 느낌으로 제목만 간결하게 연다. */}
+      <div className="space-y-2">
+        <h1 className="text-2xl font-bold leading-tight">{localizedTitle}</h1>
+        {localizedSubtitle && (
+          <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>{localizedSubtitle}</p>
         )}
       </div>
 
@@ -192,30 +178,31 @@ export default async function EpisodeDetailPage({ params }: Props) {
             const bodyText = hasHighlight ? paragraphs.slice(0, -1).join("\n\n") : paragraphs.join("\n\n");
             const highlight = hasHighlight ? paragraphs[paragraphs.length - 1] : null;
 
+            const sceneImage = scene.imageUrl && (
+              <div className="relative w-full overflow-hidden" style={{ aspectRatio: scene.imageAspectRatio ?? "3/2" }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={scene.imageUrl}
+                  alt={localized.title ?? ""}
+                  className="w-full h-full object-cover"
+                  style={{
+                    objectPosition: `${(scene.imagePositionX ?? 0.5) * 100}% ${(scene.imagePositionY ?? 0.5) * 100}%`,
+                    transform: `scale(${scene.imageZoom ?? 1})`,
+                    transformOrigin: "center center",
+                  }}
+                />
+              </div>
+            );
+
             return (
               <div
                 key={scene.id}
                 className="py-12 first:pt-0"
                 style={i > 0 ? { borderTop: "1px solid var(--border)" } : undefined}
               >
-                {scene.imageUrl && (
-                  <div className="relative w-full overflow-hidden mb-6" style={{ aspectRatio: scene.imageAspectRatio ?? "3/2" }}>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={scene.imageUrl}
-                      alt={localized.title ?? ""}
-                      className="w-full h-full object-cover"
-                      style={{
-                        objectPosition: `${(scene.imagePositionX ?? 0.5) * 100}% ${(scene.imagePositionY ?? 0.5) * 100}%`,
-                        transform: `scale(${scene.imageZoom ?? 1})`,
-                        transformOrigin: "center center",
-                      }}
-                    />
-                  </div>
-                )}
-
-                {hasContent && (
-                  <div className="space-y-4 max-w-[36rem]">
+                {hasContent ? (
+                  // 글을 읽고(제목→본문) → 사진으로 보완하고(선택) → 대표 문장으로 여운을 남기는 순서.
+                  <div className="space-y-5 max-w-[36rem]">
                     <p className="text-xs font-medium uppercase tracking-widest" style={{ color: "var(--dim)" }}>
                       Scene {sceneNumber}
                     </p>
@@ -225,6 +212,7 @@ export default async function EpisodeDetailPage({ params }: Props) {
                     {bodyText && (
                       <p className="text-base leading-8 whitespace-pre-line">{bodyText}</p>
                     )}
+                    {sceneImage}
                     {highlight && (
                       <p
                         className="text-lg font-semibold leading-relaxed pl-4 whitespace-pre-line"
@@ -234,6 +222,9 @@ export default async function EpisodeDetailPage({ params }: Props) {
                       </p>
                     )}
                   </div>
+                ) : (
+                  // 글 없이 사진만 있는 Scene — 이야기 사이의 짧은 쉼표 역할, 번호를 매기지 않는다.
+                  sceneImage
                 )}
               </div>
             );
@@ -241,19 +232,36 @@ export default async function EpisodeDetailPage({ params }: Props) {
         })()}
       </div>
 
-      <div style={{ borderTop: "1px solid var(--border)" }} />
+      {prevEpisode && (
+        <Link href={`/space/${space.slug}/episodes/${prevEpisode.id}`} className="text-xs" style={{ color: "var(--dim)" }}>
+          ← EP.{prevEpisode.episodeNumber} {prevEpisode.title}
+        </Link>
+      )}
 
-      <div className="flex justify-between text-sm gap-4">
-        {prevEpisode ? (
-          <Link href={`/space/${space.slug}/episodes/${prevEpisode.id}`} className="min-w-0 hover:underline" style={{ color: "var(--dim)" }}>
-            ← EP.{prevEpisode.episodeNumber} {prevEpisode.title}
+      <div className="py-10 text-center" style={{ borderTop: "1px solid var(--border)" }}>
+        {nextEpisode && nextEpisodeUnlocked ? (
+          <Link href={`/space/${space.slug}/episodes/${nextEpisode.id}`} className="block space-y-3 transition-opacity hover:opacity-70">
+            <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>다음 이야기 · EP.{nextEpisode.episodeNumber}</p>
+            <p className="text-lg font-bold leading-snug">{nextEpisode.title}</p>
+            <p className="text-xs" style={{ color: "var(--border)" }}>지금 이어서 읽기 →</p>
           </Link>
-        ) : <span />}
-        {nextEpisode ? (
-          <Link href={`/space/${space.slug}/episodes/${nextEpisode.id}`} className="min-w-0 text-right hover:underline" style={{ color: "var(--dim)" }}>
-            EP.{nextEpisode.episodeNumber} {nextEpisode.title} →
-          </Link>
-        ) : <span />}
+        ) : nextEpisode ? (
+          <div className="space-y-3">
+            <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>
+              다음 방문에는<br />새로운 이야기가 열립니다.
+            </p>
+            <div className="space-y-1 py-2">
+              <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>EP.{nextEpisode.episodeNumber}</p>
+              <p className="text-lg font-bold leading-snug">{nextEpisode.title}</p>
+            </div>
+            <p className="text-xs" style={{ color: "var(--border)" }}>다음 방문 후 열립니다.</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>다음 이야기를 준비하고 있습니다.</p>
+            <p className="text-xs leading-relaxed" style={{ color: "var(--border)" }}>새로운 이야기가 추가되면 다시 찾아와 주세요.</p>
+          </div>
+        )}
       </div>
 
       <div className="flex flex-col gap-3">
