@@ -3,9 +3,10 @@ import { NextResponse } from "next/server";
 export const dynamic = "force-dynamic";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { Prisma } from "@prisma/client";
+import { Prisma, NotificationType } from "@prisma/client";
 import { ALLOW_SELF_GUESTBOOK_REACTION } from "@/lib/features";
 import { canReact } from "@/lib/guestbookReaction";
+import { shouldNotify } from "@/lib/notification";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -54,6 +55,10 @@ export async function POST(_req: Request, { params }: Props) {
 
   if (existing) {
     await prisma.guestbookReaction.delete({ where: { id: existing.id } });
+    // 공감을 취소하면 "공감했다"는 사실 자체가 사라지므로 관련 알림도 함께 지운다(다시 누르면 새로 생김).
+    await prisma.notification.deleteMany({
+      where: { receiverId: note.userId, senderId: user.id, type: NotificationType.LIKE, guestbookId: postId },
+    });
     const reactionCount = await prisma.guestbookReaction.count({ where: { postId } });
     return NextResponse.json({ reacted: false, reactionCount });
   }
@@ -64,6 +69,17 @@ export async function POST(_req: Request, { params }: Props) {
     // 동시 요청 경쟁 — 이미 다른 요청이 같은 공감을 만들었으면 그대로 진행(멱등), 그 외 에러는 재전파.
     if (!(err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002")) {
       throw err;
+    }
+  }
+
+  if (shouldNotify(note.userId, user.id)) {
+    const existingNotification = await prisma.notification.findFirst({
+      where: { receiverId: note.userId, senderId: user.id, type: NotificationType.LIKE, guestbookId: postId },
+    });
+    if (!existingNotification) {
+      await prisma.notification.create({
+        data: { receiverId: note.userId, senderId: user.id, type: NotificationType.LIKE, guestbookId: postId },
+      });
     }
   }
 

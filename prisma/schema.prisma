@@ -19,19 +19,22 @@ model User {
   visibility    Visibility @default(PRIVATE)
   createdAt     DateTime   @default(now())
 
-  accounts             Account[]
-  sessions             Session[]
-  records              Record[]
-  spaces               Space[]
-  collections          Collection[]
-  savedTastes          SavedTaste[]          @relation("SavedBy")
-  savedByOthers        SavedTaste[]          @relation("SavedTarget")
-  guestbookNotes       GuestbookNote[]
-  episodeReads         EpisodeRead[]
-  savedSpaces          SavedSpace[]
-  spaceScans           SpaceScan[]
-  guestbookReactions   GuestbookReaction[]
-  operatorMonthlyNotes OperatorMonthlyNote[]
+  accounts              Account[]
+  sessions              Session[]
+  records               Record[]
+  spaces                Space[]
+  collections           Collection[]
+  savedTastes           SavedTaste[]          @relation("SavedBy")
+  savedByOthers         SavedTaste[]          @relation("SavedTarget")
+  guestbookNotes        GuestbookNote[]
+  episodeReads          EpisodeRead[]
+  savedSpaces           SavedSpace[]
+  spaceScans            SpaceScan[]
+  guestbookReactions    GuestbookReaction[]
+  operatorMonthlyNotes  OperatorMonthlyNote[]
+  guestbookComments     GuestbookComment[]
+  notificationsReceived Notification[]        @relation("NotificationReceiver")
+  notificationsSent     Notification[]        @relation("NotificationSender")
 }
 
 model Account {
@@ -234,8 +237,10 @@ model GuestbookNote {
   space   Space            @relation(fields: [spaceId], references: [id], onDelete: Cascade)
   session GuestbookSession @relation(fields: [guestbookSessionId], references: [id], onDelete: Cascade)
 
-  reactions  GuestbookReaction[]
-  featuredIn MonthlyReportFeaturedPost[]
+  reactions     GuestbookReaction[]
+  featuredIn    MonthlyReportFeaturedPost[]
+  comments      GuestbookComment[]
+  notifications Notification[]
 
   @@unique([userId, guestbookSessionId]) // 한 세션에 사용자당 흔적 하나만 — 세션 단위로 정책 이전
 }
@@ -254,6 +259,48 @@ model GuestbookReaction {
   @@index([postId])
   @@index([userId])
   @@map("guestbook_reactions")
+}
+
+// 포스트잇 댓글 — 1단계 답글만 허용(대댓글 없음). 본인만 수정/삭제 가능.
+model GuestbookComment {
+  id          String   @id @default(cuid())
+  guestbookId String
+  userId      String
+  content     String   @db.VarChar(200)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  note          GuestbookNote  @relation(fields: [guestbookId], references: [id], onDelete: Cascade)
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  notifications Notification[]
+
+  @@index([guestbookId])
+  @@map("guestbook_comments")
+}
+
+enum NotificationType {
+  LIKE
+  COMMENT
+}
+
+// 내 포스트잇에 달린 공감/댓글 알림 — SNS 피드가 아니라 "새 반응이 생겼다"는 정도의 단순 알림.
+model Notification {
+  id          String           @id @default(cuid())
+  receiverId  String
+  senderId    String
+  type        NotificationType
+  guestbookId String
+  commentId   String?
+  isRead      Boolean          @default(false)
+  createdAt   DateTime         @default(now())
+
+  receiver User              @relation("NotificationReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+  sender   User              @relation("NotificationSender", fields: [senderId], references: [id], onDelete: Cascade)
+  note     GuestbookNote     @relation(fields: [guestbookId], references: [id], onDelete: Cascade)
+  comment  GuestbookComment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
+  @@index([receiverId, isRead])
+  @@map("notifications")
 }
 
 // 공간별 방명록 배경/레이아웃 설정 — 없으면 앱 기본값 사용

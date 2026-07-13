@@ -8,6 +8,7 @@ import ArchiveSessionView from "./ArchiveSessionView";
 
 interface Props {
   params: Promise<{ slug: string; sessionId: string }>;
+  searchParams: Promise<{ highlight?: string }>;
 }
 
 export const metadata: Metadata = { title: "이전 방명록 — 공간큐브" };
@@ -16,8 +17,9 @@ function formatDate(d: Date): string {
   return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
 }
 
-export default async function GuestbookArchiveSessionPage({ params }: Props) {
+export default async function GuestbookArchiveSessionPage({ params, searchParams }: Props) {
   const { slug, sessionId } = await params;
+  const { highlight } = await searchParams;
   const space = await prisma.space.findUnique({ where: { slug, isActive: true }, select: { id: true, name: true, slug: true } });
   if (!space) notFound();
 
@@ -51,7 +53,7 @@ export default async function GuestbookArchiveSessionPage({ params }: Props) {
       content: true,
       nickname: true,
       createdAt: true,
-      _count: { select: { reactions: true } },
+      _count: { select: { reactions: true, comments: true } },
       reactions: user ? { where: { userId: user.id }, select: { id: true } } : false,
     },
   });
@@ -82,6 +84,8 @@ export default async function GuestbookArchiveSessionPage({ params }: Props) {
       ) : (
         <ArchiveSessionView
           isLoggedIn={!!session?.user?.email}
+          currentUserId={user?.id ?? null}
+          highlightId={highlight ?? null}
           notes={notes.map((n) => ({
             id: n.id,
             content: n.content,
@@ -89,6 +93,7 @@ export default async function GuestbookArchiveSessionPage({ params }: Props) {
             createdAt: formatDate(n.createdAt),
             reactionCount: n._count.reactions,
             reactedByMe: Array.isArray(n.reactions) && n.reactions.length > 0,
+            commentCount: n._count.comments,
           }))}
         />
       )}

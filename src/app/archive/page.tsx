@@ -7,6 +7,7 @@ import SettingsPanel from "@/components/SettingsPanel";
 import CollectionManager from "@/components/CollectionManager";
 import TasteProfileCard from "@/components/TasteProfileCard";
 import VisitedSpacesPager, { type VisitedRow } from "@/components/VisitedSpacesPager";
+import NotificationBell from "@/components/NotificationBell";
 import { aggregateTags, getTastePhrase } from "@/lib/taste";
 import {
   rankSpaces, getRecommendReason,
@@ -69,6 +70,8 @@ export default async function ArchivePage() {
     },
   });
   if (!user) redirect("/login");
+
+  const unreadNotificationCount = await prisma.notification.count({ where: { receiverId: user.id, isRead: false } });
 
   const allRecords = user.records;
 
@@ -200,7 +203,10 @@ export default async function ArchivePage() {
     <main className="flex flex-col min-h-screen px-6 pt-8 pb-16">
       <nav className="flex justify-between items-center mb-10">
         <Link href="/" className="text-xs" style={{ color: "var(--dim)" }}>← </Link>
-        <SettingsPanel nickname={user.nickname} visibility={user.visibility} userId={user.id} />
+        <div className="flex items-center gap-4">
+          <NotificationBell initialUnreadCount={unreadNotificationCount} />
+          <SettingsPanel nickname={user.nickname} visibility={user.visibility} userId={user.id} />
+        </div>
       </nav>
 
       <div className="md:grid md:grid-cols-2 md:gap-12 md:items-start">

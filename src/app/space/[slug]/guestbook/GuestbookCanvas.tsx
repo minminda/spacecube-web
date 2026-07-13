@@ -19,6 +19,7 @@ import {
 } from "./dummyNotes";
 import PostSubmitReward from "./PostSubmitReward";
 import type { RewardSummary } from "@/lib/guestbookReward";
+import GuestbookCommentThread from "@/components/GuestbookCommentThread";
 
 /* ── 방명록 캔버스 (전체 화면, 진짜 무한 캔버스) ──────────────────
    관리자가 설정한 배경/포스트잇 색/레이아웃을 반영한다. 설정이 없으면
@@ -90,13 +91,15 @@ interface Props {
   newNotesCount: number;
   /** 현재 세션의 군집 라벨 — 질문이 없는 군집은 애초에 배열에 없다 */
   clusters: ClusterLabel[];
+  /** 로그인한 내 사용자 id — 댓글 본인 확인(수정/삭제 노출)에 사용, 비로그인이면 null */
+  currentUserId: string | null;
 }
 
 // 포스트잇 텍스트는 노란 종이 위 고정 잉크색 (테마 무관)
 const INK = "#3d3524";
 const INK_DIM = "#8a7d5c";
 
-export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initialMyNoteId, nickname, settings, newNotesCount, clusters }: Props) {
+export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initialMyNoteId, nickname, settings, newNotesCount, clusters, currentUserId }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const transformRef = useRef<ReactZoomPanPinchContentRef>(null);
@@ -842,6 +845,15 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
                     >
                       공감 {focused.reactionCount > 0 ? focused.reactionCount : ""}
                     </button>
+                  )}
+
+                  {typeof focused.commentCount === "number" && (
+                    <GuestbookCommentThread
+                      noteId={focused.id}
+                      initialCount={focused.commentCount}
+                      isLoggedIn={isLoggedIn}
+                      currentUserId={currentUserId}
+                    />
                   )}
 
                   {!isMine && focused.userId && (

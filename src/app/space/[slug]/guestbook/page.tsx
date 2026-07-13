@@ -121,7 +121,7 @@ export default async function GuestbookPage({ params }: Props) {
       select: {
         id: true, userId: true, content: true, nickname: true, imageUrl: true,
         x: true, y: true, rotation: true, color: true, createdAt: true,
-        _count: { select: { reactions: true } },
+        _count: { select: { reactions: true, comments: true } },
         reactions: user ? { where: { userId: user.id }, select: { id: true } } : false,
       },
     }),
@@ -151,6 +151,7 @@ export default async function GuestbookPage({ params }: Props) {
     isNew: isNewNote(n),
     reactionCount: n._count.reactions,
     reactedByMe: Array.isArray(n.reactions) && n.reactions.length > 0,
+    commentCount: n._count.comments,
   }));
 
   const clusters = getVisibleClusters(activeSession);
@@ -184,6 +185,7 @@ export default async function GuestbookPage({ params }: Props) {
           settings={settings}
           newNotesCount={newNotesCount}
           clusters={clusters}
+          currentUserId={user?.id ?? null}
         />
       </Suspense>
     </main>

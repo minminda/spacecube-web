@@ -27,6 +27,8 @@ export interface GuestbookNoteData {
   reactionCount?: number;
   /** 로그인한 내가 이미 공감했는지 — 실제 흔적에서만 의미 있음 */
   reactedByMe?: boolean;
+  /** 댓글 수 — 더미 데이터는 undefined(댓글 UI 자체를 표시하지 않음), 실제 흔적은 항상 숫자 */
+  commentCount?: number;
 }
 
 const NICKNAME_POOL = [

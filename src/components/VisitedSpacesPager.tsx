@@ -47,11 +47,11 @@ export default function VisitedSpacesPager({ records }: { records: VisitedRow[] 
       <div
         ref={containerRef}
         onScroll={handleScroll}
-        className="flex overflow-x-auto snap-x snap-mandatory -mx-6 px-6"
+        className="flex overflow-x-auto snap-x snap-mandatory w-full"
         style={{ scrollbarWidth: "none" }}
       >
         {pages.map((group, i) => (
-          <div key={i} className="w-full flex-shrink-0 snap-start space-y-4 pr-6">
+          <div key={i} className="w-full flex-shrink-0 snap-start space-y-4">
             {group.map((r) => (
               <Link key={r.id} href={`/archive/${r.id}`} className="flex justify-between items-baseline group">
                 <span className="text-sm font-medium group-hover:underline">{r.name}</span>

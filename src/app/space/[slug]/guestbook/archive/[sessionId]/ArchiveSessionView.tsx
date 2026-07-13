@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import GuestbookCommentThread from "@/components/GuestbookCommentThread";
 
 interface Note {
   id: string;
@@ -10,12 +11,24 @@ interface Note {
   createdAt: string;
   reactionCount: number;
   reactedByMe: boolean;
+  commentCount: number;
 }
 
-export default function ArchiveSessionView({ notes: initialNotes, isLoggedIn }: { notes: Note[]; isLoggedIn: boolean }) {
+export default function ArchiveSessionView({
+  notes: initialNotes,
+  isLoggedIn,
+  currentUserId,
+  highlightId,
+}: {
+  notes: Note[];
+  isLoggedIn: boolean;
+  currentUserId: string | null;
+  highlightId?: string | null;
+}) {
   const router = useRouter();
   const [notes, setNotes] = useState(initialNotes);
-  const [openId, setOpenId] = useState<string | null>(null);
+  // 알림에서 ?highlight=로 들어오면 캔버스 점프의 대체로 해당 카드 상세를 바로 펼친다.
+  const [openId, setOpenId] = useState<string | null>(highlightId ?? null);
   const openNote = notes.find((n) => n.id === openId) ?? null;
 
   async function toggleReaction(noteId: string) {
@@ -70,6 +83,12 @@ export default function ArchiveSessionView({ notes: initialNotes, isLoggedIn }: 
                 닫기
               </button>
             </div>
+            <GuestbookCommentThread
+              noteId={openNote.id}
+              initialCount={openNote.commentCount}
+              isLoggedIn={isLoggedIn}
+              currentUserId={currentUserId}
+            />
           </div>
         </div>
       )}
