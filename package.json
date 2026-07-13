@@ -11,7 +11,9 @@
     "db:seed": "tsx prisma/seed.ts",
     "db:migrate-tags": "tsx prisma/migrate-tag-system.ts",
     "db:migrate-story": "tsx prisma/migrate-story-to-episodes.ts",
-    "db:studio": "prisma studio"
+    "db:migrate-guestbook": "tsx prisma/migrate-guestbook-sessions.ts",
+    "db:studio": "prisma studio",
+    "test": "vitest run"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
@@ -39,6 +41,7 @@
     "eslint-config-next": "16.1.6",
     "tailwindcss": "^4",
     "tsx": "^4.21.0",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.10"
   }
 }

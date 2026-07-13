@@ -3,12 +3,14 @@ import { NextRequest, NextResponse } from "next/server";
 export const dynamic = "force-dynamic";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { Prisma } from "@prisma/client";
+import { Prisma, ClusterType, GuestbookSessionStatus } from "@prisma/client";
 import { recomputeSpaceKPI } from "@/lib/kpi";
 import { buildRewardSummary } from "@/lib/guestbookReward";
+import { canWriteToSession } from "@/lib/guestbookSession";
 
 const MAX_CONTENT = 80;
 const DEFAULT_COLOR = "#F6E7A8"; // 관리자 설정이 없을 때 기본 노란 포스트잇
+const VALID_CLUSTER_TYPES: string[] = [ClusterType.FREE, ClusterType.QUESTION_1, ClusterType.QUESTION_2];
 
 export async function POST(req: NextRequest) {
   const session = await auth();
@@ -16,7 +18,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { spaceId, content, x, y, rotation, imageUrl } = await req.json();
+  const { spaceId, content, x, y, rotation, imageUrl, clusterType } = await req.json();
 
   const text = typeof content === "string" ? content.trim() : "";
   if (!spaceId || !text) {
@@ -51,13 +53,31 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "이 공간에 대한 기록을 먼저 남겨주세요." }, { status: 403 });
   }
 
-  // 한 공간에 사용자당 흔적 하나만 — UI에서도 막지만 동시 요청 대비 서버에서도 확인
+  // 방문자가 sessionId를 직접 지정하지 않는다 — 서버에서 이 공간의 현재 ACTIVE 세션을 조회한다.
+  const activeSession = await prisma.guestbookSession.findFirst({
+    where: { spaceId, status: GuestbookSessionStatus.ACTIVE },
+  });
+  if (!activeSession || !canWriteToSession(activeSession.status)) {
+    return NextResponse.json({ error: "현재 진행 중인 방명록이 없습니다." }, { status: 403 });
+  }
+
+  // clusterType은 벽이 아니라 메타데이터 — 다만 세션에 실제로 없는 질문을 가리키면 자유 군집으로 강등한다.
+  let resolvedClusterType: ClusterType = ClusterType.FREE;
+  if (clusterType === ClusterType.QUESTION_1 && activeSession.question1) {
+    resolvedClusterType = ClusterType.QUESTION_1;
+  } else if (clusterType === ClusterType.QUESTION_2 && activeSession.question2) {
+    resolvedClusterType = ClusterType.QUESTION_2;
+  } else if (VALID_CLUSTER_TYPES.includes(clusterType)) {
+    resolvedClusterType = ClusterType.FREE;
+  }
+
+  // 한 세션에 사용자당 흔적 하나만 — UI에서도 막지만 동시 요청 대비 서버에서도 확인
   const existing = await prisma.guestbookNote.findUnique({
-    where: { userId_spaceId: { userId: user.id, spaceId } },
+    where: { userId_guestbookSessionId: { userId: user.id, guestbookSessionId: activeSession.id } },
     select: { id: true },
   });
   if (existing) {
-    return NextResponse.json({ error: "이미 이 공간에 흔적을 남기셨어요." }, { status: 409 });
+    return NextResponse.json({ error: "이미 이번 방명록에 흔적을 남기셨어요." }, { status: 409 });
   }
 
   try {
@@ -65,6 +85,8 @@ export async function POST(req: NextRequest) {
       data: {
         userId: user.id,
         spaceId,
+        guestbookSessionId: activeSession.id,
+        clusterType: resolvedClusterType,
         content: text,
         nickname: user.nickname,
         imageUrl: typeof imageUrl === "string" && imageUrl ? imageUrl : null,
@@ -89,6 +111,7 @@ export async function POST(req: NextRequest) {
         y: note.y,
         rotation: note.rotation,
         color: note.color,
+        clusterType: note.clusterType,
         createdAt: note.createdAt.toISOString(),
         rewardSummary,
       },
@@ -96,7 +119,7 @@ export async function POST(req: NextRequest) {
     );
   } catch (err) {
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
-      return NextResponse.json({ error: "이미 이 공간에 흔적을 남기셨어요." }, { status: 409 });
+      return NextResponse.json({ error: "이미 이번 방명록에 흔적을 남기셨어요." }, { status: 409 });
     }
     throw err;
   }

@@ -61,6 +61,9 @@ interface SpaceInfo {
   slug: string;
 }
 
+import type { VisibleCluster } from "@/lib/guestbookSession";
+export type ClusterLabel = VisibleCluster;
+
 export interface GuestbookDisplaySettings {
   backgroundType: "color" | "image";
   backgroundColor: string;
@@ -85,13 +88,15 @@ interface Props {
   settings: GuestbookDisplaySettings;
   /** 내 직전 방문 이후 새로 생긴(남의) 흔적 수 — 0이면 재방문 안내를 띄우지 않는다 */
   newNotesCount: number;
+  /** 현재 세션의 군집 라벨 — 질문이 없는 군집은 애초에 배열에 없다 */
+  clusters: ClusterLabel[];
 }
 
 // 포스트잇 텍스트는 노란 종이 위 고정 잉크색 (테마 무관)
 const INK = "#3d3524";
 const INK_DIM = "#8a7d5c";
 
-export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initialMyNoteId, nickname, settings, newNotesCount }: Props) {
+export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initialMyNoteId, nickname, settings, newNotesCount, clusters }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const transformRef = useRef<ReactZoomPanPinchContentRef>(null);
@@ -109,6 +114,7 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
     searchParams.get("mode") === "write" && isLoggedIn && !initialMyNoteId,
   );
   const [composer, setComposer] = useState<{ x: number; y: number } | null>(null);
+  const [composerClusterType, setComposerClusterType] = useState<ClusterLabel["type"]>("FREE");
   const [content, setContent] = useState("");
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
@@ -264,6 +270,21 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
     window.history.replaceState(null, "", `/space/${space.slug}/guestbook`);
   }
 
+  // 탭한 위치에서 가장 가까운 군집을 찾는다 — 물리적 제한이 아니라 clusterType 메타데이터 결정용.
+  function nearestClusterType(x: number, y: number): ClusterLabel["type"] {
+    if (clusters.length === 0) return "FREE";
+    let best = clusters[0];
+    let bestDist = Infinity;
+    for (const c of clusters) {
+      const d = Math.hypot(c.x - x, c.y - y);
+      if (d < bestDist) {
+        bestDist = d;
+        best = c;
+      }
+    }
+    return best.type;
+  }
+
   function snapToGrid(x: number, y: number) {
     if (settings.layoutType !== "grid") return { x, y };
     return {
@@ -309,6 +330,7 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
     // 생성 직후 해당 위치로 부드럽게 이동/확대하고, 취소 시 되돌아갈 이전 위치를 기억해둔다
     preComposeTransformRef.current = { ...lastTransformRef.current };
     setComposer({ x, y });
+    setComposerClusterType(nearestClusterType(x + NOTE_W / 2, y + 70));
     focusOnPoint(x + NOTE_W / 2, y + 70, COMPOSE_SCALE, COMPOSE_DURATION_MS);
   }
 
@@ -362,6 +384,7 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
           y: composer.y,
           rotation: settings.allowRotation ? Math.random() * 5 - 2.5 : 0,
           imageUrl: photoUrl,
+          clusterType: composerClusterType,
         }),
       });
       if (!res.ok) {
@@ -470,6 +493,21 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
 
   const isMine = focused ? focused.id === myNoteId : false;
 
+  async function toggleReaction(noteId: string) {
+    if (!isLoggedIn) {
+      router.push(`/login?callbackUrl=${encodeURIComponent(`/space/${space.slug}/guestbook`)}`);
+      return;
+    }
+    const res = await fetch(`/api/guestbook/${noteId}/reactions`, { method: "POST" });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      showToast(data.error ?? "공감 처리에 실패했습니다.");
+      return;
+    }
+    setNotes((prev) => prev.map((n) => (n.id === noteId ? { ...n, reactionCount: data.reactionCount, reactedByMe: data.reacted } : n)));
+    setFocused((prev) => (prev && prev.id === noteId ? { ...prev, reactionCount: data.reactionCount, reactedByMe: data.reacted } : prev));
+  }
+
   return (
     <div className="flex flex-col" style={{ height: "calc(100dvh - 3.5rem)", background: worldBg }}>
 
@@ -478,9 +516,14 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
         <Link href={`/space/${space.slug}`} className="text-xs flex-shrink-0" style={{ color: "#888" }}>
           ← {space.name}
         </Link>
-        <p className="text-xs text-right" style={{ color: "#888" }}>
-          이 공간에 남겨진 흔적 <span style={{ color: "#eee" }}>{allNotes.length}</span>개
-        </p>
+        <div className="flex items-center gap-3 flex-shrink-0">
+          <p className="text-xs text-right" style={{ color: "#888" }}>
+            이 공간에 남겨진 흔적 <span style={{ color: "#eee" }}>{allNotes.length}</span>개
+          </p>
+          <Link href={`/space/${space.slug}/guestbook/archive`} className="text-xs whitespace-nowrap" style={{ color: "#888" }}>
+            이전 방명록 →
+          </Link>
+        </div>
       </div>
 
       {/* ── 캔버스 ── */}
@@ -563,6 +606,19 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
                 }}
               />
 
+              {/* 군집 라벨 — 질문이 없는 군집은 clusters 배열에 아예 없어서 렌더되지 않는다 */}
+              {clusters.map((c) => (
+                <div
+                  key={c.type}
+                  className="absolute pointer-events-none select-none"
+                  style={{ left: c.x, top: c.y, transform: "translate(-50%, -50%)", width: 220, textAlign: "center" }}
+                >
+                  <p className="text-xs leading-relaxed break-keep" style={{ color: "rgba(255,255,255,0.35)" }}>
+                    {c.label}
+                  </p>
+                </div>
+              ))}
+
               {/* 포스트잇들 */}
               {allNotes.map((note) => {
                 const mine = note.id === myNoteId;
@@ -606,7 +662,12 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
                     {settings.showNickname && note.nickname && (
                       <p className="text-[10px] mt-1.5" style={{ color: INK_DIM }}>— {note.nickname}</p>
                     )}
-                    <p className="text-[10px] mt-1" style={{ color: INK_DIM }}>{note.createdAt}</p>
+                    <div className="flex items-center justify-between mt-1">
+                      <p className="text-[10px]" style={{ color: INK_DIM }}>{note.createdAt}</p>
+                      {typeof note.reactionCount === "number" && note.reactionCount > 0 && (
+                        <span className="text-[10px]" style={{ color: INK_DIM }}>공감 {note.reactionCount}</span>
+                      )}
+                    </div>
                   </div>
                 );
               })}
@@ -766,6 +827,22 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
                     <p className="text-sm mt-3" style={{ color: INK_DIM }}>— {focused.nickname}</p>
                   )}
                   <p className="text-xs mt-2" style={{ color: INK_DIM }}>{focused.createdAt}</p>
+
+                  {typeof focused.reactionCount === "number" && (
+                    <button
+                      type="button"
+                      onClick={() => toggleReaction(focused.id)}
+                      disabled={isMine}
+                      className="inline-flex items-center gap-1.5 mt-3 text-xs py-1.5 px-2.5 border transition-colors disabled:opacity-40"
+                      style={{
+                        borderColor: INK,
+                        color: INK,
+                        background: focused.reactedByMe ? "rgba(61,53,36,0.15)" : "transparent",
+                      }}
+                    >
+                      공감 {focused.reactionCount > 0 ? focused.reactionCount : ""}
+                    </button>
+                  )}
 
                   {!isMine && focused.userId && (
                     <Link

@@ -19,17 +19,19 @@ model User {
   visibility    Visibility @default(PRIVATE)
   createdAt     DateTime   @default(now())
 
-  accounts       Account[]
-  sessions       Session[]
-  records        Record[]
-  spaces         Space[]
-  collections    Collection[]
-  savedTastes    SavedTaste[]    @relation("SavedBy")
-  savedByOthers  SavedTaste[]    @relation("SavedTarget")
-  guestbookNotes GuestbookNote[]
-  episodeReads   EpisodeRead[]
-  savedSpaces    SavedSpace[]
-  spaceScans     SpaceScan[]
+  accounts             Account[]
+  sessions             Session[]
+  records              Record[]
+  spaces               Space[]
+  collections          Collection[]
+  savedTastes          SavedTaste[]          @relation("SavedBy")
+  savedByOthers        SavedTaste[]          @relation("SavedTarget")
+  guestbookNotes       GuestbookNote[]
+  episodeReads         EpisodeRead[]
+  savedSpaces          SavedSpace[]
+  spaceScans           SpaceScan[]
+  guestbookReactions   GuestbookReaction[]
+  operatorMonthlyNotes OperatorMonthlyNote[]
 }
 
 model Account {
@@ -110,21 +112,31 @@ model Space {
   multilingualEnabled Boolean  @default(false)
   supportedLocales    String[] @default([])
 
-  owner             User?               @relation(fields: [ownerId], references: [id], onDelete: SetNull)
-  records           Record[]
-  collectionItems   CollectionItem[]
-  storySpaces       ContentStorySpace[]
-  scans             SpaceScan[]
-  waitlistEntries   WaitlistEntry[]
-  notes             SpaceNote[]
-  guestbookNotes    GuestbookNote[]
-  episodes          Episode[]
-  guestbookSettings GuestbookSettings?
-  spaceTagLinks     SpaceTag[]
-  savedByUsers      SavedSpace[]
-  kpis              SpaceKPI[]
-  translations      SpaceTranslation[]
-  cube              Cube?
+  // 월간 리포트 주기 설정 — 공간큐브 관리자만 설정, 운영자는 조회만 가능
+  reportStartDate     DateTime?
+  reportTimezone      String    @default("Asia/Seoul")
+  reportEnabled       Boolean   @default(false)
+  operatorNotifyEmail String?
+  operatorNotifyPhone String?
+
+  owner                User?                 @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+  records              Record[]
+  collectionItems      CollectionItem[]
+  storySpaces          ContentStorySpace[]
+  scans                SpaceScan[]
+  waitlistEntries      WaitlistEntry[]
+  notes                SpaceNote[]
+  guestbookNotes       GuestbookNote[]
+  episodes             Episode[]
+  guestbookSettings    GuestbookSettings?
+  spaceTagLinks        SpaceTag[]
+  savedByUsers         SavedSpace[]
+  kpis                 SpaceKPI[]
+  translations         SpaceTranslation[]
+  cube                 Cube?
+  guestbookSessions    GuestbookSession[]
+  monthlyReports       SpaceMonthlyReport[]
+  operatorMonthlyNotes OperatorMonthlyNote[]
 }
 
 // 공간/에피소드/씬 번역 공통 상태값 — NOT_CREATED는 행이 아예 없는 상태로 표현(별도 값 불필요)
@@ -155,26 +167,93 @@ model SpaceTranslation {
   @@map("space_translations")
 }
 
+// 방명록 세션 — 기간별로 운영되는 방명록 한 회차. 자유/질문1/질문2 세 군집을 가질 수 있다.
+// DRAFT(운영자가 다음 회차 질문·좌표를 준비 중) → ACTIVE(방문자가 실제로 쓸 수 있는 현재 세션)
+// → ARCHIVED(종료, 읽기 전용). 공간당 ACTIVE는 1개만 허용(부분 유니크 인덱스로 DB에서 보장,
+// migrate-guestbook-sessions.ts 참고 — Prisma 스키마 문법만으로는 표현 불가해 raw SQL로 추가).
+enum GuestbookSessionStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
+}
+
+model GuestbookSession {
+  id        String                 @id @default(cuid())
+  spaceId   String
+  title     String?
+  question1 String?
+  question2 String?
+  startsAt  DateTime?
+  endsAt    DateTime?
+  status    GuestbookSessionStatus @default(DRAFT)
+
+  // 무한 캔버스 월드 좌표(WORLD_W/WORLD_H = 5000×5000 기준) — 질문이 비어 있으면 해당 군집은 캔버스에 표시하지 않는다.
+  freeClusterX      Float @default(2500)
+  freeClusterY      Float @default(2500)
+  question1ClusterX Float @default(2000)
+  question1ClusterY Float @default(2200)
+  question2ClusterX Float @default(3000)
+  question2ClusterY Float @default(2800)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  space Space           @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  notes GuestbookNote[]
+
+  @@map("guestbook_sessions")
+}
+
+// 포스트잇이 속한 군집 — clusterType은 벽이 아니라 "어떤 질문을 기준으로 썼는지"를 남기는 메타데이터일 뿐,
+// 방문자는 저장 후에도 다른 위치로 자유롭게 옮길 수 있다.
+enum ClusterType {
+  FREE
+  QUESTION_1
+  QUESTION_2
+}
+
 // 디지털 방명록 포스트잇 — 캔버스 위 좌표에 남는 짧은 흔적
 model GuestbookNote {
+  id                 String      @id @default(cuid())
+  userId             String
+  spaceId            String
+  guestbookSessionId String
+  clusterType        ClusterType @default(FREE)
+  content            String      @db.VarChar(80)
+  nickname           String? // 작성자 닉네임 (showNickname 설정에 따라 노출)
+  imageUrl           String? // 포스트잇 첨부 사진 (allowImage 설정에 따라 허용)
+  x                  Float
+  y                  Float
+  rotation           Float       @default(0)
+  scale              Float       @default(1)
+  color              String      @default("#F6E7A8")
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @default(now()) @updatedAt
+
+  user    User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  space   Space            @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  session GuestbookSession @relation(fields: [guestbookSessionId], references: [id], onDelete: Cascade)
+
+  reactions  GuestbookReaction[]
+  featuredIn MonthlyReportFeaturedPost[]
+
+  @@unique([userId, guestbookSessionId]) // 한 세션에 사용자당 흔적 하나만 — 세션 단위로 정책 이전
+}
+
+// 방명록 포스트잇 공감 — 좋아요/랭킹이 아니라 "공감"으로만 노출. 로그인 사용자만, 포스트잇당 1회.
+model GuestbookReaction {
   id        String   @id @default(cuid())
+  postId    String
   userId    String
-  spaceId   String
-  content   String   @db.VarChar(80)
-  nickname  String? // 작성자 닉네임 (showNickname 설정에 따라 노출)
-  imageUrl  String? // 포스트잇 첨부 사진 (allowImage 설정에 따라 허용)
-  x         Float
-  y         Float
-  rotation  Float    @default(0)
-  scale     Float    @default(1)
-  color     String   @default("#F6E7A8")
   createdAt DateTime @default(now())
-  updatedAt DateTime @default(now()) @updatedAt
 
-  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  space Space @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  post GuestbookNote @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User          @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, spaceId]) // 한 공간에 사용자당 흔적 하나만 — 정책 유지
+  @@unique([postId, userId])
+  @@index([postId])
+  @@index([userId])
+  @@map("guestbook_reactions")
 }
 
 // 공간별 방명록 배경/레이아웃 설정 — 없으면 앱 기본값 사용
@@ -275,6 +354,79 @@ model SpaceKPI {
 
   @@unique([spaceId, date])
   @@map("space_kpi")
+}
+
+// 월간 리포트 상태 — COLLECTING(진행 중, DB에 저장하지 않고 매번 라이브 계산)은 문서화 목적으로만 존재.
+// READY는 "생성됐지만 아직 미공개" 확장을 위해 예약된 값으로, 현재 워크플로우에서는 실제로 쓰지 않는다
+// (생성 즉시 PUBLISHED로 저장 — 완료 보고에서 다시 설명).
+enum MonthlyReportStatus {
+  COLLECTING
+  READY
+  PUBLISHED
+}
+
+// 공간별 월간 리포트 — 확정된 스냅샷. 공개된 이후 원본 데이터가 바뀌어도 이 행의 숫자는 그대로 유지된다.
+// 같은 기간이 중복 생성되지 않도록 @@unique([spaceId, periodStart])로 idempotent 보장.
+model SpaceMonthlyReport {
+  id          String              @id @default(cuid())
+  spaceId     String
+  periodStart DateTime
+  periodEnd   DateTime
+  status      MonthlyReportStatus @default(PUBLISHED)
+  publishedAt DateTime?
+
+  qrUsers           Int
+  returningUsers    Int
+  revisitRate       Float
+  guestbookWriters  Int
+  guestbookPosts    Int
+  guestbookRate     Float
+  averageTasteScore Float?
+  usageSummary      String @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  space         Space                       @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  featuredPosts MonthlyReportFeaturedPost[]
+  operatorNotes OperatorMonthlyNote[]
+
+  @@unique([spaceId, periodStart])
+  @@map("space_monthly_reports")
+}
+
+// 월간 리포트 공개 시점의 공감 TOP3 스냅샷 — 이후 공감이 더 생겨도 리포트에 표시되는 TOP3는 고정된다.
+model MonthlyReportFeaturedPost {
+  id              String   @id @default(cuid())
+  monthlyReportId String
+  guestbookNoteId String
+  rank            Int // 1~3
+  reactionCount   Int // 생성 시점의 공감 수 스냅샷
+  createdAt       DateTime @default(now())
+
+  report SpaceMonthlyReport @relation(fields: [monthlyReportId], references: [id], onDelete: Cascade)
+  note   GuestbookNote      @relation(fields: [guestbookNoteId], references: [id], onDelete: Cascade)
+
+  @@unique([monthlyReportId, rank])
+  @@map("monthly_report_featured_posts")
+}
+
+// 운영자가 리포트별로 남기는 비공개 메모 — 해당 공간의 운영자/관리자만 조회 가능.
+model OperatorMonthlyNote {
+  id              String   @id @default(cuid())
+  monthlyReportId String
+  spaceId         String
+  operatorId      String
+  content         String   @db.Text
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  report   SpaceMonthlyReport @relation(fields: [monthlyReportId], references: [id], onDelete: Cascade)
+  space    Space              @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  operator User               @relation(fields: [operatorId], references: [id], onDelete: Cascade)
+
+  @@unique([monthlyReportId, operatorId])
+  @@map("operator_monthly_notes")
 }
 
 model Record {

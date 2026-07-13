@@ -122,6 +122,13 @@ export default async function AdminPage() {
                   [KPI]
                 </Link>
                 <Link
+                  href={`/owner/${space.id}/report-settings`}
+                  className="border px-3 py-1 transition-colors"
+                  style={{ borderColor: "var(--border)", color: "var(--dim)" }}
+                >
+                  [리포트 설정]
+                </Link>
+                <Link
                   href={`/owner/${space.id}/translations`}
                   className="border px-3 py-1 transition-colors"
                   style={{ borderColor: "var(--border)", color: "var(--dim)" }}

@@ -23,6 +23,10 @@ export interface GuestbookNoteData {
   createdAt: string; // YYYY.MM.DD
   /** 내 직전 방문 이후 생긴 흔적인지 — 더미 데이터는 항상 false(대상 아님) */
   isNew?: boolean;
+  /** 공감 수 — 더미 데이터는 undefined(공감 버튼 자체를 표시하지 않음), 실제 흔적은 항상 숫자 */
+  reactionCount?: number;
+  /** 로그인한 내가 이미 공감했는지 — 실제 흔적에서만 의미 있음 */
+  reactedByMe?: boolean;
 }
 
 const NICKNAME_POOL = [

@@ -4,6 +4,8 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
+import { GuestbookSessionStatus } from "@prisma/client";
+import { getVisibleClusters } from "@/lib/guestbookSession";
 import GuestbookCanvas from "./GuestbookCanvas";
 import type { GuestbookNoteData } from "./dummyNotes";
 
@@ -96,13 +98,31 @@ export default async function GuestbookPage({ params }: Props) {
     );
   }
 
+  const activeSession = await prisma.guestbookSession.findFirst({
+    where: { spaceId: space.id, status: GuestbookSessionStatus.ACTIVE },
+  });
+
+  // 진행 중인 방명록 세션이 없으면(드물지만 관리자 조작 등으로 발생 가능) 빈 캔버스 대신 안내를 보여준다.
+  if (!activeSession) {
+    return (
+      <main className="flex flex-col items-center justify-center min-h-screen px-6 gap-6 text-center">
+        <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>
+          지금은 방명록이 준비 중입니다. 곧 다시 열릴 예정이에요.
+        </p>
+        <Link href={`/space/${slug}`} className="text-xs" style={{ color: "var(--border)" }}>← 공간으로</Link>
+      </main>
+    );
+  }
+
   const [dbNotes, settingsRow] = await Promise.all([
     prisma.guestbookNote.findMany({
-      where: { spaceId: space.id },
+      where: { guestbookSessionId: activeSession.id },
       orderBy: { createdAt: "asc" },
       select: {
         id: true, userId: true, content: true, nickname: true, imageUrl: true,
         x: true, y: true, rotation: true, color: true, createdAt: true,
+        _count: { select: { reactions: true } },
+        reactions: user ? { where: { userId: user.id }, select: { id: true } } : false,
       },
     }),
     prisma.guestbookSettings.findUnique({ where: { spaceId: space.id } }),
@@ -129,7 +149,11 @@ export default async function GuestbookPage({ params }: Props) {
     color: n.color,
     createdAt: formatDate(n.createdAt),
     isNew: isNewNote(n),
+    reactionCount: n._count.reactions,
+    reactedByMe: Array.isArray(n.reactions) && n.reactions.length > 0,
   }));
+
+  const clusters = getVisibleClusters(activeSession);
 
   const settings = settingsRow
     ? {
@@ -159,6 +183,7 @@ export default async function GuestbookPage({ params }: Props) {
           nickname={nickname}
           settings={settings}
           newNotesCount={newNotesCount}
+          clusters={clusters}
         />
       </Suspense>
     </main>

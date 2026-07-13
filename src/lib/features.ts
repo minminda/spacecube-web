@@ -25,3 +25,9 @@ export const ENABLE_RECOMMENDATION_PLAYLIST_UI = true;
  * 실제 흔적은 GuestbookNote 테이블에 저장, 더미 60개가 분위기를 채움.
  */
 export const ENABLE_GUESTBOOK_WALL = true;
+
+/**
+ * 방명록 공감 정책 상수. MVP에서는 자신의 포스트잇에 공감하는 것을 차단한다.
+ * true로 바꾸면 자기 글 공감도 허용.
+ */
+export const ALLOW_SELF_GUESTBOOK_REACTION = false;

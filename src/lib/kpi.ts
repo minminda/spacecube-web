@@ -123,3 +123,62 @@ export async function getLatestSpaceKPI(spaceId: string) {
     orderBy: { date: "desc" },
   });
 }
+
+export interface PeriodKpiStats {
+  qrUsers: number;
+  returningUsers: number;
+  revisitRate: number;
+  guestbookWriters: number;
+  guestbookPosts: number;
+  guestbookRate: number;
+  averageTasteScore: number | null;
+}
+
+/**
+ * 특정 기간(월간 리포트 구간 등)의 KPI를 순수 함수로 계산한다.
+ * recomputeSpaceKPI와 동일한 정의를 기간 한정으로 재사용한다 — "QR 이용자"는 Record.userId 기준,
+ * 재방문은 기간 내 Record 2건 이상(12시간 재방문 정책은 Record 생성 시점에 이미 적용돼 있음,
+ * src/lib/visit.ts의 isNewVisit 참고), 방명록 작성률은 방명록 작성 고유 사용자 / QR 이용 고유 사용자.
+ * DB에서 미리 필터링하지 않고 이 함수 안에서 기간을 판정한다 — recomputeSpaceKPI와 동일한 스타일이라
+ * 인자로 임의의(기간과 무관한) 배열을 넣어도 안전하게 재사용/테스트할 수 있다.
+ */
+export function computePeriodStats(
+  records: { userId: string; visitedAt: Date; tasteScore: number | null }[],
+  guestbookNotes: { userId: string; createdAt: Date }[],
+  periodStart: Date,
+  periodEnd: Date,
+): PeriodKpiStats {
+  const periodRecords = records.filter((r) => r.visitedAt >= periodStart && r.visitedAt < periodEnd);
+
+  const countByUser = new Map<string, number>();
+  let scoreSum = 0;
+  let scoreCount = 0;
+  for (const r of periodRecords) {
+    countByUser.set(r.userId, (countByUser.get(r.userId) ?? 0) + 1);
+    if (typeof r.tasteScore === "number") {
+      scoreSum += r.tasteScore;
+      scoreCount += 1;
+    }
+  }
+
+  const qrUsers = countByUser.size;
+  const returningUsers = [...countByUser.values()].filter((c) => c > 1).length;
+  const revisitRate = qrUsers > 0 ? returningUsers / qrUsers : 0;
+  const averageTasteScore = scoreCount > 0 ? scoreSum / scoreCount : null;
+
+  const periodNotes = guestbookNotes.filter((n) => n.createdAt >= periodStart && n.createdAt < periodEnd);
+  const guestbookWriters = new Set(periodNotes.map((n) => n.userId)).size;
+  const guestbookPosts = periodNotes.length;
+  const guestbookRate = qrUsers > 0 ? guestbookWriters / qrUsers : 0;
+
+  return { qrUsers, returningUsers, revisitRate, guestbookWriters, guestbookPosts, guestbookRate, averageTasteScore };
+}
+
+/** 공간의 원본 Record/GuestbookNote를 가져와 기간 한정 KPI를 계산한다. */
+export async function getSpaceMonthlyKpi(spaceId: string, periodStart: Date, periodEnd: Date): Promise<PeriodKpiStats> {
+  const [records, guestbookNotes] = await Promise.all([
+    prisma.record.findMany({ where: { spaceId }, select: { userId: true, visitedAt: true, tasteScore: true } }),
+    prisma.guestbookNote.findMany({ where: { spaceId }, select: { userId: true, createdAt: true } }),
+  ]);
+  return computePeriodStats(records, guestbookNotes, periodStart, periodEnd);
+}
