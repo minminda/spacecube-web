@@ -175,33 +175,70 @@ export default async function EpisodeDetailPage({ params }: Props) {
         )}
       </div>
 
-      <div className="space-y-10">
-        {episode.scenes.map((scene, i) => {
-          const localized = localizedScenes[i];
-          return (
-            <div key={scene.id} className="space-y-3">
-              {scene.imageUrl && (
-                <div className="relative w-full overflow-hidden" style={{ aspectRatio: scene.imageAspectRatio ?? "3/2" }}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={scene.imageUrl}
-                    alt={localized.title ?? ""}
-                    className="w-full h-full object-cover"
-                    style={{
-                      objectPosition: `${(scene.imagePositionX ?? 0.5) * 100}% ${(scene.imagePositionY ?? 0.5) * 100}%`,
-                      transform: `scale(${scene.imageZoom ?? 1})`,
-                      transformOrigin: "center center",
-                    }}
-                  />
-                </div>
-              )}
-              {localized.title && <p className="text-sm font-medium">{localized.title}</p>}
-              {localized.content && (
-                <p className="text-base leading-8 whitespace-pre-line">{localized.content}</p>
-              )}
-            </div>
-          );
-        })}
+      <div className="flex flex-col">
+        {(() => {
+          let sceneNumber = 0;
+          return episode.scenes.map((scene, i) => {
+            const localized = localizedScenes[i];
+            const hasContent = !!localized.content;
+            if (hasContent) sceneNumber++;
+
+            // 마지막 문단은 이 Scene의 핵심 문장으로 보고 별도로 강조한다.
+            // 문단이 하나뿐이면(줄바꿈 두 번으로 나뉘지 않으면) 어색하게 쪼개지 않고 그대로 본문으로 둔다.
+            const paragraphs = hasContent
+              ? localized.content.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean)
+              : [];
+            const hasHighlight = paragraphs.length > 1;
+            const bodyText = hasHighlight ? paragraphs.slice(0, -1).join("\n\n") : paragraphs.join("\n\n");
+            const highlight = hasHighlight ? paragraphs[paragraphs.length - 1] : null;
+
+            return (
+              <div
+                key={scene.id}
+                className="py-12 first:pt-0"
+                style={i > 0 ? { borderTop: "1px solid var(--border)" } : undefined}
+              >
+                {scene.imageUrl && (
+                  <div className="relative w-full overflow-hidden mb-6" style={{ aspectRatio: scene.imageAspectRatio ?? "3/2" }}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={scene.imageUrl}
+                      alt={localized.title ?? ""}
+                      className="w-full h-full object-cover"
+                      style={{
+                        objectPosition: `${(scene.imagePositionX ?? 0.5) * 100}% ${(scene.imagePositionY ?? 0.5) * 100}%`,
+                        transform: `scale(${scene.imageZoom ?? 1})`,
+                        transformOrigin: "center center",
+                      }}
+                    />
+                  </div>
+                )}
+
+                {hasContent && (
+                  <div className="space-y-4 max-w-[36rem]">
+                    <p className="text-xs font-medium uppercase tracking-widest" style={{ color: "var(--dim)" }}>
+                      Scene {sceneNumber}
+                    </p>
+                    {localized.title && (
+                      <h2 className="text-xl font-bold leading-snug">{localized.title}</h2>
+                    )}
+                    {bodyText && (
+                      <p className="text-base leading-8 whitespace-pre-line">{bodyText}</p>
+                    )}
+                    {highlight && (
+                      <p
+                        className="text-lg font-semibold leading-relaxed pl-4 whitespace-pre-line"
+                        style={{ borderLeft: "2px solid var(--fg)" }}
+                      >
+                        {highlight}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          });
+        })()}
       </div>
 
       <div style={{ borderTop: "1px solid var(--border)" }} />
