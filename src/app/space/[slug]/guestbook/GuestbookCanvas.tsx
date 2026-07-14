@@ -570,22 +570,12 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
           ← {space.name}
         </Link>
         <div className="flex items-center gap-3 flex-shrink-0">
-          <p className="text-xs text-right hidden sm:block" style={{ color: "#888" }}>
+          <p className="text-xs text-right" style={{ color: "#888" }}>
             이 공간에 남겨진 흔적 <span style={{ color: "#eee" }}>{allNotes.length}</span>개
           </p>
-          <Link href={`/space/${space.slug}/guestbook/archive`} className="text-xs whitespace-nowrap hidden sm:inline" style={{ color: "#888" }}>
+          <Link href={`/space/${space.slug}/guestbook/archive`} className="text-xs whitespace-nowrap" style={{ color: "#888" }}>
             이전 방명록 →
           </Link>
-          {/* 방명록 작성 여부와 무관하게 항상 열 수 있는 명시적 종료 CTA — 브라우저 뒤로가기는 가로채지 않는다 */}
-          <button
-            type="button"
-            onClick={finishVisit}
-            disabled={navigatingToComplete || !currentRecordId}
-            className="text-xs py-1.5 px-3 border whitespace-nowrap transition-colors hover:bg-white hover:text-black disabled:opacity-40"
-            style={{ borderColor: "#666", color: "#eee" }}
-          >
-            {navigatingToComplete ? "이동 중..." : "이번 경험 마치기"}
-          </button>
         </div>
       </div>
 
@@ -827,6 +817,18 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
           <button type="button" aria-label="줌 인" onClick={() => transformRef.current?.zoomIn(0.35)} className="w-8 h-8 border text-sm flex-shrink-0" style={{ borderColor: "#333", color: "#999" }}>+</button>
           <button type="button" onClick={() => transformRef.current?.resetTransform(400)} className="h-8 px-2.5 border text-xs ml-1 flex-shrink-0" style={{ borderColor: "#333", color: "#999" }}>초기 위치</button>
         </div>
+
+        {/* 방명록 작성 여부와 무관하게 항상 뜨는 명시적 종료 CTA — 브라우저 뒤로가기는 가로채지 않는다.
+            다른 버튼들과 같은 자리(하단 컨트롤)에 두어야 방문자가 실제로 찾는다. */}
+        <button
+          type="button"
+          onClick={finishVisit}
+          disabled={navigatingToComplete || !currentRecordId}
+          className="w-full text-xs py-2.5 px-3 border hover:bg-white hover:text-black transition-colors disabled:opacity-40"
+          style={{ borderColor: "#fff", color: "#fff" }}
+        >
+          {navigatingToComplete ? "이동 중..." : "이번 경험 마치기"}
+        </button>
 
         {myNoteId || canWriteThisVisit ? (
           <div className="flex flex-wrap gap-2">
