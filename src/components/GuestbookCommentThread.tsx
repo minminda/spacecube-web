@@ -25,6 +25,10 @@ interface Props {
   currentUserId: string | null;
   ink?: string;
   inkDim?: string;
+  /** 이번 방문에 이미 답글을 남겼으면(어느 포스트잇이든) 작성창 대신 이 안내 문구를 보여준다 */
+  disabledReason?: string;
+  /** 이 스레드에 댓글 작성이 성공했을 때 호출 — 다른 포스트잇의 작성창도 함께 잠그기 위한 훅 */
+  onCommentPosted?: () => void;
 }
 
 /* 포스트잇 하단에 붙는 1단계 댓글 스레드 — 대댓글 없음, 본인 댓글만 수정/삭제 가능.
@@ -36,6 +40,8 @@ export default function GuestbookCommentThread({
   currentUserId,
   ink = "#3d3524",
   inkDim = "#8a7d5c",
+  disabledReason,
+  onCommentPosted,
 }: Props) {
   const router = useRouter();
   const [expanded, setExpanded] = useState(false);
@@ -67,6 +73,7 @@ export default function GuestbookCommentThread({
       router.push(`/login?callbackUrl=${encodeURIComponent(window.location.pathname)}`);
       return;
     }
+    if (disabledReason) return;
     const text = draft.trim();
     if (!text || submitting) return;
     setSubmitting(true);
@@ -81,6 +88,7 @@ export default function GuestbookCommentThread({
       setComments((prev) => [...prev, created]);
       setCount((c) => c + 1);
       setDraft("");
+      onCommentPosted?.();
     } finally {
       setSubmitting(false);
     }
@@ -172,27 +180,31 @@ export default function GuestbookCommentThread({
             </div>
           )}
 
-          <div className="space-y-1.5 pt-1">
-            <textarea
-              value={draft}
-              onChange={(e) => { if (e.target.value.length <= MAX_CONTENT) setDraft(e.target.value); }}
-              placeholder={isLoggedIn ? "댓글을 남겨보세요." : "로그인하면 댓글을 남길 수 있어요."}
-              rows={2}
-              className="w-full text-xs p-2 resize-none outline-none"
-              style={{ background: "rgba(255,255,255,0.45)", color: ink }}
-            />
-            <div className="flex justify-end">
-              <button
-                type="button"
-                onClick={submit}
-                disabled={!draft.trim() || submitting}
-                className="text-xs px-3 py-1 border disabled:opacity-40"
-                style={{ borderColor: ink, color: ink }}
-              >
-                {submitting ? "등록 중..." : "등록"}
-              </button>
+          {disabledReason ? (
+            <p className="text-xs leading-relaxed pt-1" style={{ color: inkDim }}>{disabledReason}</p>
+          ) : (
+            <div className="space-y-1.5 pt-1">
+              <textarea
+                value={draft}
+                onChange={(e) => { if (e.target.value.length <= MAX_CONTENT) setDraft(e.target.value); }}
+                placeholder={isLoggedIn ? "댓글을 남겨보세요." : "로그인하면 댓글을 남길 수 있어요."}
+                rows={2}
+                className="w-full text-xs p-2 resize-none outline-none"
+                style={{ background: "rgba(255,255,255,0.45)", color: ink }}
+              />
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={submit}
+                  disabled={!draft.trim() || submitting}
+                  className="text-xs px-3 py-1 border disabled:opacity-40"
+                  style={{ borderColor: ink, color: ink }}
+                >
+                  {submitting ? "등록 중..." : "등록"}
+                </button>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       )}
     </div>

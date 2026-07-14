@@ -6,7 +6,8 @@ import { prisma } from "@/lib/prisma";
 import { Prisma, ClusterType, GuestbookSessionStatus } from "@prisma/client";
 import { recomputeSpaceKPI } from "@/lib/kpi";
 import { buildRewardSummary } from "@/lib/guestbookReward";
-import { canWriteToSession } from "@/lib/guestbookSession";
+import { canWriteToSession, canWriteNoteForVisit, getVisibleClusters } from "@/lib/guestbookSession";
+import { hasCollision, clusterLabelRect, POST_IT_WIDTH, POST_IT_HEIGHT, POST_IT_GAP, type Rect } from "@/lib/postitCollision";
 
 const MAX_CONTENT = 80;
 const DEFAULT_COLOR = "#F6E7A8"; // 관리자 설정이 없을 때 기본 노란 포스트잇
@@ -47,9 +48,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Space not found" }, { status: 404 });
   }
 
-  // 기록을 완료해야 방명록에 흔적을 남길 수 있음
-  const hasRecord = await prisma.record.count({ where: { userId: user.id, spaceId } });
-  if (hasRecord === 0) {
+  // 방문 단위 식별자 — 이 공간에 대해 가장 최근에 "인정된 방문"(Record, isNewVisit 정책 기준)이
+  // 곧 이번 방문이다. 기록을 완료해야 방명록에 흔적을 남길 수 있음.
+  const currentVisit = await prisma.record.findFirst({
+    where: { userId: user.id, spaceId },
+    orderBy: { visitedAt: "desc" },
+  });
+  if (!currentVisit) {
     return NextResponse.json({ error: "이 공간에 대한 기록을 먼저 남겨주세요." }, { status: 403 });
   }
 
@@ -71,30 +76,48 @@ export async function POST(req: NextRequest) {
     resolvedClusterType = ClusterType.FREE;
   }
 
-  // 한 세션에 사용자당 흔적 하나만 — UI에서도 막지만 동시 요청 대비 서버에서도 확인
-  const existing = await prisma.guestbookNote.findUnique({
-    where: { userId_guestbookSessionId: { userId: user.id, guestbookSessionId: activeSession.id } },
-    select: { id: true },
-  });
-  if (existing) {
-    return NextResponse.json({ error: "이미 이번 방명록에 흔적을 남기셨어요." }, { status: 409 });
-  }
-
   try {
-    const note = await prisma.guestbookNote.create({
-      data: {
-        userId: user.id,
-        spaceId,
-        guestbookSessionId: activeSession.id,
-        clusterType: resolvedClusterType,
-        content: text,
-        nickname: user.nickname,
-        imageUrl: typeof imageUrl === "string" && imageUrl ? imageUrl : null,
-        x,
-        y,
-        rotation: typeof rotation === "number" && isFinite(rotation) ? rotation : 0,
-        color: space.guestbookSettings?.defaultPostitColor ?? DEFAULT_COLOR,
-      },
+    const note = await prisma.$transaction(async (tx) => {
+      // 한 번의 방문은 하나의 흔적만 — 같은 세션 안에서도 이번 방문(recordId)으로는 이미 썼는지 확인.
+      // UI에서도 막지만 동시 요청/새로고침 대비 서버에서도 다시 확인한다.
+      const existingForVisit = await tx.guestbookNote.findFirst({
+        where: { userId: user.id, guestbookSessionId: activeSession.id, recordId: currentVisit.id },
+        select: { id: true },
+      });
+      if (!canWriteNoteForVisit(activeSession.status, !!existingForVisit)) {
+        throw new VisitAlreadyPostedError();
+      }
+
+      // 좌표 충돌 검사 — 현재 세션에 렌더링되는 모든 포스트잇 + 군집 라벨(고정 오브젝트) 기준.
+      const sessionNotes = await tx.guestbookNote.findMany({
+        where: { guestbookSessionId: activeSession.id },
+        select: { x: true, y: true },
+      });
+      const obstacles: Rect[] = [
+        ...sessionNotes.map((n) => ({ x: n.x, y: n.y, width: POST_IT_WIDTH, height: POST_IT_HEIGHT })),
+        ...getVisibleClusters(activeSession).map((c) => clusterLabelRect(c)),
+      ];
+      const requestedRect: Rect = { x, y, width: POST_IT_WIDTH, height: POST_IT_HEIGHT };
+      if (hasCollision(requestedRect, obstacles, POST_IT_GAP)) {
+        throw new PositionOccupiedError();
+      }
+
+      return tx.guestbookNote.create({
+        data: {
+          userId: user.id,
+          spaceId,
+          guestbookSessionId: activeSession.id,
+          recordId: currentVisit.id,
+          clusterType: resolvedClusterType,
+          content: text,
+          nickname: user.nickname,
+          imageUrl: typeof imageUrl === "string" && imageUrl ? imageUrl : null,
+          x,
+          y,
+          rotation: typeof rotation === "number" && isFinite(rotation) ? rotation : 0,
+          color: space.guestbookSettings?.defaultPostitColor ?? DEFAULT_COLOR,
+        },
+      });
     });
 
     await recomputeSpaceKPI(spaceId);
@@ -118,9 +141,28 @@ export async function POST(req: NextRequest) {
       { status: 201 },
     );
   } catch (err) {
+    if (err instanceof VisitAlreadyPostedError) {
+      return NextResponse.json(
+        { error: "이번 방문에 이미 흔적을 남기셨어요.", code: "VISIT_ALREADY_POSTED" },
+        { status: 409 },
+      );
+    }
+    if (err instanceof PositionOccupiedError) {
+      return NextResponse.json(
+        { error: "이미 다른 흔적이 있는 자리예요.", code: "POSTIT_POSITION_OCCUPIED" },
+        { status: 409 },
+      );
+    }
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
-      return NextResponse.json({ error: "이미 이번 방명록에 흔적을 남기셨어요." }, { status: 409 });
+      return NextResponse.json(
+        { error: "이번 방문에 이미 흔적을 남기셨어요.", code: "VISIT_ALREADY_POSTED" },
+        { status: 409 },
+      );
     }
     throw err;
   }
 }
+
+// 트랜잭션 내부에서 던져 바깥 catch에서 상태 코드를 구분하기 위한 표식용 에러
+class VisitAlreadyPostedError extends Error {}
+class PositionOccupiedError extends Error {}

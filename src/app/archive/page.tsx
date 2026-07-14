@@ -98,7 +98,10 @@ export default async function ArchivePage() {
     prisma.guestbookNote.findMany({
       where: { userId: user.id },
       orderBy: { createdAt: "desc" },
-      include: { space: { select: { name: true, slug: true, spaceTags: true } } },
+      include: {
+        space: { select: { name: true, slug: true, spaceTags: true } },
+        session: { select: { id: true, status: true } },
+      },
     }),
     allRecords.length >= 3
       ? prisma.user.findMany({
@@ -381,10 +384,16 @@ export default async function ArchivePage() {
                       className="flex gap-3 overflow-x-auto snap-x pb-3 -mx-6 px-6"
                       style={{ scrollbarWidth: "none" }}
                     >
-                      {myGuestbookNotes.map((note, i) => (
+                      {myGuestbookNotes.map((note, i) => {
+                        // 진행 중인(ACTIVE) 세션 흔적은 캔버스 ?focus= 점프, 종료된(ARCHIVED) 세션
+                        // 흔적은 캔버스로 재현하지 않으므로 아카이브 상세 카드의 ?highlight=로 대체한다.
+                        const href = note.session.status === "ACTIVE"
+                          ? `/space/${note.space.slug}/guestbook?focus=${note.id}`
+                          : `/space/${note.space.slug}/guestbook/archive/${note.session.id}?highlight=${note.id}`;
+                        return (
                         <Link
                           key={note.id}
-                          href={`/space/${note.space.slug}/guestbook?focus=${note.id}`}
+                          href={href}
                           className="flex-shrink-0 w-40 snap-start p-3.5 relative"
                           style={{
                             background: note.color,
@@ -414,7 +423,8 @@ export default async function ArchivePage() {
                             </p>
                           </div>
                         </Link>
-                      ))}
+                        );
+                      })}
                     </div>
                   </section>
                 </>

@@ -5,6 +5,22 @@ export function canWriteToSession(status: GuestbookSessionStatus): boolean {
   return status === "ACTIVE";
 }
 
+/**
+ * "한 번의 방문은 하나의 흔적을 남긴다" — 인정된 방문(Record, isNewVisit 기준) 1회당 포스트잇 1개.
+ * hasNoteThisVisit은 (userId, guestbookSessionId, recordId)로 이미 존재하는 노트가 있는지를 뜻한다.
+ */
+export function canWriteNoteForVisit(status: GuestbookSessionStatus, hasNoteThisVisit: boolean): boolean {
+  return canWriteToSession(status) && !hasNoteThisVisit;
+}
+
+/**
+ * 댓글도 동일하게 방문 단위 — 한 번의 방문 기록으로는 어느 포스트잇에도 댓글을 하나만 남길 수 있다.
+ * hasCommentThisVisit은 (guestbookSessionId, userId, recordId)로 이미 존재하는 댓글이 있는지를 뜻한다.
+ */
+export function canWriteCommentForVisit(status: GuestbookSessionStatus, hasCommentThisVisit: boolean): boolean {
+  return canWriteToSession(status) && !hasCommentThisVisit;
+}
+
 export type ClusterType = "FREE" | "QUESTION_1" | "QUESTION_2";
 
 export interface VisibleCluster {

@@ -62,6 +62,8 @@ export default async function GuestbookPage({ params }: Props) {
   // 직전 방문 시각 — 이 시각 이후에 생긴 남의 흔적을 "새로운 흔적"으로 취급한다.
   // 첫 방문(직전 방문이 없음)이면 null — 아무 것도 "새로 생긴 것"으로 표시하지 않는다.
   let previousVisitAt: Date | null = null;
+  // 이번 방문(가장 최근 Record)의 id — "방문 1회당 흔적/댓글 1개" 정책의 기준.
+  let currentRecordId: string | null = null;
 
   const user = session?.user?.email
     ? await prisma.user.findUnique({ where: { email: session.user.email }, select: { id: true, nickname: true } })
@@ -73,9 +75,10 @@ export default async function GuestbookPage({ params }: Props) {
       where: { userId: user.id, spaceId: space.id },
       orderBy: { visitedAt: "desc" },
       take: 2,
-      select: { visitedAt: true },
+      select: { id: true, visitedAt: true },
     });
     hasRecord = recentRecords.length > 0;
+    currentRecordId = recentRecords[0]?.id ?? null;
     previousVisitAt = recentRecords.length > 1 ? recentRecords[1].visitedAt : null;
   }
 
@@ -114,23 +117,31 @@ export default async function GuestbookPage({ params }: Props) {
     );
   }
 
-  const [dbNotes, settingsRow] = await Promise.all([
+  const [dbNotes, settingsRow, commentedThisVisitCount] = await Promise.all([
     prisma.guestbookNote.findMany({
       where: { guestbookSessionId: activeSession.id },
       orderBy: { createdAt: "asc" },
       select: {
-        id: true, userId: true, content: true, nickname: true, imageUrl: true,
+        id: true, userId: true, recordId: true, content: true, nickname: true, imageUrl: true,
         x: true, y: true, rotation: true, color: true, createdAt: true,
         _count: { select: { reactions: true, comments: true } },
         reactions: user ? { where: { userId: user.id }, select: { id: true } } : false,
       },
     }),
     prisma.guestbookSettings.findUnique({ where: { spaceId: space.id } }),
+    user && currentRecordId
+      ? prisma.guestbookComment.count({
+          where: { userId: user.id, guestbookSessionId: activeSession.id, recordId: currentRecordId },
+        })
+      : Promise.resolve(0),
   ]);
 
-  if (user) {
-    myNoteId = dbNotes.find((n) => n.userId === user.id)?.id ?? null;
-  }
+  // "한 번의 방문은 하나의 흔적을 남긴다" — 내 흔적 중 가장 최근 것(있다면), 그리고 이번 방문에
+  // 아직 흔적을 안 남겼는지(=이번 방문 recordId로 쓴 노트가 없는지)를 함께 계산한다.
+  const myNotes = user ? dbNotes.filter((n) => n.userId === user.id) : [];
+  myNoteId = myNotes.length > 0 ? myNotes[myNotes.length - 1].id : null; // dbNotes는 createdAt asc이므로 마지막이 최신
+  const canWriteThisVisit = !!currentRecordId && !myNotes.some((n) => n.recordId === currentRecordId);
+  const hasCommentedThisVisit = commentedThisVisitCount > 0;
 
   const isNewNote = (n: (typeof dbNotes)[number]) =>
     !!previousVisitAt && n.userId !== user?.id && n.createdAt > previousVisitAt;
@@ -181,6 +192,8 @@ export default async function GuestbookPage({ params }: Props) {
           initialNotes={initialNotes}
           isLoggedIn={!!session?.user?.email}
           initialMyNoteId={myNoteId}
+          initialCanWriteThisVisit={canWriteThisVisit}
+          hasCommentedThisVisit={hasCommentedThisVisit}
           nickname={nickname}
           settings={settings}
           newNotesCount={newNotesCount}

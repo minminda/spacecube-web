@@ -20,6 +20,14 @@ import {
 import PostSubmitReward from "./PostSubmitReward";
 import type { RewardSummary } from "@/lib/guestbookReward";
 import GuestbookCommentThread from "@/components/GuestbookCommentThread";
+import {
+  findFreePosition,
+  clusterLabelRect,
+  POST_IT_HEIGHT,
+  type Rect,
+} from "@/lib/postitCollision";
+
+const ALREADY_COMMENTED_MSG = "이번 방문의 답글을 이미 남겼습니다. 다음 방문에서 새로운 답글을 남길 수 있어요.";
 
 /* ── 방명록 캔버스 (전체 화면, 진짜 무한 캔버스) ──────────────────
    관리자가 설정한 배경/포스트잇 색/레이아웃을 반영한다. 설정이 없으면
@@ -84,7 +92,12 @@ interface Props {
   space: SpaceInfo;
   initialNotes: GuestbookNoteData[]; // DB의 실제 흔적
   isLoggedIn: boolean;
+  /** 내 흔적 중 가장 최근 것의 id — 없으면 null */
   initialMyNoteId: string | null;
+  /** 이번 방문(가장 최근 인정된 방문)에 아직 흔적을 안 남겼는지 — "한 번의 방문은 하나의 흔적을 남긴다" */
+  initialCanWriteThisVisit: boolean;
+  /** 이번 방문으로 이미 댓글을 남겼는지 — true면 어느 포스트잇에도 새 댓글을 남길 수 없다 */
+  hasCommentedThisVisit: boolean;
   nickname: string | null;
   settings: GuestbookDisplaySettings;
   /** 내 직전 방문 이후 새로 생긴(남의) 흔적 수 — 0이면 재방문 안내를 띄우지 않는다 */
@@ -99,7 +112,7 @@ interface Props {
 const INK = "#3d3524";
 const INK_DIM = "#8a7d5c";
 
-export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initialMyNoteId, nickname, settings, newNotesCount, clusters, currentUserId }: Props) {
+export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initialMyNoteId, initialCanWriteThisVisit, hasCommentedThisVisit: initialHasCommentedThisVisit, nickname, settings, newNotesCount, clusters, currentUserId }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const transformRef = useRef<ReactZoomPanPinchContentRef>(null);
@@ -112,9 +125,11 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
 
   const [notes, setNotes] = useState<GuestbookNoteData[]>(initialNotes);
   const [myNoteId, setMyNoteId] = useState<string | null>(initialMyNoteId);
+  const [canWriteThisVisit, setCanWriteThisVisit] = useState(initialCanWriteThisVisit);
+  const [hasCommentedThisVisit, setHasCommentedThisVisit] = useState(initialHasCommentedThisVisit);
   const [myNickname, setMyNickname] = useState<string | null>(nickname);
   const [writeMode, setWriteMode] = useState(
-    searchParams.get("mode") === "write" && isLoggedIn && !initialMyNoteId,
+    searchParams.get("mode") === "write" && isLoggedIn && initialCanWriteThisVisit,
   );
   const [composer, setComposer] = useState<{ x: number; y: number } | null>(null);
   const [composerClusterType, setComposerClusterType] = useState<ClusterLabel["type"]>("FREE");
@@ -260,7 +275,7 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
       router.push(`/login?callbackUrl=${encodeURIComponent(`/space/${space.slug}/guestbook`)}`);
       return;
     }
-    if (myNoteId) return;
+    if (!canWriteThisVisit) return;
     requireNickname(() => setWriteMode(true));
   }
 
@@ -310,6 +325,14 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
     preComposeTransformRef.current = null;
   }
 
+  /** 현재 캔버스에 렌더링되는 모든 포스트잇 + 군집 라벨(고정 오브젝트)을 충돌 검사 대상으로 만든다. */
+  function collisionObstacles(): Rect[] {
+    return [
+      ...notes.map((n) => ({ x: n.x, y: n.y, width: NOTE_W, height: POST_IT_HEIGHT })),
+      ...clusters.map((c) => clusterLabelRect(c)),
+    ];
+  }
+
   function handleWorldClick(e: React.MouseEvent<HTMLDivElement>) {
     if (!writeMode) return;
     const down = downPos.current;
@@ -327,8 +350,24 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
     const wy = (e.clientY - rect.top) / scale;
     const snapped = snapToGrid(wx - NOTE_W / 2, wy - 20);
 
-    const x = Math.min(Math.max(snapped.x, 40), WORLD_W - NOTE_W - 40);
-    const y = Math.min(Math.max(snapped.y, 40), WORLD_H - 220);
+    const desiredX = Math.min(Math.max(snapped.x, 40), WORLD_W - NOTE_W - 40);
+    const desiredY = Math.min(Math.max(snapped.y, 40), WORLD_H - 220);
+
+    // 기존 포스트잇/고정 오브젝트와 겹치면 가장 가까운 빈 위치를 찾는다 — 중심 좌표가 아니라 실제 영역 기준.
+    const found = findFreePosition(
+      { x: desiredX, y: desiredY },
+      NOTE_W,
+      POST_IT_HEIGHT,
+      collisionObstacles(),
+    );
+    if (!found) {
+      showToast("이 주변에는 흔적이 가득합니다. 조금 다른 위치를 선택해주세요.");
+      return;
+    }
+    const { x, y } = found;
+    if (x !== desiredX || y !== desiredY) {
+      showToast("가까운 빈자리에 흔적을 놓았습니다.");
+    }
 
     // 생성 직후 해당 위치로 부드럽게 이동/확대하고, 취소 시 되돌아갈 이전 위치를 기억해둔다
     preComposeTransformRef.current = { ...lastTransformRef.current };
@@ -392,6 +431,11 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
+        if (data.code === "POSITION_OCCUPIED" || data.code === "POSTIT_POSITION_OCCUPIED") {
+          showToast("다른 사람이 방금 이 자리에 흔적을 남겼어요. 다른 위치를 골라주세요.");
+          cancelCompose();
+          return;
+        }
         showToast(data.error ?? "저장에 실패했습니다.");
         return;
       }
@@ -401,6 +445,7 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
       noteFields.createdAt = `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
       setNotes((prev) => [...prev, noteFields]);
       setMyNoteId(noteFields.id);
+      setCanWriteThisVisit(false);
       setComposer(null);
       setContent("");
       setPhotoPreview(null);
@@ -747,22 +792,25 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
           <button type="button" onClick={() => transformRef.current?.resetTransform(400)} className="h-8 px-2.5 border text-xs ml-1 flex-shrink-0" style={{ borderColor: "#333", color: "#999" }}>초기 위치</button>
         </div>
 
-        {myNoteId ? (
-          <div className="flex gap-2">
-            <button type="button" onClick={goToMyNote} className="flex-1 text-xs py-2.5 px-3 border hover:bg-white hover:text-black transition-colors whitespace-nowrap" style={{ borderColor: "#fff", color: "#fff" }}>
-              내 기록 보기
-            </button>
-            <Link href="/archive" className="flex-1 text-xs py-2.5 px-3 border text-center hover:bg-white hover:text-black transition-colors whitespace-nowrap" style={{ borderColor: "#fff", color: "#fff" }}>
-              내 아카이브 보기
-            </Link>
+        {myNoteId || canWriteThisVisit ? (
+          <div className="flex flex-wrap gap-2">
+            {myNoteId && (
+              <button type="button" onClick={goToMyNote} className="flex-1 min-w-[110px] text-xs py-2.5 px-3 border hover:bg-white hover:text-black transition-colors whitespace-nowrap" style={{ borderColor: "#fff", color: "#fff" }}>
+                내 기록 보기
+              </button>
+            )}
+            {canWriteThisVisit && !writeMode && (
+              <button type="button" onClick={enterWriteMode} className="flex-1 min-w-[110px] text-xs py-2.5 px-3 border hover:bg-white hover:text-black transition-colors whitespace-nowrap" style={{ borderColor: "#fff", color: "#fff" }}>
+                {myNoteId ? "이번 방문에도 흔적 남기기" : "나도 흔적 남기기"}
+              </button>
+            )}
+            {myNoteId && (
+              <Link href="/archive" className="flex-1 min-w-[110px] text-xs py-2.5 px-3 border text-center hover:bg-white hover:text-black transition-colors whitespace-nowrap" style={{ borderColor: "#fff", color: "#fff" }}>
+                내 아카이브 보기
+              </Link>
+            )}
           </div>
-        ) : (
-          !writeMode && (
-            <button type="button" onClick={enterWriteMode} className="w-full text-xs py-2.5 px-4 border hover:bg-white hover:text-black transition-colors" style={{ borderColor: "#fff", color: "#fff" }}>
-              나도 흔적 남기기
-            </button>
-          )
-        )}
+        ) : null}
       </div>
 
       {/* ── 닉네임 설정 프롬프트 ── */}
@@ -853,6 +901,8 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
                       initialCount={focused.commentCount}
                       isLoggedIn={isLoggedIn}
                       currentUserId={currentUserId}
+                      disabledReason={hasCommentedThisVisit ? ALREADY_COMMENTED_MSG : undefined}
+                      onCommentPosted={() => setHasCommentedThisVisit(true)}
                     />
                   )}
 

@@ -3,8 +3,9 @@ import { NextRequest, NextResponse } from "next/server";
 export const dynamic = "force-dynamic";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { NotificationType } from "@prisma/client";
+import { Prisma, NotificationType } from "@prisma/client";
 import { shouldNotify } from "@/lib/notification";
+import { canWriteToSession, canWriteCommentForVisit } from "@/lib/guestbookSession";
 
 const MAX_CONTENT = 200;
 
@@ -47,14 +48,24 @@ export async function POST(req: NextRequest, { params }: Props) {
   const { id: guestbookId } = await params;
   const note = await prisma.guestbookNote.findUnique({
     where: { id: guestbookId },
-    select: { id: true, userId: true, spaceId: true },
+    select: { id: true, userId: true, spaceId: true, guestbookSessionId: true },
   });
   if (!note) {
     return NextResponse.json({ error: "Note not found" }, { status: 404 });
   }
 
-  const hasRecord = await prisma.record.count({ where: { userId: user.id, spaceId: note.spaceId } });
-  if (hasRecord === 0) {
+  // 댓글도 포스트잇과 동일하게 ACTIVE 세션에서만 — 종료된(ARCHIVED) 방명록은 읽기 전용.
+  const noteSession = await prisma.guestbookSession.findUnique({ where: { id: note.guestbookSessionId } });
+  if (!noteSession || !canWriteToSession(noteSession.status)) {
+    return NextResponse.json({ error: "종료된 방명록에는 답글을 남길 수 없습니다." }, { status: 403 });
+  }
+
+  // 방문 단위 식별자 — 포스트잇 작성과 동일하게 이 공간에 대해 가장 최근에 인정된 방문(Record)을 쓴다.
+  const currentVisit = await prisma.record.findFirst({
+    where: { userId: user.id, spaceId: note.spaceId },
+    orderBy: { visitedAt: "desc" },
+  });
+  if (!currentVisit) {
     return NextResponse.json({ error: "이 공간에 대한 기록을 먼저 남겨주세요." }, { status: 403 });
   }
 
@@ -67,9 +78,45 @@ export async function POST(req: NextRequest, { params }: Props) {
     return NextResponse.json({ error: `content must be ${MAX_CONTENT} characters or less` }, { status: 400 });
   }
 
-  const comment = await prisma.guestbookComment.create({
-    data: { guestbookId, userId: user.id, content: text },
+  // 한 번의 방문으로는(어느 포스트잇이든) 답글 하나만 — 삭제하면 같은 방문에서 다시 남길 수 있다
+  // (댓글이 삭제되면 이 조회 자체가 더 이상 걸리지 않기 때문에 별도 처리 없이 자연히 재작성이 열린다).
+  const existingForVisit = await prisma.guestbookComment.findFirst({
+    where: { userId: user.id, guestbookSessionId: noteSession.id, recordId: currentVisit.id },
+    select: { id: true },
   });
+  if (!canWriteCommentForVisit(noteSession.status, !!existingForVisit)) {
+    return NextResponse.json(
+      {
+        error: "이번 방문의 답글을 이미 남겼습니다. 다음 방문에서 새로운 답글을 남길 수 있어요.",
+        code: "VISIT_ALREADY_COMMENTED",
+      },
+      { status: 409 },
+    );
+  }
+
+  let comment;
+  try {
+    comment = await prisma.guestbookComment.create({
+      data: {
+        guestbookId,
+        userId: user.id,
+        content: text,
+        guestbookSessionId: noteSession.id,
+        recordId: currentVisit.id,
+      },
+    });
+  } catch (err) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+      return NextResponse.json(
+        {
+          error: "이번 방문의 답글을 이미 남겼습니다. 다음 방문에서 새로운 답글을 남길 수 있어요.",
+          code: "VISIT_ALREADY_COMMENTED",
+        },
+        { status: 409 },
+      );
+    }
+    throw err;
+  }
 
   if (shouldNotify(note.userId, user.id)) {
     await prisma.notification.create({
