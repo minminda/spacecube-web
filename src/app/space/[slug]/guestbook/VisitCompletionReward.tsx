@@ -5,19 +5,21 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { RewardSummary } from "@/lib/guestbookReward";
 
-/* ── 방명록 저장 직후 보상 시퀀스 ────────────────────────────
-   흔적 저장 완료 → 취향 업데이트 → 추천 공간 → 다음 Episode 예고
+/* ── 방명록 캔버스를 "다음으로"로 나갈 때 보여주는 완료 시퀀스 ──────────
+   취향 저장(또는 흔적 남김) → 취향 업데이트 → 추천 공간 → 다음 Episode 예고
    순서로 조용히 한 장씩 넘어간다. 내용이 없는 단계는 건너뛴다.
-──────────────────────────────────────────────────────────── */
+   추천은 방명록 작성 여부와 무관하게 항상 제공된다 — 첫 단계 문구만 갈린다. ──────*/
 
 interface Props {
   summary: RewardSummary;
+  /** 이번 방문에서 포스트잇을 남겼는지 — 첫 단계 문구만 여기에 따라 갈린다 */
+  wroteThisVisit: boolean;
   onClose: () => void;
 }
 
 type StepKey = "saved" | "taste" | "recommend" | "nextEpisode";
 
-export default function PostSubmitReward({ summary, onClose }: Props) {
+export default function VisitCompletionReward({ summary, wroteThisVisit, onClose }: Props) {
   const steps: StepKey[] = [
     "saved",
     ...(summary.topTags.length > 0 ? (["taste"] as const) : []),
@@ -53,13 +55,22 @@ export default function PostSubmitReward({ summary, onClose }: Props) {
         >
           {key === "saved" && (
             <div className="py-6 text-center space-y-2.5">
-              <p className="text-base leading-relaxed" style={{ color: "#eee" }}>
-                당신의 흔적이
-                <br />이 공간에 남았습니다.
-              </p>
-              <p className="text-xs" style={{ color: "#999" }}>
-                이 공간의 {summary.postitCount}번째 흔적이 되었습니다.
-              </p>
+              {wroteThisVisit ? (
+                <>
+                  <p className="text-base leading-relaxed" style={{ color: "#eee" }}>
+                    당신의 흔적이
+                    <br />이 공간에 남았습니다.
+                  </p>
+                  <p className="text-xs" style={{ color: "#999" }}>
+                    이 공간의 {summary.postitCount}번째 흔적이 되었습니다.
+                  </p>
+                </>
+              ) : (
+                <p className="text-base leading-relaxed" style={{ color: "#eee" }}>
+                  이번 방문의
+                  <br />취향을 저장했습니다.
+                </p>
+              )}
             </div>
           )}
 
@@ -130,14 +141,29 @@ export default function PostSubmitReward({ summary, onClose }: Props) {
                 />
               ))}
             </div>
-            <button
-              type="button"
-              onClick={next}
-              className="text-xs px-4 py-2 border transition-colors hover:bg-white hover:text-black"
-              style={{ borderColor: "#eee", color: "#eee" }}
-            >
-              {isLast ? "닫기" : "다음"}
-            </button>
+            {isLast ? (
+              <div className="flex gap-2">
+                <button type="button" onClick={onClose} className="text-xs px-3 py-2" style={{ color: "#999" }}>
+                  이 공간으로 돌아가기
+                </button>
+                <Link
+                  href="/archive"
+                  className="text-xs px-4 py-2 border transition-colors hover:bg-white hover:text-black"
+                  style={{ borderColor: "#eee", color: "#eee" }}
+                >
+                  내 아카이브 보기
+                </Link>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={next}
+                className="text-xs px-4 py-2 border transition-colors hover:bg-white hover:text-black"
+                style={{ borderColor: "#eee", color: "#eee" }}
+              >
+                다음
+              </button>
+            )}
           </div>
         </motion.div>
       </AnimatePresence>

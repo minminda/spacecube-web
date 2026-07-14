@@ -5,7 +5,6 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { Prisma, ClusterType, GuestbookSessionStatus } from "@prisma/client";
 import { recomputeSpaceKPI } from "@/lib/kpi";
-import { buildRewardSummary } from "@/lib/guestbookReward";
 import { canWriteToSession, canWriteNoteForVisit, getVisibleClusters } from "@/lib/guestbookSession";
 import { hasCollision, clusterLabelRect, POST_IT_WIDTH, POST_IT_HEIGHT, POST_IT_GAP, type Rect } from "@/lib/postitCollision";
 
@@ -121,8 +120,10 @@ export async function POST(req: NextRequest) {
     });
 
     await recomputeSpaceKPI(spaceId);
-    const rewardSummary = await buildRewardSummary(user.id, spaceId);
 
+    // 포스트잇 저장은 여기서 완결된다 — 추천/취향 업데이트 요약은 더 이상 이 시점에 강제로
+    // 계산·노출하지 않는다. 방문자가 캔버스를 계속 둘러본 뒤 "다음으로"를 눌렀을 때만
+    // /api/guestbook/reward에서 별도로 계산한다(방명록 작성은 선택, 추천은 기록의 결과).
     return NextResponse.json(
       {
         id: note.id,
@@ -136,7 +137,6 @@ export async function POST(req: NextRequest) {
         color: note.color,
         clusterType: note.clusterType,
         createdAt: note.createdAt.toISOString(),
-        rewardSummary,
       },
       { status: 201 },
     );

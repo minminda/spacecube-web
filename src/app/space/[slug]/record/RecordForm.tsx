@@ -65,8 +65,12 @@ export default function RecordForm({ space, spaceTags, displayTags, visitCount, 
       }),
     });
     if (res.ok) {
+      const saved = await res.json().catch(() => null);
+      // 이번 방문에서 생성/갱신된 Record를 방명록이 식별할 수 있게 id를 넘긴다(점수 값 자체는 넘기지 않음).
+      const visitParam = saved?.id ? `visit=${saved.id}` : "";
       // unlock: 흔적을 보러 감(view) / record: 흔적을 남기러 감(write)
-      router.push(isUnlock ? `/space/${space.slug}/guestbook` : `/space/${space.slug}/guestbook?mode=write`);
+      const query = isUnlock ? visitParam : ["mode=write", visitParam].filter(Boolean).join("&");
+      router.push(`/space/${space.slug}/guestbook${query ? `?${query}` : ""}`);
     } else {
       setLoading(false);
     }

@@ -6,12 +6,14 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 import { GuestbookSessionStatus } from "@prisma/client";
 import { getVisibleClusters } from "@/lib/guestbookSession";
+import { resolveCurrentVisitRecordId } from "@/lib/guestbookVisit";
 import { formatDotDate as formatDate } from "@/lib/time";
 import GuestbookCanvas from "./GuestbookCanvas";
 import type { GuestbookNoteData } from "./canvasConstants";
 
 interface Props {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ visit?: string }>;
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -44,8 +46,9 @@ const DEFAULT_SETTINGS = {
   showNickname: true,
 };
 
-export default async function GuestbookPage({ params }: Props) {
+export default async function GuestbookPage({ params, searchParams }: Props) {
   const { slug } = await params;
+  const { visit: requestedVisitId = null } = await searchParams;
 
   const space = await prisma.space.findUnique({
     where: { slug, isActive: true },
@@ -76,7 +79,9 @@ export default async function GuestbookPage({ params }: Props) {
       select: { id: true, visitedAt: true },
     });
     hasRecord = recentRecords.length > 0;
-    currentRecordId = recentRecords[0]?.id ?? null;
+    // ?visit=<recordId>가 실제로 이 사용자·공간의 Record면 그걸 "이번 방문"으로 신뢰하고,
+    // 없거나 조작된 값이면 가장 최근 Record로 안전하게 폴백한다(점수 값은 쿼리에 담지 않음).
+    currentRecordId = resolveCurrentVisitRecordId(requestedVisitId, recentRecords);
     previousVisitAt = recentRecords.length > 1 ? recentRecords[1].visitedAt : null;
   }
 

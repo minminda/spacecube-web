@@ -16,7 +16,7 @@ import {
   NOTE_W,
   type GuestbookNoteData,
 } from "./canvasConstants";
-import PostSubmitReward from "./PostSubmitReward";
+import VisitCompletionReward from "./VisitCompletionReward";
 import type { RewardSummary } from "@/lib/guestbookReward";
 import GuestbookCommentThread from "@/components/GuestbookCommentThread";
 import {
@@ -143,6 +143,7 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
   const [introPlaying, setIntroPlaying] = useState(!focusId);
   const [revisitNoticeOpen, setRevisitNoticeOpen] = useState(newNotesCount > 0);
   const [rewardSummary, setRewardSummary] = useState<RewardSummary | null>(null);
+  const [completionLoading, setCompletionLoading] = useState(false);
 
   const [nicknamePrompt, setNicknamePrompt] = useState(false);
   const [nicknameInput, setNicknameInput] = useState("");
@@ -434,8 +435,7 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
         showToast(data.error ?? "저장에 실패했습니다.");
         return;
       }
-      const saved: GuestbookNoteData & { rewardSummary: RewardSummary } = await res.json();
-      const { rewardSummary: reward, ...noteFields } = saved;
+      const noteFields: GuestbookNoteData = await res.json();
       const d = new Date(noteFields.createdAt);
       noteFields.createdAt = `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
       setNotes((prev) => [...prev, noteFields]);
@@ -447,9 +447,29 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
       setPhotoUrl(null);
       preComposeTransformRef.current = null; // 저장 완료 — 취소 시 되돌아갈 위치는 더 이상 필요 없음, 지금 확대 상태 유지
       exitWriteMode();
-      setRewardSummary(reward);
+      // 포스트잇 저장만으로 캔버스를 닫거나 추천을 강제로 띄우지 않는다 — 짧은 완료 피드백만 주고
+      // 캔버스 탐색을 계속할 수 있게 둔다. 추천은 "다음으로"(handleFinishVisit)를 눌렀을 때만 노출.
+      showToast("흔적이 저장되었습니다.");
     } finally {
       setSaving(false);
+    }
+  }
+
+  /** 방명록 캔버스를 나갈 때("다음으로") 취향 업데이트 + 추천 완료 시퀀스를 불러온다.
+      포스트잇 작성 여부와 무관하게 항상 열 수 있다 — 방명록은 선택 기능이다. */
+  async function handleFinishVisit() {
+    if (completionLoading || rewardSummary) return; // 연속 클릭·중복 렌더로 시퀀스가 여러 번 뜨는 것만 막는다
+    setCompletionLoading(true);
+    try {
+      const res = await fetch(`/api/guestbook/reward?spaceId=${space.id}`);
+      if (!res.ok) {
+        showToast("추천을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.");
+        return;
+      }
+      const data: RewardSummary = await res.json();
+      setRewardSummary(data);
+    } finally {
+      setCompletionLoading(false);
     }
   }
 
@@ -560,12 +580,22 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
           ← {space.name}
         </Link>
         <div className="flex items-center gap-3 flex-shrink-0">
-          <p className="text-xs text-right" style={{ color: "#888" }}>
+          <p className="text-xs text-right hidden sm:block" style={{ color: "#888" }}>
             이 공간에 남겨진 흔적 <span style={{ color: "#eee" }}>{allNotes.length}</span>개
           </p>
-          <Link href={`/space/${space.slug}/guestbook/archive`} className="text-xs whitespace-nowrap" style={{ color: "#888" }}>
+          <Link href={`/space/${space.slug}/guestbook/archive`} className="text-xs whitespace-nowrap hidden sm:inline" style={{ color: "#888" }}>
             이전 방명록 →
           </Link>
+          {/* 방명록 작성 여부와 무관하게 항상 열 수 있는 명시적 종료 CTA — 브라우저 뒤로가기는 가로채지 않는다 */}
+          <button
+            type="button"
+            onClick={handleFinishVisit}
+            disabled={completionLoading || !!rewardSummary}
+            className="text-xs py-1.5 px-3 border whitespace-nowrap transition-colors hover:bg-white hover:text-black disabled:opacity-40"
+            style={{ borderColor: "#666", color: "#eee" }}
+          >
+            {completionLoading ? "불러오는 중..." : "다음으로"}
+          </button>
         </div>
       </div>
 
@@ -1047,9 +1077,15 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
         )}
       </AnimatePresence>
 
-      {/* ── 방명록 저장 직후 보상 시퀀스 ── */}
+      {/* ── 방명록 나가기("다음으로") 완료 시퀀스 — 포스트잇 작성 여부와 무관하게 노출된다 ── */}
       <AnimatePresence>
-        {rewardSummary && <PostSubmitReward summary={rewardSummary} onClose={() => setRewardSummary(null)} />}
+        {rewardSummary && (
+          <VisitCompletionReward
+            summary={rewardSummary}
+            wroteThisVisit={!canWriteThisVisit}
+            onClose={() => setRewardSummary(null)}
+          />
+        )}
       </AnimatePresence>
 
       <style>{`
