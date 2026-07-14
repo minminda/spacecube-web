@@ -1,5 +1,6 @@
 import { TagKey } from "@prisma/client";
 import { TAG_LABELS } from "@/lib/tags";
+import { getLatestRecordPerSpace, type SpaceVisitRecord } from "@/lib/taste";
 
 export interface SpaceCandidate {
   id: string;
@@ -60,16 +61,20 @@ export function rankSpaces(
 
 export type TasteVector = Partial<Record<TagKey, number>>;
 
-export interface VectorRecord {
+export interface VectorRecord extends SpaceVisitRecord {
   tasteScore: number | null;
   tags: { tag: TagKey }[]; // 레거시 RecordTag (spaceTags 없을 때 fallback)
   space: { spaceTags: TagKey[] };
 }
 
-/** 기록 목록 → tasteScore 가중 취향 벡터 */
+/**
+ * 기록 목록 → tasteScore 가중 취향 벡터.
+ * "같은 공간에 대한 취향은 누적하지 않고, 가장 최근의 감정으로 갱신한다" — 같은 공간을 여러 번
+ * 방문했어도 getLatestRecordPerSpace로 공간당 최신 기록 1개만 반영한다(재방문 점수 누적 금지).
+ */
 export function buildTasteVector(records: VectorRecord[]): TasteVector {
   const vector: TasteVector = {};
-  for (const r of records) {
+  for (const r of getLatestRecordPerSpace(records)) {
     const tags = r.space.spaceTags.length > 0 ? r.space.spaceTags : r.tags.map((t) => t.tag);
     const weight = r.tasteScore ?? 3; // 점수 없는 레거시 기록은 중립 가중치
     for (const tag of tags) {
@@ -117,7 +122,7 @@ export function getVectorReason(space: { spaceTags: TagKey[] }, vector: TasteVec
    getVectorReason 등 기존 함수를 그대로 재사용할 수 있다.
 ──────────────────────────────────────────────────────────────────── */
 
-export interface WeightedVectorRecord {
+export interface WeightedVectorRecord extends SpaceVisitRecord {
   tasteScore: number | null;
   space: {
     spaceTags: TagKey[]; // 레거시 폴백
@@ -128,10 +133,13 @@ export interface WeightedVectorRecord {
   };
 }
 
-/** 기록 목록 → 태그 가중치(SpaceTag.weight)까지 반영한 취향 벡터 */
+/**
+ * 기록 목록 → 태그 가중치(SpaceTag.weight)까지 반영한 취향 벡터.
+ * buildTasteVector와 동일하게 같은 공간은 최신 기록 1개만 반영한다(재방문 점수 누적 금지).
+ */
 export function buildWeightedTasteVector(records: WeightedVectorRecord[]): TasteVector {
   const vector: TasteVector = {};
-  for (const r of records) {
+  for (const r of getLatestRecordPerSpace(records)) {
     const score = r.tasteScore ?? 3; // 점수 없는 레거시 기록은 중립 가중치
     const links = (r.space.spaceTagLinks ?? []).filter(
       (l) => l.tag.isActive && l.tag.useForRecommendation && l.tag.legacyKey,

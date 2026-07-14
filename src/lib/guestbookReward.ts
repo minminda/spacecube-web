@@ -53,7 +53,9 @@ export async function buildRewardSummary(userId: string, spaceId: string): Promi
     prisma.record.findMany({
       where: { userId },
       select: {
+        id: true,
         spaceId: true,
+        visitedAt: true,
         tasteScore: true,
         space: { select: { spaceTags: true, spaceTagLinks: { include: { tag: true } } } },
       },

@@ -510,6 +510,9 @@ model Record {
 
   guestbookNotes    GuestbookNote[]
   guestbookComments GuestbookComment[]
+
+  // 사용자×공간별 "가장 최근 방문" 조회(추천/취향 프로파일, 재방문 판정)가 빈번해 추가.
+  @@index([userId, spaceId, visitedAt])
 }
 
 model RecordTag {
