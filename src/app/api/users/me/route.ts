@@ -2,8 +2,26 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { Visibility } from "@prisma/client";
+import { hasOperatorAccess } from "@/lib/operatorAuth";
 
 const VALID_VISIBILITY: Visibility[] = ["PRIVATE", "PARTIAL", "LINK_ONLY"];
+
+export const dynamic = "force-dynamic";
+
+// Navbar의 "운영 관리" 메뉴 노출 여부 — 루트 레이아웃에서 서버 인증을 확인하면 모든 페이지가
+// 강제로 동적 렌더링되므로(정적 페이지 최적화 손실), 클라이언트에서 이 가벼운 엔드포인트로 확인한다.
+export async function GET() {
+  const session = await auth();
+  if (!session?.user?.email) {
+    return NextResponse.json({ isOperator: false });
+  }
+  const user = await prisma.user.findUnique({ where: { email: session.user.email }, select: { id: true } });
+  if (!user) {
+    return NextResponse.json({ isOperator: false });
+  }
+  const isOperator = await hasOperatorAccess(user.id, session.user.email);
+  return NextResponse.json({ isOperator });
+}
 
 export async function PATCH(req: Request) {
   const session = await auth();

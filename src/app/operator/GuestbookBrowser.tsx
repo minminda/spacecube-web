@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { formatDotDate as formatDots } from "@/lib/time";
 
 interface Note {
   id: string;
@@ -16,11 +17,6 @@ const CLUSTER_LABELS: Record<string, string> = {
   QUESTION_1: "질문 1",
   QUESTION_2: "질문 2",
 };
-
-function formatDots(iso: string): string {
-  const d = new Date(iso);
-  return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
-}
 
 // 운영자용 방명록 열람 — 읽기 전용. 방문자의 이메일/전화번호 등은 애초에 전달되지 않는다(props에 없음).
 export default function GuestbookBrowser({ notes }: { notes: Note[] }) {

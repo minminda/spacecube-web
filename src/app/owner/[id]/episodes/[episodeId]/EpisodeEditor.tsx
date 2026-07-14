@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import ImagePositionEditor, { type ImageTransform } from "@/components/ImagePositionEditor";
+import ToggleSwitch from "@/components/ToggleSwitch";
 
 interface EpisodeData {
   id: string;
@@ -104,20 +105,7 @@ export default function EpisodeEditor({ episode }: { episode: EpisodeData }) {
         aspectRatio="4/3"
       />
 
-      <div className="flex items-center gap-3">
-        <button
-          type="button"
-          onClick={() => setPublished((v) => !v)}
-          className="w-10 h-5 border relative transition-colors"
-          style={{ borderColor: "var(--border)", background: published ? "var(--fg)" : "transparent" }}
-        >
-          <span
-            className="absolute top-0.5 w-3.5 h-3.5 transition-all"
-            style={{ left: published ? "calc(100% - 1rem)" : "0.1rem", background: published ? "var(--bg)" : "var(--dim)" }}
-          />
-        </button>
-        <p className="text-xs" style={{ color: "var(--dim)" }}>{published ? "공개됨" : "비공개"}</p>
-      </div>
+      <ToggleSwitch label={published ? "공개됨" : "비공개"} checked={published} onChange={setPublished} />
 
       <button
         onClick={save}

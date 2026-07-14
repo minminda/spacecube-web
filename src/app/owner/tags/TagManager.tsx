@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useToast } from "@/hooks/useToast";
+import Toast from "@/components/Toast";
 
 interface TagRow {
   id: string;
@@ -20,12 +22,7 @@ export default function TagManager({ initialTags }: { initialTags: TagRow[] }) {
   const [newName, setNewName] = useState("");
   const [newCategory, setNewCategory] = useState("");
   const [creating, setCreating] = useState(false);
-  const [toast, setToast] = useState<string | null>(null);
-
-  function showToast(msg: string) {
-    setToast(msg);
-    setTimeout(() => setToast(null), 3000);
-  }
+  const { toast, showToast } = useToast();
 
   async function createTag() {
     const name = newName.trim();
@@ -146,11 +143,7 @@ export default function TagManager({ initialTags }: { initialTags: TagRow[] }) {
         ))}
       </div>
 
-      {toast && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-5 py-3 text-sm border" style={{ background: "var(--bg)", borderColor: "var(--border)", color: "var(--fg)" }}>
-          {toast}
-        </div>
-      )}
+      <Toast message={toast} />
     </div>
   );
 }

@@ -19,6 +19,16 @@ export async function resolveOperatorSpaces(userId: string, userEmail: string | 
   return prisma.space.findMany({ where: { ownerId: userId }, orderBy: { createdAt: "desc" } });
 }
 
+/**
+ * "/operator 진입점을 보여줄지" 판단용 경량 체크 — resolveOperatorSpaces처럼 전체 행을 읽지 않고
+ * 존재 여부만 확인한다(전역 레이아웃에서 매 페이지 로드마다 호출되므로 가벼워야 함).
+ */
+export async function hasOperatorAccess(userId: string, userEmail: string | null | undefined): Promise<boolean> {
+  if (isAdmin(userEmail)) return true;
+  const ownedCount = await prisma.space.count({ where: { ownerId: userId } });
+  return ownedCount > 0;
+}
+
 export type SpaceAccessResult =
   | { ok: true; space: Space; isAdminUser: boolean }
   | { ok: false; status: 404 | 403 };

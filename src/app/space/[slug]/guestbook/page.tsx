@@ -6,8 +6,9 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 import { GuestbookSessionStatus } from "@prisma/client";
 import { getVisibleClusters } from "@/lib/guestbookSession";
+import { formatDotDate as formatDate } from "@/lib/time";
 import GuestbookCanvas from "./GuestbookCanvas";
-import type { GuestbookNoteData } from "./dummyNotes";
+import type { GuestbookNoteData } from "./canvasConstants";
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -26,9 +27,6 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-function formatDate(d: Date) {
-  return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
-}
 
 // 관리자 설정이 없는 공간이 쓰는 기본값
 const DEFAULT_SETTINGS = {

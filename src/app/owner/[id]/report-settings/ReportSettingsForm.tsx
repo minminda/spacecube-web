@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import ToggleSwitch from "@/components/ToggleSwitch";
 
 interface Settings {
   reportStartDate: string; // yyyy-mm-dd, 빈 문자열이면 미설정
@@ -66,7 +67,7 @@ export default function ReportSettingsForm({ spaceId, initial }: { spaceId: stri
 
       <div className="space-y-3">
         <p className={labelClass} style={labelStyle}>리포트 사용 여부</p>
-        <Toggle label="이 공간의 월간 리포트 활성화" checked={settings.reportEnabled} onChange={(v) => set("reportEnabled", v)} />
+        <ToggleSwitch label="이 공간의 월간 리포트 활성화" checked={settings.reportEnabled} onChange={(v) => set("reportEnabled", v)} />
       </div>
 
       <div style={{ borderTop: "1px solid var(--border)" }} />
@@ -112,21 +113,3 @@ export default function ReportSettingsForm({ spaceId, initial }: { spaceId: stri
   );
 }
 
-function Toggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
-  return (
-    <div className="flex items-center gap-3">
-      <button
-        type="button"
-        onClick={() => onChange(!checked)}
-        className="w-10 h-5 border relative transition-colors flex-shrink-0"
-        style={{ borderColor: "var(--border)", background: checked ? "var(--fg)" : "transparent" }}
-      >
-        <span
-          className="absolute top-0.5 w-3.5 h-3.5 transition-all"
-          style={{ left: checked ? "calc(100% - 1rem)" : "0.1rem", background: checked ? "var(--bg)" : "var(--dim)" }}
-        />
-      </button>
-      <p className="text-xs" style={{ color: "var(--dim)" }}>{label}</p>
-    </div>
-  );
-}

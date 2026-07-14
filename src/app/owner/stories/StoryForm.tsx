@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import ToggleSwitch from "@/components/ToggleSwitch";
 
 interface SpaceOption {
   id: string;
@@ -462,23 +463,7 @@ export default function StoryForm({ mode, initialData, spaces }: StoryFormProps)
       </div>
 
       {/* 활성 여부 */}
-      <div className="flex items-center gap-3">
-        <button
-          type="button"
-          onClick={() => setIsActive((v) => !v)}
-          className="w-10 h-5 border relative transition-colors"
-          style={{ borderColor: "var(--border)", background: isActive ? "var(--fg)" : "transparent" }}
-        >
-          <span
-            className="absolute top-0.5 w-3.5 h-3.5 transition-all"
-            style={{
-              left: isActive ? "calc(100% - 1rem)" : "0.1rem",
-              background: isActive ? "var(--bg)" : "var(--dim)",
-            }}
-          />
-        </button>
-        <p className="text-xs" style={{ color: "var(--dim)" }}>활성화</p>
-      </div>
+      <ToggleSwitch label="활성화" checked={isActive} onChange={setIsActive} />
 
       {error && <p className="text-xs" style={{ color: "#e05" }}>{error}</p>}
 

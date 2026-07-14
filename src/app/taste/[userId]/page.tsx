@@ -3,14 +3,11 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 import { TAG_LABELS } from "@/lib/tags";
-import { aggregateTags, getTastePhrase } from "@/lib/taste";
+import { aggregateTags, getTastePhrase, getLatestRecordPerSpace } from "@/lib/taste";
+import { formatDotDate as formatDate } from "@/lib/time";
 import SaveTasteButton from "@/components/SaveTasteButton";
 
 interface Props { params: Promise<{ userId: string }> }
-
-function formatDate(d: Date) {
-  return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
-}
 
 export default async function TasteJourneyPage({ params }: Props) {
   const { userId } = await params;
@@ -49,12 +46,9 @@ export default async function TasteJourneyPage({ params }: Props) {
   const topTags = aggregateTags(target.records).slice(0, 5);
   const tastePhrase = getTastePhrase(topTags);
 
-  const seenSpaces = new Set<string>();
-  const uniqueRecords = target.records.filter((r) => {
-    if (seenSpaces.has(r.space.id)) return false;
-    seenSpaces.add(r.space.id);
-    return true;
-  });
+  // 같은 공간을 여러 번 방문했어도 공간당 최신 방문 1개만 — 추천/취향 프로파일과 동일한
+  // 공통 함수(getLatestRecordPerSpace)를 재사용해 "최신 기록만 반영" 기준을 하나로 통일한다.
+  const uniqueRecords = getLatestRecordPerSpace(target.records);
 
   // 이 사용자가 남긴 방명록 포스트잇 — 공개 아카이브에 노출 가능한 정보만 선택
   // (이메일/정확한 방문 시각/로그인 정보/관리자 여부/비공개 기록은 노출하지 않음)

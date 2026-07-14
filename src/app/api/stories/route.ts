@@ -3,20 +3,6 @@ import { auth } from "@/auth";
 import { isAdmin } from "@/lib/admin";
 import { prisma } from "@/lib/prisma";
 
-export async function GET() {
-  const stories = await prisma.contentStory.findMany({
-    where: { isActive: true, publishedAt: { not: null, lte: new Date() } },
-    include: {
-      storySpaces: {
-        orderBy: { order: "asc" },
-        include: { space: { select: { id: true, name: true, slug: true, type: true, district: true, imageUrl: true, tagline: true } } },
-      },
-    },
-    orderBy: { publishedAt: "desc" },
-  });
-  return NextResponse.json(stories);
-}
-
 export async function POST(req: Request) {
   const session = await auth();
   if (!session?.user?.email || !isAdmin(session.user.email)) {

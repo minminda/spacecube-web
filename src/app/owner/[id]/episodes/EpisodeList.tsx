@@ -3,6 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useToast } from "@/hooks/useToast";
+import Toast from "@/components/Toast";
 
 interface EpisodeRow {
   id: string;
@@ -25,12 +27,7 @@ export default function EpisodeList({ spaceId, initialEpisodes }: Props) {
   const [creating, setCreating] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
-  const [toast, setToast] = useState<string | null>(null);
-
-  function showToast(msg: string) {
-    setToast(msg);
-    setTimeout(() => setToast(null), 3000);
-  }
+  const { toast, showToast } = useToast();
 
   async function createEpisode() {
     const title = newTitle.trim();
@@ -202,11 +199,7 @@ export default function EpisodeList({ spaceId, initialEpisodes }: Props) {
         </div>
       )}
 
-      {toast && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-5 py-3 text-sm border" style={{ background: "var(--bg)", borderColor: "var(--border)", color: "var(--fg)" }}>
-          {toast}
-        </div>
-      )}
+      <Toast message={toast} />
     </div>
   );
 }

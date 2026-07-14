@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -9,11 +10,25 @@ const NAV_ITEMS = [
   { label: "추천 방식", href: "/recommendation", match: (p: string) => p.startsWith("/recommendation") },
 ];
 
+const OPERATOR_NAV_ITEM = { label: "운영 관리", href: "/operator", match: (p: string) => p.startsWith("/operator") };
+
 export default function Navbar() {
   const pathname = usePathname();
+  // 루트 레이아웃에서 서버 인증을 확인하면 정적 페이지(about/recommendation 등)까지 전부
+  // 강제로 동적 렌더링되므로, 클라이언트에서 마운트 후 가볍게 확인한다(약간의 지연 후 노출 — 허용 가능한 트레이드오프).
+  const [isOperator, setIsOperator] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/users/me")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => { if (data?.isOperator) setIsOperator(true); })
+      .catch(() => {/* 조용히 무시 — 메뉴만 안 보일 뿐 기능에 영향 없음 */});
+  }, []);
 
   const isOwner = pathname.startsWith("/owner");
   if (isOwner) return null;
+
+  const navItems = isOperator ? [...NAV_ITEMS, OPERATOR_NAV_ITEM] : NAV_ITEMS;
 
   return (
     <nav
@@ -29,7 +44,7 @@ export default function Navbar() {
           ■
         </Link>
 
-        {NAV_ITEMS.map(({ label, href, match }) => {
+        {navItems.map(({ label, href, match }) => {
           const active = match(pathname);
           return (
             <Link

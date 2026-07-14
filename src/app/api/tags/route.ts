@@ -5,16 +5,6 @@ import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
-  const session = await auth();
-  if (!session?.user?.email || !isAdmin(session.user.email)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const tags = await prisma.tag.findMany({ orderBy: { displayOrder: "asc" } });
-  return NextResponse.json(tags);
-}
-
 export async function POST(req: Request) {
   const session = await auth();
   if (!session?.user?.email || !isAdmin(session.user.email)) {

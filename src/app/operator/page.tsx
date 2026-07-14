@@ -5,6 +5,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { resolveOperatorSpaces } from "@/lib/operatorAuth";
 import { computeReportPeriod } from "@/lib/reportPeriod";
+import { formatDotDate as formatDate } from "@/lib/time";
 import { GuestbookSessionStatus, MonthlyReportStatus } from "@prisma/client";
 import PastReportsSelect from "./PastReportsSelect";
 import MonthlyMemo from "./MonthlyMemo";
@@ -26,12 +27,6 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 
 function Divider() {
   return <div style={{ borderTop: "1px solid var(--border)" }} />;
-}
-
-function formatDate(iso: string | null): string {
-  if (!iso) return "—";
-  const d = new Date(iso);
-  return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
 }
 
 function pct(rate: number): string {

@@ -19,10 +19,7 @@ import {
   ENABLE_RECOMMENDATION_PLAYLIST_UI,
 } from "@/lib/features";
 import RecommendationPlaylist, { type PlaylistCard } from "@/components/RecommendationPlaylist";
-
-function formatDate(d: Date) {
-  return new Date(d).toLocaleDateString("ko-KR", { year: "numeric", month: "2-digit", day: "2-digit" });
-}
+import { formatDotDate as formatDate } from "@/lib/time";
 
 function Divider({ className }: { className?: string }) {
   return <div className={`my-8 ${className ?? ""}`} style={{ borderTop: "1px solid var(--border)" }} />;

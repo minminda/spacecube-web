@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import ToggleSwitch from "@/components/ToggleSwitch";
 
 interface Settings {
   backgroundType: "color" | "image";
@@ -234,9 +235,9 @@ export default function GuestbookSettingsForm({ spaceId, initial }: { spaceId: s
 
       {/* 토글 옵션 */}
       <div className="space-y-3">
-        <Toggle label="포스트잇 회전 허용" checked={settings.allowRotation} onChange={(v) => set("allowRotation", v)} />
-        <Toggle label="포스트잇 사진 허용" checked={settings.allowImage} onChange={(v) => set("allowImage", v)} />
-        <Toggle label="작성자 닉네임 표시" checked={settings.showNickname} onChange={(v) => set("showNickname", v)} />
+        <ToggleSwitch label="포스트잇 회전 허용" checked={settings.allowRotation} onChange={(v) => set("allowRotation", v)} />
+        <ToggleSwitch label="포스트잇 사진 허용" checked={settings.allowImage} onChange={(v) => set("allowImage", v)} />
+        <ToggleSwitch label="작성자 닉네임 표시" checked={settings.showNickname} onChange={(v) => set("showNickname", v)} />
       </div>
 
       <button
@@ -267,21 +268,3 @@ function NumberField({ label, value, onChange, step }: { label: string; value: n
   );
 }
 
-function Toggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
-  return (
-    <div className="flex items-center gap-3">
-      <button
-        type="button"
-        onClick={() => onChange(!checked)}
-        className="w-10 h-5 border relative transition-colors flex-shrink-0"
-        style={{ borderColor: "var(--border)", background: checked ? "var(--fg)" : "transparent" }}
-      >
-        <span
-          className="absolute top-0.5 w-3.5 h-3.5 transition-all"
-          style={{ left: checked ? "calc(100% - 1rem)" : "0.1rem", background: checked ? "var(--bg)" : "var(--dim)" }}
-        />
-      </button>
-      <p className="text-xs" style={{ color: "var(--dim)" }}>{label}</p>
-    </div>
-  );
-}

@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useToast } from "@/hooks/useToast";
+import Toast from "@/components/Toast";
 
 interface EpisodeRow {
   id: string;
@@ -21,12 +23,7 @@ interface SpaceRow {
 export default function ContentStatusList({ spaces }: { spaces: SpaceRow[] }) {
   const [rows, setRows] = useState(spaces);
   const [busy, setBusy] = useState<string | null>(null);
-  const [toast, setToast] = useState<string | null>(null);
-
-  function showToast(msg: string) {
-    setToast(msg);
-    setTimeout(() => setToast(null), 3000);
-  }
+  const { toast, showToast } = useToast();
 
   async function toggleSpace(spaceId: string, isActive: boolean) {
     setBusy(spaceId);
@@ -113,11 +110,7 @@ export default function ContentStatusList({ spaces }: { spaces: SpaceRow[] }) {
         </div>
       ))}
 
-      {toast && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-5 py-3 text-sm border" style={{ background: "var(--bg)", borderColor: "var(--border)", color: "var(--fg)" }}>
-          {toast}
-        </div>
-      )}
+      <Toast message={toast} />
     </div>
   );
 }

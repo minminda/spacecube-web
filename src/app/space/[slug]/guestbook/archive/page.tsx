@@ -4,17 +4,13 @@ import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 import { GuestbookSessionStatus } from "@prisma/client";
+import { formatDotDate as formatDate } from "@/lib/time";
 
 interface Props {
   params: Promise<{ slug: string }>;
 }
 
 export const metadata: Metadata = { title: "이전 방명록 — 공간큐브" };
-
-function formatDate(d: Date | null): string {
-  if (!d) return "—";
-  return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
-}
 
 export default async function GuestbookArchiveListPage({ params }: Props) {
   const { slug } = await params;

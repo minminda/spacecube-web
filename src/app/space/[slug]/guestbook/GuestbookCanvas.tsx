@@ -11,12 +11,11 @@ import {
 } from "react-zoom-pan-pinch";
 import { compressImage } from "@/lib/imageCompress";
 import {
-  DUMMY_NOTES,
   WORLD_W,
   WORLD_H,
   NOTE_W,
   type GuestbookNoteData,
-} from "./dummyNotes";
+} from "./canvasConstants";
 import PostSubmitReward from "./PostSubmitReward";
 import type { RewardSummary } from "@/lib/guestbookReward";
 import GuestbookCommentThread from "@/components/GuestbookCommentThread";
@@ -26,6 +25,7 @@ import {
   POST_IT_HEIGHT,
   type Rect,
 } from "@/lib/postitCollision";
+import { useToast } from "@/hooks/useToast";
 
 const ALREADY_COMMENTED_MSG = "이번 방문의 답글을 이미 남겼습니다. 다음 방문에서 새로운 답글을 남길 수 있어요.";
 
@@ -138,7 +138,7 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [photoUploading, setPhotoUploading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [toast, setToast] = useState<string | null>(null);
+  const { toast, showToast } = useToast(2600);
   const [scalePct, setScalePct] = useState(100);
   const [introPlaying, setIntroPlaying] = useState(!focusId);
   const [revisitNoticeOpen, setRevisitNoticeOpen] = useState(newNotesCount > 0);
@@ -159,13 +159,8 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
   const [busy, setBusy] = useState(false);
   const [lightbox, setLightbox] = useState<string | null>(null);
 
-  const allNotes = [...DUMMY_NOTES, ...notes];
+  const allNotes = notes;
   const worldBg = settings.backgroundType === "color" ? settings.backgroundColor : "#000000";
-
-  function showToast(msg: string) {
-    setToast(msg);
-    setTimeout(() => setToast(null), 2600);
-  }
 
   function effectiveRotation(r: number) {
     return settings.allowRotation ? r : 0;
@@ -610,6 +605,27 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
             >
               {toast}
             </motion.p>
+          )}
+        </AnimatePresence>
+
+        {/* 아직 흔적이 하나도 없는 공간 — 빈 상태 안내 */}
+        <AnimatePresence>
+          {allNotes.length === 0 && !introPlaying && !writeMode && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 flex items-center justify-center pointer-events-none px-8"
+            >
+              <div className="text-center space-y-2">
+                <p className="text-sm leading-relaxed" style={{ color: "rgba(255,255,255,0.55)" }}>
+                  아직 첫 번째 흔적을 기다리고 있습니다.
+                </p>
+                <p className="text-sm leading-relaxed" style={{ color: "rgba(255,255,255,0.55)" }}>
+                  첫 번째 이야기를 남겨보세요.
+                </p>
+              </div>
+            </motion.div>
           )}
         </AnimatePresence>
 

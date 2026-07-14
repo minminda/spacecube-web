@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useToast } from "@/hooks/useToast";
+import Toast from "@/components/Toast";
 
 interface Props {
   spaceId: string;
@@ -12,12 +14,7 @@ export default function DeleteSpaceButton({ spaceId, spaceName }: Props) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [toast, setToast] = useState<string | null>(null);
-
-  function showToast(msg: string) {
-    setToast(msg);
-    setTimeout(() => setToast(null), 3000);
-  }
+  const { toast, showToast } = useToast();
 
   async function handleDelete() {
     setLoading(true);
@@ -84,14 +81,7 @@ export default function DeleteSpaceButton({ spaceId, spaceName }: Props) {
         </div>
       )}
 
-      {toast && (
-        <div
-          className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-5 py-3 text-sm border"
-          style={{ background: "var(--bg)", borderColor: "var(--border)", color: "var(--fg)" }}
-        >
-          {toast}
-        </div>
-      )}
+      <Toast message={toast} />
     </>
   );
 }

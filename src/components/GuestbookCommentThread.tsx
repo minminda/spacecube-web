@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { formatDotDate as formatDots } from "@/lib/time";
 
 export interface GuestbookCommentData {
   id: string;
@@ -12,11 +13,6 @@ export interface GuestbookCommentData {
 }
 
 const MAX_CONTENT = 200;
-
-function formatDots(iso: string): string {
-  const d = new Date(iso);
-  return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
-}
 
 interface Props {
   noteId: string;

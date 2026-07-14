@@ -5,6 +5,8 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import CubeQR from "@/components/CubeQR";
+import { formatDotDate as formatDate } from "@/lib/time";
+import { useToast } from "@/hooks/useToast";
 
 type CubeStatus = "UNASSIGNED" | "ASSIGNED" | "DISABLED";
 
@@ -42,11 +44,6 @@ const STATUS_LABEL: Record<CubeStatus, string> = {
   DISABLED: "비활성화",
 };
 
-function formatDate(iso: string | null) {
-  if (!iso) return "—";
-  const d = new Date(iso);
-  return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
-}
 
 function StatusBadge({ status }: { status: CubeStatus }) {
   const color = status === "ASSIGNED" ? "var(--fg)" : status === "DISABLED" ? "#ef4444" : "var(--dim)";
@@ -81,12 +78,7 @@ export default function CubeManager({ cubes, spaceOptions, baseUrl, initialFocus
 
   const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null);
   const [busy, setBusy] = useState(false);
-  const [toast, setToast] = useState<string | null>(null);
-
-  function showToast(msg: string) {
-    setToast(msg);
-    setTimeout(() => setToast(null), 3000);
-  }
+  const { toast, showToast } = useToast();
 
   const counts = useMemo(() => ({
     total: cubes.length,

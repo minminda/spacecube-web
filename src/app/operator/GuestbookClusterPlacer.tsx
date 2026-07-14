@@ -7,7 +7,7 @@ import {
   TransformComponent,
   type ReactZoomPanPinchContentRef,
 } from "react-zoom-pan-pinch";
-import { WORLD_W, WORLD_H } from "@/app/space/[slug]/guestbook/dummyNotes";
+import { WORLD_W, WORLD_H } from "@/app/space/[slug]/guestbook/canvasConstants";
 
 /* ── 운영자용 질문 군집 위치 배치 ──────────────────────────────────
    방문자용 무한 캔버스(GuestbookCanvas)와 동일한 좌표계(WORLD_W/H=5000)와

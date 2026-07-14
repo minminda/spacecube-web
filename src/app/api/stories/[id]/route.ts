@@ -5,21 +5,6 @@ import { prisma } from "@/lib/prisma";
 
 interface Props { params: Promise<{ id: string }> }
 
-export async function GET(_req: Request, { params }: Props) {
-  const { id } = await params;
-  const story = await prisma.contentStory.findUnique({
-    where: { id },
-    include: {
-      storySpaces: {
-        orderBy: { order: "asc" },
-        include: { space: { select: { id: true, name: true, slug: true, type: true, district: true, imageUrl: true, tagline: true } } },
-      },
-    },
-  });
-  if (!story) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  return NextResponse.json(story);
-}
-
 export async function PATCH(req: Request, { params }: Props) {
   const session = await auth();
   if (!session?.user?.email || !isAdmin(session.user.email)) {
