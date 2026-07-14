@@ -202,6 +202,7 @@ export default async function GuestbookPage({ params, searchParams }: Props) {
           newNotesCount={newNotesCount}
           clusters={clusters}
           currentUserId={user?.id ?? null}
+          currentRecordId={currentRecordId}
         />
       </Suspense>
     </main>

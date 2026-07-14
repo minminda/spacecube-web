@@ -16,8 +16,6 @@ import {
   NOTE_W,
   type GuestbookNoteData,
 } from "./canvasConstants";
-import VisitCompletionReward from "./VisitCompletionReward";
-import type { RewardSummary } from "@/lib/guestbookReward";
 import GuestbookCommentThread from "@/components/GuestbookCommentThread";
 import {
   findFreePosition,
@@ -106,13 +104,15 @@ interface Props {
   clusters: ClusterLabel[];
   /** 로그인한 내 사용자 id — 댓글 본인 확인(수정/삭제 노출)에 사용, 비로그인이면 null */
   currentUserId: string | null;
+  /** 이번 방문(가장 최근 인정된 Record)의 id — "이번 경험 마치기"가 완료 페이지로 넘겨줄 식별자, 없으면 null(비로그인 등) */
+  currentRecordId: string | null;
 }
 
 // 포스트잇 텍스트는 노란 종이 위 고정 잉크색 (테마 무관)
 const INK = "#3d3524";
 const INK_DIM = "#8a7d5c";
 
-export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initialMyNoteId, initialCanWriteThisVisit, hasCommentedThisVisit: initialHasCommentedThisVisit, nickname, settings, newNotesCount, clusters, currentUserId }: Props) {
+export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initialMyNoteId, initialCanWriteThisVisit, hasCommentedThisVisit: initialHasCommentedThisVisit, nickname, settings, newNotesCount, clusters, currentUserId, currentRecordId }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const transformRef = useRef<ReactZoomPanPinchContentRef>(null);
@@ -142,8 +142,7 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
   const [scalePct, setScalePct] = useState(100);
   const [introPlaying, setIntroPlaying] = useState(!focusId);
   const [revisitNoticeOpen, setRevisitNoticeOpen] = useState(newNotesCount > 0);
-  const [rewardSummary, setRewardSummary] = useState<RewardSummary | null>(null);
-  const [completionLoading, setCompletionLoading] = useState(false);
+  const [navigatingToComplete, setNavigatingToComplete] = useState(false);
 
   const [nicknamePrompt, setNicknamePrompt] = useState(false);
   const [nicknameInput, setNicknameInput] = useState("");
@@ -455,22 +454,13 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
     }
   }
 
-  /** 방명록 캔버스를 나갈 때("다음으로") 취향 업데이트 + 추천 완료 시퀀스를 불러온다.
-      포스트잇 작성 여부와 무관하게 항상 열 수 있다 — 방명록은 선택 기능이다. */
-  async function handleFinishVisit() {
-    if (completionLoading || rewardSummary) return; // 연속 클릭·중복 렌더로 시퀀스가 여러 번 뜨는 것만 막는다
-    setCompletionLoading(true);
-    try {
-      const res = await fetch(`/api/guestbook/reward?spaceId=${space.id}`);
-      if (!res.ok) {
-        showToast("추천을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.");
-        return;
-      }
-      const data: RewardSummary = await res.json();
-      setRewardSummary(data);
-    } finally {
-      setCompletionLoading(false);
-    }
+  /** "이번 경험 마치기" — 포스트잇 작성 여부와 무관하게 항상 누를 수 있다(방명록은 선택 기능).
+      별도의 방문 완료·추천 페이지로 이동한다(모달로 즉시 계산하지 않음). 브라우저 뒤로가기는
+      건드리지 않으므로, 이 페이지에서 뒤로가기를 누르면 다시 이 캔버스로 돌아온다. */
+  function finishVisit() {
+    if (navigatingToComplete || !currentRecordId) return; // 연속 클릭으로 중복 라우팅되는 것만 막는다
+    setNavigatingToComplete(true);
+    router.push(`/space/${space.slug}/complete?recordId=${currentRecordId}`);
   }
 
   const openFocused = useCallback((note: GuestbookNoteData) => {
@@ -589,12 +579,12 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
           {/* 방명록 작성 여부와 무관하게 항상 열 수 있는 명시적 종료 CTA — 브라우저 뒤로가기는 가로채지 않는다 */}
           <button
             type="button"
-            onClick={handleFinishVisit}
-            disabled={completionLoading || !!rewardSummary}
+            onClick={finishVisit}
+            disabled={navigatingToComplete || !currentRecordId}
             className="text-xs py-1.5 px-3 border whitespace-nowrap transition-colors hover:bg-white hover:text-black disabled:opacity-40"
             style={{ borderColor: "#666", color: "#eee" }}
           >
-            {completionLoading ? "불러오는 중..." : "다음으로"}
+            {navigatingToComplete ? "이동 중..." : "이번 경험 마치기"}
           </button>
         </div>
       </div>
@@ -1074,17 +1064,6 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
               </button>
             </motion.div>
           </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* ── 방명록 나가기("다음으로") 완료 시퀀스 — 포스트잇 작성 여부와 무관하게 노출된다 ── */}
-      <AnimatePresence>
-        {rewardSummary && (
-          <VisitCompletionReward
-            summary={rewardSummary}
-            wroteThisVisit={!canWriteThisVisit}
-            onClose={() => setRewardSummary(null)}
-          />
         )}
       </AnimatePresence>
 

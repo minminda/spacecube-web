@@ -23,3 +23,21 @@ export function resolveCurrentVisitRecordId(
   }
   return [...ownedRecords].sort((a, b) => b.visitedAt.getTime() - a.visitedAt.getTime())[0].id;
 }
+
+export interface OwnableRecord {
+  userId: string;
+  spaceId: string;
+}
+
+/**
+ * 방문 완료 페이지(`/space/[slug]/complete`)에서 recordId로 조회한 Record가 실제로
+ * 로그인 사용자·해당 공간의 것인지 확인한다. 다른 사용자/다른 공간의 record면 false —
+ * 호출부는 이때 반드시 접근을 막아야 한다(현재는 notFound()).
+ */
+export function isOwnedRecord(
+  record: OwnableRecord | null,
+  userId: string,
+  spaceId: string,
+): boolean {
+  return !!record && record.userId === userId && record.spaceId === spaceId;
+}

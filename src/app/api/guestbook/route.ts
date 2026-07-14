@@ -122,8 +122,8 @@ export async function POST(req: NextRequest) {
     await recomputeSpaceKPI(spaceId);
 
     // 포스트잇 저장은 여기서 완결된다 — 추천/취향 업데이트 요약은 더 이상 이 시점에 강제로
-    // 계산·노출하지 않는다. 방문자가 캔버스를 계속 둘러본 뒤 "다음으로"를 눌렀을 때만
-    // /api/guestbook/reward에서 별도로 계산한다(방명록 작성은 선택, 추천은 기록의 결과).
+    // 계산·노출하지 않는다. 방문자가 캔버스를 계속 둘러본 뒤 "이번 경험 마치기"를 눌러
+    // /space/[slug]/complete로 이동했을 때만 별도로 계산한다(방명록 작성은 선택, 추천은 기록의 결과).
     return NextResponse.json(
       {
         id: note.id,

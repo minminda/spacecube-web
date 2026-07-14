@@ -134,6 +134,10 @@ export default async function EpisodeDetailPage({ params }: Props) {
 
   const nextEpisodeUnlocked = !!nextEpisode && nextEpisode.unlockVisitCount <= visitCount;
 
+  // 공간 페이지와 동일한 CTA로 통일 — 취향 점수를 저장해야 방명록이 열린다(로그인 전이면 콜백 경유).
+  const recordHref = `/space/${space.slug}/record`;
+  const ctaHref = session ? recordHref : `/login?callbackUrl=${encodeURIComponent(recordHref)}`;
+
   return (
     <main className="flex flex-col min-h-screen px-6 py-8 gap-8">
       <div className="flex items-center justify-between">
@@ -266,11 +270,11 @@ export default async function EpisodeDetailPage({ params }: Props) {
 
       <div className="flex flex-col gap-3">
         <Link
-          href={`/space/${space.slug}/guestbook`}
+          href={ctaHref}
           className="block w-full text-center text-sm py-3 border hover:bg-[var(--fg)] hover:text-[var(--bg)] transition-colors"
           style={{ borderColor: "var(--fg)" }}
         >
-          방문자들의 흔적 보러 가기
+          기록하고 흔적 열기
         </Link>
         <Link href={`/space/${space.slug}`} className="text-xs text-center py-1" style={{ color: "var(--border)" }}>
           공간 페이지로 돌아가기
