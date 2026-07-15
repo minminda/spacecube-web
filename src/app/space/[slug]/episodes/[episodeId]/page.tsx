@@ -4,6 +4,9 @@ import type { Metadata } from "next";
 import { cookies, headers } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
+import { requireSpaceUnlock } from "@/lib/spaceUnlock";
+import { isAdmin } from "@/lib/admin";
+import SpaceLockNotice from "@/components/SpaceLockNotice";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { LOCALE_COOKIE_NAME, resolveInitialLocale, availableLocalesForSpace } from "@/lib/localeResolve";
 import { resolveLocalizedField } from "@/lib/i18nContent";
@@ -32,7 +35,7 @@ export default async function EpisodeDetailPage({ params }: Props) {
   const [space, session] = await Promise.all([
     prisma.space.findUnique({
       where: { slug, isActive: true },
-      select: { id: true, name: true, slug: true, multilingualEnabled: true, supportedLocales: true },
+      select: { id: true, name: true, slug: true, ownerId: true, naverMapUrl: true, multilingualEnabled: true, supportedLocales: true },
     }),
     auth(),
   ]);
@@ -88,12 +91,26 @@ export default async function EpisodeDetailPage({ params }: Props) {
 
   let visitCount = 0;
   let userId: string | null = null;
+  let spaceUnlocked = false;
   if (session?.user?.email) {
     const user = await prisma.user.findUnique({ where: { email: session.user.email }, select: { id: true } });
     if (user) {
       userId = user.id;
       visitCount = await prisma.record.count({ where: { userId: user.id, spaceId: space.id } });
+      const bypass = isAdmin(session.user.email) || (!!space.ownerId && space.ownerId === user.id);
+      spaceUnlocked = bypass || (await requireSpaceUnlock(user.id, space.id));
     }
+  }
+
+  // Episode 콘텐츠(Scene 본문)는 이 공간의 이야기다 — Cube QR로 공간 자체를 열지 않았다면
+  // episodeId를 알아도(URL 직접 접근) 열리지 않는다. 이걸 통과해야만 기존의 방문 횟수 기반
+  // 진행 잠금(unlockVisitCount)을 이어서 확인한다.
+  if (!spaceUnlocked) {
+    return (
+      <main className="flex flex-col items-center justify-center min-h-screen px-6 gap-6 text-center">
+        <SpaceLockNotice naverMapUrl={space.naverMapUrl} backHref={`/space/${slug}`} backLabel="공간으로 돌아가기" />
+      </main>
+    );
   }
 
   const unlocked = episode.unlockVisitCount <= visitCount;

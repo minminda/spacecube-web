@@ -13,6 +13,7 @@
     "db:migrate-story": "tsx prisma/migrate-story-to-episodes.ts",
     "db:migrate-guestbook": "tsx prisma/migrate-guestbook-sessions.ts",
     "db:migrate-guestbook-visits": "tsx prisma/migrate-guestbook-visits.ts",
+    "db:migrate-space-unlock": "tsx prisma/migrate-space-unlock.ts",
     "db:studio": "prisma studio",
     "test": "vitest run"
   },

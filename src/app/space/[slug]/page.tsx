@@ -7,6 +7,9 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 import { TAG_LABELS } from "@/lib/tags";
 import type { Metadata } from "next";
+import { requireSpaceUnlock } from "@/lib/spaceUnlock";
+import { isAdmin } from "@/lib/admin";
+import SpaceLockNotice from "@/components/SpaceLockNotice";
 import OwnerStory from "./OwnerStory";
 import ScanTracker from "@/components/ScanTracker";
 import SpaceUnlockScreen from "./SpaceUnlockScreen";
@@ -92,6 +95,7 @@ export default async function SpacePage({ params }: Props) {
   let hasRecord = false;
   let isSaved = false;
   let userId: string | null = null;
+  let unlocked = false;
 
   if (user) {
     userId = user.id;
@@ -105,6 +109,9 @@ export default async function SpacePage({ params }: Props) {
     visitCount = vc;
     hasRecord = vc > 0;
     isSaved = !!saved;
+
+    const bypass = isAdmin(session?.user?.email) || (!!space.ownerId && space.ownerId === user.id);
+    unlocked = bypass || (await requireSpaceUnlock(user.id, space.id));
   }
 
   // ── Episode / Scene — 방문 횟수에 따라 열림 여부 결정 ──
@@ -232,11 +239,17 @@ export default async function SpacePage({ params }: Props) {
           {episodes.length > 0 && (
             <>
               <div style={{ borderTop: "1px solid var(--border)" }} />
-              <EpisodeSection spaceSlug={space.slug} episodes={episodesForDisplay} banner={banner} />
+              {unlocked ? (
+                <EpisodeSection spaceSlug={space.slug} episodes={episodesForDisplay} banner={banner} />
+              ) : (
+                // 잠긴 상태에서는 Episode 제목/진행도 등 상세 이야기를 전혀 내려보내지 않는다 —
+                // "이야기가 있다"는 사실과 안내만 보여준다.
+                <SpaceLockNotice naverMapUrl={space.naverMapUrl} />
+              )}
             </>
           )}
 
-          {hasOwnerNote && (
+          {unlocked && hasOwnerNote && (
             <>
               <div style={{ borderTop: "1px solid var(--border)" }} />
               <section className="space-y-3">

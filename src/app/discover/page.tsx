@@ -60,6 +60,10 @@ export default async function DiscoverPage({ searchParams }: Props) {
   let hasEnoughRecords = false;
   let recordCount = 0;
   let visitedSpaceIds: string[] = [];
+  // 카드 잠금 해제 판정 전용 — 취향 점수(Record)가 아니라 실제 Cube QR 스캔으로 생긴
+  // SpaceUnlock 기준이다. Record는 이제 SpaceUnlock 없이는 생성될 수 없지만, 그 반대는
+  // 아니다(스캔만 하고 아직 기록은 안 남긴 경우도 있음) — 그래서 서로 다른 집합이다.
+  let unlockedSpaceIds: string[] = [];
   let userTopTags: TagKey[] = [];
   let userTagCountMap: Partial<Record<TagKey, number>> = {};
 
@@ -69,16 +73,20 @@ export default async function DiscoverPage({ searchParams }: Props) {
       select: { id: true },
     });
     if (user) {
-      const userRecords = await prisma.record.findMany({
-        where: { userId: user.id },
-        include: { tags: true, space: { select: { spaceTags: true } } },
-      });
+      const [userRecords, userUnlocks] = await Promise.all([
+        prisma.record.findMany({
+          where: { userId: user.id },
+          include: { tags: true, space: { select: { spaceTags: true } } },
+        }),
+        prisma.spaceUnlock.findMany({ where: { userId: user.id }, select: { spaceId: true } }),
+      ]);
       recordCount = userRecords.length;
-      // 방문한 공간 ID (중복 제거) — 지역 탐험 카드 잠금 해제 판정에도 그대로 쓰인다.
+      // 추천 제외 필터(이미 취향 데이터가 있는 공간)에만 쓰는 방문 집합 — Record 기준 그대로.
+      visitedSpaceIds = [...new Set(userRecords.map((r) => r.spaceId))];
       // 관리자는 테스트 편의를 위해 모든 공간을 해제된 것으로 본다(기존 isAdmin 권한 구조 재사용).
-      visitedSpaceIds = isAdmin(session.user.email)
+      unlockedSpaceIds = isAdmin(session.user.email)
         ? spacesRaw.map((s) => s.id)
-        : [...new Set(userRecords.map((r) => r.spaceId))];
+        : [...new Set(userUnlocks.map((u) => u.spaceId))];
 
       if (recordCount >= 3) {
         hasEnoughRecords = true;
@@ -241,7 +249,7 @@ export default async function DiscoverPage({ searchParams }: Props) {
               </p>
             )}
           </div>
-          <SpaceCards spaces={spacesForCards} visitedSpaceIds={visitedSpaceIds} />
+          <SpaceCards spaces={spacesForCards} unlockedSpaceIds={unlockedSpaceIds} />
         </>
       )}
     </main>

@@ -40,8 +40,12 @@ const ALREADY_COMMENTED_MSG = "이번 방문의 답글을 이미 남겼습니다
 const MAX_CONTENT = 80;
 const CLICK_TOLERANCE = 8; // px — 이보다 크게 움직이면 팬으로 간주
 const DEFAULT_SCALE = 0.35; // 콘텐츠가 없을 때 쓰는 안정적인 기본 배율
-const MIN_INITIAL_SCALE = 0.16; // 초기 진입 배율 하한 — 질문/포스트잇이 너무 작아 안 보이는 걸 방지
-const MAX_INITIAL_SCALE = 0.9; // 초기 진입 배율 상한 — 콘텐츠가 아주 좁게 몰려 있어도 과하게 확대되지 않도록
+const MIN_INITIAL_SCALE = 0.16; // 최종(줌아웃 후) 배율 하한 — 질문/포스트잇이 너무 작아 안 보이는 걸 방지
+const MAX_INITIAL_SCALE = 0.9; // 최종(줌아웃 후) 배율 상한 — 콘텐츠가 아주 좁게 몰려 있어도 과하게 확대되지 않도록
+const MAX_SCALE = 2.2; // 캔버스 전체 최대 줌 — TransformWrapper와 진입 연출 시작 배율 계산이 공유하는 상한
+const INTRO_HOLD_MS = 350; // 확대된 시작 지점에서 잠깐 머무는 시간(0.3~0.8s)
+const INTRO_DURATION_MS = 2000; // 목표 배율까지 줌아웃하는 시간(1.5~2.5s)
+const INTRO_START_SCALE_MULTIPLIER = 1.6; // 시작 배율 = 목표 배율의 약 1.4~1.8배
 const GRID_CELL_W = 220;
 const GRID_CELL_H = 260;
 const COMPOSE_SCALE = 1.15; // 작성 중 편하게 볼 수 있는 확대 비율
@@ -122,6 +126,7 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
   const downPos = useRef<{ x: number; y: number } | null>(null);
   const lastTransformRef = useRef({ positionX: 0, positionY: 0, scale: DEFAULT_SCALE });
   const preComposeTransformRef = useRef<{ positionX: number; positionY: number; scale: number } | null>(null);
+  const introTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   const focusId = searchParams.get("focus");
 
@@ -142,6 +147,7 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
   const [saving, setSaving] = useState(false);
   const { toast, showToast } = useToast(2600);
   const [scalePct, setScalePct] = useState(100);
+  const [introPlaying, setIntroPlaying] = useState(!focusId);
   const [revisitNoticeOpen, setRevisitNoticeOpen] = useState(newNotesCount > 0);
   const [navigatingToComplete, setNavigatingToComplete] = useState(false);
 
@@ -167,11 +173,27 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
     return settings.allowRotation ? r : 0;
   }
 
-  // ── 초기 viewport: 특정 좌표로 강제 이동하거나 자동으로 줌인/줌아웃하지 않는다.
-  // 이번 세션의 질문 군집 + 포스트잇 좌표를 기준으로 콘텐츠가 몰려 있는 대표 영역을
-  // 계산해 애니메이션 없이 바로 그 위치에서 시작한다(useLayoutEffect로 첫 페인트 전에 반영).
+  /** 재생 중인 진입 연출을 즉시 멈춘다 — 사용자가 드래그/휠/핀치를 시작하면 자동 애니메이션보다
+      사용자 입력을 우선한다. 남은 타이머를 정리하고, 지금 보이는 위치(lastTransformRef, onTransform으로
+      매 프레임 갱신됨)에 그대로 멈춰 세워 시각적 점프 없이 조작권을 넘긴다. */
+  const cancelIntro = useCallback(() => {
+    if (introTimersRef.current.length === 0) return;
+    introTimersRef.current.forEach(clearTimeout);
+    introTimersRef.current = [];
+    const ctrl = transformRef.current;
+    if (ctrl) {
+      const { positionX, positionY, scale } = lastTransformRef.current;
+      ctrl.setTransform(positionX, positionY, scale, 0);
+    }
+    setIntroPlaying(false);
+  }, []);
+
+  // ── 진입 연출: 콘텐츠 중심부를 가깝게 보여주다 잠시 후 목표 배율까지 부드럽게 줌아웃한다.
+  // "특정 좌표로 강제 이동"이 아니라 이번 세션의 질문 군집 + 포스트잇 좌표로 계산한 중심을
+  // 기준으로 하며, 페이지 진입 시 한 번만 실행되고(포스트잇 작성/공감/내 기록 이동 등으로
+  // 다시 실행되지 않음) 사용자 조작이 시작되면 cancelIntro()가 즉시 중단시킨다.
   useLayoutEffect(() => {
-    if (focusId) return; // focus 진입(딥링크)은 별도 effect가 특정 포스트잇으로 이동시킨다
+    if (focusId) return; // focus 진입(딥링크)은 별도 effect가 특정 포스트잇으로 바로 이동시킨다
     const viewport = viewportRef.current;
     const ctrl = transformRef.current;
     if (!viewport || !ctrl) return;
@@ -183,14 +205,33 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
     ];
     const { cx, cy, span } = computeInitialViewport(points, { x: WORLD_W / 2, y: WORLD_H / 2 });
 
-    const scale = points.length === 0
+    const targetScale = points.length === 0
       ? DEFAULT_SCALE
       : Math.min(Math.max((Math.min(clientWidth, clientHeight) / span) * settings.initialZoom, MIN_INITIAL_SCALE), MAX_INITIAL_SCALE);
+    const startScale = Math.min(targetScale * INTRO_START_SCALE_MULTIPLIER, MAX_SCALE);
 
-    const px = clientWidth / 2 - cx * scale;
-    const py = clientHeight / 2 - cy * scale;
-    ctrl.setTransform(px, py, scale, 0);
-    setScalePct(Math.round(scale * 100));
+    const startX = clientWidth / 2 - cx * startScale;
+    const startY = clientHeight / 2 - cy * startScale;
+    const endX = clientWidth / 2 - cx * targetScale;
+    const endY = clientHeight / 2 - cy * targetScale;
+
+    ctrl.setTransform(startX, startY, startScale, 0);
+    setScalePct(Math.round(startScale * 100));
+
+    const holdTimer = setTimeout(() => {
+      ctrl.setTransform(endX, endY, targetScale, INTRO_DURATION_MS, "easeOut");
+      const endTimer = setTimeout(() => {
+        introTimersRef.current = []; // 자연 종료 — cancelIntro가 이후엔 아무 것도 하지 않도록 비워둔다
+        setIntroPlaying(false);
+      }, INTRO_DURATION_MS);
+      introTimersRef.current.push(endTimer);
+    }, INTRO_HOLD_MS);
+    introTimersRef.current.push(holdTimer);
+
+    return () => {
+      introTimersRef.current.forEach(clearTimeout);
+      introTimersRef.current = [];
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -581,7 +622,7 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
         style={{ touchAction: "none", background: worldBg }}
       >
         <AnimatePresence>
-          {writeMode && !composer && (
+          {writeMode && !composer && !introPlaying && (
             <motion.div
               initial={{ opacity: 0, y: -8 }}
               animate={{ opacity: 1, y: 0 }}
@@ -615,7 +656,7 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
 
         {/* 아직 흔적이 하나도 없는 공간 — 빈 상태 안내 */}
         <AnimatePresence>
-          {allNotes.length === 0 && !writeMode && (
+          {allNotes.length === 0 && !introPlaying && !writeMode && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -638,11 +679,14 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
           ref={transformRef}
           initialScale={DEFAULT_SCALE}
           minScale={0.06}
-          maxScale={2.2}
+          maxScale={MAX_SCALE}
           wheel={{ step: 0.12 }}
           pinch={{ step: 6 }}
           doubleClick={{ disabled: true }}
           panning={{ excluded: ["composer-block", "textarea", "button"] }}
+          onPanningStart={() => cancelIntro()}
+          onWheelStart={() => cancelIntro()}
+          onPinchStart={() => cancelIntro()}
           onTransform={(_ref, state) => {
             setScalePct(Math.round(state.scale * 100));
             lastTransformRef.current = { positionX: state.positionX, positionY: state.positionY, scale: state.scale };
@@ -835,8 +879,14 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
           fixed/absolute가 아니라 flex 문서 흐름에 둬서 캔버스(flex-1)가 이 높이만큼 자동으로
           줄어든다 — 포스트잇/질문이 버튼 뒤에 가려지지 않고, 드래그·줌 이벤트와도 겹치지 않는다. ── */}
       <div
-        className="flex-shrink-0"
-        style={{ borderTop: "1px solid rgba(255,255,255,0.14)", background: worldBg, paddingBottom: "env(safe-area-inset-bottom)" }}
+        className="flex-shrink-0 transition-opacity"
+        style={{
+          borderTop: "1px solid rgba(255,255,255,0.14)",
+          background: worldBg,
+          paddingBottom: "env(safe-area-inset-bottom)",
+          opacity: introPlaying ? 0.3 : 1,
+          pointerEvents: introPlaying ? "none" : "auto",
+        }}
       >
         <div className="flex items-center justify-center gap-1.5 px-4 pt-2">
           <button type="button" aria-label="줌 아웃" onClick={() => transformRef.current?.zoomOut(0.35)} className="w-8 h-8 border text-sm flex-shrink-0" style={{ borderColor: "#333", color: "#999" }}>−</button>

@@ -7,6 +7,8 @@ import { TagKey } from "@prisma/client";
 import { ENABLE_RECORD_TAG_SELECTION, ENABLE_TASTE_SCORE_RECOMMENDATION } from "@/lib/features";
 import { isNewVisit } from "@/lib/visit";
 import { recomputeSpaceKPI } from "@/lib/kpi";
+import { requireSpaceUnlock } from "@/lib/spaceUnlock";
+import { isAdmin } from "@/lib/admin";
 
 export async function POST(req: NextRequest) {
   const session = await auth();
@@ -38,6 +40,21 @@ export async function POST(req: NextRequest) {
   const user = await prisma.user.findUnique({ where: { email: session.user.email } });
   if (!user) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
+  }
+
+  const space = await prisma.space.findUnique({ where: { id: spaceId }, select: { id: true, ownerId: true } });
+  if (!space) {
+    return NextResponse.json({ error: "Space not found" }, { status: 404 });
+  }
+
+  // 취향 점수 저장(Record 생성/갱신)은 공간의 이야기를 여는 관문이다 — 실제 Cube QR을 인식해
+  // 이 공간의 SpaceUnlock을 받은 사용자만 저장할 수 있다(관리자·해당 공간 운영자는 예외).
+  const bypass = isAdmin(session.user.email) || (!!space.ownerId && space.ownerId === user.id);
+  if (!bypass && !(await requireSpaceUnlock(user.id, spaceId))) {
+    return NextResponse.json(
+      { error: "이 공간은 아직 잠겨 있어요. 공간에 놓인 큐브의 QR을 스캔해주세요." },
+      { status: 403 },
+    );
   }
 
   // 재방문 인정 기준: 마지막으로 인정된 방문(가장 최근 Record)으로부터 REVISIT_INTERVAL_HOURS

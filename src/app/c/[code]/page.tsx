@@ -1,6 +1,5 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { headers } from "next/headers";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { isAdmin } from "@/lib/admin";
@@ -31,32 +30,11 @@ export default async function CubeEntryPage({ params }: Props) {
   }
 
   if (cube.status === "ASSIGNED" && cube.space) {
-    // 스캔 로그 — 개인정보 최소화를 위해 IP는 저장하지 않고, 로그인 상태일 때만 userId를 남긴다.
-    const [session, headerList] = await Promise.all([auth(), headers()]);
-    let userId: string | null = null;
-    if (session?.user?.email) {
-      const user = await prisma.user.findUnique({ where: { email: session.user.email }, select: { id: true } });
-      userId = user?.id ?? null;
-    }
-
-    await prisma.spaceScan
-      .create({
-        data: {
-          spaceId: cube.space.id,
-          cubeId: cube.id,
-          userId,
-          userAgent: headerList.get("user-agent")?.slice(0, 300) ?? null,
-          referrer: headerList.get("referer")?.slice(0, 300) ?? null,
-          locale: headerList.get("accept-language")?.slice(0, 60) ?? null,
-        },
-      })
-      .catch(() => {
-        /* 로그 기록 실패가 방문 자체를 막으면 안 된다 */
-      });
-
-    // logged=1: 이 방문은 이미 위에서 기록했으니, 공간 페이지의 ScanTracker가
-    // 같은 방문을 SpaceScan에 중복으로 남기지 않도록 신호를 함께 보낸다.
-    redirect(`/space/${cube.space.slug}?src=qr&logged=1`);
+    // 스캔 로그 남기기 + (로그인 상태면) SpaceUnlock 즉시 부여 + (비로그인이면) 짧은 만료의
+    // 서명 쿠키 발급은 전부 쿠키를 쓸 수 있어야 해서 Server Component가 아닌 Route Handler
+    // (/api/cube-entry/[code])에서 처리한다. 이 페이지는 큐브 코드만 다시 실어 넘긴다 —
+    // 클라이언트가 spaceId/cubeId를 직접 전달할 수 없게 하기 위함(그 라우트가 코드로 다시 조회).
+    redirect(`/api/cube-entry/${normalizedCode}`);
   }
 
   if (cube.status === "DISABLED") {

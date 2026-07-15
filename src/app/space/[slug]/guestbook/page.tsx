@@ -8,6 +8,9 @@ import { GuestbookSessionStatus } from "@prisma/client";
 import { getVisibleClusters } from "@/lib/guestbookSession";
 import { resolveCurrentVisitRecordId } from "@/lib/guestbookVisit";
 import { formatDotDate as formatDate } from "@/lib/time";
+import { requireSpaceUnlock } from "@/lib/spaceUnlock";
+import { isAdmin } from "@/lib/admin";
+import SpaceLockNotice from "@/components/SpaceLockNotice";
 import GuestbookCanvas from "./GuestbookCanvas";
 import type { GuestbookNoteData } from "./canvasConstants";
 
@@ -52,13 +55,14 @@ export default async function GuestbookPage({ params, searchParams }: Props) {
 
   const space = await prisma.space.findUnique({
     where: { slug, isActive: true },
-    select: { id: true, name: true, slug: true },
+    select: { id: true, name: true, slug: true, ownerId: true, naverMapUrl: true },
   });
   if (!space) notFound();
 
   const session = await auth();
   let myNoteId: string | null = null;
   let hasRecord = false;
+  let unlocked = false;
   let nickname: string | null = null;
   // 직전 방문 시각 — 이 시각 이후에 생긴 남의 흔적을 "새로운 흔적"으로 취급한다.
   // 첫 방문(직전 방문이 없음)이면 null — 아무 것도 "새로 생긴 것"으로 표시하지 않는다.
@@ -83,9 +87,31 @@ export default async function GuestbookPage({ params, searchParams }: Props) {
     // 없거나 조작된 값이면 가장 최근 Record로 안전하게 폴백한다(점수 값은 쿼리에 담지 않음).
     currentRecordId = resolveCurrentVisitRecordId(requestedVisitId, recentRecords);
     previousVisitAt = recentRecords.length > 1 ? recentRecords[1].visitedAt : null;
+
+    const bypass = isAdmin(session!.user!.email) || (!!space.ownerId && space.ownerId === user.id);
+    unlocked = bypass || (await requireSpaceUnlock(user.id, space.id));
   }
 
-  // 기록을 완료해야 방명록을 볼 수 있음 — 로그인 전이거나 기록이 없으면 여기서 막는다
+  // 방명록은 이 공간의 이야기다 — Cube QR로 실제 잠금을 해제하지 않았다면 URL을 알아도
+  // 열리지 않는다(관리자·해당 공간 운영자는 예외).
+  if (!unlocked) {
+    return (
+      <main className="flex flex-col items-center justify-center min-h-screen px-6 gap-6 text-center">
+        <SpaceLockNotice naverMapUrl={space.naverMapUrl} backHref={`/space/${slug}`} backLabel="공간으로 돌아가기" />
+        {!session && (
+          <Link
+            href={`/login?callbackUrl=${encodeURIComponent(`/space/${slug}/guestbook`)}`}
+            className="text-xs"
+            style={{ color: "var(--border)" }}
+          >
+            이미 큐브를 스캔했다면 로그인해서 이어가기 →
+          </Link>
+        )}
+      </main>
+    );
+  }
+
+  // 잠금은 풀렸지만 아직 이번 방문의 취향 점수(Record)를 저장하지 않았다면 방명록 열람 전에 유도한다.
   if (!hasRecord) {
     return (
       <main className="flex flex-col items-center justify-center min-h-screen px-6 gap-6 text-center">
@@ -93,7 +119,7 @@ export default async function GuestbookPage({ params, searchParams }: Props) {
           {"이 공간에 대한 기록을 남기면\n다른 방문자들의 이야기를 볼 수 있어요."}
         </p>
         <Link
-          href={session ? `/space/${slug}/record` : `/login?callbackUrl=${encodeURIComponent(`/space/${slug}/record`)}`}
+          href={`/space/${slug}/record`}
           className="inline-block text-sm py-3 px-6 border hover:bg-[var(--fg)] hover:text-[var(--bg)] transition-colors"
           style={{ borderColor: "var(--fg)" }}
         >

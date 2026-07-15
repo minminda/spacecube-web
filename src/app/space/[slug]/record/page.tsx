@@ -2,6 +2,9 @@ import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 import { resolveCurrentVisitRecord } from "@/lib/visit";
+import { requireSpaceUnlock } from "@/lib/spaceUnlock";
+import { isAdmin } from "@/lib/admin";
+import SpaceLockNotice from "@/components/SpaceLockNotice";
 import RecordForm from "./RecordForm";
 
 // 뒤로가기/새로고침으로 돌아왔을 때도 항상 최신 DB 상태를 기준으로 프리필해야 하므로
@@ -35,6 +38,19 @@ export default async function RecordPage({ params, searchParams }: Props) {
 
   const user = await prisma.user.findUnique({ where: { email: session.user.email } });
   if (!user) notFound();
+
+  // 취향 점수 입력은 이 공간의 이야기를 여는 관문이다 — Cube QR로 실제 잠금을 해제한
+  // 사용자만 접근 가능(관리자·해당 공간 운영자는 예외). URL을 알아도 직접 접근으로는
+  // 열리지 않는다: /api/records도 동일한 기준으로 다시 검증한다.
+  const bypass = isAdmin(session.user.email) || (!!space.ownerId && space.ownerId === user.id);
+  const unlocked = bypass || (await requireSpaceUnlock(user.id, space.id));
+  if (!unlocked) {
+    return (
+      <main className="flex flex-col min-h-screen px-6 py-8 gap-6 items-center justify-center">
+        <SpaceLockNotice naverMapUrl={space.naverMapUrl} backHref={`/space/${slug}`} backLabel="공간으로 돌아가기" />
+      </main>
+    );
+  }
 
   const previousRecords = await prisma.record.findMany({
     where: { userId: user.id, spaceId: space.id },

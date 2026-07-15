@@ -30,6 +30,7 @@ model User {
   episodeReads          EpisodeRead[]
   savedSpaces           SavedSpace[]
   spaceScans            SpaceScan[]
+  spaceUnlocks          SpaceUnlock[]
   guestbookReactions    GuestbookReaction[]
   operatorMonthlyNotes  OperatorMonthlyNote[]
   guestbookComments     GuestbookComment[]
@@ -140,6 +141,7 @@ model Space {
   guestbookSessions    GuestbookSession[]
   monthlyReports       SpaceMonthlyReport[]
   operatorMonthlyNotes OperatorMonthlyNote[]
+  unlocks              SpaceUnlock[]
 }
 
 // 공간/에피소드/씬 번역 공통 상태값 — NOT_CREATED는 행이 아예 없는 상태로 표현(별도 값 불필요)
@@ -384,9 +386,32 @@ model Cube {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  scans SpaceScan[]
+  scans   SpaceScan[]
+  unlocks SpaceUnlock[]
 
   @@map("cubes")
+}
+
+// 공간 이야기(Episode/Scene/방명록)를 열람할 권한 그 자체 — 취향 점수를 남기는 Record와는
+// 별개 개념이다. 반드시 해당 공간에 연결된 유효한 Cube QR(/c/[code] → ASSIGNED 상태 확인)을
+// 실제로 인식했을 때만 생성되며, 카드 클릭이나 URL 직접 접근으로는 생성되지 않는다.
+// 한 사용자·한 공간 조합은 유일하다 — 재스캔해도 새 행을 만들지 않고 unlockedAt만 갱신한다.
+model SpaceUnlock {
+  id         String   @id @default(cuid())
+  userId     String
+  spaceId    String
+  // 어떤 큐브로 열었는지 기록(감사 추적용). 큐브가 나중에 재연결/삭제돼도 이미 부여된
+  // 열람 권한 자체는 유지해야 하므로 onDelete는 SetNull — 잠금 해제 여부는 이 행의 존재
+  // 자체로 판정하지, cube 관계의 생존 여부로 재검증하지 않는다.
+  cubeId     String?
+  unlockedAt DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  space Space @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  cube  Cube? @relation(fields: [cubeId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, spaceId])
+  @@index([spaceId])
 }
 
 // 공간별 KPI 일별 스냅샷 — 관리자 KPI 화면이 매번 다시 계산하지 않도록

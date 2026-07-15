@@ -18,13 +18,14 @@ interface SpaceCard {
 
 interface Props {
   spaces: SpaceCard[];
-  /** 방문(Record) 또는 큐브 QR 해제 기록이 있어 잠금이 풀린 공간 ID 목록 */
-  visitedSpaceIds?: string[];
+  /** 이 공간에 연결된 유효한 Cube QR을 실제로 스캔해 SpaceUnlock이 있는 공간 ID 목록 —
+      취향 점수(Record)가 아니라 오직 QR 스캔 기준이다. */
+  unlockedSpaceIds?: string[];
 }
 
-export default function SpaceCards({ spaces, visitedSpaceIds = [] }: Props) {
+export default function SpaceCards({ spaces, unlockedSpaceIds = [] }: Props) {
   const router = useRouter();
-  const visitedSet = new Set(visitedSpaceIds);
+  const unlockedSet = new Set(unlockedSpaceIds);
   const [lockedSpace, setLockedSpace] = useState<SpaceCard | null>(null);
 
   // 잠긴 공간 안내 Bottom Sheet — ESC로 닫기
@@ -39,8 +40,8 @@ export default function SpaceCards({ spaces, visitedSpaceIds = [] }: Props) {
 
   if (spaces.length === 0) return null;
 
-  function handleOpen(space: SpaceCard, isVisited: boolean) {
-    if (isVisited) {
+  function handleOpen(space: SpaceCard, isUnlocked: boolean) {
+    if (isUnlocked) {
       router.push(`/space/${space.slug}`);
       return;
     }
@@ -52,18 +53,18 @@ export default function SpaceCards({ spaces, visitedSpaceIds = [] }: Props) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-10 pb-8">
       {spaces.map((space) => {
-        const isVisited = visitedSet.has(space.id);
+        const isUnlocked = unlockedSet.has(space.id);
         return (
           <div
             key={space.id}
             role="button"
             tabIndex={0}
             className="cursor-pointer group"
-            onClick={() => handleOpen(space, isVisited)}
+            onClick={() => handleOpen(space, isUnlocked)}
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === " ") {
                 e.preventDefault();
-                handleOpen(space, isVisited);
+                handleOpen(space, isUnlocked);
               }
             }}
           >
@@ -76,9 +77,9 @@ export default function SpaceCards({ spaces, visitedSpaceIds = [] }: Props) {
                   src={space.imageUrl}
                   alt={space.name}
                   fill
-                  className={`object-cover transition-transform duration-500 group-hover:scale-105 ${!isVisited ? "scale-105 blur-[1.5px] brightness-[0.55]" : ""}`}
+                  className={`object-cover transition-transform duration-500 group-hover:scale-105 ${!isUnlocked ? "scale-105 blur-[1.5px] brightness-[0.55]" : ""}`}
                 />
-                {!isVisited && (
+                {!isUnlocked && (
                   <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 text-center px-4">
                     <span className="text-lg" style={{ color: "rgba(255,255,255,0.9)" }}>◇</span>
                     <span className="text-xs font-medium tracking-wide" style={{ color: "rgba(255,255,255,0.9)" }}>
@@ -91,12 +92,12 @@ export default function SpaceCards({ spaces, visitedSpaceIds = [] }: Props) {
             <div className="space-y-1.5">
               <div className="flex items-start gap-2">
                 <p className="text-base font-semibold leading-snug flex-1">{space.name}</p>
-                {isVisited && (
+                {isUnlocked && (
                   <span
                     className="text-xs flex-shrink-0 px-1.5 py-0.5 border mt-0.5"
                     style={{ borderColor: "var(--border)", color: "var(--dim)" }}
                   >
-                    방문함
+                    해제됨
                   </span>
                 )}
               </div>
@@ -138,11 +139,11 @@ export default function SpaceCards({ spaces, visitedSpaceIds = [] }: Props) {
               <p className="text-lg font-semibold leading-relaxed whitespace-pre-line">
                 {"이 공간의 이야기는\n공간에서 열립니다."}
               </p>
-              <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>
-                공간에 놓인 큐브를 찾아 QR을 스캔해 잠금을 해제해보세요.
+              <p className="text-sm leading-relaxed whitespace-pre-line" style={{ color: "var(--dim)" }}>
+                {"공간에 놓인 큐브의 QR을 스캔하면\n이야기와 방명록의 잠금이 해제됩니다."}
               </p>
-              <p className="text-xs leading-relaxed" style={{ color: "var(--dim)" }}>
-                잠금을 해제하면 공간의 이야기와 방문자들의 흔적을 볼 수 있어요.
+              <p className="text-xs leading-relaxed whitespace-pre-line" style={{ color: "var(--dim)" }}>
+                {"직접 공간을 방문해\n큐브를 찾아보세요."}
               </p>
             </div>
             <div className="flex flex-col gap-2">
