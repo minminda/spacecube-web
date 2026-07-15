@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { TagKey } from "@prisma/client";
 import { TAG_LABELS, ALL_TAGS } from "@/lib/tags";
@@ -24,20 +24,35 @@ interface Props {
   displayTags?: string[] | null;
   visitCount: number;
   previousRecord: { tags: TagKey[]; tasteScore: number | null } | null;
+  /** 이번 방문(재방문 인정 간격 내)에 이미 저장된 Record. 있으면 폼을 이 값으로 프리필하고 재입력을 강요하지 않는다. */
+  currentVisitRecord: { id: string; tasteScore: number | null } | null;
   /** unlock: "방문자들의 이야기 보기"에서 진입한 1회성 입장 화면 (기록 카운트 없이 가볍게) */
   intent?: "record" | "unlock";
 }
 
-export default function RecordForm({ space, spaceTags, displayTags, visitCount, previousRecord, intent = "record" }: Props) {
+export default function RecordForm({ space, spaceTags, displayTags, visitCount, previousRecord, currentVisitRecord, intent = "record" }: Props) {
   const isUnlock = intent === "unlock";
   const tagsToShow = spaceTags.length > 0 ? spaceTags : ALL_TAGS;
   const router = useRouter();
   const [selectedTags, setSelectedTags] = useState<TagKey[]>([]);
-  const [tasteScore, setTasteScore] = useState<number | null>(null);
+  const [tasteScore, setTasteScore] = useState<number | null>(currentVisitRecord?.tasteScore ?? null);
   const [loading, setLoading] = useState(false);
 
   const isRevisit = !isUnlock && visitCount > 0;
   const visitNumber = visitCount + 1;
+  const hasSavedThisVisit = currentVisitRecord !== null;
+  const isDirty = hasSavedThisVisit && tasteScore !== currentVisitRecord!.tasteScore;
+
+  // 브라우저 bfcache 복원(모바일 뒤로가기 등) 시 이 컴포넌트의 React 상태와 함께
+  // 서버 컴포넌트(record/page.tsx)가 다시 실행되지 않을 수 있으므로, pageshow에서
+  // event.persisted를 확인해 서버 상태를 강제로 재조회한다.
+  useEffect(() => {
+    function handlePageShow(e: PageTransitionEvent) {
+      if (e.persisted) router.refresh();
+    }
+    window.addEventListener("pageshow", handlePageShow);
+    return () => window.removeEventListener("pageshow", handlePageShow);
+  }, [router]);
 
   // 레거시 태그 선택 (ENABLE_RECORD_TAG_SELECTION 켜졌을 때만 사용)
   function toggleTag(tag: TagKey) {
@@ -54,6 +69,17 @@ export default function RecordForm({ space, spaceTags, displayTags, visitCount, 
 
   async function handleSubmit() {
     if (!canSubmit) return;
+
+    // 이번 방문에 이미 저장된 점수를 그대로 두고 있다면(수정하지 않았다면) 다시
+    // 저장을 시도하지 않고 방명록으로 바로 이동한다 — 같은 페이지에서 재제출을
+    // 유도하지 않기 위함.
+    if (hasSavedThisVisit && !isDirty && currentVisitRecord) {
+      const visitParam = `visit=${currentVisitRecord.id}`;
+      const query = isUnlock ? visitParam : ["mode=write", visitParam].join("&");
+      router.push(`/space/${space.slug}/guestbook?${query}`);
+      return;
+    }
+
     setLoading(true);
     const res = await fetch("/api/records", {
       method: "POST",
@@ -96,6 +122,13 @@ export default function RecordForm({ space, spaceTags, displayTags, visitCount, 
           {space.tagline && (
             <p className="text-sm italic leading-relaxed" style={{ color: "var(--dim)" }}>{space.tagline}</p>
           )}
+        </div>
+      ) : hasSavedThisVisit ? (
+        <div className="space-y-1.5 p-3 border" style={{ borderColor: "var(--fg)" }}>
+          <p className="text-xs font-medium" style={{ color: "var(--fg)" }}>// 이미 이번 방문에 취향 점수를 저장했어요</p>
+          <p className="text-xs" style={{ color: "var(--dim)" }}>
+            저장된 취향 점수 {currentVisitRecord?.tasteScore ?? "-"}/5 — 그대로 방명록으로 이동하거나, 아래에서 바꿀 수 있어요
+          </p>
         </div>
       ) : (
         isRevisit && (
@@ -207,7 +240,15 @@ export default function RecordForm({ space, spaceTags, displayTags, visitCount, 
       <button onClick={handleSubmit} disabled={!canSubmit || loading}
         className="w-full text-sm py-3 px-4 border hover:bg-[var(--fg)] hover:text-[var(--bg)] transition-colors disabled:opacity-30"
         style={{ borderColor: "var(--fg)" }}>
-        {loading ? "// 저장 중..." : isUnlock ? "[[ 흔적 보러가기 ]]" : "[[ 취향 저장하고 흔적 남기기 ]]"}
+        {loading
+          ? "// 저장 중..."
+          : hasSavedThisVisit && !isDirty
+          ? "[[ 방명록 다시 보기 ]]"
+          : hasSavedThisVisit && isDirty
+          ? "[[ 변경한 점수로 업데이트 ]]"
+          : isUnlock
+          ? "[[ 흔적 보러가기 ]]"
+          : "[[ 취향 저장하고 흔적 남기기 ]]"}
       </button>
     </main>
   );

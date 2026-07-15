@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useLayoutEffect, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -17,12 +17,15 @@ import {
   type GuestbookNoteData,
 } from "./canvasConstants";
 import GuestbookCommentThread from "@/components/GuestbookCommentThread";
+import CubeReactionIcon from "@/components/CubeReactionIcon";
 import {
   findFreePosition,
   clusterLabelRect,
   POST_IT_HEIGHT,
+  CLUSTER_LABEL_WIDTH,
   type Rect,
 } from "@/lib/postitCollision";
+import { computeInitialViewport } from "@/lib/guestbookViewport";
 import { useToast } from "@/hooks/useToast";
 
 const ALREADY_COMMENTED_MSG = "이번 방문의 답글을 이미 남겼습니다. 다음 방문에서 새로운 답글을 남길 수 있어요.";
@@ -36,10 +39,9 @@ const ALREADY_COMMENTED_MSG = "이번 방문의 답글을 이미 남겼습니다
 
 const MAX_CONTENT = 80;
 const CLICK_TOLERANCE = 8; // px — 이보다 크게 움직이면 팬으로 간주
-const REVEAL_RADIUS = 1750; // 진입 리빌 종료 시 화면에 담길 반경
-const INTRO_SCALE = 1.3; // 정중앙 시작 시 확대율
-const INTRO_HOLD_MS = 260; // 시작 지점에서 잠깐 머무는 시간
-const INTRO_DURATION_MS = 2600; // 줌아웃 애니메이션 길이
+const DEFAULT_SCALE = 0.35; // 콘텐츠가 없을 때 쓰는 안정적인 기본 배율
+const MIN_INITIAL_SCALE = 0.16; // 초기 진입 배율 하한 — 질문/포스트잇이 너무 작아 안 보이는 걸 방지
+const MAX_INITIAL_SCALE = 0.9; // 초기 진입 배율 상한 — 콘텐츠가 아주 좁게 몰려 있어도 과하게 확대되지 않도록
 const GRID_CELL_W = 220;
 const GRID_CELL_H = 260;
 const COMPOSE_SCALE = 1.15; // 작성 중 편하게 볼 수 있는 확대 비율
@@ -118,7 +120,7 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
   const transformRef = useRef<ReactZoomPanPinchContentRef>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
   const downPos = useRef<{ x: number; y: number } | null>(null);
-  const lastTransformRef = useRef({ positionX: 0, positionY: 0, scale: INTRO_SCALE });
+  const lastTransformRef = useRef({ positionX: 0, positionY: 0, scale: DEFAULT_SCALE });
   const preComposeTransformRef = useRef<{ positionX: number; positionY: number; scale: number } | null>(null);
 
   const focusId = searchParams.get("focus");
@@ -140,7 +142,6 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
   const [saving, setSaving] = useState(false);
   const { toast, showToast } = useToast(2600);
   const [scalePct, setScalePct] = useState(100);
-  const [introPlaying, setIntroPlaying] = useState(!focusId);
   const [revisitNoticeOpen, setRevisitNoticeOpen] = useState(newNotesCount > 0);
   const [navigatingToComplete, setNavigatingToComplete] = useState(false);
 
@@ -166,36 +167,30 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
     return settings.allowRotation ? r : 0;
   }
 
-  // ── 진입 리빌: 정중앙에서 시작 → 천천히 줌아웃하며 전체 캔버스 공개 ──
-  useEffect(() => {
-    if (focusId) return; // focus 진입은 특정 포스트잇으로 바로 이동
+  // ── 초기 viewport: 특정 좌표로 강제 이동하거나 자동으로 줌인/줌아웃하지 않는다.
+  // 이번 세션의 질문 군집 + 포스트잇 좌표를 기준으로 콘텐츠가 몰려 있는 대표 영역을
+  // 계산해 애니메이션 없이 바로 그 위치에서 시작한다(useLayoutEffect로 첫 페인트 전에 반영).
+  useLayoutEffect(() => {
+    if (focusId) return; // focus 진입(딥링크)은 별도 effect가 특정 포스트잇으로 이동시킨다
     const viewport = viewportRef.current;
     const ctrl = transformRef.current;
     if (!viewport || !ctrl) return;
 
     const { clientWidth, clientHeight } = viewport;
-    const cx = WORLD_W / 2;
-    const cy = WORLD_H / 2;
-    const finalScale = Math.min(Math.max((clientWidth / (REVEAL_RADIUS * 2)) * settings.initialZoom, 0.08), 0.6);
+    const points = [
+      ...clusters.map((c) => ({ x: c.x, y: c.y })),
+      ...initialNotes.map((n) => ({ x: n.x + NOTE_W / 2, y: n.y + POST_IT_HEIGHT / 2 })),
+    ];
+    const { cx, cy, span } = computeInitialViewport(points, { x: WORLD_W / 2, y: WORLD_H / 2 });
 
-    const startX = clientWidth / 2 - cx * INTRO_SCALE;
-    const startY = clientHeight / 2 - cy * INTRO_SCALE;
-    const endX = clientWidth / 2 - cx * finalScale + settings.initialX;
-    const endY = clientHeight / 2 - cy * finalScale + settings.initialY;
+    const scale = points.length === 0
+      ? DEFAULT_SCALE
+      : Math.min(Math.max((Math.min(clientWidth, clientHeight) / span) * settings.initialZoom, MIN_INITIAL_SCALE), MAX_INITIAL_SCALE);
 
-    const timers: ReturnType<typeof setTimeout>[] = [];
-
-    timers.push(setTimeout(() => {
-      ctrl.setTransform(startX, startY, INTRO_SCALE, 0);
-      setScalePct(Math.round(INTRO_SCALE * 100));
-
-      timers.push(setTimeout(() => {
-        ctrl.setTransform(endX, endY, finalScale, INTRO_DURATION_MS, "easeOut");
-        timers.push(setTimeout(() => setIntroPlaying(false), INTRO_DURATION_MS));
-      }, INTRO_HOLD_MS));
-    }, 80));
-
-    return () => timers.forEach(clearTimeout);
+    const px = clientWidth / 2 - cx * scale;
+    const py = clientHeight / 2 - cy * scale;
+    ctrl.setTransform(px, py, scale, 0);
+    setScalePct(Math.round(scale * 100));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -586,7 +581,7 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
         style={{ touchAction: "none", background: worldBg }}
       >
         <AnimatePresence>
-          {writeMode && !composer && !introPlaying && (
+          {writeMode && !composer && (
             <motion.div
               initial={{ opacity: 0, y: -8 }}
               animate={{ opacity: 1, y: 0 }}
@@ -620,7 +615,7 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
 
         {/* 아직 흔적이 하나도 없는 공간 — 빈 상태 안내 */}
         <AnimatePresence>
-          {allNotes.length === 0 && !introPlaying && !writeMode && (
+          {allNotes.length === 0 && !writeMode && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -641,7 +636,7 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
 
         <TransformWrapper
           ref={transformRef}
-          initialScale={INTRO_SCALE}
+          initialScale={DEFAULT_SCALE}
           minScale={0.06}
           maxScale={2.2}
           wheel={{ step: 0.12 }}
@@ -680,18 +675,41 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
                 }}
               />
 
-              {/* 군집 라벨 — 질문이 없는 군집은 clusters 배열에 아예 없어서 렌더되지 않는다 */}
-              {clusters.map((c) => (
-                <div
-                  key={c.type}
-                  className="absolute pointer-events-none select-none"
-                  style={{ left: c.x, top: c.y, transform: "translate(-50%, -50%)", width: 220, textAlign: "center" }}
-                >
-                  <p className="text-xs leading-relaxed break-keep" style={{ color: "rgba(255,255,255,0.35)" }}>
-                    {c.label}
-                  </p>
-                </div>
-              ))}
+              {/* 군집 라벨 — 질문이 없는 군집은 clusters 배열에 아예 없어서 렌더되지 않는다.
+                  질문(QUESTION_1/2)은 모바일 초기 진입 상태에서도 줌 없이 읽혀야 하므로
+                  자유 군집 라벨보다 뚜렷하게 크고 진하게, 옅은 카드 배경으로 감싼다. */}
+              {clusters.map((c) => {
+                const questionNumber = c.type === "QUESTION_1" ? "01" : c.type === "QUESTION_2" ? "02" : null;
+                const isQuestion = questionNumber !== null;
+                return (
+                  <div
+                    key={c.type}
+                    className="absolute pointer-events-none select-none flex flex-col items-center gap-2 px-4 py-3.5"
+                    style={{
+                      left: c.x,
+                      top: c.y,
+                      transform: "translate(-50%, -50%)",
+                      width: CLUSTER_LABEL_WIDTH,
+                      textAlign: "center",
+                      background: isQuestion ? "rgba(255,255,255,0.07)" : "transparent",
+                      border: isQuestion ? "1px solid rgba(255,255,255,0.16)" : "none",
+                      backdropFilter: isQuestion ? "blur(3px)" : undefined,
+                    }}
+                  >
+                    {isQuestion && (
+                      <span className="text-[10px] font-semibold tracking-[0.2em]" style={{ color: "rgba(255,255,255,0.5)" }}>
+                        QUESTION {questionNumber}
+                      </span>
+                    )}
+                    <p
+                      className={`leading-snug break-keep whitespace-pre-line ${isQuestion ? "text-base font-semibold" : "text-sm font-semibold"}`}
+                      style={{ color: isQuestion ? "rgba(255,255,255,0.92)" : "rgba(255,255,255,0.55)" }}
+                    >
+                      {c.label}
+                    </p>
+                  </div>
+                );
+              })}
 
               {/* 포스트잇들 */}
               {allNotes.map((note) => {
@@ -728,7 +746,7 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
                     />
                     {note.imageUrl && (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={note.imageUrl} alt="" className="w-full h-20 object-cover mb-2" />
+                      <img src={note.imageUrl} alt="" className="w-full aspect-square object-cover mb-2" />
                     )}
                     <p className="text-[13px] leading-relaxed break-keep" style={{ color: INK }}>
                       {note.content}
@@ -739,7 +757,10 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
                     <div className="flex items-center justify-between mt-1">
                       <p className="text-[10px]" style={{ color: INK_DIM }}>{note.createdAt}</p>
                       {typeof note.reactionCount === "number" && note.reactionCount > 0 && (
-                        <span className="text-[10px]" style={{ color: INK_DIM }}>공감 {note.reactionCount}</span>
+                        <span className="inline-flex items-center gap-1 text-[10px]" style={{ color: INK_DIM }}>
+                          <CubeReactionIcon className="w-2.5 h-2.5" />
+                          {note.reactionCount}
+                        </span>
                       )}
                     </div>
                   </div>
@@ -763,7 +784,7 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
                       {photoPreview ? (
                         <div className="relative">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={photoPreview} alt="" className="w-full h-24 object-cover" />
+                          <img src={photoPreview} alt="" className="w-full aspect-square object-cover" />
                           {photoUploading && (
                             <div className="absolute inset-0 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.4)" }}>
                               <span className="text-[10px]" style={{ color: "#fff" }}>업로드 중...</span>
@@ -809,46 +830,67 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
         </TransformWrapper>
       </div>
 
-      {/* ── 하단 컨트롤 ── */}
-      <div className="flex flex-col gap-2.5 pl-6 pr-16 md:pr-6 py-3 transition-opacity" style={{ opacity: introPlaying ? 0.3 : 1, pointerEvents: introPlaying ? "none" : "auto" }}>
-        <div className="flex items-center gap-1.5">
+      {/* ── 하단 액션 영역 — 모바일 safe-area까지 자연스럽게 채우는 고정 액션 바.
+          1행: 내 기록 보기 / 내 아카이브 보기(있을 때), 2행: 이번 경험 마치기(항상, 최우선순위).
+          fixed/absolute가 아니라 flex 문서 흐름에 둬서 캔버스(flex-1)가 이 높이만큼 자동으로
+          줄어든다 — 포스트잇/질문이 버튼 뒤에 가려지지 않고, 드래그·줌 이벤트와도 겹치지 않는다. ── */}
+      <div
+        className="flex-shrink-0"
+        style={{ borderTop: "1px solid rgba(255,255,255,0.14)", background: worldBg, paddingBottom: "env(safe-area-inset-bottom)" }}
+      >
+        <div className="flex items-center justify-center gap-1.5 px-4 pt-2">
           <button type="button" aria-label="줌 아웃" onClick={() => transformRef.current?.zoomOut(0.35)} className="w-8 h-8 border text-sm flex-shrink-0" style={{ borderColor: "#333", color: "#999" }}>−</button>
           <span className="text-xs w-12 text-center tabular-nums flex-shrink-0" style={{ color: "#999" }}>{scalePct}%</span>
           <button type="button" aria-label="줌 인" onClick={() => transformRef.current?.zoomIn(0.35)} className="w-8 h-8 border text-sm flex-shrink-0" style={{ borderColor: "#333", color: "#999" }}>+</button>
-          <button type="button" onClick={() => transformRef.current?.resetTransform(400)} className="h-8 px-2.5 border text-xs ml-1 flex-shrink-0" style={{ borderColor: "#333", color: "#999" }}>초기 위치</button>
         </div>
 
-        {/* 방명록 작성 여부와 무관하게 항상 뜨는 명시적 종료 CTA — 브라우저 뒤로가기는 가로채지 않는다.
-            다른 버튼들과 같은 자리(하단 컨트롤)에 두어야 방문자가 실제로 찾는다. */}
-        <button
-          type="button"
-          onClick={finishVisit}
-          disabled={navigatingToComplete || !currentRecordId}
-          className="w-full text-xs py-2.5 px-3 border hover:bg-white hover:text-black transition-colors disabled:opacity-40"
-          style={{ borderColor: "#fff", color: "#fff" }}
-        >
-          {navigatingToComplete ? "이동 중..." : "이번 경험 마치기"}
-        </button>
+        <div className="max-w-md mx-auto w-full px-4 pt-2 pb-3 flex flex-col gap-2">
+          {(myNoteId || canWriteThisVisit) && (
+            <div className="flex flex-col gap-2">
+              {canWriteThisVisit && !writeMode && (
+                <button
+                  type="button"
+                  onClick={enterWriteMode}
+                  className="w-full min-h-[44px] text-xs py-2.5 px-3 border hover:bg-white hover:text-black transition-colors"
+                  style={{ borderColor: "#fff", color: "#fff" }}
+                >
+                  {myNoteId ? "이번 방문에도 흔적 남기기" : "나도 흔적 남기기"}
+                </button>
+              )}
+              {myNoteId && (
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={goToMyNote}
+                    className="min-h-[44px] text-xs py-2.5 px-3 border hover:bg-white hover:text-black transition-colors whitespace-nowrap"
+                    style={{ borderColor: "#fff", color: "#fff" }}
+                  >
+                    내 기록 보기
+                  </button>
+                  <Link
+                    href="/archive"
+                    className="min-h-[44px] flex items-center justify-center text-xs py-2.5 px-3 border text-center hover:bg-white hover:text-black transition-colors whitespace-nowrap"
+                    style={{ borderColor: "#fff", color: "#fff" }}
+                  >
+                    내 아카이브 보기
+                  </Link>
+                </div>
+              )}
+            </div>
+          )}
 
-        {myNoteId || canWriteThisVisit ? (
-          <div className="flex flex-wrap gap-2">
-            {myNoteId && (
-              <button type="button" onClick={goToMyNote} className="flex-1 min-w-[110px] text-xs py-2.5 px-3 border hover:bg-white hover:text-black transition-colors whitespace-nowrap" style={{ borderColor: "#fff", color: "#fff" }}>
-                내 기록 보기
-              </button>
-            )}
-            {canWriteThisVisit && !writeMode && (
-              <button type="button" onClick={enterWriteMode} className="flex-1 min-w-[110px] text-xs py-2.5 px-3 border hover:bg-white hover:text-black transition-colors whitespace-nowrap" style={{ borderColor: "#fff", color: "#fff" }}>
-                {myNoteId ? "이번 방문에도 흔적 남기기" : "나도 흔적 남기기"}
-              </button>
-            )}
-            {myNoteId && (
-              <Link href="/archive" className="flex-1 min-w-[110px] text-xs py-2.5 px-3 border text-center hover:bg-white hover:text-black transition-colors whitespace-nowrap" style={{ borderColor: "#fff", color: "#fff" }}>
-                내 아카이브 보기
-              </Link>
-            )}
-          </div>
-        ) : null}
+          {/* 방명록 작성 여부와 무관하게 항상 뜨는 명시적 종료 CTA — 채워진 배경으로 시각적
+              우선순위를 가장 높게 두고, 브라우저 뒤로가기는 가로채지 않는다. */}
+          <button
+            type="button"
+            onClick={finishVisit}
+            disabled={navigatingToComplete || !currentRecordId}
+            className="w-full min-h-[44px] text-sm font-medium py-3 px-3 transition-opacity disabled:opacity-40"
+            style={{ background: "#fff", color: "#000" }}
+          >
+            {navigatingToComplete ? "이동 중..." : "이번 경험 마치기"}
+          </button>
+        </div>
       </div>
 
       {/* ── 닉네임 설정 프롬프트 ── */}
@@ -908,7 +950,7 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
                   {focused.imageUrl && (
                     <button type="button" onClick={() => setLightbox(focused.imageUrl!)} className="block w-full mb-3">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={focused.imageUrl} alt="" className="w-full h-40 object-cover" />
+                      <img src={focused.imageUrl} alt="" className="w-full aspect-square object-cover" />
                     </button>
                   )}
                   <p className="text-base leading-relaxed break-keep" style={{ color: INK }}>{focused.content}</p>
@@ -920,16 +962,22 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
                   {typeof focused.reactionCount === "number" && (
                     <button
                       type="button"
-                      onClick={() => toggleReaction(focused.id)}
+                      onClick={(e) => { e.stopPropagation(); toggleReaction(focused.id); }}
                       disabled={isMine}
-                      className="inline-flex items-center gap-1.5 mt-3 text-xs py-1.5 px-2.5 border transition-colors disabled:opacity-40"
+                      aria-label={focused.reactedByMe ? "공감 취소" : "공감"}
+                      title={focused.reactedByMe ? "공감 취소" : "공감"}
+                      className="inline-flex items-center justify-center gap-1.5 mt-3 min-w-[44px] min-h-[44px] px-3 border transition-transform active:scale-95 disabled:opacity-40"
                       style={{
                         borderColor: INK,
                         color: INK,
                         background: focused.reactedByMe ? "rgba(61,53,36,0.15)" : "transparent",
+                        boxShadow: focused.reactedByMe ? "0 0 0 1px rgba(61,53,36,0.25)" : "none",
                       }}
                     >
-                      공감 {focused.reactionCount > 0 ? focused.reactionCount : ""}
+                      <CubeReactionIcon active={!!focused.reactedByMe} className="w-4 h-4" />
+                      {focused.reactionCount > 0 && (
+                        <span className="text-xs tabular-nums">{focused.reactionCount}</span>
+                      )}
                     </button>
                   )}
 
@@ -970,7 +1018,7 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
                       {editPhotoPreview ? (
                         <div className="relative">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={editPhotoPreview} alt="" className="w-full h-32 object-cover" />
+                          <img src={editPhotoPreview} alt="" className="w-full aspect-square object-cover" />
                           {editPhotoUploading && (
                             <div className="absolute inset-0 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.4)" }}>
                               <span className="text-[10px]" style={{ color: "#fff" }}>업로드 중...</span>

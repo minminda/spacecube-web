@@ -1,21 +1,28 @@
 @import "tailwindcss";
 
+/*
+ * 다크모드는 현재 서비스에서 임시로 사용하지 않는다(src/lib/features.ts의
+ * ENABLE_DARK_MODE_TOGGLE 참고). :root 기본값을 라이트 모드로 고정하고,
+ * 기존 다크 팔레트는 [data-theme="dark"]로 옮겨 구현만 보존한다.
+ * prefers-color-scheme 미디어쿼리는 사용하지 않으므로 OS/브라우저 테마는
+ * 화면에 영향을 주지 않는다.
+ */
 :root {
-  --bg: #0a0a08;
-  --fg: #f0ede6;
-  --dim: #888880;
-  --border: #242420;
-  --tag-bg: #141412;
-  --accent: #c8c4b8;
-}
-
-[data-theme="light"] {
   --bg: #f8f7f4;
   --fg: #1a1916;
   --dim: #888880;
   --border: #d8d6d0;
   --tag-bg: #eeece8;
   --accent: #404038;
+}
+
+[data-theme="dark"] {
+  --bg: #0a0a08;
+  --fg: #f0ede6;
+  --dim: #888880;
+  --border: #242420;
+  --tag-bg: #141412;
+  --accent: #c8c4b8;
 }
 
 * {

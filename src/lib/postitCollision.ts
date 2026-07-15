@@ -21,8 +21,9 @@ export const POST_IT_HEIGHT = 190;
 export const POST_IT_GAP = 20; // 포스트잇끼리 완전히 붙어 보이지 않기 위한 최소 여백(canvas px)
 
 // 군집 라벨(자유/질문1/질문2) — 텍스트 중심 좌표를 감싸는 고정 오브젝트 영역
-export const CLUSTER_LABEL_WIDTH = 220;
-export const CLUSTER_LABEL_HEIGHT = 90;
+// (가독성 개선으로 질문 라벨 폰트가 커져 실제 렌더 크기에 맞춰 함께 확장했다)
+export const CLUSTER_LABEL_WIDTH = 280;
+export const CLUSTER_LABEL_HEIGHT = 130;
 
 /**
  * 두 사각형이 겹치는지 판정한다. 중심 좌표가 아니라 실제 영역(top-left + width/height) 기준이며,

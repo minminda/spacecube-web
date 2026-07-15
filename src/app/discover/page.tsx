@@ -9,6 +9,7 @@ import {
   buildTasteVector, vectorTopTags, getVectorReason,
 } from "@/lib/recommend";
 import { TAG_LABELS } from "@/lib/tags";
+import { isAdmin } from "@/lib/admin";
 import {
   ENABLE_TASTE_SCORE_RECOMMENDATION,
   ENABLE_RECOMMENDATION_PLAYLIST_UI,
@@ -51,7 +52,7 @@ export default async function DiscoverPage({ searchParams }: Props) {
     select: {
       id: true, slug: true, name: true, tagline: true,
       type: true, openingHours: true, imageUrl: true,
-      district: true, spaceTags: true,
+      district: true, spaceTags: true, naverMapUrl: true,
     },
   });
 
@@ -73,8 +74,11 @@ export default async function DiscoverPage({ searchParams }: Props) {
         include: { tags: true, space: { select: { spaceTags: true } } },
       });
       recordCount = userRecords.length;
-      // 방문한 공간 ID (중복 제거)
-      visitedSpaceIds = [...new Set(userRecords.map((r) => r.spaceId))];
+      // 방문한 공간 ID (중복 제거) — 지역 탐험 카드 잠금 해제 판정에도 그대로 쓰인다.
+      // 관리자는 테스트 편의를 위해 모든 공간을 해제된 것으로 본다(기존 isAdmin 권한 구조 재사용).
+      visitedSpaceIds = isAdmin(session.user.email)
+        ? spacesRaw.map((s) => s.id)
+        : [...new Set(userRecords.map((r) => r.spaceId))];
 
       if (recordCount >= 3) {
         hasEnoughRecords = true;
@@ -112,7 +116,7 @@ export default async function DiscoverPage({ searchParams }: Props) {
     ? [...spacesWithScore].sort((a, b) => b.score - a.score)
     : spacesWithScore;
 
-  // SpaceCards 형태로 변환 (spaceTags·district·score 제거)
+  // SpaceCards 형태로 변환 (spaceTags·score 제거, 잠금 안내에 필요한 district·naverMapUrl은 유지)
   const spacesForCards = sortedSpaces.map((s) => ({
     id: s.id,
     slug: s.slug,
@@ -121,6 +125,8 @@ export default async function DiscoverPage({ searchParams }: Props) {
     type: s.type,
     openingHours: s.openingHours,
     imageUrl: s.imageUrl,
+    district: s.district,
+    naverMapUrl: s.naverMapUrl,
   }));
 
   return (

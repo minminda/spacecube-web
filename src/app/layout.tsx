@@ -3,6 +3,7 @@ import "./globals.css";
 import ThemeToggle from "@/components/ThemeToggle";
 import OnboardingOverlay from "@/components/OnboardingOverlay";
 import Navbar from "@/components/Navbar";
+import { ENABLE_DARK_MODE_TOGGLE } from "@/lib/features";
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://spacecube-web.vercel.app";
 
@@ -27,15 +28,10 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="ko">
+    <html lang="ko" data-theme="light">
       <head>
         <link rel="preconnect" href="https://cdn.jsdelivr.net" />
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard-dynamic-subset.min.css" />
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `(function(){var t=localStorage.getItem('theme');if(t)document.documentElement.setAttribute('data-theme',t);})();`,
-          }}
-        />
       </head>
       <body className="min-h-screen" style={{ background: "var(--bg)", color: "var(--fg)" }}>
         <Navbar />
@@ -43,7 +39,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           {children}
         </div>
         <OnboardingOverlay />
-        <ThemeToggle />
+        {ENABLE_DARK_MODE_TOGGLE && <ThemeToggle />}
       </body>
     </html>
   );

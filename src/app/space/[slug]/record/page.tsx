@@ -1,7 +1,12 @@
 import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
+import { resolveCurrentVisitRecord } from "@/lib/visit";
 import RecordForm from "./RecordForm";
+
+// 뒤로가기/새로고침으로 돌아왔을 때도 항상 최신 DB 상태를 기준으로 프리필해야 하므로
+// 이 페이지는 캐시하지 않는다.
+export const dynamic = "force-dynamic";
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -40,6 +45,12 @@ export default async function RecordPage({ params, searchParams }: Props) {
   const visitCount = previousRecords.length;
   const lastRecord = previousRecords[0] ?? null;
 
+  // "이번 방문"의 Record 판정: /api/records가 새 Record를 만들지, 기존 것을 갱신할지
+  // 정하는 기준(REVISIT_INTERVAL_HOURS)과 동일하게 판단한다. 아직 재방문 간격이
+  // 지나지 않았다면 lastRecord가 곧 이번 방문에 저장된 Record다 — 이미 취향 점수를
+  // 저장했다는 뜻이므로 폼을 그 값으로 프리필하고 재입력을 강요하지 않는다.
+  const currentVisitRecord = resolveCurrentVisitRecord(lastRecord);
+
   // 관리자가 연결한 활성 태그가 있으면 그 이름을 쓰고, 없으면 기존 레거시 태그로 폴백
   const displayTags = space.spaceTagLinks.length > 0
     ? space.spaceTagLinks.slice(0, 6).map((l) => l.tag.name)
@@ -52,6 +63,7 @@ export default async function RecordPage({ params, searchParams }: Props) {
       displayTags={displayTags}
       visitCount={visitCount}
       previousRecord={lastRecord ? { tags: lastRecord.tags.map((t) => t.tag), tasteScore: lastRecord.tasteScore } : null}
+      currentVisitRecord={currentVisitRecord}
       intent={intent}
     />
   );

@@ -31,3 +31,11 @@ export const ENABLE_GUESTBOOK_WALL = true;
  * true로 바꾸면 자기 글 공감도 허용.
  */
 export const ALLOW_SELF_GUESTBOOK_REACTION = false;
+
+/**
+ * 다크모드 토글 노출 여부. 현재 서비스는 실제 공간 설치 테스트를 위해
+ * OS/브라우저 테마와 무관하게 항상 라이트 모드로 고정한다.
+ * 구현(ThemeToggle, [data-theme="dark"] CSS 변수)은 삭제하지 않고 그대로 두되
+ * 렌더링에는 영향을 주지 않도록 분리 — true로 바꾸면 즉시 복구.
+ */
+export const ENABLE_DARK_MODE_TOGGLE = false;
