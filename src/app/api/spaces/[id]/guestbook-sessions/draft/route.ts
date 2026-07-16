@@ -28,15 +28,12 @@ export async function PUT(req: NextRequest, { params }: Props) {
   });
 
   const body = await req.json().catch(() => ({}));
-  const result = parseGuestbookSessionInput(body, existing ?? DEFAULT_SESSION_FIELDS);
-  if (!result.ok) {
-    return NextResponse.json({ error: result.error }, { status: 400 });
-  }
+  const data = parseGuestbookSessionInput(body, existing ?? DEFAULT_SESSION_FIELDS);
 
   const draft = existing
-    ? await prisma.guestbookSession.update({ where: { id: existing.id }, data: result.data })
+    ? await prisma.guestbookSession.update({ where: { id: existing.id }, data })
     : await prisma.guestbookSession.create({
-        data: { spaceId, status: GuestbookSessionStatus.DRAFT, ...result.data },
+        data: { spaceId, status: GuestbookSessionStatus.DRAFT, ...data },
       });
 
   return NextResponse.json(draft);

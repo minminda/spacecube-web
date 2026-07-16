@@ -3,7 +3,7 @@ import {
   isValidHexColor,
   relativeLuma,
   isTooDarkForBlackBackground,
-  validateClusterColor,
+  resolveClusterColor,
   clampFontSize,
   DARK_LUMA_THRESHOLD,
   COLOR_PRESETS,
@@ -49,18 +49,15 @@ describe("relativeLuma / isTooDarkForBlackBackground", () => {
   });
 });
 
-describe("validateClusterColor", () => {
-  it("형식이 잘못됐거나 없으면 기본값으로 조용히 폴백(ok:true)", () => {
-    expect(validateClusterColor(undefined, "#EBEBEB")).toEqual({ ok: true, value: "#EBEBEB" });
-    expect(validateClusterColor("not-a-color", "#EBEBEB")).toEqual({ ok: true, value: "#EBEBEB" });
-    expect(validateClusterColor(null, "#EBEBEB")).toEqual({ ok: true, value: "#EBEBEB" });
+describe("resolveClusterColor", () => {
+  it("형식이 잘못됐거나 없으면 기본값으로 조용히 폴백", () => {
+    expect(resolveClusterColor(undefined, "#EBEBEB")).toBe("#EBEBEB");
+    expect(resolveClusterColor("not-a-color", "#EBEBEB")).toBe("#EBEBEB");
+    expect(resolveClusterColor(null, "#EBEBEB")).toBe("#EBEBEB");
   });
-  it("형식은 맞지만 너무 어두우면 저장을 차단(ok:false)", () => {
-    const result = validateClusterColor("#0A0A0A", "#EBEBEB");
-    expect(result).toEqual({ ok: false, reason: "too_dark" });
-  });
-  it("형식이 맞고 충분히 밝으면 입력값을 그대로 사용", () => {
-    expect(validateClusterColor("#F5D76E", "#EBEBEB")).toEqual({ ok: true, value: "#F5D76E" });
+  it("형식이 맞으면 어둡든 밝든 저장을 막지 않고 입력값을 그대로 사용(경고는 UI 쪽 책임)", () => {
+    expect(resolveClusterColor("#0A0A0A", "#EBEBEB")).toBe("#0A0A0A");
+    expect(resolveClusterColor("#F5D76E", "#EBEBEB")).toBe("#F5D76E");
   });
 });
 

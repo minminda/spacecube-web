@@ -33,11 +33,8 @@ export async function PUT(req: NextRequest, { params }: Props) {
   }
 
   const body = await req.json().catch(() => ({}));
-  const result = parseGuestbookSessionInput(body, active);
-  if (!result.ok) {
-    return NextResponse.json({ error: result.error }, { status: 400 });
-  }
+  const data = parseGuestbookSessionInput(body, active);
 
-  const updated = await prisma.guestbookSession.update({ where: { id: active.id }, data: result.data });
+  const updated = await prisma.guestbookSession.update({ where: { id: active.id }, data });
   return NextResponse.json(updated);
 }

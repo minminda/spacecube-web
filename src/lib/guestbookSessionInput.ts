@@ -1,11 +1,14 @@
 /* ── 관리자 방명록 세션 저장 입력 파싱/검증 ──────────────────────────────
    /api/spaces/[id]/guestbook-sessions/{active,draft} PUT 두 라우트가 공유하는
    단일 검증 지점 — 두 곳에서 같은 필드 파싱/클램프 로직을 중복 구현하지 않는다.
-   순수 함수(요청 body와 "현재 값"만 받는다, Prisma 직접 호출 없음)라 유닛 테스트 가능. ── */
+   순수 함수(요청 body와 "현재 값"만 받는다, Prisma 직접 호출 없음)라 유닛 테스트 가능.
+   항상 성공한다 — 값이 없거나 잘못된 필드는 current(갱신 대상의 현재 값)로 조용히
+   폴백하고, 어두운 색상 저장 차단 같은 하드 실패는 두지 않는다(경고는 관리자 폼에서
+   즉시 보여준다). ── */
 
 import {
   clampFontSize,
-  validateClusterColor,
+  resolveClusterColor,
 } from "@/lib/guestbookClusterStyle";
 
 const MAX_QUESTION_LEN = 200;
@@ -51,10 +54,6 @@ export const DEFAULT_SESSION_FIELDS: GuestbookSessionInput = {
   question2Color: "#EBEBEB",
 };
 
-export type ParseGuestbookSessionResult =
-  | { ok: true; data: GuestbookSessionInput }
-  | { ok: false; error: string };
-
 function readNumber(body: Record<string, unknown>, key: string, fallback: number): number {
   const v = body[key];
   return typeof v === "number" && Number.isFinite(v) ? v : fallback;
@@ -73,41 +72,29 @@ function readQuestionText(body: Record<string, unknown>, key: string, fallback: 
 
 /**
  * body의 필드를 current(갱신 대상의 현재 값, 없으면 DEFAULT_SESSION_FIELDS) 기준으로
- * 파싱/클램프/검증한다. 색상이 유효한 형식이지만 너무 어두우면 저장 자체를 막고 에러를
- * 반환한다(guestbookClusterStyle.ts의 validateClusterColor 정책) — 그 외 필드는 항상
- * 성공하고, 값이 없거나 형식이 이상하면 current 값으로 폴백한다.
+ * 파싱/클램프/폴백한다. 항상 성공한다.
  */
 export function parseGuestbookSessionInput(
   body: Record<string, unknown>,
   current: GuestbookSessionInput,
-): ParseGuestbookSessionResult {
-  const freeColor = validateClusterColor(body.freeLabelColor, current.freeLabelColor);
-  if (!freeColor.ok) return { ok: false, error: "자유 영역 색상이 너무 어두워 검정 배경에서 읽기 어렵습니다." };
-  const q1Color = validateClusterColor(body.question1Color, current.question1Color);
-  if (!q1Color.ok) return { ok: false, error: "질문1 색상이 너무 어두워 검정 배경에서 읽기 어렵습니다." };
-  const q2Color = validateClusterColor(body.question2Color, current.question2Color);
-  if (!q2Color.ok) return { ok: false, error: "질문2 색상이 너무 어두워 검정 배경에서 읽기 어렵습니다." };
-
+): GuestbookSessionInput {
   return {
-    ok: true,
-    data: {
-      question1: readQuestionText(body, "question1", current.question1),
-      question2: readQuestionText(body, "question2", current.question2),
-      freeLabelVisible: readBoolean(body, "freeLabelVisible", current.freeLabelVisible),
-      question1Visible: readBoolean(body, "question1Visible", current.question1Visible),
-      question2Visible: readBoolean(body, "question2Visible", current.question2Visible),
-      freeClusterX: readNumber(body, "freeClusterX", current.freeClusterX),
-      freeClusterY: readNumber(body, "freeClusterY", current.freeClusterY),
-      question1ClusterX: readNumber(body, "question1ClusterX", current.question1ClusterX),
-      question1ClusterY: readNumber(body, "question1ClusterY", current.question1ClusterY),
-      question2ClusterX: readNumber(body, "question2ClusterX", current.question2ClusterX),
-      question2ClusterY: readNumber(body, "question2ClusterY", current.question2ClusterY),
-      freeLabelFontSize: clampFontSize(body.freeLabelFontSize, current.freeLabelFontSize),
-      question1FontSize: clampFontSize(body.question1FontSize, current.question1FontSize),
-      question2FontSize: clampFontSize(body.question2FontSize, current.question2FontSize),
-      freeLabelColor: freeColor.value,
-      question1Color: q1Color.value,
-      question2Color: q2Color.value,
-    },
+    question1: readQuestionText(body, "question1", current.question1),
+    question2: readQuestionText(body, "question2", current.question2),
+    freeLabelVisible: readBoolean(body, "freeLabelVisible", current.freeLabelVisible),
+    question1Visible: readBoolean(body, "question1Visible", current.question1Visible),
+    question2Visible: readBoolean(body, "question2Visible", current.question2Visible),
+    freeClusterX: readNumber(body, "freeClusterX", current.freeClusterX),
+    freeClusterY: readNumber(body, "freeClusterY", current.freeClusterY),
+    question1ClusterX: readNumber(body, "question1ClusterX", current.question1ClusterX),
+    question1ClusterY: readNumber(body, "question1ClusterY", current.question1ClusterY),
+    question2ClusterX: readNumber(body, "question2ClusterX", current.question2ClusterX),
+    question2ClusterY: readNumber(body, "question2ClusterY", current.question2ClusterY),
+    freeLabelFontSize: clampFontSize(body.freeLabelFontSize, current.freeLabelFontSize),
+    question1FontSize: clampFontSize(body.question1FontSize, current.question1FontSize),
+    question2FontSize: clampFontSize(body.question2FontSize, current.question2FontSize),
+    freeLabelColor: resolveClusterColor(body.freeLabelColor, current.freeLabelColor),
+    question1Color: resolveClusterColor(body.question1Color, current.question1Color),
+    question2Color: resolveClusterColor(body.question2Color, current.question2Color),
   };
 }

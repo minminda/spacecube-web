@@ -1,5 +1,4 @@
 import Link from "next/link";
-import Image from "next/image";
 import { TagKey } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
@@ -8,16 +7,12 @@ import {
   scoreSpaceWeighted, getRecommendReason,
   buildTasteVector, vectorTopTags, getVectorReason,
 } from "@/lib/recommend";
-import { TAG_LABELS } from "@/lib/tags";
 import { isAdmin } from "@/lib/admin";
 import { getUserUnlockSets } from "@/lib/spaceUnlock";
-import {
-  ENABLE_TASTE_SCORE_RECOMMENDATION,
-  ENABLE_RECOMMENDATION_PLAYLIST_UI,
-} from "@/lib/features";
-import RecommendationPlaylist from "@/components/RecommendationPlaylist";
+import { ENABLE_TASTE_SCORE_RECOMMENDATION } from "@/lib/features";
 import DiscoverEntry from "../DiscoverEntry";
 import SpaceCards from "./SpaceCards";
+import SpaceDiscoveryCard from "./SpaceDiscoveryCard";
 
 interface Props {
   searchParams: Promise<{ district?: string }>;
@@ -62,13 +57,9 @@ export default async function DiscoverPage({ searchParams }: Props) {
   let recordCount = 0;
   let visitedSpaceIds: string[] = [];
   // 카드 잠금 해제 판정 전용 — 취향 점수(Record)가 아니라 실제 Cube QR 스캔으로 생긴
-  // SpaceUnlock 기준이다. Record는 이제 SpaceUnlock 없이는 생성될 수 없지만, 그 반대는
-  // 아니다(스캔만 하고 아직 기록은 안 남긴 경우도 있음) — 그래서 서로 다른 집합이다.
-  // unlockedSpaceIds: 지금 이 순간 유효한(마지막 스캔으로부터 12시간 이내) 공간만.
-  // everUnlockedSpaceIds: 만료 여부와 무관하게 한 번이라도 스캔한 적 있는 공간 — 잠긴
-  // 카드의 안내 문구를 "처음 방문" vs "다시 방문하면 열림"으로 구분하는 데만 쓴다.
+  // SpaceUnlock(마지막 스캔으로부터 12시간 이내) 기준이다. 추천 TOP3와 전체 목록이
+  // 이 하나의 집합을 공유한다(SpaceDiscoveryCard 공용 컴포넌트, 페이지별 중복 판정 없음).
   let unlockedSpaceIds: string[] = [];
-  let everUnlockedSpaceIds: string[] = [];
   let userTopTags: TagKey[] = [];
   let userTagCountMap: Partial<Record<TagKey, number>> = {};
 
@@ -88,7 +79,6 @@ export default async function DiscoverPage({ searchParams }: Props) {
       recordCount = userRecords.length;
       // 추천 제외 필터(이미 취향 데이터가 있는 공간)에만 쓰는 방문 집합 — Record 기준 그대로.
       visitedSpaceIds = [...new Set(userRecords.map((r) => r.spaceId))];
-      everUnlockedSpaceIds = [...unlockSets.everUnlocked];
       // 관리자는 테스트 편의를 위해 모든 공간을 해제된 것으로 본다(기존 isAdmin 권한 구조 재사용).
       unlockedSpaceIds = isAdmin(session.user.email) ? spacesRaw.map((s) => s.id) : [...unlockSets.unlocked];
 
@@ -116,6 +106,7 @@ export default async function DiscoverPage({ searchParams }: Props) {
 
   // ── 추천 섹션: 방문하지 않은 공간, 점수 > 0, 상위 3개 ─────────────
   const visitedSet = new Set(visitedSpaceIds);
+  const unlockedSet = new Set(unlockedSpaceIds);
   const recommendedSpaces = hasEnoughRecords
     ? [...spacesWithScore]
         .filter((s) => !visitedSet.has(s.id) && s.score > 0)
@@ -164,13 +155,14 @@ export default async function DiscoverPage({ searchParams }: Props) {
         </div>
       ) : (
         <>
-          {/* ── 추천 섹션 (기록 3개 이상 + 매칭 공간 있을 때) ── */}
+          {/* ── 추천 섹션 (기록 3개 이상 + 매칭 공간 있을 때) — 전체 목록과 동일한 SpaceDiscoveryCard로
+                 잠금 규칙을 공유한다(카드 표시/다이얼로그 중복 구현 금지). ── */}
           {hasEnoughRecords && recommendedSpaces.length > 0 && (
             <>
               <section className="space-y-4">
                 <div className="space-y-1">
                   <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>
-                    // 내 취향과 닮은 공간
+                    // 내 취향과 닮은 공간 TOP3
                   </p>
                   <p className="text-xs" style={{ color: "var(--dim)" }}>
                     {ENABLE_TASTE_SCORE_RECOMMENDATION
@@ -179,59 +171,29 @@ export default async function DiscoverPage({ searchParams }: Props) {
                   </p>
                 </div>
 
-                {ENABLE_RECOMMENDATION_PLAYLIST_UI ? (
-                  <RecommendationPlaylist
-                    cards={recommendedSpaces.map((rec) => ({
-                      id: rec.id,
-                      slug: rec.slug,
-                      name: rec.name,
-                      district: rec.district,
-                      imageUrl: rec.imageUrl,
-                      tagLabels: rec.spaceTags.slice(0, 3).map((t) => TAG_LABELS[t]),
-                      reason: ENABLE_TASTE_SCORE_RECOMMENDATION
-                        ? getVectorReason(rec, userTagCountMap)
-                        : getRecommendReason(rec, userTopTags),
-                    }))}
-                  />
-                ) : (
-                  /* 레거시: 정적 리스트 (플래그 복구용 보존) */
-                  <div className="space-y-5">
-                    {recommendedSpaces.map((rec) => {
-                      const reason = getRecommendReason(rec, userTopTags);
-                      return (
-                        <Link
-                          key={rec.id}
-                          href={`/space/${rec.slug}`}
-                          className="flex gap-4 group"
-                        >
-                          {rec.imageUrl && (
-                            <div className="relative w-16 h-16 flex-shrink-0 overflow-hidden">
-                              <Image
-                                src={rec.imageUrl}
-                                alt={rec.name}
-                                fill
-                                className="object-cover transition-transform duration-500 group-hover:scale-105"
-                              />
-                            </div>
-                          )}
-                          <div className="flex flex-col justify-center gap-0.5 min-w-0">
-                            <p className="text-sm font-semibold truncate group-hover:underline">
-                              {rec.name}
-                            </p>
-                            {rec.tagline && (
-                              <p className="text-xs truncate" style={{ color: "var(--dim)" }}>
-                                {rec.tagline}
-                              </p>
-                            )}
-                            {reason && (
-                              <p className="text-xs" style={{ color: "var(--dim)" }}>{reason}</p>
-                            )}
-                          </div>
-                        </Link>
-                      );
-                    })}
-                  </div>
-                )}
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+                  {recommendedSpaces.map((rec) => (
+                    <SpaceDiscoveryCard
+                      key={rec.id}
+                      space={{
+                        id: rec.id,
+                        slug: rec.slug,
+                        name: rec.name,
+                        type: rec.type,
+                        district: rec.district,
+                        imageUrl: rec.imageUrl,
+                        naverMapUrl: rec.naverMapUrl,
+                      }}
+                      isUnlocked={unlockedSet.has(rec.id)}
+                      variant="recommended"
+                      recommendationReason={
+                        ENABLE_TASTE_SCORE_RECOMMENDATION
+                          ? getVectorReason(rec, userTagCountMap)
+                          : getRecommendReason(rec, userTopTags)
+                      }
+                    />
+                  ))}
+                </div>
               </section>
               <div style={{ borderTop: "1px solid var(--border)" }} />
             </>
@@ -253,7 +215,7 @@ export default async function DiscoverPage({ searchParams }: Props) {
               </p>
             )}
           </div>
-          <SpaceCards spaces={spacesForCards} unlockedSpaceIds={unlockedSpaceIds} everUnlockedSpaceIds={everUnlockedSpaceIds} />
+          <SpaceCards spaces={spacesForCards} unlockedSpaceIds={unlockedSpaceIds} />
         </>
       )}
     </main>

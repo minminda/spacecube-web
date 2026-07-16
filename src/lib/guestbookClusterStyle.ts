@@ -3,7 +3,10 @@
    양쪽에서 동일한 기준으로 검증/클램프하기 위한 단일 출처. ──────────────── */
 
 export const FONT_SIZE_MIN = 12;
-export const FONT_SIZE_MAX = 48;
+export const FONT_SIZE_MAX = 64;
+/** UI 안내용 권장 범위 — 강제되는 값은 아니고, 관리자는 MIN~MAX 전체를 직접 입력할 수 있다. */
+export const FONT_SIZE_RECOMMENDED_MIN = 16;
+export const FONT_SIZE_RECOMMENDED_MAX = 40;
 
 export const FONT_SIZE_PRESETS = {
   SMALL: 16,
@@ -47,17 +50,13 @@ export function isTooDarkForBlackBackground(hex: string): boolean {
   return relativeLuma(hex) < DARK_LUMA_THRESHOLD;
 }
 
-export type ColorValidationResult = { ok: true; value: string } | { ok: false; reason: "too_dark" };
-
 /**
- * 형식이 잘못됐거나 값이 없으면 기본색으로 조용히 폴백(ok:true) — 저장은 계속 성공한다.
- * 형식은 정상이지만 검정 배경에서 너무 어두우면 저장 자체를 막는다(ok:false) — 무상태
- * API 응답에는 "경고 후 계속" 개념이 어색해, 눈에 띄는 실패로 admin이 바로 고치게 한다.
+ * 형식이 잘못됐거나 값이 없으면 기본색으로 조용히 폴백한다. 형식이 정상이면 어둡든 밝든
+ * 그대로 저장한다 — 저장 차단은 하지 않고, 어두운 색 경고는 UI(관리자 폼)에서
+ * isTooDarkForBlackBackground로 즉시 보여준다("저장 자체를 무조건 막을 필요는 없다").
  */
-export function validateClusterColor(input: unknown, fallback: string): ColorValidationResult {
-  if (!isValidHexColor(input)) return { ok: true, value: fallback };
-  if (isTooDarkForBlackBackground(input)) return { ok: false, reason: "too_dark" };
-  return { ok: true, value: input };
+export function resolveClusterColor(input: unknown, fallback: string): string {
+  return isValidHexColor(input) ? input : fallback;
 }
 
 /** 값이 없거나 숫자가 아니면 fallback, 범위를 벗어나면 클램프 — 항상 성공(거부하지 않음). */
