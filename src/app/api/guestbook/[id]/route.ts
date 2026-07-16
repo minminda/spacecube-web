@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 export const dynamic = "force-dynamic";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { ENABLE_GUESTBOOK_IMAGE } from "@/lib/pilotFlags";
 
 const MAX_CONTENT = 80;
 
@@ -45,7 +46,8 @@ export async function PATCH(req: NextRequest, { params }: Props) {
     data.content = text;
   }
 
-  if ("imageUrl" in body) {
+  // 파일럿 기간 이미지 첨부 비활성 — 이미지 필드 변경 요청은 무시한다(기존 값은 그대로 보존).
+  if (ENABLE_GUESTBOOK_IMAGE && "imageUrl" in body) {
     data.imageUrl = typeof body.imageUrl === "string" && body.imageUrl ? body.imageUrl : null;
   }
 

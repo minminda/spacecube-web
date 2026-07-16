@@ -4,6 +4,7 @@ export const dynamic = "force-dynamic";
 import { prisma } from "@/lib/prisma";
 import { getCompletedPeriods } from "@/lib/reportPeriod";
 import { generateOrGetMonthlyReport, formatPeriodLabel } from "@/lib/monthlyReport";
+import { ENABLE_REPORT_EMAIL } from "@/lib/pilotFlags";
 
 interface PendingReportNotification {
   spaceId: string;
@@ -31,6 +32,12 @@ export async function POST(req: NextRequest) {
   const authHeader = req.headers.get("authorization");
   if (!expected || authHeader !== `Bearer ${expected}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // 파일럿 기간: 자동 이메일 발송 비활성 — 리포트 자동 생성/발송 파이프라인을 통째로 멈춘다.
+  // 리포트는 관리자 페이지(/owner/[id]/report)에서 수동으로 생성·확인할 수 있다.
+  if (!ENABLE_REPORT_EMAIL) {
+    return NextResponse.json({ disabled: true, reason: "ENABLE_REPORT_EMAIL=false", generated: 0, notifications: [] });
   }
 
   const spaces = await prisma.space.findMany({

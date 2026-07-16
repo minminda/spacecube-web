@@ -8,6 +8,7 @@ import CollectionManager from "@/components/CollectionManager";
 import TasteProfileCard from "@/components/TasteProfileCard";
 import VisitedSpacesPager, { type VisitedRow } from "@/components/VisitedSpacesPager";
 import NotificationBell from "@/components/NotificationBell";
+import { ENABLE_NOTIFICATIONS } from "@/lib/pilotFlags";
 import { aggregateTags, getTastePhrase } from "@/lib/taste";
 import {
   rankSpaces, getRecommendReason,
@@ -68,7 +69,10 @@ export default async function ArchivePage() {
   });
   if (!user) redirect("/login");
 
-  const unreadNotificationCount = await prisma.notification.count({ where: { receiverId: user.id, isRead: false } });
+  // 파일럿 기간 알림 비활성: 미읽음 카운트 조회 자체를 건너뛴다.
+  const unreadNotificationCount = ENABLE_NOTIFICATIONS
+    ? await prisma.notification.count({ where: { receiverId: user.id, isRead: false } })
+    : 0;
 
   const allRecords = user.records;
 
@@ -204,7 +208,7 @@ export default async function ArchivePage() {
       <nav className="flex justify-between items-center mb-10">
         <Link href="/" className="text-xs" style={{ color: "var(--dim)" }}>← </Link>
         <div className="flex items-center gap-4">
-          <NotificationBell initialUnreadCount={unreadNotificationCount} />
+          {ENABLE_NOTIFICATIONS && <NotificationBell initialUnreadCount={unreadNotificationCount} />}
           <SettingsPanel nickname={user.nickname} visibility={user.visibility} userId={user.id} />
         </div>
       </nav>

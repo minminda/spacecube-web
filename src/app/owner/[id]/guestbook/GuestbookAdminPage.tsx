@@ -107,12 +107,14 @@ interface Props {
   archived: ArchivedSummary[];
   settings: GuestbookSettingsFields;
   hasCustomSettings: boolean;
+  /** 파일럿 플래그 — 방명록 이미지 첨부 허용 여부. off면 "포스트잇 사진 허용" 설정을 숨긴다. */
+  enableImage: boolean;
 }
 
 type Tab = "active" | "draft" | "archived" | "settings";
 
 export default function GuestbookAdminPage({
-  spaceId, spaceSlug, active, activePostitCount, draft, archived, settings, hasCustomSettings,
+  spaceId, spaceSlug, active, activePostitCount, draft, archived, settings, hasCustomSettings, enableImage,
 }: Props) {
   const router = useRouter();
   const [tab, setTab] = useState<Tab>(active ? "active" : "draft");
@@ -484,7 +486,7 @@ export default function GuestbookAdminPage({
               ))}
             </div>
             <p className="text-xs" style={{ color: "var(--dim)" }}>
-              {LAYOUT_LABELS[settingsFields.layoutType]} · 회전 {settingsFields.allowRotation ? "허용" : "고정"} · 사진 {settingsFields.allowImage ? "허용" : "비허용"} · 닉네임 {settingsFields.showNickname ? "표시" : "숨김"}
+              {LAYOUT_LABELS[settingsFields.layoutType]} · 회전 {settingsFields.allowRotation ? "허용" : "고정"}{enableImage ? ` · 사진 ${settingsFields.allowImage ? "허용" : "비허용"}` : ""} · 닉네임 {settingsFields.showNickname ? "표시" : "숨김"}
             </p>
           </div>
 
@@ -608,7 +610,9 @@ export default function GuestbookAdminPage({
 
           <div className="space-y-3">
             <ToggleSwitch label="포스트잇 회전 허용" checked={settingsFields.allowRotation} onChange={(v) => setSettingsField("allowRotation", v)} />
-            <ToggleSwitch label="포스트잇 사진 허용" checked={settingsFields.allowImage} onChange={(v) => setSettingsField("allowImage", v)} />
+            {enableImage && (
+              <ToggleSwitch label="포스트잇 사진 허용" checked={settingsFields.allowImage} onChange={(v) => setSettingsField("allowImage", v)} />
+            )}
             <ToggleSwitch label="작성자 닉네임 표시" checked={settingsFields.showNickname} onChange={(v) => setSettingsField("showNickname", v)} />
           </div>
 

@@ -4,6 +4,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { isAdmin } from "@/lib/admin";
 import { ENABLE_REGION_STORIES, ENABLE_TASTE_STORIES } from "@/lib/features";
+import { ENABLE_MULTILINGUAL } from "@/lib/pilotFlags";
 import DeleteSpaceButton from "./DeleteSpaceButton";
 
 export default async function AdminPage() {
@@ -128,13 +129,15 @@ export default async function AdminPage() {
                 >
                   [운영 리포트]
                 </Link>
-                <Link
-                  href={`/owner/${space.id}/translations`}
-                  className="border px-3 py-1 transition-colors"
-                  style={{ borderColor: "var(--border)", color: "var(--dim)" }}
-                >
-                  [다국어]
-                </Link>
+                {ENABLE_MULTILINGUAL && (
+                  <Link
+                    href={`/owner/${space.id}/translations`}
+                    className="border px-3 py-1 transition-colors"
+                    style={{ borderColor: "var(--border)", color: "var(--dim)" }}
+                  >
+                    [다국어]
+                  </Link>
+                )}
                 <Link
                   href={`/owner/${space.id}/edit`}
                   className="border px-3 py-1 transition-colors"

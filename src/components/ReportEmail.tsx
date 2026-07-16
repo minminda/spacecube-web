@@ -38,19 +38,25 @@ function formatDateRangeLabel(periodStart: string, periodEnd: string): string {
 
 interface Props {
   data: ReportEmailData;
+  /** 자동 생성 해설/제안 문구(headline·이번 달 변화·공간 경험 요약·다음 달 제안)를 보여줄지.
+      파일럿 기간(ENABLE_REPORT_AI_ANALYSIS=false)에는 원자료 섹션만 남기고 이 문구들은 숨긴다.
+      기본값 false — 서버가 명시적으로 켜야 노출된다. */
+  showAnalysis?: boolean;
 }
 
-export default function ReportEmail({ data }: Props) {
+export default function ReportEmail({ data, showAnalysis = false }: Props) {
   return (
     <div style={{ background: COLOR.bg, color: COLOR.fg, fontFamily: "-apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif", maxWidth: 560, margin: "0 auto", padding: "32px 24px" }}>
       <p style={{ fontSize: 11, letterSpacing: 2, textTransform: "uppercase", color: COLOR.dim, margin: "0 0 4px" }}>공간큐브 / 운영 리포트</p>
       <h1 style={{ fontSize: 22, fontWeight: 700, margin: "0 0 4px", lineHeight: 1.3 }}>{data.spaceName} {data.periodLabel} 운영 리포트</h1>
       <p style={{ fontSize: 12, color: COLOR.dim, margin: "0 0 28px" }}>{formatDateRangeLabel(data.periodStart, data.periodEnd)}</p>
 
-      {/* ① 이번 달 한눈에 보기 */}
-      <Section>
-        <p style={{ fontSize: 15, lineHeight: 1.8, margin: 0, whiteSpace: "pre-line" }}>{data.headline}</p>
-      </Section>
+      {/* ① 이번 달 한눈에 보기 (자동 생성 해설 — 파일럿 기간 숨김) */}
+      {showAnalysis && (
+        <Section>
+          <p style={{ fontSize: 15, lineHeight: 1.8, margin: 0, whiteSpace: "pre-line" }}>{data.headline}</p>
+        </Section>
+      )}
 
       {/* ② 핵심 KPI */}
       <Section title="핵심 KPI">
@@ -78,8 +84,8 @@ export default function ReportEmail({ data }: Props) {
         </table>
       </Section>
 
-      {/* ③ 이번 달 변화 */}
-      {data.changeInsights.length > 0 && (
+      {/* ③ 이번 달 변화 (자동 생성 해설 — 파일럿 기간 숨김) */}
+      {showAnalysis && data.changeInsights.length > 0 && (
         <Section title="이번 달 변화">
           {data.changeInsights.map((text, i) => (
             <p key={i} style={{ fontSize: 13, lineHeight: 1.7, margin: i === 0 ? 0 : "10px 0 0", paddingLeft: 12, borderLeft: `2px solid ${COLOR.border}` }}>
@@ -116,13 +122,15 @@ export default function ReportEmail({ data }: Props) {
         </Section>
       )}
 
-      {/* ⑥ 공간 경험 요약 */}
-      <Section title="공간 경험 요약">
-        <p style={{ fontSize: 13, lineHeight: 1.7, margin: 0 }}>{data.usageSummary}</p>
-      </Section>
+      {/* ⑥ 공간 경험 요약 (자동 생성 해설 — 파일럿 기간 숨김) */}
+      {showAnalysis && (
+        <Section title="공간 경험 요약">
+          <p style={{ fontSize: 13, lineHeight: 1.7, margin: 0 }}>{data.usageSummary}</p>
+        </Section>
+      )}
 
-      {/* ⑦ 다음 달 제안 */}
-      {data.suggestions.length > 0 && (
+      {/* ⑦ 다음 달 제안 (자동 생성 해설 — 파일럿 기간 숨김) */}
+      {showAnalysis && data.suggestions.length > 0 && (
         <Section title="다음 달 제안">
           {data.suggestions.map((text, i) => (
             <p key={i} style={{ fontSize: 13, lineHeight: 1.7, margin: i === 0 ? 0 : "10px 0 0", paddingLeft: 12, borderLeft: `2px solid ${COLOR.border}` }}>

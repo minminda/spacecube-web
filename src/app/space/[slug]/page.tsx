@@ -23,6 +23,7 @@ import { aggregateSpaceTags, getSpaceUsageSummary } from "@/lib/spaceInsight";
 import { LOCALE_COOKIE_NAME, resolveInitialLocale, availableLocalesForSpace } from "@/lib/localeResolve";
 import { resolveLocalizedField } from "@/lib/i18nContent";
 import { DEFAULT_LOCALE, type LocaleCode } from "@/lib/locales";
+import { ENABLE_MULTILINGUAL } from "@/lib/pilotFlags";
 
 interface Props { params: Promise<{ slug: string }> }
 
@@ -54,7 +55,7 @@ export default async function SpacePage({ params }: Props) {
   let localizedTagline = space.tagline;
   let localizedOwnerBio = space.ownerBio;
 
-  if (space.multilingualEnabled && space.supportedLocales.length > 0) {
+  if (ENABLE_MULTILINGUAL && space.multilingualEnabled && space.supportedLocales.length > 0) {
     const [cookieStore, headerList] = await Promise.all([cookies(), headers()]);
     locale = resolveInitialLocale({
       cookieLocale: cookieStore.get(LOCALE_COOKIE_NAME)?.value ?? null,
@@ -218,7 +219,7 @@ export default async function SpacePage({ params }: Props) {
           <div className="flex items-center justify-between">
             <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>공간큐브</p>
             <div className="flex items-center gap-2">
-              {space.multilingualEnabled && space.supportedLocales.length > 0 && (
+              {ENABLE_MULTILINGUAL && space.multilingualEnabled && space.supportedLocales.length > 0 && (
                 <LanguageSwitcher currentLocale={locale} availableLocales={availableLocalesForSpace(space.supportedLocales)} />
               )}
               <Link href="/" className="text-xs" style={{ color: "var(--dim)" }}>← 홈</Link>

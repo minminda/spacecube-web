@@ -10,6 +10,7 @@ import { GuestbookSessionStatus, MonthlyReportStatus } from "@prisma/client";
 import PastReportsSelect from "./PastReportsSelect";
 import MonthlyMemo from "./MonthlyMemo";
 import GuestbookBrowser from "./GuestbookBrowser";
+import { ENABLE_REPORT_AI_ANALYSIS } from "@/lib/pilotFlags";
 
 export const metadata: Metadata = {
   title: "월간 운영 — 공간큐브",
@@ -236,10 +237,12 @@ export default async function OperatorPage({ searchParams }: Props) {
               />
             </div>
 
-            <div className="p-4 border space-y-1.5" style={{ borderColor: "var(--border)" }}>
-              <p className="text-xs" style={{ color: "var(--dim)" }}>공간 사용 방식</p>
-              <p className="text-sm leading-relaxed">{report.usageSummary}</p>
-            </div>
+            {ENABLE_REPORT_AI_ANALYSIS && (
+              <div className="p-4 border space-y-1.5" style={{ borderColor: "var(--border)" }}>
+                <p className="text-xs" style={{ color: "var(--dim)" }}>공간 사용 방식</p>
+                <p className="text-sm leading-relaxed">{report.usageSummary}</p>
+              </div>
+            )}
 
             <div className="space-y-2">
               <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>공감 TOP3</p>

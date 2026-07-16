@@ -4,6 +4,7 @@ import { auth } from "@/auth";
 import { isAdmin } from "@/lib/admin";
 import { prisma } from "@/lib/prisma";
 import { GuestbookSessionStatus } from "@prisma/client";
+import { ENABLE_GUESTBOOK_IMAGE } from "@/lib/pilotFlags";
 import GuestbookAdminPage from "./GuestbookAdminPage";
 
 interface Props {
@@ -152,6 +153,7 @@ export default async function GuestbookAdminRoutePage({ params }: Props) {
         }))}
         settings={settings}
         hasCustomSettings={!!settingsRow}
+        enableImage={ENABLE_GUESTBOOK_IMAGE}
       />
     </main>
   );

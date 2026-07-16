@@ -7,6 +7,7 @@ import { Prisma, ClusterType, GuestbookSessionStatus } from "@prisma/client";
 import { recomputeSpaceKPI } from "@/lib/kpi";
 import { canWriteToSession, canWriteNoteForVisit, getVisibleClusters } from "@/lib/guestbookSession";
 import { hasCollision, clusterLabelRect, POST_IT_WIDTH, POST_IT_HEIGHT, POST_IT_GAP, type Rect } from "@/lib/postitCollision";
+import { ENABLE_GUESTBOOK_IMAGE } from "@/lib/pilotFlags";
 
 const MAX_CONTENT = 80;
 const DEFAULT_COLOR = "#F6E7A8"; // 관리자 설정이 없을 때 기본 노란 포스트잇
@@ -110,7 +111,8 @@ export async function POST(req: NextRequest) {
           clusterType: resolvedClusterType,
           content: text,
           nickname: user.nickname,
-          imageUrl: typeof imageUrl === "string" && imageUrl ? imageUrl : null,
+          // 파일럿 기간 이미지 첨부 비활성 — 클라이언트가 URL을 보내도 저장하지 않는다.
+          imageUrl: ENABLE_GUESTBOOK_IMAGE && typeof imageUrl === "string" && imageUrl ? imageUrl : null,
           x,
           y,
           rotation: typeof rotation === "number" && isFinite(rotation) ? rotation : 0,

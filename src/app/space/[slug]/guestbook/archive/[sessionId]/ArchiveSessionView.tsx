@@ -19,11 +19,14 @@ export default function ArchiveSessionView({
   isLoggedIn,
   currentUserId,
   highlightId,
+  enableComments,
 }: {
   notes: Note[];
   isLoggedIn: boolean;
   currentUserId: string | null;
   highlightId?: string | null;
+  /** 파일럿 플래그 — 방명록 댓글 표시 여부. off면 댓글 스레드를 숨긴다. */
+  enableComments: boolean;
 }) {
   const router = useRouter();
   const [notes, setNotes] = useState(initialNotes);
@@ -83,13 +86,15 @@ export default function ArchiveSessionView({
                 닫기
               </button>
             </div>
-            <GuestbookCommentThread
-              noteId={openNote.id}
-              initialCount={openNote.commentCount}
-              isLoggedIn={isLoggedIn}
-              currentUserId={currentUserId}
-              disabledReason="종료된 방명록이라 답글을 남길 수 없어요."
-            />
+            {enableComments && (
+              <GuestbookCommentThread
+                noteId={openNote.id}
+                initialCount={openNote.commentCount}
+                isLoggedIn={isLoggedIn}
+                currentUserId={currentUserId}
+                disabledReason="종료된 방명록이라 답글을 남길 수 없어요."
+              />
+            )}
           </div>
         </div>
       )}

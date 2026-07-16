@@ -10,6 +10,7 @@ import { resolveCurrentVisitRecordId } from "@/lib/guestbookVisit";
 import { formatDotDate as formatDate } from "@/lib/time";
 import { requireSpaceUnlock } from "@/lib/spaceUnlock";
 import { isAdmin } from "@/lib/admin";
+import { ENABLE_GUESTBOOK_IMAGE, ENABLE_GUESTBOOK_COMMENTS } from "@/lib/pilotFlags";
 import SpaceLockNotice from "@/components/SpaceLockNotice";
 import GuestbookCanvas from "./GuestbookCanvas";
 import type { GuestbookNoteData } from "./canvasConstants";
@@ -229,6 +230,8 @@ export default async function GuestbookPage({ params, searchParams }: Props) {
           clusters={clusters}
           currentUserId={user?.id ?? null}
           currentRecordId={currentRecordId}
+          enableImage={ENABLE_GUESTBOOK_IMAGE}
+          enableComments={ENABLE_GUESTBOOK_COMMENTS}
         />
       </Suspense>
     </main>

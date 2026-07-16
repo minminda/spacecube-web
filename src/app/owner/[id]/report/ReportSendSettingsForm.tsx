@@ -17,9 +17,12 @@ interface Props {
   initialEnabled: boolean;
   initialPreset: DayPreset;
   ownerEmail: string | null;
+  /** 자동 이메일 발송 기능이 켜져 있는지. 파일럿 기간(false)에는 발송 활성화 토글·발송 이메일
+      표시를 숨기고 "리포트 기준일"만 설정하게 한다(기준일은 수동 리포트 생성에 필요). */
+  emailEnabled?: boolean;
 }
 
-export default function ReportSendSettingsForm({ spaceId, initialEnabled, initialPreset, ownerEmail }: Props) {
+export default function ReportSendSettingsForm({ spaceId, initialEnabled, initialPreset, ownerEmail, emailEnabled = false }: Props) {
   const router = useRouter();
   const [enabled, setEnabled] = useState(initialEnabled);
   const [preset, setPreset] = useState<DayPreset>(initialPreset);
@@ -44,10 +47,12 @@ export default function ReportSendSettingsForm({ spaceId, initialEnabled, initia
 
   return (
     <div className="space-y-5">
-      <ToggleSwitch label="이 공간의 월간 리포트 발송 활성화" checked={enabled} onChange={setEnabled} />
+      {emailEnabled && (
+        <ToggleSwitch label="이 공간의 월간 리포트 발송 활성화" checked={enabled} onChange={setEnabled} />
+      )}
 
       <div className="space-y-2">
-        <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>발송 주기 · 기준일</p>
+        <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>{emailEnabled ? "발송 주기 · 기준일" : "리포트 기준일"}</p>
         <p className="text-xs leading-relaxed" style={{ color: "var(--dim)" }}>매월, 선택한 날짜에 지난 한 달의 리포트가 집계됩니다.</p>
         <div className="flex gap-2 flex-wrap">
           {PRESETS.map((p) => (
@@ -68,13 +73,15 @@ export default function ReportSendSettingsForm({ spaceId, initialEnabled, initia
         </div>
       </div>
 
-      <div className="space-y-1">
-        <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>발송 이메일</p>
-        <p className="text-sm" style={{ color: ownerEmail ? "var(--fg)" : "var(--border)" }}>
-          {ownerEmail ?? "이 공간에 연결된 운영자 계정이 없습니다."}
-        </p>
-        <p className="text-xs" style={{ color: "var(--dim)" }}>이 공간에 연결된 운영자 계정의 이메일을 그대로 사용합니다.</p>
-      </div>
+      {emailEnabled && (
+        <div className="space-y-1">
+          <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>발송 이메일</p>
+          <p className="text-sm" style={{ color: ownerEmail ? "var(--fg)" : "var(--border)" }}>
+            {ownerEmail ?? "이 공간에 연결된 운영자 계정이 없습니다."}
+          </p>
+          <p className="text-xs" style={{ color: "var(--dim)" }}>이 공간에 연결된 운영자 계정의 이메일을 그대로 사용합니다.</p>
+        </div>
+      )}
 
       <button
         onClick={save}
@@ -82,7 +89,7 @@ export default function ReportSendSettingsForm({ spaceId, initialEnabled, initia
         className="py-3 px-4 text-sm font-medium border hover:bg-[var(--fg)] hover:text-[var(--bg)] transition-colors disabled:opacity-40"
         style={{ borderColor: "var(--fg)" }}
       >
-        {saving ? "저장 중..." : saved ? "저장됨 ✓" : "발송 설정 저장"}
+        {saving ? "저장 중..." : saved ? "저장됨 ✓" : emailEnabled ? "발송 설정 저장" : "기준일 저장"}
       </button>
     </div>
   );

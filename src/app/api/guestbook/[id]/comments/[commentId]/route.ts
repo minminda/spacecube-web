@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 export const dynamic = "force-dynamic";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { ENABLE_GUESTBOOK_COMMENTS } from "@/lib/pilotFlags";
 
 const MAX_CONTENT = 200;
 
@@ -11,6 +12,9 @@ interface Props {
 }
 
 export async function PATCH(req: NextRequest, { params }: Props) {
+  if (!ENABLE_GUESTBOOK_COMMENTS) {
+    return NextResponse.json({ error: "현재 댓글 기능을 사용할 수 없습니다.", code: "COMMENTS_DISABLED" }, { status: 403 });
+  }
   const session = await auth();
   if (!session?.user?.email) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -44,6 +48,9 @@ export async function PATCH(req: NextRequest, { params }: Props) {
 
 // 댓글 삭제 — 연결된 알림(Notification.commentId)은 onDelete: Cascade로 함께 정리된다.
 export async function DELETE(_req: NextRequest, { params }: Props) {
+  if (!ENABLE_GUESTBOOK_COMMENTS) {
+    return NextResponse.json({ error: "현재 댓글 기능을 사용할 수 없습니다.", code: "COMMENTS_DISABLED" }, { status: 403 });
+  }
   const session = await auth();
   if (!session?.user?.email) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

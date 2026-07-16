@@ -11,6 +11,7 @@ import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { LOCALE_COOKIE_NAME, resolveInitialLocale, availableLocalesForSpace } from "@/lib/localeResolve";
 import { resolveLocalizedField } from "@/lib/i18nContent";
 import { DEFAULT_LOCALE, type LocaleCode } from "@/lib/locales";
+import { ENABLE_MULTILINGUAL } from "@/lib/pilotFlags";
 
 interface Props {
   params: Promise<{ slug: string; episodeId: string }>;
@@ -54,7 +55,7 @@ export default async function EpisodeDetailPage({ params }: Props) {
   let localizedSubtitle = episode.description;
   const localizedScenes = episode.scenes.map((s) => ({ id: s.id, title: s.title as string | null, content: s.content as string }));
 
-  if (space.multilingualEnabled && space.supportedLocales.length > 0) {
+  if (ENABLE_MULTILINGUAL && space.multilingualEnabled && space.supportedLocales.length > 0) {
     const [cookieStore, headerList] = await Promise.all([cookies(), headers()]);
     locale = resolveInitialLocale({
       cookieLocale: cookieStore.get(LOCALE_COOKIE_NAME)?.value ?? null,
@@ -160,7 +161,7 @@ export default async function EpisodeDetailPage({ params }: Props) {
       <div className="flex items-center justify-between">
         <Link href={`/space/${space.slug}`} className="text-xs" style={{ color: "var(--dim)" }}>← {space.name}</Link>
         <div className="flex items-center gap-2">
-          {space.multilingualEnabled && space.supportedLocales.length > 0 && (
+          {ENABLE_MULTILINGUAL && space.multilingualEnabled && space.supportedLocales.length > 0 && (
             <LanguageSwitcher currentLocale={locale} availableLocales={availableLocalesForSpace(space.supportedLocales)} />
           )}
           <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>EP.{episode.episodeNumber}</p>

@@ -3,12 +3,16 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { isAdmin } from "@/lib/admin";
 import { isTranslatableLocale } from "@/lib/locales";
+import { ENABLE_MULTILINGUAL } from "@/lib/pilotFlags";
 
 export const dynamic = "force-dynamic";
 
 interface Props { params: Promise<{ id: string }> }
 
 export async function PATCH(req: Request, { params }: Props) {
+  if (!ENABLE_MULTILINGUAL) {
+    return NextResponse.json({ error: "현재 다국어 기능을 사용할 수 없습니다.", code: "MULTILINGUAL_DISABLED" }, { status: 403 });
+  }
   const session = await auth();
   if (!session?.user?.email || !isAdmin(session.user.email)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

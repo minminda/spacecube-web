@@ -4,12 +4,18 @@ export const dynamic = "force-dynamic";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { GuestbookSessionStatus } from "@prisma/client";
+import { ENABLE_NOTIFICATIONS } from "@/lib/pilotFlags";
 
 const MAX_NOTIFICATIONS = 50; // 무한 피드가 아니라 "최근 반응 확인" 정도로 제한
 
 // 내 알림 목록 — 최신순. 이동 링크는 대상 포스트잇이 현재 ACTIVE 세션에 있으면 기존 캔버스 점프(?focus=)를,
 // 종료된 세션이면 방문자용 아카이브 리스트의 하이라이트(?highlight=)를 계산해 내려준다.
 export async function GET() {
+  // 파일럿 기간 알림 비활성 — 항상 빈 목록을 반환한다(UI에서도 벨을 숨김).
+  if (!ENABLE_NOTIFICATIONS) {
+    return NextResponse.json({ notifications: [] });
+  }
+
   const session = await auth();
   if (!session?.user?.email) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

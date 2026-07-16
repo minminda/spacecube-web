@@ -112,13 +112,17 @@ interface Props {
   currentUserId: string | null;
   /** 이번 방문(가장 최근 인정된 Record)의 id — "이번 경험 마치기"가 완료 페이지로 넘겨줄 식별자, 없으면 null(비로그인 등) */
   currentRecordId: string | null;
+  /** 파일럿 플래그 — 방명록 이미지 첨부(업로드·표시) 허용 여부. off면 사진 UI와 기존 이미지 표시를 모두 숨긴다. */
+  enableImage: boolean;
+  /** 파일럿 플래그 — 방명록 댓글(작성·표시) 허용 여부. off면 댓글 스레드를 숨긴다. */
+  enableComments: boolean;
 }
 
 // 포스트잇 텍스트는 노란 종이 위 고정 잉크색 (테마 무관)
 const INK = "#3d3524";
 const INK_DIM = "#8a7d5c";
 
-export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initialMyNoteId, initialCanWriteThisVisit, hasCommentedThisVisit: initialHasCommentedThisVisit, nickname, settings, newNotesCount, clusters, currentUserId, currentRecordId }: Props) {
+export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initialMyNoteId, initialCanWriteThisVisit, hasCommentedThisVisit: initialHasCommentedThisVisit, nickname, settings, newNotesCount, clusters, currentUserId, currentRecordId, enableImage, enableComments }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const transformRef = useRef<ReactZoomPanPinchContentRef>(null);
@@ -765,7 +769,7 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
                       className="absolute -top-1.5 left-1/2 w-8 h-2.5"
                       style={{ background: "#00000022", transform: `translateX(-50%) rotate(${-effectiveRotation(note.rotation) * 0.8}deg)` }}
                     />
-                    {note.imageUrl && (
+                    {enableImage && note.imageUrl && (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={note.imageUrl} alt="" className="w-full aspect-square object-cover mb-2" />
                     )}
@@ -800,7 +804,7 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
                     이 공간에 어떤 흔적을 남길까요?
                   </p>
 
-                  {settings.allowImage && (
+                  {enableImage && settings.allowImage && (
                     <div className="mb-2">
                       {photoPreview ? (
                         <div className="relative">
@@ -974,7 +978,7 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
 
               {overlayMode === "read" && (
                 <>
-                  {focused.imageUrl && (
+                  {enableImage && focused.imageUrl && (
                     <button type="button" onClick={() => setLightbox(focused.imageUrl!)} className="block w-full mb-3">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={focused.imageUrl} alt="" className="w-full aspect-square object-cover" />
@@ -1008,7 +1012,7 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
                     </button>
                   )}
 
-                  {typeof focused.commentCount === "number" && (
+                  {enableComments && typeof focused.commentCount === "number" && (
                     <GuestbookCommentThread
                       noteId={focused.id}
                       initialCount={focused.commentCount}
@@ -1040,7 +1044,7 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
 
               {overlayMode === "edit" && (
                 <>
-                  {settings.allowImage && (
+                  {enableImage && settings.allowImage && (
                     <div className="mb-3">
                       {editPhotoPreview ? (
                         <div className="relative">

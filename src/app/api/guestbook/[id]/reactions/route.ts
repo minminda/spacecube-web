@@ -5,6 +5,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { Prisma, NotificationType } from "@prisma/client";
 import { ALLOW_SELF_GUESTBOOK_REACTION } from "@/lib/features";
+import { ENABLE_NOTIFICATIONS } from "@/lib/pilotFlags";
 import { canReact } from "@/lib/guestbookReaction";
 import { shouldNotify } from "@/lib/notification";
 
@@ -72,7 +73,8 @@ export async function POST(_req: Request, { params }: Props) {
     }
   }
 
-  if (shouldNotify(note.userId, user.id)) {
+  // 공감은 유지하되, 파일럿 기간엔 알림 생성만 건너뛴다.
+  if (ENABLE_NOTIFICATIONS && shouldNotify(note.userId, user.id)) {
     const existingNotification = await prisma.notification.findFirst({
       where: { receiverId: note.userId, senderId: user.id, type: NotificationType.LIKE, guestbookId: postId },
     });

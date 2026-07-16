@@ -3,6 +3,7 @@ import Link from "next/link";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { isAdmin } from "@/lib/admin";
+import { ENABLE_MULTILINGUAL } from "@/lib/pilotFlags";
 import { computeSourceHash } from "@/lib/translate";
 import TranslationManager, { type EpisodeView, type SpaceTranslationView } from "./TranslationManager";
 
@@ -26,6 +27,9 @@ export default async function SpaceTranslationsPage({ params }: Props) {
   if (!isAdmin(session.user.email)) redirect("/");
 
   const { id: spaceId } = await params;
+  // 파일럿 기간 다국어 비활성 — 번역 관리 화면 자체를 막고 관리자 목록으로 돌려보낸다.
+  if (!ENABLE_MULTILINGUAL) redirect("/owner");
+
   const space = await prisma.space.findUnique({ where: { id: spaceId } });
   if (!space) notFound();
 

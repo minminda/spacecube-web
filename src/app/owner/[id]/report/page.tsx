@@ -11,6 +11,7 @@ import ReportEmail from "@/components/ReportEmail";
 import ReportSendSettingsForm from "./ReportSendSettingsForm";
 import ReportHistorySelect from "./ReportHistorySelect";
 import GenerateReportButton from "./GenerateReportButton";
+import { ENABLE_REPORT_EMAIL, ENABLE_REPORT_AI_ANALYSIS } from "@/lib/pilotFlags";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -180,22 +181,27 @@ export default async function ReportAdminPage({ params, searchParams }: Props) {
           )}
         </div>
         <p className="text-xs leading-relaxed" style={{ color: "var(--dim)" }}>
-          운영자가 실제로 받는 메일과 같은 내용입니다.
+          {ENABLE_REPORT_EMAIL
+            ? "운영자가 실제로 받는 메일과 같은 내용입니다."
+            : "관리자 확인용 미리보기입니다. (파일럿 기간에는 자동 이메일 발송이 꺼져 있습니다.)"}
         </p>
         <div className="border" style={{ borderColor: "var(--border)" }}>
-          <ReportEmail data={previewData} />
+          <ReportEmail data={previewData} showAnalysis={ENABLE_REPORT_AI_ANALYSIS} />
         </div>
       </section>
 
-      {/* ── 메일 발송 설정 ── */}
+      {/* ── 리포트 기준일 설정 (파일럿 기간엔 이메일 발송 관련 UI를 숨기고 기준일만 노출) ── */}
       <div style={{ borderTop: "1px solid var(--border)" }} />
       <section className="space-y-4">
-        <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>메일 발송 설정</p>
+        <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>
+          {ENABLE_REPORT_EMAIL ? "메일 발송 설정" : "리포트 기준일 설정"}
+        </p>
         <ReportSendSettingsForm
           spaceId={space.id}
           initialEnabled={space.reportEnabled}
           initialPreset={space.reportStartDate ? inferReportDayPreset(space.reportStartDate) : 1}
           ownerEmail={space.owner?.email ?? null}
+          emailEnabled={ENABLE_REPORT_EMAIL}
         />
       </section>
 

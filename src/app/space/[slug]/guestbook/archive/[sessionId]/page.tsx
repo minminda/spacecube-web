@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 import { GuestbookSessionStatus } from "@prisma/client";
 import { formatDotDate as formatDate } from "@/lib/time";
+import { ENABLE_GUESTBOOK_COMMENTS } from "@/lib/pilotFlags";
 import ArchiveSessionView from "./ArchiveSessionView";
 
 interface Props {
@@ -83,6 +84,7 @@ export default async function GuestbookArchiveSessionPage({ params, searchParams
           isLoggedIn={!!session?.user?.email}
           currentUserId={user?.id ?? null}
           highlightId={highlight ?? null}
+          enableComments={ENABLE_GUESTBOOK_COMMENTS}
           notes={notes.map((n) => ({
             id: n.id,
             content: n.content,

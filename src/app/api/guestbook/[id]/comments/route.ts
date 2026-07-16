@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { Prisma, NotificationType } from "@prisma/client";
 import { shouldNotify } from "@/lib/notification";
 import { canWriteToSession, canWriteCommentForVisit } from "@/lib/guestbookSession";
+import { ENABLE_GUESTBOOK_COMMENTS, ENABLE_NOTIFICATIONS } from "@/lib/pilotFlags";
 
 const MAX_CONTENT = 200;
 
@@ -15,6 +16,10 @@ interface Props {
 
 // 댓글 목록 — 오래된순(대화를 위에서 아래로 읽는 방식)
 export async function GET(_req: NextRequest, { params }: Props) {
+  // 파일럿 기간 댓글 비활성 — 항상 빈 목록(UI에서도 댓글 스레드를 숨김).
+  if (!ENABLE_GUESTBOOK_COMMENTS) {
+    return NextResponse.json({ comments: [] });
+  }
   const { id: guestbookId } = await params;
 
   const comments = await prisma.guestbookComment.findMany({
@@ -36,6 +41,11 @@ export async function GET(_req: NextRequest, { params }: Props) {
 
 // 댓글 작성 — 포스트잇 작성과 동일하게 해당 공간에 기록(Record)이 있어야 가능. 자기 글에도 작성 가능.
 export async function POST(req: NextRequest, { params }: Props) {
+  // 파일럿 기간 댓글 비활성 — 작성 자체를 막는다.
+  if (!ENABLE_GUESTBOOK_COMMENTS) {
+    return NextResponse.json({ error: "현재 댓글 기능을 사용할 수 없습니다.", code: "COMMENTS_DISABLED" }, { status: 403 });
+  }
+
   const session = await auth();
   if (!session?.user?.email) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -118,7 +128,7 @@ export async function POST(req: NextRequest, { params }: Props) {
     throw err;
   }
 
-  if (shouldNotify(note.userId, user.id)) {
+  if (ENABLE_NOTIFICATIONS && shouldNotify(note.userId, user.id)) {
     await prisma.notification.create({
       data: {
         receiverId: note.userId,
