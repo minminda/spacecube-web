@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import LockedSpaceOverlay from "@/components/LockedSpaceOverlay";
 
 /* ── 공용 공간 카드(잠금 UX) ────────────────────────────────────────
    지역 페이지의 "내 취향과 닮은 공간 TOP3"와 전체 공간 목록이 이 컴포넌트
@@ -74,21 +75,12 @@ export default function SpaceDiscoveryCard({ space, isUnlocked, variant = "defau
             fill
             className="object-cover transition-transform duration-500 group-hover:scale-105"
           />
-          {!isUnlocked && (
-            <div className="absolute inset-0 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.28)" }}>
-              <span className="text-2xl" aria-hidden>🔒</span>
-            </div>
-          )}
+          {!isUnlocked && <LockedSpaceOverlay />}
         </div>
       )}
 
       <div className="space-y-1.5">
-        <div className="flex items-start gap-2">
-          <p className="text-base font-semibold leading-snug flex-1">
-            {!isUnlocked && <span aria-hidden>🔒 </span>}
-            {space.name}
-          </p>
-        </div>
+        <p className="text-base font-semibold leading-snug">{space.name}</p>
 
         {variant === "recommended" ? (
           <>
@@ -120,7 +112,7 @@ export default function SpaceDiscoveryCard({ space, isUnlocked, variant = "defau
           <p className="text-xs" style={{ color: "var(--dim)" }}>◇ 해제됨</p>
         ) : (
           <p className="text-xs leading-relaxed" style={{ color: "var(--border)" }}>
-            🔒 잠겨 있음
+            잠겨 있음
             <br />
             공간에서 QR을 인식하면 열립니다.
           </p>

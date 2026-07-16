@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import type { RewardRecommendation } from "@/lib/guestbookReward";
+import LockedSpaceOverlay from "@/components/LockedSpaceOverlay";
 
 /* ── 추천 공간 카드(잠금 UX) ──────────────────────────────────────────
    공간의 상세 이야기는 현장에서 QR을 인식해야 열린다는 원칙에 맞춰, 추천 카드는
@@ -55,8 +56,9 @@ export default function RecommendationCard({ rec }: Props) {
             src={rec.imageUrl}
             alt={rec.name}
             fill
-            className={`object-cover transition-transform duration-500 group-hover:scale-105 ${rec.locked ? "scale-105 blur-[1.5px] brightness-[0.55]" : ""}`}
+            className="object-cover transition-transform duration-500 group-hover:scale-105"
           />
+          {rec.locked && <LockedSpaceOverlay />}
         </div>
       )}
 
@@ -67,7 +69,7 @@ export default function RecommendationCard({ rec }: Props) {
 
         {rec.locked ? (
           <p className="text-xs leading-relaxed" style={{ color: "var(--border)" }}>
-            🔒 잠겨 있음
+            잠겨 있음
             <br />
             공간에서 QR을 인식하면 이야기가 열립니다.
           </p>
