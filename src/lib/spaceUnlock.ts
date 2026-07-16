@@ -2,11 +2,18 @@
    공간의 Episode/Scene/방명록은 취향 점수를 저장한 Record가 아니라, 해당 공간에 연결된
    유효한 Cube QR을 실제로 인식했을 때만 열린다. 카드 클릭·URL 직접 접근·?unlocked=true
    같은 클라이언트 파라미터만으로는 절대 해제되지 않는다 — 이 파일의 함수들이 모든 보호
-   페이지·API가 공유하는 유일한 서버측 판정 지점이다. ──────────────────────────── */
+   페이지·API가 공유하는 유일한 서버측 판정 지점이다.
+
+   접근 권한은 마지막 스캔(unlockedAt)으로부터 12시간 동안만 유효하다(isSpaceUnlockActive).
+   12시간이 지나면 공간은 다시 잠기고, 재스캔하면(grantSpaceUnlock이 unlockedAt을 갱신)
+   다시 12시간 열린다. 이 만료는 접근 권한에만 적용되고, Episode 잠금 해제 자체(방문
+   횟수 기반, unlockVisitCount<=visitCount)는 Record 누적 개수로 판정되어 영구 유지된다
+   — 서로 다른 데이터로 관리되며, 공간이 재잠금돼도 Episode Unlock 여부는 초기화되지 않는다. ── */
 
 import { createHmac, timingSafeEqual } from "crypto";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
+import { isNewVisit } from "@/lib/visit";
 
 /** 스캔 직후 아직 로그인 전인 사용자를 위한 임시 서명 쿠키 — 로그인 완료 후 이어서 Unlock을 부여하는 데만 쓴다. */
 export const PENDING_UNLOCK_COOKIE = "sc_pending_unlock";
@@ -67,13 +74,20 @@ export function verifyPendingUnlockToken(token: string | undefined | null): Pend
   }
 }
 
-/** 이미 해당 사용자·공간의 Unlock이 존재하는지만 확인한다(쿠키 폴백 없음). */
+/** 이 Unlock이 아직 유효한지(마지막 스캔으로부터 12시간 이내) 판정하는 순수 함수 —
+ * 재방문 인정 간격(isNewVisit, REVISIT_INTERVAL_HOURS)과 동일한 정책값을 재사용한다.
+ * "아직 새 방문으로 인정될 시점이 아니다" = "그 스캔으로 열린 접근이 아직 살아있다". */
+export function isSpaceUnlockActive(unlockedAt: Date, now: Date = new Date()): boolean {
+  return !isNewVisit(unlockedAt, now);
+}
+
+/** 이미 해당 사용자·공간의 Unlock이 존재하고, 마지막 스캔으로부터 12시간이 지나지 않았는지 확인한다(쿠키 폴백 없음). */
 export async function hasSpaceUnlock(userId: string, spaceId: string): Promise<boolean> {
   const unlock = await prisma.spaceUnlock.findUnique({
     where: { userId_spaceId: { userId, spaceId } },
-    select: { id: true },
+    select: { unlockedAt: true },
   });
-  return !!unlock;
+  return !!unlock && isSpaceUnlockActive(unlock.unlockedAt);
 }
 
 /**

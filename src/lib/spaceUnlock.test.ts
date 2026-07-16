@@ -64,3 +64,39 @@ describe("createPendingUnlockToken / verifyPendingUnlockToken", () => {
     expect(a).not.toBe(b);
   });
 });
+
+describe("isSpaceUnlockActive — 공간 접근 권한(12시간) 만료 판정", () => {
+  it("스캔 직후(0시간 경과)는 유효하다", async () => {
+    const { isSpaceUnlockActive } = await import("./spaceUnlock");
+    const now = new Date("2026-01-01T12:00:00Z");
+    expect(isSpaceUnlockActive(now, now)).toBe(true);
+  });
+
+  it("11시간 59분 경과는 아직 유효하다", async () => {
+    const { isSpaceUnlockActive } = await import("./spaceUnlock");
+    const unlockedAt = new Date("2026-01-01T00:00:00Z");
+    const now = new Date("2026-01-01T11:59:00Z");
+    expect(isSpaceUnlockActive(unlockedAt, now)).toBe(true);
+  });
+
+  it("정확히 12시간 경과는 만료된 것으로 본다(경계 포함)", async () => {
+    const { isSpaceUnlockActive } = await import("./spaceUnlock");
+    const unlockedAt = new Date("2026-01-01T00:00:00Z");
+    const now = new Date("2026-01-01T12:00:00Z");
+    expect(isSpaceUnlockActive(unlockedAt, now)).toBe(false);
+  });
+
+  it("12시간을 넘겨 경과하면 만료된다", async () => {
+    const { isSpaceUnlockActive } = await import("./spaceUnlock");
+    const unlockedAt = new Date("2026-01-01T00:00:00Z");
+    const now = new Date("2026-01-02T00:00:00Z");
+    expect(isSpaceUnlockActive(unlockedAt, now)).toBe(false);
+  });
+
+  it("재스캔으로 unlockedAt이 갱신되면 다시 12시간 유효해진다", async () => {
+    const { isSpaceUnlockActive } = await import("./spaceUnlock");
+    const rescannedAt = new Date("2026-01-02T00:00:00Z");
+    const now = new Date("2026-01-02T05:00:00Z");
+    expect(isSpaceUnlockActive(rescannedAt, now)).toBe(true);
+  });
+});

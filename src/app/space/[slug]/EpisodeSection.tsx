@@ -1,19 +1,24 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import type { EpisodeState } from "@/lib/episodeState";
 
 interface EpisodeSummary {
   id: string;
   episodeNumber: number;
   title: string;
   unlockVisitCount: number;
-  unlocked: boolean;
-  isRead: boolean;
+  state: EpisodeState;
   /** 아직 관리자가 만들지 않은, "다음에 올" 이야기 자리 — 재방문 동기를 위한 예고 카드 */
   isPlaceholder?: boolean;
 }
 
 export type BannerInfo =
-  | { type: "new" | "unread"; count: number }
+  | { type: "first" }
+  | { type: "new"; count: number }
   | { type: "locked"; count: number }
+  | { type: "allUnlocked" }
   | null;
 
 interface Props {
@@ -22,7 +27,21 @@ interface Props {
   banner: BannerInfo;
 }
 
+type DialogKind = "locked" | "comingSoon" | null;
+
 export default function EpisodeSection({ spaceSlug, episodes, banner }: Props) {
+  const [dialog, setDialog] = useState<DialogKind>(null);
+
+  // 안내 Bottom Sheet — ESC로 닫기 (SpaceCards.tsx의 잠긴 공간 안내와 동일한 패턴)
+  useEffect(() => {
+    if (!dialog) return;
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") setDialog(null);
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [dialog]);
+
   if (episodes.length === 0) return null;
 
   return (
@@ -34,15 +53,10 @@ export default function EpisodeSection({ spaceSlug, episodes, banner }: Props) {
           className="px-3 py-2.5 text-xs leading-relaxed"
           style={{ background: "var(--tag-bg)", color: "var(--dim)" }}
         >
-          {banner.type === "new" && (
-            <>
-              이 공간엔 아직 못 보신 이야기가 있어요.
-              <br />
-              새로운 이야기 {banner.count}개가 열렸습니다.
-            </>
-          )}
-          {banner.type === "unread" && "이 공간엔 아직 못 보신 이야기가 있어요."}
-          {banner.type === "locked" && `이 공간에는 앞으로 만날 이야기 ${banner.count}개가 더 있어요.`}
+          {banner.type === "first" && "이 공간의 첫 번째 이야기가 열렸습니다."}
+          {banner.type === "new" && "새로운 이야기가 열렸습니다."}
+          {banner.type === "locked" && "다음 방문에서 또 다른 이야기가 기다리고 있습니다."}
+          {banner.type === "allUnlocked" && "이 공간의 모든 이야기를 발견했습니다."}
         </div>
       )}
 
@@ -50,28 +64,44 @@ export default function EpisodeSection({ spaceSlug, episodes, banner }: Props) {
         {episodes.map((ep) => {
           if (ep.isPlaceholder) {
             return (
-              <div
+              <button
                 key={ep.id}
-                className="flex items-center gap-2.5 px-4 py-3 border border-dashed"
-                style={{ borderColor: "var(--border)", opacity: 0.5 }}
+                type="button"
+                onClick={() => setDialog("comingSoon")}
+                className="flex items-center gap-2.5 px-4 py-3 border border-dashed w-full text-left transition-opacity hover:opacity-80"
+                style={{ borderColor: "var(--border)", opacity: 0.55 }}
               >
-                <span className="text-xs" style={{ color: "var(--dim)" }}>EP.{ep.episodeNumber}</span>
-                <span className="text-sm" style={{ color: "var(--dim)" }}>다음 이야기 (예정)</span>
-              </div>
+                <span className="text-xs flex-shrink-0" style={{ color: "var(--dim)" }}>EP.{ep.episodeNumber}</span>
+                <span className="text-sm flex-1" style={{ color: "var(--dim)" }}>다음 이야기 (예정)</span>
+                <span className="text-xs flex-shrink-0" aria-hidden>🚧 준비 중</span>
+              </button>
             );
           }
 
           const body = (
             <div className="flex items-center gap-2.5 px-4 py-3.5">
               <span className="text-xs flex-shrink-0" style={{ color: "var(--dim)" }}>EP.{ep.episodeNumber}</span>
-              <span className="text-sm flex-1 min-w-0 truncate" style={{ color: ep.unlocked ? "var(--fg)" : "var(--dim)" }}>
+              <span
+                className="text-sm flex-1 min-w-0 truncate"
+                style={{ color: ep.state !== "LOCKED" ? "var(--fg)" : "var(--dim)" }}
+              >
                 {ep.title}
               </span>
-              {!ep.unlocked && <span className="text-xs flex-shrink-0" aria-hidden>🔒</span>}
+              {ep.state === "UNLOCKED" && (
+                <span className="text-xs flex-shrink-0" style={{ color: "var(--dim)" }}>✓ 해제됨</span>
+              )}
+              {ep.state === "NEWLY_UNLOCKED" && (
+                <span className="text-xs flex-shrink-0 font-medium episode-newly-unlocked" style={{ color: "var(--fg)" }}>
+                  ✨ 새롭게 해제됨
+                </span>
+              )}
+              {ep.state === "LOCKED" && (
+                <span className="text-xs flex-shrink-0" aria-hidden>🔒 잠겨 있음</span>
+              )}
             </div>
           );
 
-          if (ep.unlocked) {
+          if (ep.state !== "LOCKED") {
             return (
               <div key={ep.id} className="border" style={{ borderColor: "var(--border)" }}>
                 <Link href={`/space/${spaceSlug}/episodes/${ep.id}`} className="block transition-colors hover:bg-[var(--tag-bg)]">
@@ -82,16 +112,69 @@ export default function EpisodeSection({ spaceSlug, episodes, banner }: Props) {
           }
 
           return (
-            <div
+            <button
               key={ep.id}
-              className="border cursor-not-allowed transition-opacity opacity-[0.45] hover:opacity-[0.7]"
+              type="button"
+              onClick={() => setDialog("locked")}
+              className="w-full text-left border transition-opacity opacity-[0.45] hover:opacity-[0.7]"
               style={{ borderColor: "var(--border)" }}
             >
               {body}
-            </div>
+            </button>
           );
         })}
       </div>
+
+      {/* ── Episode 안내 Bottom Sheet(잠김 / 준비 중) ── */}
+      {dialog && (
+        <div
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
+          style={{ background: "rgba(0,0,0,0.6)" }}
+          onClick={(e) => { if (e.target === e.currentTarget) setDialog(null); }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label={dialog === "locked" ? "잠긴 이야기 안내" : "준비 중인 이야기 안내"}
+            className="w-full sm:max-w-sm p-6 space-y-5"
+            style={{ background: "var(--bg)", border: "1px solid var(--border)", borderBottom: "none" }}
+          >
+            <div className="space-y-2.5">
+              <p className="text-lg font-semibold leading-relaxed">
+                {dialog === "locked" ? "아직 열리지 않았습니다." : "다음 이야기를 준비하고 있습니다."}
+              </p>
+              <p className="text-sm leading-relaxed whitespace-pre-line" style={{ color: "var(--dim)" }}>
+                {dialog === "locked"
+                  ? "이 공간을 다시 방문하면\n다음 이야기가 열립니다."
+                  : "운영자가 새로운 이야기를 준비 중입니다.\n다시 방문해 주세요."}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setDialog(null)}
+              className="w-full text-sm py-3 border"
+              style={{ borderColor: "var(--fg)" }}
+            >
+              확인
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* 새로 해제된 Episode의 가벼운 진입 효과(약 1초) — Cube Unlock 연출과 달리 짧고 단순하게 유지한다. */}
+      <style>{`
+        @keyframes episodeNewlyUnlockedIn {
+          0%   { opacity: 0; transform: scale(0.85); }
+          45%  { opacity: 1; transform: scale(1.1); }
+          100% { opacity: 1; transform: scale(1); }
+        }
+        .episode-newly-unlocked {
+          animation: episodeNewlyUnlockedIn 1s ease-out both;
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .episode-newly-unlocked { animation: none; }
+        }
+      `}</style>
     </section>
   );
 }

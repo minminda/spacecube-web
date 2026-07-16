@@ -18,14 +18,18 @@ interface SpaceCard {
 
 interface Props {
   spaces: SpaceCard[];
-  /** 이 공간에 연결된 유효한 Cube QR을 실제로 스캔해 SpaceUnlock이 있는 공간 ID 목록 —
-      취향 점수(Record)가 아니라 오직 QR 스캔 기준이다. */
+  /** 지금 이 순간 유효한(마지막 스캔으로부터 12시간 이내) SpaceUnlock이 있는 공간 ID 목록 —
+      취향 점수(Record)가 아니라 오직 QR 스캔 기준이다. 12시간이 지나면 다시 빠진다. */
   unlockedSpaceIds?: string[];
+  /** 만료 여부와 무관하게 한 번이라도 SpaceUnlock을 받은 적 있는 공간 ID 목록 — 잠긴 카드의
+      안내 문구를 "처음 방문" vs "다시 방문하면 열림"으로 구분하는 데만 쓴다. */
+  everUnlockedSpaceIds?: string[];
 }
 
-export default function SpaceCards({ spaces, unlockedSpaceIds = [] }: Props) {
+export default function SpaceCards({ spaces, unlockedSpaceIds = [], everUnlockedSpaceIds = [] }: Props) {
   const router = useRouter();
   const unlockedSet = new Set(unlockedSpaceIds);
+  const everUnlockedSet = new Set(everUnlockedSpaceIds);
   const [lockedSpace, setLockedSpace] = useState<SpaceCard | null>(null);
 
   // 잠긴 공간 안내 Bottom Sheet — ESC로 닫기
@@ -91,7 +95,10 @@ export default function SpaceCards({ spaces, unlockedSpaceIds = [] }: Props) {
             )}
             <div className="space-y-1.5">
               <div className="flex items-start gap-2">
-                <p className="text-base font-semibold leading-snug flex-1">{space.name}</p>
+                <p className="text-base font-semibold leading-snug flex-1">
+                  {!isUnlocked && <span aria-hidden>🔒 </span>}
+                  {space.name}
+                </p>
                 {isUnlocked && (
                   <span
                     className="text-xs flex-shrink-0 px-1.5 py-0.5 border mt-0.5"
@@ -136,15 +143,30 @@ export default function SpaceCards({ spaces, unlockedSpaceIds = [] }: Props) {
           >
             <div className="space-y-2.5">
               <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>{lockedSpace.name}</p>
-              <p className="text-lg font-semibold leading-relaxed whitespace-pre-line">
-                {"이 공간의 이야기는\n공간에서 열립니다."}
-              </p>
-              <p className="text-sm leading-relaxed whitespace-pre-line" style={{ color: "var(--dim)" }}>
-                {"공간에 놓인 큐브의 QR을 스캔하면\n이야기와 방명록의 잠금이 해제됩니다."}
-              </p>
-              <p className="text-xs leading-relaxed whitespace-pre-line" style={{ color: "var(--dim)" }}>
-                {"직접 공간을 방문해\n큐브를 찾아보세요."}
-              </p>
+              {everUnlockedSet.has(lockedSpace.id) ? (
+                // 예전에 QR을 스캔해 열었던 적 있지만 12시간이 지나 다시 잠긴 공간 — "처음"이 아니라
+                // "다시" 열린다는 걸 알려준다.
+                <>
+                  <p className="text-lg font-semibold leading-relaxed whitespace-pre-line">
+                    {"다시 방문하면 열립니다."}
+                  </p>
+                  <p className="text-sm leading-relaxed whitespace-pre-line" style={{ color: "var(--dim)" }}>
+                    {"이 공간에서 QR을 인식하면\n다시 이야기를 이어갈 수 있습니다."}
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="text-lg font-semibold leading-relaxed whitespace-pre-line">
+                    {"이 공간의 이야기는\n공간에서 열립니다."}
+                  </p>
+                  <p className="text-sm leading-relaxed whitespace-pre-line" style={{ color: "var(--dim)" }}>
+                    {"공간에 놓인 큐브의 QR을 스캔하면\n이야기와 방명록의 잠금이 해제됩니다."}
+                  </p>
+                  <p className="text-xs leading-relaxed whitespace-pre-line" style={{ color: "var(--dim)" }}>
+                    {"직접 공간을 방문해\n큐브를 찾아보세요."}
+                  </p>
+                </>
+              )}
             </div>
             <div className="flex flex-col gap-2">
               {lockedSpace.naverMapUrl && (

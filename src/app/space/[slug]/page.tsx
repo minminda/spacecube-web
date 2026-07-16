@@ -9,6 +9,8 @@ import { TAG_LABELS } from "@/lib/tags";
 import type { Metadata } from "next";
 import { requireSpaceUnlock } from "@/lib/spaceUnlock";
 import { isAdmin } from "@/lib/admin";
+import { isNewVisit } from "@/lib/visit";
+import { computeEpisodeState } from "@/lib/episodeState";
 import SpaceLockNotice from "@/components/SpaceLockNotice";
 import OwnerStory from "./OwnerStory";
 import ScanTracker from "@/components/ScanTracker";
@@ -92,36 +94,36 @@ export default async function SpacePage({ params }: Props) {
   ]);
 
   let visitCount = 0;
-  let hasRecord = false;
+  let isFirstVisit = false;
   let isSaved = false;
-  let userId: string | null = null;
   let unlocked = false;
 
   if (user) {
-    userId = user.id;
-    const [vc, saved] = await Promise.all([
-      prisma.record.count({ where: { userId: user.id, spaceId: space.id } }),
+    const [records, saved] = await Promise.all([
+      prisma.record.findMany({
+        where: { userId: user.id, spaceId: space.id },
+        orderBy: { visitedAt: "desc" },
+        select: { visitedAt: true },
+      }),
       prisma.savedSpace.findUnique({
         where: { userId_spaceId: { userId: user.id, spaceId: space.id } },
         select: { id: true },
       }),
     ]);
-    visitCount = vc;
-    hasRecord = vc > 0;
+    visitCount = records.length;
     isSaved = !!saved;
+
+    // "첫 방문" 배너 판정: 가장 최근 Record가 이번 방문(재방문 인정 간격 이내)에 만들어진
+    // 것이면 그 Record를 뺀 "이전 방문 횟수"가 0일 때만 첫 방문으로 본다 — 취향 점수를
+    // 아직 제출하지 않은 진짜 첫 방문(visitCount=0)과, 방금 제출해 visitCount가 1이 된
+    // 경우를 동일하게 "첫 방문"으로 취급한다.
+    const latestVisitedAt = records[0]?.visitedAt ?? null;
+    const isThisVisitRecord = !!latestVisitedAt && !isNewVisit(latestVisitedAt);
+    const priorVisitCount = isThisVisitRecord ? visitCount - 1 : visitCount;
+    isFirstVisit = priorVisitCount === 0;
 
     const bypass = isAdmin(session?.user?.email) || (!!space.ownerId && space.ownerId === user.id);
     unlocked = bypass || (await requireSpaceUnlock(user.id, space.id));
-  }
-
-  // ── Episode / Scene — 방문 횟수에 따라 열림 여부 결정 ──
-  let readEpisodeIds = new Set<string>();
-  if (userId && episodesRaw.length > 0) {
-    const reads = await prisma.episodeRead.findMany({
-      where: { userId, episodeId: { in: episodesRaw.map((e) => e.id) } },
-      select: { episodeId: true },
-    });
-    readEpisodeIds = new Set(reads.map((r) => r.episodeId));
   }
 
   // 에피소드 목록도 상세 페이지와 같은 언어로 보여준다.
@@ -140,23 +142,23 @@ export default async function SpacePage({ params }: Props) {
       episodeNumber: ep.episodeNumber,
       title: resolveLocalizedField(locale, ep.title, primary?.title, english?.title).value ?? ep.title,
       unlockVisitCount: ep.unlockVisitCount,
-      unlocked: ep.unlockVisitCount <= visitCount,
-      isRead: readEpisodeIds.has(ep.id),
+      state: computeEpisodeState(ep.unlockVisitCount, visitCount),
     };
   });
 
-  // 재방문 알림: 이번 방문으로 새로 열린 것 / 예전에 열렸지만 안읽은 것 / 앞으로 열릴 것
-  const newlyUnlocked = episodes.filter((e) => e.unlocked && !e.isRead && e.unlockVisitCount === visitCount);
-  const unreadOld = episodes.filter((e) => e.unlocked && !e.isRead && e.unlockVisitCount < visitCount);
-  const locked = episodes.filter((e) => !e.unlocked);
+  const newlyUnlocked = episodes.filter((e) => e.state === "NEWLY_UNLOCKED");
+  const locked = episodes.filter((e) => e.state === "LOCKED");
 
+  // 상단 안내 문구: 첫 방문 → 이번 방문으로 새 Episode 해제 → 잠긴 Episode 존재 → 모든 Episode 해제
   let banner: BannerInfo = null;
-  if (hasRecord && newlyUnlocked.length > 0) {
+  if (isFirstVisit) {
+    banner = { type: "first" };
+  } else if (newlyUnlocked.length > 0) {
     banner = { type: "new", count: newlyUnlocked.length };
-  } else if (hasRecord && unreadOld.length > 0) {
-    banner = { type: "unread", count: unreadOld.length };
   } else if (locked.length > 0) {
     banner = { type: "locked", count: locked.length };
+  } else if (episodes.length > 0) {
+    banner = { type: "allUnlocked" };
   }
 
   // 아직 관리자가 만들지 않은 다음 이야기를 "예정" 카드로 예고 — 재방문 동기 부여용.
@@ -170,8 +172,7 @@ export default async function SpacePage({ params }: Props) {
             episodeNumber: episodes[episodes.length - 1].episodeNumber + 1,
             title: "",
             unlockVisitCount: 0,
-            unlocked: false,
-            isRead: false,
+            state: "LOCKED" as const,
             isPlaceholder: true as const,
           },
         ]
