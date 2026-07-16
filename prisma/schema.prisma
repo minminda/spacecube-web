@@ -663,6 +663,40 @@ model SpaceTag {
   @@map("space_tags")
 }
 
+// ─── 지역(공간 둘러보기 SVG 지도) ─────────────────────────────
+// ACTIVE=선명 표시+클릭 시 줌인 후 이동, COMING_SOON=흐리게 표시+클릭 시 안내만,
+// HIDDEN=사용자 화면 미노출(관리자 화면에는 계속 보임).
+enum DistrictStatus {
+  ACTIVE
+  COMING_SOON
+  HIDDEN
+}
+
+// 둘러보기 지도 위 지역 프리셋. SVG 도형(배경 격자/한강 등)은 코드에 고정돼 있고,
+// 관리자는 마커 위치·줌 설정·노출 상태만 편집한다(도형 자체는 관리자 편집 대상이 아님).
+// name은 Space.district(자유 문자열 컬럼)와 값으로 매칭되는 조인 키다 — 별도 FK 관계를
+// 두지 않고 문자열 일치로만 연결하며(Space.district 쪽 데이터 형식을 그대로 존중),
+// slug는 관리자 식별/향후 확장용으로만 저장할 뿐 현재 라우팅(/discover?district=name)에는
+// 쓰이지 않는다.
+model District {
+  id        String         @id @default(cuid())
+  name      String         @unique
+  slug      String         @unique
+  status    DistrictStatus @default(HIDDEN)
+  order     Int            @default(0)
+  tagline   String?
+  // SVG viewBox "0 0 310 390" 기준 좌표
+  markerX   Float          @default(155)
+  markerY   Float          @default(195)
+  zoomX     Float          @default(155)
+  zoomY     Float          @default(195)
+  zoomScale Float          @default(1.8)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  @@map("districts")
+}
+
 // ─── 스토리(에피소드) 레이어 ──────────────────────────────────
 // 공간별 다회차 스토리. 방문 횟수에 따라 잠금 해제되는 여러 Episode,
 // 각 Episode는 여러 Scene(텍스트+이미지 블록)으로 구성.

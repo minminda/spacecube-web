@@ -44,6 +44,13 @@ export default async function AdminPage() {
           [[ 태그 관리 ]]
         </Link>
         <Link
+          href="/owner/districts"
+          className="flex-1 min-w-[8rem] block text-sm py-2 px-4 border transition-colors text-center"
+          style={{ borderColor: "var(--border)", color: "var(--dim)" }}
+        >
+          [[ 지역 관리 ]]
+        </Link>
+        <Link
           href="/owner/content-status"
           className="flex-1 min-w-[8rem] block text-sm py-2 px-4 border transition-colors text-center"
           style={{ borderColor: "var(--border)", color: "var(--dim)" }}

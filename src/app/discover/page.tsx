@@ -10,7 +10,7 @@ import {
 import { isAdmin } from "@/lib/admin";
 import { getUserUnlockSets } from "@/lib/spaceUnlock";
 import { ENABLE_TASTE_SCORE_RECOMMENDATION } from "@/lib/features";
-import DiscoverEntry from "../DiscoverEntry";
+import DiscoverEntry, { type DiscoverDistrict } from "../DiscoverEntry";
 import SpaceCards from "./SpaceCards";
 import SpaceDiscoveryCard from "./SpaceDiscoveryCard";
 
@@ -23,6 +23,13 @@ export default async function DiscoverPage({ searchParams }: Props) {
 
   // district 미지정 — 지역을 고르는 진입 화면 (홈에서 "공간 둘러보기"로 옴)
   if (!district) {
+    // HIDDEN 지역은 지도 자체에서 제외 — 관리자 화면(/owner/districts)에만 계속 보인다.
+    const districts = await prisma.district.findMany({
+      where: { status: { in: ["ACTIVE", "COMING_SOON"] } },
+      orderBy: { order: "asc" },
+      select: { name: true, status: true, tagline: true, markerX: true, markerY: true, zoomX: true, zoomY: true, zoomScale: true },
+    });
+
     return (
       <main className="flex flex-col min-h-screen px-6 py-8 gap-8">
         <nav className="flex items-center justify-between">
@@ -34,7 +41,7 @@ export default async function DiscoverPage({ searchParams }: Props) {
           <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>공간 둘러보기</p>
           <h1 className="text-2xl font-bold">어디로 갈까</h1>
         </div>
-        <DiscoverEntry />
+        <DiscoverEntry districts={districts as DiscoverDistrict[]} />
       </main>
     );
   }
