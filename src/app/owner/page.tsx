@@ -115,18 +115,11 @@ export default async function AdminPage() {
                   [QR]
                 </Link>
                 <Link
-                  href={`/owner/${space.id}/kpi`}
+                  href={`/owner/${space.id}/report`}
                   className="border px-3 py-1 transition-colors"
                   style={{ borderColor: "var(--border)", color: "var(--dim)" }}
                 >
-                  [KPI]
-                </Link>
-                <Link
-                  href={`/owner/${space.id}/report-settings`}
-                  className="border px-3 py-1 transition-colors"
-                  style={{ borderColor: "var(--border)", color: "var(--dim)" }}
-                >
-                  [리포트 설정]
+                  [운영 리포트]
                 </Link>
                 <Link
                   href={`/owner/${space.id}/translations`}

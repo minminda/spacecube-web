@@ -1,5 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { computeReportPeriod, getPeriodBounds, getCurrentPeriodOffset } from "./reportPeriod";
+import {
+  computeReportPeriod,
+  getPeriodBounds,
+  getCurrentPeriodOffset,
+  computeReportStartDateForPreset,
+  inferReportDayPreset,
+  resolvePreviewPeriods,
+} from "./reportPeriod";
 
 describe("reportPeriod", () => {
   it("매월 1일 시작 — 첫 구간은 7/1~8/1", () => {
@@ -45,5 +52,72 @@ describe("reportPeriod", () => {
     expect(getCurrentPeriodOffset(start, justBefore)).toBe(0);
 
     expect(getCurrentPeriodOffset(start, boundary)).toBe(1);
+  });
+});
+
+describe("computeReportStartDateForPreset", () => {
+  it("1일 프리셋 — 이번 달(KST) 1일 00:00", () => {
+    const now = new Date("2026-07-15T03:00:00.000Z"); // KST 7/15 12:00
+    const d = computeReportStartDateForPreset(1, now);
+    expect(d.toISOString()).toBe("2026-06-30T15:00:00.000Z"); // KST 7/1 00:00
+  });
+
+  it("15일 프리셋 — 이번 달(KST) 15일 00:00", () => {
+    const now = new Date("2026-07-15T03:00:00.000Z");
+    const d = computeReportStartDateForPreset(15, now);
+    expect(d.toISOString()).toBe("2026-07-14T15:00:00.000Z"); // KST 7/15 00:00
+  });
+
+  it('"last" 프리셋 — 그 달의 실제 마지막 날(2월은 28/29일로 클램프)', () => {
+    const now = new Date("2026-02-10T03:00:00.000Z"); // KST 2월
+    const d = computeReportStartDateForPreset("last", now);
+    expect(d.toISOString()).toBe("2026-02-27T15:00:00.000Z"); // KST 2/28 00:00(2026은 평년)
+  });
+});
+
+describe("inferReportDayPreset", () => {
+  it("1일이면 1", () => {
+    expect(inferReportDayPreset(new Date("2026-06-30T15:00:00.000Z"))).toBe(1); // KST 7/1
+  });
+  it("15일이면 15", () => {
+    expect(inferReportDayPreset(new Date("2026-07-14T15:00:00.000Z"))).toBe(15); // KST 7/15
+  });
+  it("그 달의 마지막 날이면 last", () => {
+    expect(inferReportDayPreset(new Date("2026-02-27T15:00:00.000Z"))).toBe("last"); // KST 2/28(평년 마지막 날)
+  });
+});
+
+describe("resolvePreviewPeriods", () => {
+  it("reportStartDate가 없으면 KST 달력 기준 이번 달/지난달로 대체한다", () => {
+    const now = new Date("2026-07-15T03:00:00.000Z"); // KST 7/15
+    const { current, previous } = resolvePreviewPeriods(null, now);
+    expect(current.start.toISOString()).toBe("2026-06-30T15:00:00.000Z"); // KST 7/1
+    expect(current.end.getTime()).toBe(now.getTime());
+    expect(previous?.start.toISOString()).toBe("2026-05-31T15:00:00.000Z"); // KST 6/1
+    expect(previous?.end.getTime()).toBe(current.start.getTime());
+  });
+
+  it("reportStartDate가 미래(아직 시작 전)이면 달력 기준으로 대체한다", () => {
+    const now = new Date("2026-07-15T03:00:00.000Z");
+    const future = new Date("2026-08-01T00:00:00.000Z");
+    const { current } = resolvePreviewPeriods(future, now);
+    expect(current.start.toISOString()).toBe("2026-06-30T15:00:00.000Z"); // KST 7/1 — 달력 기준
+  });
+
+  it("reportStartDate가 있고 이미 시작됐으면 그 구간을 그대로 쓰고, 첫 구간이면 이전 구간은 null", () => {
+    const start = new Date("2026-06-30T15:00:00.000Z"); // KST 7/1 00:00(정규화된 형태로 직접 지정)
+    const now = new Date("2026-07-15T03:00:00.000Z");
+    const { current, previous } = resolvePreviewPeriods(start, now);
+    expect(current.start.getTime()).toBe(start.getTime());
+    expect(previous).toBeNull();
+  });
+
+  it("두 번째 구간이면 이전 구간이 채워진다", () => {
+    const start = new Date("2026-06-01T00:00:00.000Z"); // KST 6/1
+    const now = new Date("2026-07-15T03:00:00.000Z"); // 두 번째 구간(7/1~) 안
+    const { current, previous } = resolvePreviewPeriods(start, now);
+    expect(current.start.toISOString()).toBe("2026-06-30T15:00:00.000Z"); // KST 7/1
+    expect(previous?.start.toISOString()).toBe("2026-05-31T15:00:00.000Z"); // KST 6/1
+    expect(previous?.end.getTime()).toBe(current.start.getTime());
   });
 });

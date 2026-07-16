@@ -1,7 +1,4 @@
 import { prisma } from "@/lib/prisma";
-import { TAG_LABELS } from "@/lib/tags";
-import { aggregateSpaceTags, getSpaceUsageSummary } from "@/lib/spaceInsight";
-import { Prisma, type TagKey } from "@prisma/client";
 
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
 
@@ -25,21 +22,6 @@ function kstMonthStart(base: Date) {
   return new Date(Date.UTC(y, m, 1, 0, 0, 0) - KST_OFFSET_MS);
 }
 
-export interface TopTagEntry {
-  tag: TagKey;
-  label: string;
-  count: number;
-}
-
-/**
- * 공간 사용 방식을 규칙 기반 문장으로 요약한다.
- * 현재는 규칙 기반(getSpaceUsageSummary)이지만, 추후 AI 요약으로 교체할 때
- * 이 함수의 내부 구현만 바꾸면 되도록 호출부와 분리해뒀다.
- */
-export function generateSpaceUsageSummary(topTags: [TagKey, number][]): string | null {
-  return getSpaceUsageSummary(topTags);
-}
-
 /**
  * 공간 하나의 KPI를 원본 데이터(Record, GuestbookNote)에서 다시 계산해
  * 오늘 날짜(KST)의 SpaceKPI 행에 저장한다.
@@ -56,7 +38,7 @@ export async function recomputeSpaceKPI(spaceId: string, at: Date = new Date()):
   const [records, guestbookNotes] = await Promise.all([
     prisma.record.findMany({
       where: { spaceId },
-      select: { userId: true, visitedAt: true, tasteScore: true, tags: { select: { tag: true } } },
+      select: { userId: true, visitedAt: true, tasteScore: true },
     }),
     prisma.guestbookNote.findMany({ where: { spaceId }, select: { userId: true } }),
   ]);
@@ -86,10 +68,6 @@ export async function recomputeSpaceKPI(spaceId: string, at: Date = new Date()):
 
   const averageTasteScore = scoreCount > 0 ? scoreSum / scoreCount : null;
 
-  const rankedTags = aggregateSpaceTags(records);
-  const topTags: TopTagEntry[] = rankedTags.slice(0, 3).map(([tag, count]) => ({ tag, label: TAG_LABELS[tag], count }));
-  const usageSummary = generateSpaceUsageSummary(rankedTags);
-
   const guestbookUserSet = new Set(guestbookNotes.map((n) => n.userId));
   const guestbookUsersTotal = guestbookUserSet.size;
   const totalGuestbookCount = guestbookNotes.length;
@@ -106,8 +84,6 @@ export async function recomputeSpaceKPI(spaceId: string, at: Date = new Date()):
     totalGuestbookCount,
     averageTasteScore,
     tasteScoreCount: scoreCount,
-    topTags: topTags as unknown as Prisma.InputJsonValue,
-    usageSummary,
   };
 
   await prisma.spaceKPI.upsert({
