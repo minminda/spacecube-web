@@ -157,6 +157,13 @@ export default async function AdminPage() {
                   [방명록]
                 </Link>
                 <Link
+                  href={`/owner/${space.id}/guestbook-sessions`}
+                  className="border px-3 py-1 transition-colors"
+                  style={{ borderColor: "var(--border)", color: "var(--dim)" }}
+                >
+                  [방명록 세션]
+                </Link>
+                <Link
                   href={`/owner/${space.id}/space-tags`}
                   className="border px-3 py-1 transition-colors"
                   style={{ borderColor: "var(--border)", color: "var(--dim)" }}

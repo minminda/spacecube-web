@@ -100,3 +100,38 @@ describe("isSpaceUnlockActive — 공간 접근 권한(12시간) 만료 판정",
     expect(isSpaceUnlockActive(rescannedAt, now)).toBe(true);
   });
 });
+
+describe("computeUnlockSets — 다중 공간 잠금 상태 계산(순수 함수)", () => {
+  it("빈 배열이면 두 집합 모두 비어있다", async () => {
+    const { computeUnlockSets } = await import("./spaceUnlock");
+    const { unlocked, everUnlocked } = computeUnlockSets([]);
+    expect(unlocked.size).toBe(0);
+    expect(everUnlocked.size).toBe(0);
+  });
+
+  it("활성/만료가 섞여 있으면 unlocked는 활성만, everUnlocked는 전부 포함", async () => {
+    const { computeUnlockSets } = await import("./spaceUnlock");
+    const now = new Date("2026-01-02T00:00:00Z");
+    const rows = [
+      { spaceId: "active-space", unlockedAt: new Date("2026-01-01T23:00:00Z") }, // 1시간 전 — 유효
+      { spaceId: "expired-space", unlockedAt: new Date("2026-01-01T00:00:00Z") }, // 24시간 전 — 만료
+    ];
+    const { unlocked, everUnlocked } = computeUnlockSets(rows, now);
+    expect(unlocked.has("active-space")).toBe(true);
+    expect(unlocked.has("expired-space")).toBe(false);
+    expect(everUnlocked.has("active-space")).toBe(true);
+    expect(everUnlocked.has("expired-space")).toBe(true);
+  });
+
+  it("같은 spaceId가 중복돼도 Set이라 자연히 dedupe된다", async () => {
+    const { computeUnlockSets } = await import("./spaceUnlock");
+    const now = new Date("2026-01-02T00:00:00Z");
+    const rows = [
+      { spaceId: "space-1", unlockedAt: new Date("2026-01-01T23:00:00Z") },
+      { spaceId: "space-1", unlockedAt: new Date("2026-01-01T20:00:00Z") },
+    ];
+    const { unlocked, everUnlocked } = computeUnlockSets(rows, now);
+    expect(unlocked.size).toBe(1);
+    expect(everUnlocked.size).toBe(1);
+  });
+});

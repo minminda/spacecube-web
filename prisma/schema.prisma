@@ -200,6 +200,21 @@ model GuestbookSession {
   question2ClusterX Float @default(3000)
   question2ClusterY Float @default(2800)
 
+  // 군집별 표시 여부 — 질문 내용이 있어도 이 값이 false면 방문자 캔버스에 나타나지 않는다
+  // (getVisibleClusters가 "내용 존재 && visible" 둘 다 확인). FREE는 이 값으로만 판정한다.
+  freeLabelVisible  Boolean @default(true)
+  question1Visible  Boolean @default(true)
+  question2Visible  Boolean @default(true)
+
+  // 군집별 글자 크기(px, 12~48 허용)/색상(#RRGGBB) — 기본값은 기존 하드코딩 렌더링과
+  // 시각적으로 동일하게 역산함(검정 배경 위 rgba(255,255,255,alpha) 지각색 ≈ 채널값 round(255*alpha)).
+  freeLabelFontSize Int    @default(14)
+  question1FontSize Int    @default(16)
+  question2FontSize Int    @default(16)
+  freeLabelColor    String @default("#8C8C8C")
+  question1Color    String @default("#EBEBEB")
+  question2Color    String @default("#EBEBEB")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

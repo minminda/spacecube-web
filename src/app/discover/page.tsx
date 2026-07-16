@@ -10,7 +10,7 @@ import {
 } from "@/lib/recommend";
 import { TAG_LABELS } from "@/lib/tags";
 import { isAdmin } from "@/lib/admin";
-import { isSpaceUnlockActive } from "@/lib/spaceUnlock";
+import { getUserUnlockSets } from "@/lib/spaceUnlock";
 import {
   ENABLE_TASTE_SCORE_RECOMMENDATION,
   ENABLE_RECOMMENDATION_PLAYLIST_UI,
@@ -78,21 +78,19 @@ export default async function DiscoverPage({ searchParams }: Props) {
       select: { id: true },
     });
     if (user) {
-      const [userRecords, userUnlocks] = await Promise.all([
+      const [userRecords, unlockSets] = await Promise.all([
         prisma.record.findMany({
           where: { userId: user.id },
           include: { tags: true, space: { select: { spaceTags: true } } },
         }),
-        prisma.spaceUnlock.findMany({ where: { userId: user.id }, select: { spaceId: true, unlockedAt: true } }),
+        getUserUnlockSets(user.id),
       ]);
       recordCount = userRecords.length;
       // 추천 제외 필터(이미 취향 데이터가 있는 공간)에만 쓰는 방문 집합 — Record 기준 그대로.
       visitedSpaceIds = [...new Set(userRecords.map((r) => r.spaceId))];
-      everUnlockedSpaceIds = [...new Set(userUnlocks.map((u) => u.spaceId))];
+      everUnlockedSpaceIds = [...unlockSets.everUnlocked];
       // 관리자는 테스트 편의를 위해 모든 공간을 해제된 것으로 본다(기존 isAdmin 권한 구조 재사용).
-      unlockedSpaceIds = isAdmin(session.user.email)
-        ? spacesRaw.map((s) => s.id)
-        : [...new Set(userUnlocks.filter((u) => isSpaceUnlockActive(u.unlockedAt)).map((u) => u.spaceId))];
+      unlockedSpaceIds = isAdmin(session.user.email) ? spacesRaw.map((s) => s.id) : [...unlockSets.unlocked];
 
       if (recordCount >= 3) {
         hasEnoughRecords = true;

@@ -7,6 +7,7 @@ import { buildRewardSummary } from "@/lib/guestbookReward";
 import { isOwnedRecord } from "@/lib/guestbookVisit";
 import { requireSpaceUnlock } from "@/lib/spaceUnlock";
 import { isAdmin } from "@/lib/admin";
+import RecommendationCard from "./RecommendationCard";
 
 /* ── 방문 완료·추천 페이지 ────────────────────────────────────
    방명록 캔버스에서 "이번 경험 마치기"를 눌렀을 때만 도달한다. 포스트잇을
@@ -116,26 +117,15 @@ export default async function VisitCompletePage({ params, searchParams }: Props)
         )}
       </div>
 
-      {/* 3. 추천 공간 */}
+      {/* 3. 추천 공간 — 공간 상세 정보는 최소화하고, 잠금 상태에 따라 상세 이동/위치 안내로 분기 */}
       {summary.recommendations.length > 0 && (
         <>
           <div style={{ borderTop: "1px solid var(--border)" }} />
           <div className="space-y-3">
             <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>당신과 잘 맞을 다음 공간</p>
-            {summary.recommendationReason && (
-              <p className="text-xs leading-relaxed" style={{ color: "var(--dim)" }}>{summary.recommendationReason}</p>
-            )}
-            <div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {summary.recommendations.map((r) => (
-                <Link
-                  key={r.id}
-                  href={`/space/${r.slug}`}
-                  className="flex items-center justify-between py-3 transition-opacity hover:opacity-70"
-                  style={{ borderTop: "1px solid var(--border)" }}
-                >
-                  <span className="text-sm truncate">{r.name}</span>
-                  <span className="text-xs flex-shrink-0 ml-3" style={{ color: "var(--dim)" }}>{r.matchPercent}%</span>
-                </Link>
+                <RecommendationCard key={r.id} rec={r} />
               ))}
             </div>
           </div>

@@ -28,32 +28,69 @@ export interface VisibleCluster {
   label: string;
   x: number;
   y: number;
+  /** 글자 크기(px) — 관리자가 설정, 기본값은 기존 하드코딩 렌더링과 시각적으로 동일. */
+  fontSize: number;
+  /** 글자 색상(#RRGGBB) — 관리자가 설정. */
+  color: string;
 }
 
 export interface SessionClusterFields {
   question1: string | null;
   question2: string | null;
+  freeLabelVisible: boolean;
+  question1Visible: boolean;
+  question2Visible: boolean;
   freeClusterX: number;
   freeClusterY: number;
   question1ClusterX: number;
   question1ClusterY: number;
   question2ClusterX: number;
   question2ClusterY: number;
+  freeLabelFontSize: number;
+  question1FontSize: number;
+  question2FontSize: number;
+  freeLabelColor: string;
+  question1Color: string;
+  question2Color: string;
 }
 
 /**
- * 세션에서 실제로 캔버스에 표시할 군집 목록을 만든다. 자유 군집은 항상 포함되고,
- * 질문 1/2는 값이 비어 있으면(null) 배열에서 아예 빠진다 — "질문 없으면 군집 미표시" 규칙.
+ * 세션에서 실제로 캔버스에 표시할 군집 목록을 만든다. 자유 군집은 freeLabelVisible이 true일
+ * 때만 포함되고(기존엔 무조건 포함이었음), 질문 1/2는 "내용이 있고 && 표시 설정이 켜져 있을
+ * 때"만 포함된다 — 둘 중 하나라도 아니면(내용 비어있음, 또는 관리자가 표시 끔) 군집 자체가
+ * 배열에서 빠진다.
  */
 export function getVisibleClusters(session: SessionClusterFields): VisibleCluster[] {
-  const clusters: VisibleCluster[] = [
-    { type: "FREE", label: "자유롭게 남겨주세요", x: session.freeClusterX, y: session.freeClusterY },
-  ];
-  if (session.question1) {
-    clusters.push({ type: "QUESTION_1", label: session.question1, x: session.question1ClusterX, y: session.question1ClusterY });
+  const clusters: VisibleCluster[] = [];
+  if (session.freeLabelVisible) {
+    clusters.push({
+      type: "FREE",
+      label: "자유롭게 남겨주세요",
+      x: session.freeClusterX,
+      y: session.freeClusterY,
+      fontSize: session.freeLabelFontSize,
+      color: session.freeLabelColor,
+    });
   }
-  if (session.question2) {
-    clusters.push({ type: "QUESTION_2", label: session.question2, x: session.question2ClusterX, y: session.question2ClusterY });
+  if (session.question1 && session.question1Visible) {
+    clusters.push({
+      type: "QUESTION_1",
+      label: session.question1,
+      x: session.question1ClusterX,
+      y: session.question1ClusterY,
+      fontSize: session.question1FontSize,
+      color: session.question1Color,
+    });
+  }
+  if (session.question2 && session.question2Visible) {
+    clusters.push({
+      type: "QUESTION_2",
+      label: session.question2,
+      x: session.question2ClusterX,
+      y: session.question2ClusterY,
+      fontSize: session.question2FontSize,
+      color: session.question2Color,
+    });
   }
   return clusters;
 }

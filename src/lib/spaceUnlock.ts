@@ -132,3 +132,26 @@ export async function requireSpaceUnlock(userId: string, spaceId: string): Promi
   if (await hasSpaceUnlock(userId, spaceId)) return true;
   return consumePendingUnlockCookie(userId, spaceId);
 }
+
+export interface SpaceUnlockRow {
+  spaceId: string;
+  unlockedAt: Date;
+}
+
+/**
+ * 순수 함수 — 이미 가져온 SpaceUnlock 행 목록에서 "지금 유효한" 공간 집합과 "만료 여부와
+ * 무관하게 한 번이라도 열린" 공간 집합을 동시에 계산한다. discover 페이지와 추천 카드 등
+ * 여러 화면에서 같은 다중-공간 잠금 판정을 각자 인라인으로 중복 구현하지 않도록 여기 한
+ * 곳에 모았다.
+ */
+export function computeUnlockSets(rows: SpaceUnlockRow[], now: Date = new Date()): { unlocked: Set<string>; everUnlocked: Set<string> } {
+  const everUnlocked = new Set(rows.map((r) => r.spaceId));
+  const unlocked = new Set(rows.filter((r) => isSpaceUnlockActive(r.unlockedAt, now)).map((r) => r.spaceId));
+  return { unlocked, everUnlocked };
+}
+
+/** 얇은 DB 래퍼 — 이 사용자의 전체 SpaceUnlock 행을 가져와 computeUnlockSets로 계산한다. */
+export async function getUserUnlockSets(userId: string): Promise<{ unlocked: Set<string>; everUnlocked: Set<string> }> {
+  const rows = await prisma.spaceUnlock.findMany({ where: { userId }, select: { spaceId: true, unlockedAt: true } });
+  return computeUnlockSets(rows);
+}

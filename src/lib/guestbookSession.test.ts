@@ -67,12 +67,23 @@ const BASE = {
   question1ClusterY: 2200,
   question2ClusterX: 3000,
   question2ClusterY: 2800,
+  freeLabelVisible: true,
+  question1Visible: true,
+  question2Visible: true,
+  freeLabelFontSize: 14,
+  question1FontSize: 16,
+  question2FontSize: 16,
+  freeLabelColor: "#8C8C8C",
+  question1Color: "#EBEBEB",
+  question2Color: "#EBEBEB",
 };
 
 describe("getVisibleClusters", () => {
   it("질문이 둘 다 없으면 자유 군집만 노출", () => {
     const clusters = getVisibleClusters({ ...BASE, question1: null, question2: null });
-    expect(clusters).toEqual([{ type: "FREE", label: "자유롭게 남겨주세요", x: 2500, y: 2500 }]);
+    expect(clusters).toEqual([
+      { type: "FREE", label: "자유롭게 남겨주세요", x: 2500, y: 2500, fontSize: 14, color: "#8C8C8C" },
+    ]);
   });
 
   it("질문 1만 있으면 자유 + 질문1 군집만 노출", () => {
@@ -83,6 +94,34 @@ describe("getVisibleClusters", () => {
   it("질문이 둘 다 있으면 세 군집 모두 노출", () => {
     const clusters = getVisibleClusters({ ...BASE, question1: "질문1", question2: "질문2" });
     expect(clusters.map((c) => c.type)).toEqual(["FREE", "QUESTION_1", "QUESTION_2"]);
-    expect(clusters[2]).toEqual({ type: "QUESTION_2", label: "질문2", x: 3000, y: 2800 });
+    expect(clusters[2]).toEqual({ type: "QUESTION_2", label: "질문2", x: 3000, y: 2800, fontSize: 16, color: "#EBEBEB" });
+  });
+
+  it("freeLabelVisible이 false면 질문이 없어도 자유 군집이 빠진다", () => {
+    const clusters = getVisibleClusters({ ...BASE, question1: null, question2: null, freeLabelVisible: false });
+    expect(clusters).toEqual([]);
+  });
+
+  it("질문 내용이 있어도 question1Visible이 false면 노출되지 않는다(OR 조건 중 표시여부 쪽)", () => {
+    const clusters = getVisibleClusters({ ...BASE, question1: "질문1", question1Visible: false, question2: null });
+    expect(clusters.map((c) => c.type)).toEqual(["FREE"]);
+  });
+
+  it("question2Visible이 true여도 내용이 비어 있으면 노출되지 않는다(OR 조건 중 내용 쪽)", () => {
+    const clusters = getVisibleClusters({ ...BASE, question1: null, question2: null, question2Visible: true });
+    expect(clusters.map((c) => c.type)).toEqual(["FREE"]);
+  });
+
+  it("fontSize/color가 각 군집에 그대로 전달된다", () => {
+    const clusters = getVisibleClusters({
+      ...BASE,
+      question1: "질문1",
+      question2: null,
+      question1FontSize: 30,
+      question1Color: "#F5D76E",
+    });
+    const q1 = clusters.find((c) => c.type === "QUESTION_1");
+    expect(q1?.fontSize).toBe(30);
+    expect(q1?.color).toBe("#F5D76E");
   });
 });

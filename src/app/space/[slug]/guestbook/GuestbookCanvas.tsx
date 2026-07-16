@@ -18,11 +18,11 @@ import {
 } from "./canvasConstants";
 import GuestbookCommentThread from "@/components/GuestbookCommentThread";
 import CubeReactionIcon from "@/components/CubeReactionIcon";
+import GuestbookClusterLabel from "@/components/GuestbookClusterLabel";
 import {
   findFreePosition,
   clusterLabelRect,
   POST_IT_HEIGHT,
-  CLUSTER_LABEL_WIDTH,
   type Rect,
 } from "@/lib/postitCollision";
 import { computeInitialViewport } from "@/lib/guestbookViewport";
@@ -719,41 +719,18 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
                 }}
               />
 
-              {/* 군집 라벨 — 질문이 없는 군집은 clusters 배열에 아예 없어서 렌더되지 않는다.
-                  질문(QUESTION_1/2)은 모바일 초기 진입 상태에서도 줌 없이 읽혀야 하므로
-                  자유 군집 라벨보다 뚜렷하게 크고 진하게, 옅은 카드 배경으로 감싼다. */}
-              {clusters.map((c) => {
-                const questionNumber = c.type === "QUESTION_1" ? "01" : c.type === "QUESTION_2" ? "02" : null;
-                const isQuestion = questionNumber !== null;
-                return (
-                  <div
-                    key={c.type}
-                    className="absolute pointer-events-none select-none flex flex-col items-center gap-2 px-4 py-3.5"
-                    style={{
-                      left: c.x,
-                      top: c.y,
-                      transform: "translate(-50%, -50%)",
-                      width: CLUSTER_LABEL_WIDTH,
-                      textAlign: "center",
-                      background: isQuestion ? "rgba(255,255,255,0.07)" : "transparent",
-                      border: isQuestion ? "1px solid rgba(255,255,255,0.16)" : "none",
-                      backdropFilter: isQuestion ? "blur(3px)" : undefined,
-                    }}
-                  >
-                    {isQuestion && (
-                      <span className="text-[10px] font-semibold tracking-[0.2em]" style={{ color: "rgba(255,255,255,0.5)" }}>
-                        QUESTION {questionNumber}
-                      </span>
-                    )}
-                    <p
-                      className={`leading-snug break-keep whitespace-pre-line ${isQuestion ? "text-base font-semibold" : "text-sm font-semibold"}`}
-                      style={{ color: isQuestion ? "rgba(255,255,255,0.92)" : "rgba(255,255,255,0.55)" }}
-                    >
-                      {c.label}
-                    </p>
-                  </div>
-                );
-              })}
+              {/* 군집 라벨 — 질문이 없거나 관리자가 숨긴 군집은 clusters 배열에 아예 없어서 렌더되지 않는다.
+                  크기/색상은 관리자가 설정한 값을 그대로 쓴다(GuestbookClusterLabel 공용 컴포넌트,
+                  관리자 미리보기와 동일 렌더 로직 재사용). */}
+              {clusters.map((c) => (
+                <div
+                  key={c.type}
+                  className="absolute pointer-events-none select-none"
+                  style={{ left: c.x, top: c.y, transform: "translate(-50%, -50%)" }}
+                >
+                  <GuestbookClusterLabel cluster={c} />
+                </div>
+              ))}
 
               {/* 포스트잇들 */}
               {allNotes.map((note) => {

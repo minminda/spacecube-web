@@ -10,7 +10,6 @@ import { GuestbookSessionStatus, MonthlyReportStatus } from "@prisma/client";
 import PastReportsSelect from "./PastReportsSelect";
 import MonthlyMemo from "./MonthlyMemo";
 import GuestbookBrowser from "./GuestbookBrowser";
-import NextGuestbookPrep from "./NextGuestbookPrep";
 
 export const metadata: Metadata = {
   title: "월간 운영 — 공간큐브",
@@ -100,7 +99,7 @@ export default async function OperatorPage({ searchParams }: Props) {
 
   const period = !reportNotStarted && activeSpace.reportStartDate ? computeReportPeriod(activeSpace.reportStartDate, now) : null;
 
-  const [latestReport, requestedReport, pastReports, activeSession, archivedSessions, draft] = await Promise.all([
+  const [latestReport, requestedReport, pastReports, activeSession, archivedSessions] = await Promise.all([
     prisma.spaceMonthlyReport.findFirst({
       where: { spaceId, status: MonthlyReportStatus.PUBLISHED },
       orderBy: { periodStart: "desc" },
@@ -121,7 +120,6 @@ export default async function OperatorPage({ searchParams }: Props) {
         },
       },
     }),
-    prisma.guestbookSession.findFirst({ where: { spaceId, status: GuestbookSessionStatus.DRAFT } }),
   ]);
 
   const report = requestedReport && requestedReport.spaceId === spaceId ? requestedReport : latestReport;
@@ -294,18 +292,6 @@ export default async function OperatorPage({ searchParams }: Props) {
           />
         )}
       </section>
-
-      {/* ── 다음 방명록 준비 ── */}
-      <Divider />
-      <NextGuestbookPrep
-        spaceId={spaceId}
-        hasDraft={!!draft}
-        initialDraft={
-          draft
-            ? { question1: draft.question1, question2: draft.question2 }
-            : { question1: null, question2: null }
-        }
-      />
 
       {/* ── 이전 방명록 아카이브 ── */}
       <Divider />

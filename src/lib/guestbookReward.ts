@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { TAG_LABELS } from "@/lib/tags";
 import { buildWeightedTasteVector, rankSpacesByVector, getVectorReason, vectorTopTags } from "@/lib/recommend";
+import { getUserUnlockSets } from "@/lib/spaceUnlock";
 
 export interface RewardTag {
   label: string;
@@ -11,9 +12,14 @@ export interface RewardRecommendation {
   id: string;
   slug: string;
   name: string;
-  tagline: string | null;
   imageUrl: string | null;
-  matchPercent: number;
+  type: string;
+  district: string | null;
+  naverMapUrl: string | null;
+  /** 이 공간에 한정된 개별 추천 이유 — 이전에는 랭킹 1위에 대해서만 섹션 전체 공용으로 계산했다. */
+  reason: string;
+  /** 현재 이 사용자의 12시간 접근 권한이 없는 공간인지 — 카드가 상세 페이지로 바로 이동할지, 잠금 안내를 보여줄지 분기한다. */
+  locked: boolean;
 }
 
 export interface RewardNextEpisode {
@@ -26,7 +32,6 @@ export interface RewardSummary {
   topTags: RewardTag[];
   tasteHighlight: string | null;
   recommendations: RewardRecommendation[];
-  recommendationReason: string | null;
   nextEpisode: RewardNextEpisode | null;
 }
 
@@ -34,20 +39,21 @@ const CANDIDATE_SELECT = {
   id: true,
   name: true,
   slug: true,
-  tagline: true,
   imageUrl: true,
   type: true,
   district: true,
+  naverMapUrl: true,
   spaceTags: true,
 } as const;
 
 /**
  * 방명록 작성 직후 보여줄 보상 요약을 계산한다.
  * 추천 로직은 기존 done/page.tsx가 쓰던 것(buildWeightedTasteVector + rankSpacesByVector)을
- * 그대로 재사용한다 — 새 추천 알고리즘을 만들지 않는다.
+ * 그대로 재사용한다 — 새 추천 알고리즘을 만들지 않는다. 카드 표시 정보(잠금 상태·개별 이유)만
+ * 새로 붙인다.
  */
 export async function buildRewardSummary(userId: string, spaceId: string): Promise<RewardSummary> {
-  const [postitCount, space, userRecords] = await Promise.all([
+  const [postitCount, space, userRecords, unlockSets] = await Promise.all([
     prisma.guestbookNote.count({ where: { spaceId } }),
     prisma.space.findUnique({ where: { id: spaceId }, select: { district: true } }),
     prisma.record.findMany({
@@ -60,6 +66,7 @@ export async function buildRewardSummary(userId: string, spaceId: string): Promi
         space: { select: { spaceTags: true, spaceTagLinks: { include: { tag: true } } } },
       },
     }),
+    getUserUnlockSets(userId),
   ]);
 
   const vector = buildWeightedTasteVector(userRecords);
@@ -84,16 +91,17 @@ export async function buildRewardSummary(userId: string, spaceId: string): Promi
     ranked = rankSpacesByVector(candidates, vector, 3);
   }
 
-  const totalVectorWeight = Object.values(vector).reduce((sum: number, w) => sum + (w ?? 0), 0) || 1;
   const recommendations: RewardRecommendation[] = ranked.map((s) => ({
     id: s.id,
     slug: s.slug,
     name: s.name,
-    tagline: s.tagline,
     imageUrl: s.imageUrl,
-    matchPercent: Math.min(99, Math.max(1, Math.round((s.score / totalVectorWeight) * 100))),
+    type: s.type,
+    district: s.district,
+    naverMapUrl: s.naverMapUrl,
+    reason: getVectorReason(s, vector),
+    locked: !unlockSets.unlocked.has(s.id),
   }));
-  const recommendationReason = ranked.length > 0 ? getVectorReason(ranked[0], vector) : null;
 
   const episodes = await prisma.episode.findMany({
     where: { spaceId, published: true },
@@ -108,5 +116,5 @@ export async function buildRewardSummary(userId: string, spaceId: string): Promi
       ? { episodeNumber: episodes[episodes.length - 1].episodeNumber + 1, title: null }
       : null;
 
-  return { postitCount, topTags, tasteHighlight, recommendations, recommendationReason, nextEpisode };
+  return { postitCount, topTags, tasteHighlight, recommendations, nextEpisode };
 }
