@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import SeoulMapBackdrop, { SEOUL_MAP_VIEWBOX } from "@/components/SeoulMapBackdrop";
+import DistrictMapMarker from "@/components/DistrictMapMarker";
 
 /* ── 공간 둘러보기 SVG 지역 선택 지도 ──────────────────────────────
    지도 API/외부 라이브러리 없이 순수 SVG + CSS transform으로만 구현한다.
@@ -107,6 +108,7 @@ export default function DiscoverEntry({ districts }: { districts: DiscoverDistri
                   role="button"
                   tabIndex={0}
                   aria-label={isActive ? d.name : `${d.name} (준비 중)`}
+                  className="district-marker"
                   onClick={() => handleSelect(d)}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" || e.key === " ") {
@@ -116,34 +118,9 @@ export default function DiscoverEntry({ districts }: { districts: DiscoverDistri
                   }}
                   style={{ cursor: "pointer" }}
                 >
-                  {/* 터치 히트영역 확대 — 마커보다 넉넉한 투명 원 */}
+                  {/* 터치 히트영역 확대 — 마커보다 넉넉한 투명 원(시각적으로는 보이지 않음) */}
                   <circle cx={d.markerX} cy={d.markerY} r={26} fill="transparent" />
-
-                  <circle
-                    cx={d.markerX} cy={d.markerY} r={isActive ? 7 : 5}
-                    fill="currentColor" fillOpacity={isActive ? 0.85 : 0.16}
-                    stroke="currentColor" strokeWidth={isActive ? 1.4 : 0.8}
-                    opacity={isActive ? 0.9 : 0.4}
-                    style={{ transition: "opacity 0.2s ease-out" }}
-                  />
-
-                  <text
-                    x={d.markerX} y={d.markerY - 12} textAnchor="middle" fontSize="8"
-                    fill="currentColor" opacity={isActive ? 0.9 : 0.42}
-                    style={{ fontFamily: "system-ui, sans-serif", fontWeight: isActive ? 600 : 400 }}
-                  >
-                    {d.name}
-                  </text>
-
-                  {!isActive && (
-                    <text
-                      x={d.markerX} y={d.markerY - 3} textAnchor="middle" fontSize="5.5"
-                      fill="currentColor" opacity="0.35"
-                      style={{ fontFamily: "system-ui, sans-serif" }}
-                    >
-                      준비 중
-                    </text>
-                  )}
+                  <DistrictMapMarker name={d.name} x={d.markerX} y={d.markerY} status={d.status} />
                 </g>
               );
             })}
@@ -152,6 +129,8 @@ export default function DiscoverEntry({ districts }: { districts: DiscoverDistri
       </div>
 
       <style>{`
+        .district-marker { outline: none; }
+        .district-marker:focus-visible { filter: drop-shadow(0 0 2.5px currentColor); }
         @media (prefers-reduced-motion: reduce) {
           .seoul-map-zoom { transition: none !important; }
         }

@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { DistrictStatus } from "@prisma/client";
 import { useToast } from "@/hooks/useToast";
 import Toast from "@/components/Toast";
 import SeoulMapBackdrop, { SEOUL_MAP_VIEWBOX } from "@/components/SeoulMapBackdrop";
+import DistrictMapMarker from "@/components/DistrictMapMarker";
 
 interface DistrictRow {
   id: string;
@@ -21,8 +22,8 @@ interface DistrictRow {
   spaceCount: number;
 }
 
-type PatchPayload = Partial<Omit<DistrictRow, "id" | "spaceCount">>;
-type LivePreview = Pick<DistrictRow, "markerX" | "markerY" | "status">;
+interface PositionDraft { markerX: number; markerY: number; zoomX: number; zoomY: number; }
+type FieldPatch = Partial<Pick<DistrictRow, "name" | "slug" | "tagline" | "status" | "zoomScale" | "markerX" | "markerY" | "zoomX" | "zoomY">>;
 
 const STATUS_LABEL: Record<DistrictStatus, string> = {
   ACTIVE: "ACTIVE — 선명하게 표시, 클릭 시 줌인 후 이동",
@@ -30,16 +31,72 @@ const STATUS_LABEL: Record<DistrictStatus, string> = {
   HIDDEN: "HIDDEN — 사용자 화면에 표시 안 함",
 };
 
+const VIEWBOX_W = 310;
+const VIEWBOX_H = 390;
+
+function clamp(n: number, min: number, max: number) {
+  return Math.min(Math.max(n, min), max);
+}
+
 export default function DistrictManager({ initialDistricts }: { initialDistricts: DistrictRow[] }) {
   const [districts, setDistricts] = useState(initialDistricts);
-  const [preview, setPreview] = useState<Record<string, LivePreview>>({});
+  const [positionDrafts, setPositionDrafts] = useState<Record<string, PositionDraft>>({});
   const [newName, setNewName] = useState("");
   const [newSlug, setNewSlug] = useState("");
   const [creating, setCreating] = useState(false);
   const { toast, showToast } = useToast();
 
-  function updatePreview(id: string, partial: LivePreview) {
-    setPreview((prev) => ({ ...prev, [id]: partial }));
+  const svgRef = useRef<SVGSVGElement>(null);
+  const draggingIdRef = useRef<string | null>(null);
+
+  const pointFromEvent = useCallback((clientX: number, clientY: number) => {
+    const svg = svgRef.current;
+    if (!svg) return null;
+    const rect = svg.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) return null;
+    return {
+      x: clamp((clientX - rect.left) * (VIEWBOX_W / rect.width), 0, VIEWBOX_W),
+      y: clamp((clientY - rect.top) * (VIEWBOX_H / rect.height), 0, VIEWBOX_H),
+    };
+  }, []);
+
+  // 리스너를 자기 자신과 같은 참조로 떼어내야 해서 렌더마다 새로 만들지 않고 최초 1회만 생성한다
+  // (GuestbookSessionPreview.tsx의 방명록 군집 드래그와 동일한 패턴).
+  const [dragHandlers] = useState(() => {
+    const move = (e: PointerEvent) => {
+      const id = draggingIdRef.current;
+      if (!id) return;
+      const point = pointFromEvent(e.clientX, e.clientY);
+      if (!point) return;
+      // 줌 중심(zoomX/Y)은 별도 입력 없이 마커 위치를 그대로 따라간다.
+      setPositionDrafts((prev) => ({
+        ...prev,
+        [id]: { markerX: point.x, markerY: point.y, zoomX: point.x, zoomY: point.y },
+      }));
+    };
+    const stop = () => {
+      draggingIdRef.current = null;
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", stop);
+    };
+    return { move, stop };
+  });
+
+  function startDragging(id: string, e: React.PointerEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    draggingIdRef.current = id;
+    window.addEventListener("pointermove", dragHandlers.move);
+    window.addEventListener("pointerup", dragHandlers.stop);
+  }
+
+  function resetPosition(id: string) {
+    setPositionDrafts((prev) => {
+      if (!(id in prev)) return prev;
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
   }
 
   async function createDistrict() {
@@ -92,18 +149,14 @@ export default function DistrictManager({ initialDistricts }: { initialDistricts
     const res = await fetch(`/api/districts/${district.id}`, { method: "DELETE" });
     if (res.ok) {
       setDistricts((prev) => prev.filter((d) => d.id !== district.id));
-      setPreview((prev) => {
-        const next = { ...prev };
-        delete next[district.id];
-        return next;
-      });
+      resetPosition(district.id);
       showToast("지역이 삭제되었습니다.");
     } else {
       showToast("삭제에 실패했어요.");
     }
   }
 
-  async function patch(id: string, data: PatchPayload) {
+  async function patch(id: string, data: FieldPatch) {
     const res = await fetch(`/api/districts/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -111,6 +164,7 @@ export default function DistrictManager({ initialDistricts }: { initialDistricts
     });
     if (res.ok) {
       setDistricts((prev) => prev.map((d) => (d.id === id ? { ...d, ...data } : d)));
+      resetPosition(id); // 저장 성공 시 임시 드래그 위치는 이제 district 쪽 값과 같으므로 정리
     } else {
       const resData = await res.json().catch(() => ({}));
       showToast(resData.error ?? "변경에 실패했어요.");
@@ -118,46 +172,35 @@ export default function DistrictManager({ initialDistricts }: { initialDistricts
     return res.ok;
   }
 
-  const previewDistricts = districts.map((d) => ({ ...d, ...preview[d.id] }));
+  const effectiveDistricts = districts.map((d) => ({ ...d, ...positionDrafts[d.id] }));
 
   return (
     <div className="flex flex-col gap-8">
-      {/* ── 지도 미리보기 ── */}
+      {/* ── 지도 위 드래그 편집 — 실제 사용자 화면(DiscoverEntry)과 동일한 마커 렌더 공유 ── */}
       <div className="space-y-2">
         <p className="text-xs" style={{ color: "var(--dim)" }}>
-          미리보기 — 마커 위치·상태를 바꾸면 즉시 반영돼요. (도형은 편집 대상이 아니에요.)
+          마커를 드래그해서 위치를 옮기세요. 줌 중심은 마커 위치를 그대로 따라가요.
         </p>
-        <div className="border p-3" style={{ borderColor: "var(--border)" }}>
+        <div className="border p-3" style={{ borderColor: "var(--border)", touchAction: "none" }}>
           <svg
+            ref={svgRef}
             viewBox={SEOUL_MAP_VIEWBOX}
             width="100%"
-            style={{ display: "block", maxWidth: 360, margin: "0 auto", color: "var(--fg)" }}
+            style={{ display: "block", maxWidth: 420, margin: "0 auto", color: "var(--fg)" }}
           >
             <SeoulMapBackdrop idSuffix="-admin" />
-            {previewDistricts.map((d) => {
-              const isActive = d.status === "ACTIVE";
-              const isHidden = d.status === "HIDDEN";
-              return (
-                <g key={d.id} opacity={isHidden ? 0.3 : 1}>
-                  <circle
-                    cx={d.markerX} cy={d.markerY} r={isActive ? 5 : 3.5}
-                    fill="currentColor" fillOpacity={isActive ? 0.85 : 0.25}
-                    stroke="currentColor" strokeWidth={isActive ? 0 : 0.8}
-                  />
-                  <text
-                    x={d.markerX} y={d.markerY - 9} textAnchor="middle" fontSize="7"
-                    fill="currentColor" opacity={isActive ? 0.9 : 0.45}
-                    style={{ fontFamily: "system-ui, sans-serif", fontWeight: isActive ? 600 : 400 }}
-                  >
-                    {d.name}
-                  </text>
-                  {/* 줌 중심점 — 마커 위치와 다를 때만 별도 표시 */}
-                  {(d.zoomX !== d.markerX || d.zoomY !== d.markerY) && (
-                    <circle cx={d.zoomX} cy={d.zoomY} r={1.6} fill="none" stroke="currentColor" strokeWidth="0.8" opacity="0.4" />
-                  )}
-                </g>
-              );
-            })}
+            {effectiveDistricts.map((d) => (
+              <g
+                key={d.id}
+                className="cursor-grab active:cursor-grabbing"
+                onPointerDown={(e) => startDragging(d.id, e)}
+                style={{ touchAction: "none" }}
+              >
+                {/* 드래그 히트영역 확대 — 마커보다 넉넉한 투명 원 */}
+                <circle cx={d.markerX} cy={d.markerY} r={22} fill="transparent" />
+                <DistrictMapMarker name={d.name} x={d.markerX} y={d.markerY} status={d.status} />
+              </g>
+            ))}
           </svg>
         </div>
       </div>
@@ -193,12 +236,13 @@ export default function DistrictManager({ initialDistricts }: { initialDistricts
           <DistrictCard
             key={district.id}
             district={district}
+            positionDraft={positionDrafts[district.id]}
             index={i}
             total={districts.length}
             onMove={(dir) => move(district.id, dir)}
             onPatch={(data) => patch(district.id, data)}
+            onResetPosition={() => resetPosition(district.id)}
             onRemove={() => removeDistrict(district)}
-            onLivePreview={(partial) => updatePreview(district.id, partial)}
           />
         ))}
       </div>
@@ -209,70 +253,59 @@ export default function DistrictManager({ initialDistricts }: { initialDistricts
 }
 
 function DistrictCard({
-  district, index, total, onMove, onPatch, onRemove, onLivePreview,
+  district, positionDraft, index, total, onMove, onPatch, onResetPosition, onRemove,
 }: {
   district: DistrictRow;
+  positionDraft?: PositionDraft;
   index: number;
   total: number;
   onMove: (direction: "up" | "down") => void;
-  onPatch: (data: PatchPayload) => Promise<boolean>;
+  onPatch: (data: FieldPatch) => Promise<boolean>;
+  onResetPosition: () => void;
   onRemove: () => void;
-  onLivePreview: (partial: LivePreview) => void;
 }) {
   const [name, setName] = useState(district.name);
   const [slug, setSlug] = useState(district.slug);
   const [tagline, setTagline] = useState(district.tagline);
   const [status, setStatus] = useState(district.status);
-  const [markerX, setMarkerX] = useState(district.markerX);
-  const [markerY, setMarkerY] = useState(district.markerY);
-  const [zoomX, setZoomX] = useState(district.zoomX);
-  const [zoomY, setZoomY] = useState(district.zoomY);
   const [zoomScale, setZoomScale] = useState(district.zoomScale);
   const [saving, setSaving] = useState(false);
   const router = useRouter();
 
+  const effX = positionDraft?.markerX ?? district.markerX;
+  const effY = positionDraft?.markerY ?? district.markerY;
+  const hasPositionDraft = !!positionDraft;
+
   const dirty =
     name !== district.name || slug !== district.slug || tagline !== district.tagline ||
-    markerX !== district.markerX || markerY !== district.markerY ||
-    zoomX !== district.zoomX || zoomY !== district.zoomY || zoomScale !== district.zoomScale;
+    zoomScale !== district.zoomScale || hasPositionDraft;
 
-  function handleMarkerXChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const n = Number(e.target.value);
-    if (!Number.isFinite(n)) return;
-    setMarkerX(n);
-    onLivePreview({ markerX: n, markerY, status });
-  }
-  function handleMarkerYChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const n = Number(e.target.value);
-    if (!Number.isFinite(n)) return;
-    setMarkerY(n);
-    onLivePreview({ markerX, markerY: n, status });
-  }
-  function handleZoomXChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const n = Number(e.target.value);
-    if (Number.isFinite(n)) setZoomX(n);
-  }
-  function handleZoomYChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const n = Number(e.target.value);
-    if (Number.isFinite(n)) setZoomY(n);
-  }
-  function handleZoomScaleChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const n = Number(e.target.value);
-    if (Number.isFinite(n)) setZoomScale(n);
-  }
   async function handleStatusChange(e: React.ChangeEvent<HTMLSelectElement>) {
     const s = e.target.value as DistrictStatus;
     setStatus(s);
-    onLivePreview({ markerX, markerY, status: s });
     const ok = await onPatch({ status: s });
     if (!ok) setStatus(district.status); // 실패 시 되돌리기
   }
 
   async function save() {
     setSaving(true);
-    const ok = await onPatch({ name, slug, tagline, markerX, markerY, zoomX, zoomY, zoomScale });
+    const ok = await onPatch({
+      name, slug, tagline, zoomScale,
+      markerX: effX,
+      markerY: effY,
+      zoomX: positionDraft?.zoomX ?? district.zoomX,
+      zoomY: positionDraft?.zoomY ?? district.zoomY,
+    });
     setSaving(false);
     if (ok) router.refresh();
+  }
+
+  function cancel() {
+    setName(district.name);
+    setSlug(district.slug);
+    setTagline(district.tagline);
+    setZoomScale(district.zoomScale);
+    onResetPosition();
   }
 
   return (
@@ -317,33 +350,29 @@ function DistrictCard({
         </select>
       </label>
 
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-        <label className="flex flex-col gap-1 text-xs" style={{ color: "var(--dim)" }}>
-          마커 X
-          <input type="number" value={markerX} onChange={handleMarkerXChange}
-            className="bg-transparent border px-2 py-1.5 text-sm outline-none focus:border-[var(--fg)]" style={{ borderColor: "var(--border)", color: "var(--fg)" }} />
-        </label>
-        <label className="flex flex-col gap-1 text-xs" style={{ color: "var(--dim)" }}>
-          마커 Y
-          <input type="number" value={markerY} onChange={handleMarkerYChange}
-            className="bg-transparent border px-2 py-1.5 text-sm outline-none focus:border-[var(--fg)]" style={{ borderColor: "var(--border)", color: "var(--fg)" }} />
-        </label>
-        <label className="flex flex-col gap-1 text-xs" style={{ color: "var(--dim)" }}>
-          줌 중심 X
-          <input type="number" value={zoomX} onChange={handleZoomXChange}
-            className="bg-transparent border px-2 py-1.5 text-sm outline-none focus:border-[var(--fg)]" style={{ borderColor: "var(--border)", color: "var(--fg)" }} />
-        </label>
-        <label className="flex flex-col gap-1 text-xs" style={{ color: "var(--dim)" }}>
-          줌 중심 Y
-          <input type="number" value={zoomY} onChange={handleZoomYChange}
-            className="bg-transparent border px-2 py-1.5 text-sm outline-none focus:border-[var(--fg)]" style={{ borderColor: "var(--border)", color: "var(--fg)" }} />
-        </label>
-        <label className="flex flex-col gap-1 text-xs" style={{ color: "var(--dim)" }}>
-          줌 배율
-          <input type="number" step="0.1" min="1" max="4" value={zoomScale} onChange={handleZoomScaleChange}
-            className="bg-transparent border px-2 py-1.5 text-sm outline-none focus:border-[var(--fg)]" style={{ borderColor: "var(--border)", color: "var(--fg)" }} />
-        </label>
+      {/* 위치 — 위쪽 지도에서 드래그로만 설정. 숫자 입력 필드는 없음 */}
+      <div className="flex items-center justify-between gap-3 text-xs px-3 py-2 border" style={{ borderColor: "var(--border)", color: "var(--dim)" }}>
+        <span>현재 위치 ({Math.round(effX)}, {Math.round(effY)}){hasPositionDraft && " · 저장 전"}</span>
+        <button
+          type="button"
+          onClick={onResetPosition}
+          disabled={!hasPositionDraft}
+          className="border px-2 py-1 disabled:opacity-30 transition-colors hover:border-[var(--fg)]"
+          style={{ borderColor: "var(--border)" }}
+        >
+          위치 초기화
+        </button>
       </div>
+
+      <label className="flex flex-col gap-1 text-xs w-28" style={{ color: "var(--dim)" }}>
+        줌 배율
+        <input
+          type="number" step="0.1" min="1" max="4" value={zoomScale}
+          onChange={(e) => { const n = Number(e.target.value); if (Number.isFinite(n)) setZoomScale(n); }}
+          className="bg-transparent border px-2 py-1.5 text-sm outline-none focus:border-[var(--fg)]"
+          style={{ borderColor: "var(--border)", color: "var(--fg)" }}
+        />
+      </label>
 
       <div className="flex justify-end gap-2">
         <button
@@ -352,6 +381,14 @@ function DistrictCard({
           style={{ borderColor: "var(--border)", color: "var(--dim)" }}
         >
           삭제
+        </button>
+        <button
+          onClick={cancel}
+          disabled={!dirty}
+          className="text-xs px-3 py-1 border transition-colors disabled:opacity-40"
+          style={{ borderColor: "var(--border)", color: "var(--dim)" }}
+        >
+          취소
         </button>
         <button
           onClick={save}
