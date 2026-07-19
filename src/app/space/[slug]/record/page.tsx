@@ -22,7 +22,10 @@ export default async function RecordPage({ params, searchParams }: Props) {
   const intent = intentParam === "unlock" ? "unlock" : "record";
 
   const session = await auth();
-  if (!session?.user?.email) redirect("/login");
+  if (!session?.user?.email) {
+    const callback = `/space/${slug}/record${intentParam ? `?intent=${intentParam}` : ""}`;
+    redirect(`/login?callbackUrl=${encodeURIComponent(callback)}`);
+  }
 
   const space = await prisma.space.findUnique({
     where: { slug, isActive: true },

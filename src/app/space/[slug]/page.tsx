@@ -7,7 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 import { TAG_LABELS } from "@/lib/tags";
 import type { Metadata } from "next";
-import { requireSpaceUnlock } from "@/lib/spaceUnlock";
+import { resolveSpaceAccess } from "@/lib/spaceUnlock";
 import { isAdmin } from "@/lib/admin";
 import { isNewVisit } from "@/lib/visit";
 import { computeEpisodeState } from "@/lib/episodeState";
@@ -27,7 +27,6 @@ import { ENABLE_MULTILINGUAL } from "@/lib/pilotFlags";
 
 interface Props {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ src?: string }>;
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -42,10 +41,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-export default async function SpacePage({ params, searchParams }: Props) {
+export default async function SpacePage({ params }: Props) {
   const { slug } = await params;
-  const { src } = await searchParams;
-  const fromQr = src === "qr";
 
   const [space, session] = await Promise.all([
     prisma.space.findUnique({ where: { slug, isActive: true } }),
@@ -129,7 +126,11 @@ export default async function SpacePage({ params, searchParams }: Props) {
     isFirstVisit = priorVisitCount === 0;
 
     const bypass = isAdmin(session?.user?.email) || (!!space.ownerId && space.ownerId === user.id);
-    unlocked = bypass || (await requireSpaceUnlock(user.id, space.id));
+    unlocked = await resolveSpaceAccess({ userId: user.id, spaceId: space.id, isBypass: bypass });
+  } else {
+    // 비로그인 방문자 — 실제 QR 스캔(QR_ACCESS_COOKIE)만 있으면 로그인 없이도 이야기를 읽을 수 있다.
+    // 로그인은 기록/방명록 작성 등 "쓰기"에서만 요구한다.
+    unlocked = await resolveSpaceAccess({ userId: null, spaceId: space.id, isBypass: false });
   }
 
   // 에피소드 목록도 상세 페이지와 같은 언어로 보여준다.
@@ -250,13 +251,9 @@ export default async function SpacePage({ params, searchParams }: Props) {
                 <EpisodeSection spaceSlug={space.slug} episodes={episodesForDisplay} banner={banner} />
               ) : (
                 // 잠긴 상태에서는 Episode 제목/진행도 등 상세 이야기를 전혀 내려보내지 않는다 —
-                // "이야기가 있다"는 사실과 안내만 보여준다.
-                <SpaceLockNotice
-                  naverMapUrl={space.naverMapUrl}
-                  fromQr={fromQr}
-                  isLoggedIn={!!session}
-                  loginHref={`/login?callbackUrl=${encodeURIComponent(`/space/${slug}?src=qr`)}`}
-                />
+                // "이야기가 있다"는 사실과 안내만 보여준다. 여기 도달했다는 건 QR을 스캔한 적이
+                // 없다는 뜻이다(스캔했다면 로그인 여부와 무관하게 위에서 이미 unlocked=true).
+                <SpaceLockNotice naverMapUrl={space.naverMapUrl} />
               )}
             </>
           )}

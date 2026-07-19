@@ -4,7 +4,7 @@ import type { Metadata } from "next";
 import { cookies, headers } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
-import { requireSpaceUnlock } from "@/lib/spaceUnlock";
+import { resolveSpaceAccess } from "@/lib/spaceUnlock";
 import { isAdmin } from "@/lib/admin";
 import SpaceLockNotice from "@/components/SpaceLockNotice";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
@@ -99,8 +99,11 @@ export default async function EpisodeDetailPage({ params }: Props) {
       userId = user.id;
       visitCount = await prisma.record.count({ where: { userId: user.id, spaceId: space.id } });
       const bypass = isAdmin(session.user.email) || (!!space.ownerId && space.ownerId === user.id);
-      spaceUnlocked = bypass || (await requireSpaceUnlock(user.id, space.id));
+      spaceUnlocked = await resolveSpaceAccess({ userId: user.id, spaceId: space.id, isBypass: bypass });
     }
+  } else {
+    // 비로그인 방문자 — 실제 QR 스캔(QR_ACCESS_COOKIE)만 있으면 로그인 없이도 이야기를 읽을 수 있다.
+    spaceUnlocked = await resolveSpaceAccess({ userId: null, spaceId: space.id, isBypass: false });
   }
 
   // Episode 콘텐츠(Scene 본문)는 이 공간의 이야기다 — Cube QR로 공간 자체를 열지 않았다면

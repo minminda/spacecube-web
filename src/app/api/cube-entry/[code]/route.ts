@@ -2,16 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { normalizeCubeCode, getCubeByCode, resolveCubeDestination } from "@/lib/cube";
-import { createPendingUnlockToken, grantSpaceUnlock, PENDING_UNLOCK_COOKIE, PENDING_UNLOCK_MAX_AGE_SECONDS } from "@/lib/spaceUnlock";
+import { createQrAccessToken, grantSpaceUnlock, QR_ACCESS_COOKIE, QR_ACCESS_COOKIE_MAX_AGE_SECONDS } from "@/lib/spaceUnlock";
 
 export const dynamic = "force-dynamic";
 
 /**
  * /c/[code] 페이지가 큐브 상태를 ASSIGNED로 이미 확인한 뒤 이리로 넘긴다. 여기서 다시 한 번
  * 코드로 큐브를 조회해(클라이언트가 넘긴 spaceId/cubeId는 절대 신뢰하지 않는다) 스캔을 기록하고,
- * 로그인 상태면 그 자리에서 SpaceUnlock을 부여한다. 비로그인이면 서명된 짧은 만료 쿠키만 남겨
- * 이후 로그인을 완료했을 때 이어서 Unlock을 확정할 수 있게 한다(Server Component는 쿠키를 쓸 수
- * 없어 이 Route Handler로 분리했다).
+ * 로그인 여부와 무관하게 서명된 QR 접근 쿠키를 남긴다 — 공간 "읽기"는 로그인이 필요 없고
+ * 오직 실제 QR 스캔만으로 열린다(src/lib/spaceUnlock.ts 참고). 로그인 상태면 추가로 그 자리에서
+ * SpaceUnlock DB 행도 즉시 부여한다(로그인 사용자는 쿠키 만료 이후에도 계속 유효하도록).
+ * Server Component는 쿠키를 쓸 수 없어 이 Route Handler로 분리했다.
  */
 export async function GET(req: NextRequest, { params }: { params: Promise<{ code: string }> }) {
   const { code } = await params;
@@ -55,27 +56,24 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ code
   // SpaceScan에 중복으로 남기지 않도록 신호를 함께 보낸다(기존 /c/[code] 동작과 동일).
   const response = NextResponse.redirect(new URL(`/space/${destination.slug}?src=qr&logged=1`, origin));
 
+  // 로그인 여부와 무관하게 항상 QR 접근 쿠키를 남긴다 — 비로그인 방문자는 이 쿠키만으로
+  // 12시간 동안 이 공간을 읽을 수 있다(hasAnonymousSpaceAccess).
+  const token = createQrAccessToken(normalizedCode, cube.spaceId);
+  response.cookies.set(QR_ACCESS_COOKIE, token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    maxAge: QR_ACCESS_COOKIE_MAX_AGE_SECONDS,
+    path: "/",
+  });
+
   if (userId) {
-    // 이미 로그인돼 있으면 바로 Unlock을 부여한다 — 쿠키가 필요 없다.
+    // 로그인 상태면 추가로 DB에도 즉시 반영 — 이 쿠키가 나중에 만료돼도 로그인 사용자는
+    // SpaceUnlock 행으로 계속 유효하다.
     await grantSpaceUnlock(userId, cube.spaceId, cube.id).catch(() => {});
-    if (debug) console.log(`[cube-entry] unlock-result=granted-immediately`);
-  } else {
-    // 비로그인 — "이 스캔으로 이 공간을 열 자격이 있다"는 서명된 증거만 짧게 남겨서,
-    // 이어서 로그인하면 보호 페이지 진입 시 Unlock으로 전환되게 한다(스캔 이력만으로
-    // 잠금이 풀리는 게 아니라, 로그인해서 실제 사용자 계정에 귀속돼야 열린다).
-    const token = createPendingUnlockToken(normalizedCode, cube.spaceId);
-    response.cookies.set(PENDING_UNLOCK_COOKIE, token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      maxAge: PENDING_UNLOCK_MAX_AGE_SECONDS,
-      path: "/",
-    });
-    if (debug) {
-      console.log(
-        `[cube-entry] unlock-result=pending-cookie-set(만료 ${PENDING_UNLOCK_MAX_AGE_SECONDS / 60}분, 그 안에 로그인해야 확정됨)`,
-      );
-    }
+    if (debug) console.log(`[cube-entry] unlock-result=granted-immediately(logged-in) + qr-access-cookie-set`);
+  } else if (debug) {
+    console.log(`[cube-entry] unlock-result=qr-access-cookie-set(만료 ${QR_ACCESS_COOKIE_MAX_AGE_SECONDS / 3600}시간, 비로그인 열람 허용)`);
   }
 
   return response;

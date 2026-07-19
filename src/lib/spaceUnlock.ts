@@ -4,23 +4,35 @@
    같은 클라이언트 파라미터만으로는 절대 해제되지 않는다 — 이 파일의 함수들이 모든 보호
    페이지·API가 공유하는 유일한 서버측 판정 지점이다.
 
-   접근 권한은 마지막 스캔(unlockedAt)으로부터 12시간 동안만 유효하다(isSpaceUnlockActive).
-   12시간이 지나면 공간은 다시 잠기고, 재스캔하면(grantSpaceUnlock이 unlockedAt을 갱신)
-   다시 12시간 열린다. 이 만료는 접근 권한에만 적용되고, Episode 잠금 해제 자체(방문
-   횟수 기반, unlockVisitCount<=visitCount)는 Record 누적 개수로 판정되어 영구 유지된다
-   — 서로 다른 데이터로 관리되며, 공간이 재잠금돼도 Episode Unlock 여부는 초기화되지 않는다. ── */
+   중요: "QR 스캔"과 "로그인"은 서로 다른 축이다. 공간 이야기를 읽는 데는 로그인이 필요
+   없다 — 유효한 QR 스캔(서명된 QR_ACCESS_COOKIE, 12시간)만 있으면 비회원도 열람할 수
+   있다. 로그인은 오직 "쓰기"(취향 점수 저장, 방명록 작성 등 src/app/space/[slug]/record,
+   /guestbook의 작성 흐름)에만 필요하다 — 그 페이지들은 이 파일이 아니라 각자 auth() 세션
+   자체를 요구한다. 로그인한 사용자는 SpaceUnlock DB 행(영구 기록, 12시간 만료)으로,
+   비로그인 사용자는 그 자리에서 계속 QR_ACCESS_COOKIE로 판정한다 — 로그인하는 순간
+   claimQrAccessForUser가 쿠키를 SpaceUnlock 행으로 승격시켜 이어서 durable하게 만든다.
+
+   접근 권한은 마지막 스캔으로부터 12시간 동안만 유효하다(isSpaceUnlockActive, 로그인
+   사용자·비로그인 쿠키 공통 정책값 REVISIT_INTERVAL_HOURS). 12시간이 지나면 공간은 다시
+   잠기고, 재스캔하면 다시 12시간 열린다. 이 만료는 접근 권한에만 적용되고, Episode 잠금
+   해제 자체(방문 횟수 기반, unlockVisitCount<=visitCount)는 Record 누적 개수로 판정되어
+   영구 유지된다 — 서로 다른 데이터로 관리되며, 공간이 재잠금돼도 Episode Unlock 여부는
+   초기화되지 않는다. (Record는 로그인 사용자만 남길 수 있으므로, 비로그인 방문자는
+   자연스럽게 unlockVisitCount=0인 첫 이야기까지만 보인다 — 별도 분기 불필요.) ── */
 
 import { createHmac, timingSafeEqual } from "crypto";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
-import { isNewVisit } from "@/lib/visit";
+import { isNewVisit, REVISIT_INTERVAL_HOURS } from "@/lib/visit";
 
-/** 스캔 직후 아직 로그인 전인 사용자를 위한 임시 서명 쿠키 — 로그인 완료 후 이어서 Unlock을 부여하는 데만 쓴다. */
-export const PENDING_UNLOCK_COOKIE = "sc_pending_unlock";
-/** 쿠키 유효 시간(초) — "스캔 → 그 자리에서 로그인"을 이어주는 용도라 짧게 잡는다. */
-export const PENDING_UNLOCK_MAX_AGE_SECONDS = 30 * 60;
+/** QR 스캔 인증 쿠키 — 로그인 여부와 무관하게 "이 브라우저가 유효한 큐브 QR을 스캔했다"는
+ * 서명된 증거. 비로그인 방문자의 열람 권한 판정 자체(hasAnonymousSpaceAccess)에 쓰이고,
+ * 로그인하면 claimQrAccessForUser가 이걸 SpaceUnlock DB 행으로 승격시킨다. */
+export const QR_ACCESS_COOKIE = "sc_qr_access";
+/** 쿠키 유효 시간(초) — 로그인 사용자의 SpaceUnlock 만료(REVISIT_INTERVAL_HOURS)와 동일하게 맞춘다. */
+export const QR_ACCESS_COOKIE_MAX_AGE_SECONDS = REVISIT_INTERVAL_HOURS * 60 * 60;
 
-interface PendingUnlockPayload {
+interface QrAccessPayload {
   cubeCode: string;
   spaceId: string;
   exp: number; // epoch ms
@@ -28,7 +40,7 @@ interface PendingUnlockPayload {
 
 function secret(): string {
   const s = process.env.AUTH_SECRET;
-  if (!s) throw new Error("AUTH_SECRET is not set — pending unlock token을 서명할 수 없습니다.");
+  if (!s) throw new Error("AUTH_SECRET is not set — QR access token을 서명할 수 없습니다.");
   return s;
 }
 
@@ -36,19 +48,19 @@ function sign(body: string): string {
   return createHmac("sha256", secret()).update(body).digest("base64url");
 }
 
-/** cubeCode/spaceId를 서버 서명이 붙은 토큰으로 인코딩한다(위변조 불가, 짧은 만료시간). */
-export function createPendingUnlockToken(cubeCode: string, spaceId: string): string {
-  const payload: PendingUnlockPayload = {
+/** cubeCode/spaceId를 서버 서명이 붙은 토큰으로 인코딩한다(위변조 불가). */
+export function createQrAccessToken(cubeCode: string, spaceId: string): string {
+  const payload: QrAccessPayload = {
     cubeCode,
     spaceId,
-    exp: Date.now() + PENDING_UNLOCK_MAX_AGE_SECONDS * 1000,
+    exp: Date.now() + QR_ACCESS_COOKIE_MAX_AGE_SECONDS * 1000,
   };
   const body = Buffer.from(JSON.stringify(payload)).toString("base64url");
   return `${body}.${sign(body)}`;
 }
 
 /** 서명·만료를 검증하고 payload를 반환한다. 조작되었거나 만료된 토큰은 null. */
-export function verifyPendingUnlockToken(token: string | undefined | null): PendingUnlockPayload | null {
+export function verifyQrAccessToken(token: string | undefined | null): QrAccessPayload | null {
   if (!token) return null;
   const [body, sig] = token.split(".");
   if (!body || !sig) return null;
@@ -59,7 +71,7 @@ export function verifyPendingUnlockToken(token: string | undefined | null): Pend
   if (a.length !== b.length || !timingSafeEqual(a, b)) return null;
 
   try {
-    const payload = JSON.parse(Buffer.from(body, "base64url").toString("utf8")) as Partial<PendingUnlockPayload>;
+    const payload = JSON.parse(Buffer.from(body, "base64url").toString("utf8")) as Partial<QrAccessPayload>;
     if (
       typeof payload.cubeCode !== "string" ||
       typeof payload.spaceId !== "string" ||
@@ -68,7 +80,7 @@ export function verifyPendingUnlockToken(token: string | undefined | null): Pend
     ) {
       return null;
     }
-    return payload as PendingUnlockPayload;
+    return payload as QrAccessPayload;
   } catch {
     return null;
   }
@@ -102,43 +114,83 @@ export async function grantSpaceUnlock(userId: string, spaceId: string, cubeId: 
   });
 }
 
-/**
- * 로그인 전에 QR을 스캔했던 사용자가 로그인 완료 후 이 공간의 보호 페이지에 처음 도달했을 때,
- * 남아 있는 pending-unlock 쿠키를 검증해 Unlock으로 전환한다. 쿠키의 스냅샷을 그대로 믿지 않고
- * "지금 이 순간"에도 해당 큐브가 이 공간에 정상(ASSIGNED)으로 연결돼 있는지 다시 확인한다 —
- * 그 사이 비활성화되거나 다른 공간으로 재연결됐으면 거부한다.
- */
-async function consumePendingUnlockCookie(userId: string, spaceId: string): Promise<boolean> {
-  const debug = process.env.NODE_ENV !== "production";
-  const store = await cookies();
-  const payload = verifyPendingUnlockToken(store.get(PENDING_UNLOCK_COOKIE)?.value);
-  if (!payload || payload.spaceId !== spaceId) {
-    if (debug) console.log(`[spaceUnlock] pending-cookie 없음/만료/다른 공간용 — unlock 전환 안 함 (spaceId=${spaceId})`);
-    return false;
-  }
-
+/** QR_ACCESS_COOKIE의 cubeCode가 지금도 이 spaceId에 정상(ASSIGNED)으로 연결돼 있는지
+ * 재확인한다 — 쿠키의 스냅샷을 그대로 믿지 않고, 그 사이 비활성화되거나 다른 공간으로
+ * 재연결됐으면 거부한다(claimQrAccessForUser/hasAnonymousSpaceAccess 공용). */
+async function verifyQrAccessCube(payload: QrAccessPayload, spaceId: string): Promise<{ id: string } | null> {
+  if (payload.spaceId !== spaceId) return null;
   const cube = await prisma.cube.findUnique({
     where: { code: payload.cubeCode },
     select: { id: true, status: true, spaceId: true },
   });
-  if (!cube || cube.status !== "ASSIGNED" || cube.spaceId !== spaceId) {
-    if (debug) console.log(`[spaceUnlock] pending-cookie는 있으나 큐브 상태가 그 사이 바뀜 — unlock 전환 안 함`);
+  if (!cube || cube.status !== "ASSIGNED" || cube.spaceId !== spaceId) return null;
+  return { id: cube.id };
+}
+
+/**
+ * 비로그인 방문자용 — DB에 아무것도 쓰지 않고, 이 브라우저의 QR_ACCESS_COOKIE만으로
+ * "지금 이 공간을 읽어도 되는지" 판정한다. 로그인 사용자의 SpaceUnlock과 달리 User와
+ * 연결하지 않는다(익명 방문 그대로 허용) — 공간 접근 자체를 로그인 여부로 막지 않기 위함.
+ */
+export async function hasAnonymousSpaceAccess(spaceId: string): Promise<boolean> {
+  const debug = process.env.NODE_ENV !== "production";
+  const store = await cookies();
+  const payload = verifyQrAccessToken(store.get(QR_ACCESS_COOKIE)?.value);
+  if (!payload) {
+    if (debug) console.log(`[spaceUnlock] QR access 쿠키 없음/만료 — 비로그인 접근 거부 (spaceId=${spaceId})`);
+    return false;
+  }
+  const cube = await verifyQrAccessCube(payload, spaceId);
+  if (debug) console.log(`[spaceUnlock] 비로그인 접근 판정 결과=${!!cube} (spaceId=${spaceId})`);
+  return !!cube;
+}
+
+/**
+ * 로그인 전에 QR을 스캔했던 사용자가 로그인 완료 후 이 공간의 보호 페이지에 처음 도달했을 때,
+ * 남아 있는 QR_ACCESS_COOKIE를 검증해 durable한 SpaceUnlock 행으로 승격시킨다(그 뒤로는
+ * 쿠키가 만료돼도 로그인 사용자 자격으로 계속 유효). "지금 이 순간"에도 해당 큐브가 이
+ * 공간에 정상(ASSIGNED)으로 연결돼 있는지 다시 확인한 뒤에만 승격한다.
+ */
+async function claimQrAccessForUser(userId: string, spaceId: string): Promise<boolean> {
+  const debug = process.env.NODE_ENV !== "production";
+  const store = await cookies();
+  const payload = verifyQrAccessToken(store.get(QR_ACCESS_COOKIE)?.value);
+  if (!payload) {
+    if (debug) console.log(`[spaceUnlock] QR access 쿠키 없음/만료 — 로그인 사용자 승격 안 함 (spaceId=${spaceId})`);
+    return false;
+  }
+  const cube = await verifyQrAccessCube(payload, spaceId);
+  if (!cube) {
+    if (debug) console.log(`[spaceUnlock] QR access 쿠키는 있으나 큐브 상태가 그 사이 바뀜 — 승격 안 함`);
     return false;
   }
 
   await grantSpaceUnlock(userId, spaceId, cube.id);
-  if (debug) console.log(`[spaceUnlock] pending-cookie 소비 완료 — unlock 확정(userId=${userId}, spaceId=${spaceId})`);
+  if (debug) console.log(`[spaceUnlock] QR access 쿠키 승격 완료 — SpaceUnlock 확정(userId=${userId}, spaceId=${spaceId})`);
   return true;
 }
 
 /**
- * 모든 보호 페이지·API가 공유하는 단일 판정 함수. 이미 Unlock이 있으면 즉시 true, 없으면
- * pending-unlock 쿠키로 방금 로그인한 스캔을 이어서 확정할 수 있는지 시도한다. 관리자·운영자
- * 예외는 이 함수의 책임이 아니다 — 호출부가 isAdmin/canAccessSpace와 함께 조합해서 쓴다.
+ * 로그인 사용자 전용 판정 함수. 이미 SpaceUnlock이 있으면 즉시 true, 없으면 QR_ACCESS_COOKIE로
+ * 방금 로그인한 스캔을 이어서 확정할 수 있는지 시도한다. 관리자·운영자 예외는 이 함수의
+ * 책임이 아니다 — 호출부가 isAdmin/canAccessSpace와 함께 조합해서 쓴다. 비로그인 방문자의
+ * 판정은 hasAnonymousSpaceAccess를 따로 쓴다(resolveSpaceAccess가 둘을 합쳐준다).
  */
 export async function requireSpaceUnlock(userId: string, spaceId: string): Promise<boolean> {
   if (await hasSpaceUnlock(userId, spaceId)) return true;
-  return consumePendingUnlockCookie(userId, spaceId);
+  return claimQrAccessForUser(userId, spaceId);
+}
+
+/**
+ * 공간 "읽기" 보호 페이지(공간 상세, Episode 상세 등)가 공통으로 쓰는 단일 진입점 —
+ * 로그인 여부에 따라 requireSpaceUnlock/hasAnonymousSpaceAccess로 자동 분기한다.
+ * "쓰기"(기록 작성, 방명록 작성)는 이 함수를 쓰지 않고 각 페이지가 로그인 자체를 강제한 뒤
+ * requireSpaceUnlock을 직접 호출한다 — 쓰기는 로그인 없이는 애초에 진입할 수 없기 때문이다.
+ */
+export async function resolveSpaceAccess(params: { userId: string | null; spaceId: string; isBypass: boolean }): Promise<boolean> {
+  if (params.isBypass) return true;
+  if (params.userId) return requireSpaceUnlock(params.userId, params.spaceId);
+  return hasAnonymousSpaceAccess(params.spaceId);
 }
 
 export interface SpaceUnlockRow {
