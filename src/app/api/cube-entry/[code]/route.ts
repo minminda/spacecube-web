@@ -20,6 +20,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ code
 
   const cube = await getCubeByCode(normalizedCode);
   const destination = resolveCubeDestination(cube);
+  const debug = process.env.NODE_ENV !== "production";
+  if (debug) console.log(`[cube-entry] code=${normalizedCode} destination=${destination.type}`);
 
   if (destination.type !== "redirect" || !cube || !cube.spaceId) {
     // 이 사이 상태가 바뀌었거나(비활성화 등) 애초에 잘못된 코드라면 안내 화면으로 되돌린다.
@@ -32,6 +34,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ code
     const user = await prisma.user.findUnique({ where: { email: session.user.email }, select: { id: true } });
     userId = user?.id ?? null;
   }
+  if (debug) console.log(`[cube-entry] space=${destination.slug} loggedIn=${!!userId}`);
 
   await prisma.spaceScan
     .create({
@@ -55,6 +58,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ code
   if (userId) {
     // 이미 로그인돼 있으면 바로 Unlock을 부여한다 — 쿠키가 필요 없다.
     await grantSpaceUnlock(userId, cube.spaceId, cube.id).catch(() => {});
+    if (debug) console.log(`[cube-entry] unlock-result=granted-immediately`);
   } else {
     // 비로그인 — "이 스캔으로 이 공간을 열 자격이 있다"는 서명된 증거만 짧게 남겨서,
     // 이어서 로그인하면 보호 페이지 진입 시 Unlock으로 전환되게 한다(스캔 이력만으로
@@ -67,6 +71,11 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ code
       maxAge: PENDING_UNLOCK_MAX_AGE_SECONDS,
       path: "/",
     });
+    if (debug) {
+      console.log(
+        `[cube-entry] unlock-result=pending-cookie-set(만료 ${PENDING_UNLOCK_MAX_AGE_SECONDS / 60}분, 그 안에 로그인해야 확정됨)`,
+      );
+    }
   }
 
   return response;

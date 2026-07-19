@@ -109,17 +109,25 @@ export async function grantSpaceUnlock(userId: string, spaceId: string, cubeId: 
  * 그 사이 비활성화되거나 다른 공간으로 재연결됐으면 거부한다.
  */
 async function consumePendingUnlockCookie(userId: string, spaceId: string): Promise<boolean> {
+  const debug = process.env.NODE_ENV !== "production";
   const store = await cookies();
   const payload = verifyPendingUnlockToken(store.get(PENDING_UNLOCK_COOKIE)?.value);
-  if (!payload || payload.spaceId !== spaceId) return false;
+  if (!payload || payload.spaceId !== spaceId) {
+    if (debug) console.log(`[spaceUnlock] pending-cookie 없음/만료/다른 공간용 — unlock 전환 안 함 (spaceId=${spaceId})`);
+    return false;
+  }
 
   const cube = await prisma.cube.findUnique({
     where: { code: payload.cubeCode },
     select: { id: true, status: true, spaceId: true },
   });
-  if (!cube || cube.status !== "ASSIGNED" || cube.spaceId !== spaceId) return false;
+  if (!cube || cube.status !== "ASSIGNED" || cube.spaceId !== spaceId) {
+    if (debug) console.log(`[spaceUnlock] pending-cookie는 있으나 큐브 상태가 그 사이 바뀜 — unlock 전환 안 함`);
+    return false;
+  }
 
   await grantSpaceUnlock(userId, spaceId, cube.id);
+  if (debug) console.log(`[spaceUnlock] pending-cookie 소비 완료 — unlock 확정(userId=${userId}, spaceId=${spaceId})`);
   return true;
 }
 
