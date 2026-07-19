@@ -73,7 +73,7 @@ export default function EpisodeSection({ spaceSlug, episodes, banner }: Props) {
               >
                 <span className="text-xs flex-shrink-0" style={{ color: "var(--dim)" }}>EP.{ep.episodeNumber}</span>
                 <span className="text-sm flex-1" style={{ color: "var(--dim)" }}>다음 이야기 (예정)</span>
-                <span className="text-xs flex-shrink-0" aria-hidden>🚧 준비 중</span>
+                <span className="text-xs flex-shrink-0" style={{ color: "var(--dim)" }}>준비 중</span>
               </button>
             );
           }
@@ -87,12 +87,12 @@ export default function EpisodeSection({ spaceSlug, episodes, banner }: Props) {
               >
                 {ep.title}
               </span>
-              {ep.state === "UNLOCKED" && (
-                <span className="text-xs flex-shrink-0" style={{ color: "var(--dim)" }}>✓ 해제됨</span>
-              )}
-              {ep.state === "NEWLY_UNLOCKED" && (
-                <span className="text-xs flex-shrink-0 font-medium episode-newly-unlocked" style={{ color: "var(--fg)" }}>
-                  ✨ 새롭게 해제됨
+              {(ep.state === "UNLOCKED" || ep.state === "NEWLY_UNLOCKED") && (
+                <span
+                  className={`text-xs flex-shrink-0${ep.state === "NEWLY_UNLOCKED" ? " episode-newly-unlocked" : ""}`}
+                  style={{ color: "var(--dim)" }}
+                >
+                  ✓ 해제됨
                 </span>
               )}
               {ep.state === "LOCKED" && (
@@ -161,15 +161,15 @@ export default function EpisodeSection({ spaceSlug, episodes, banner }: Props) {
         </div>
       )}
 
-      {/* 새로 해제된 Episode의 가벼운 진입 효과(약 1초) — Cube Unlock 연출과 달리 짧고 단순하게 유지한다. */}
+      {/* 새로 해제된 Episode 표시는 UNLOCKED와 동일한 "✓ 해제됨" 텍스트를 쓰고, 아주 옅은
+          fade-in만으로 변화를 알린다 — 반짝임·확대축소 같은 장식 효과는 두지 않는다. */}
       <style>{`
         @keyframes episodeNewlyUnlockedIn {
-          0%   { opacity: 0; transform: scale(0.85); }
-          45%  { opacity: 1; transform: scale(1.1); }
-          100% { opacity: 1; transform: scale(1); }
+          from { opacity: 0; }
+          to   { opacity: 1; }
         }
         .episode-newly-unlocked {
-          animation: episodeNewlyUnlockedIn 1s ease-out both;
+          animation: episodeNewlyUnlockedIn 0.6s ease-out both;
         }
         @media (prefers-reduced-motion: reduce) {
           .episode-newly-unlocked { animation: none; }
