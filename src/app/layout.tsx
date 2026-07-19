@@ -4,8 +4,9 @@ import ThemeToggle from "@/components/ThemeToggle";
 import OnboardingOverlay from "@/components/OnboardingOverlay";
 import Navbar from "@/components/Navbar";
 import { ENABLE_DARK_MODE_TOGGLE } from "@/lib/features";
+import { getBaseUrl } from "@/lib/config";
 
-const BASE_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://spacecube-web.vercel.app";
+const BASE_URL = getBaseUrl();
 
 export const metadata: Metadata = {
   title: "공간큐브",

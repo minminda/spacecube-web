@@ -1,8 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 
-export const CUBE_CODE_PREFIX = "SC-";
-const CODE_PAD = 4;
+export const CUBE_CODE_PREFIX = "GC-";
+const CODE_PAD = 3;
 const MAX_RETRIES = 5;
 
 function parseCubeNumber(code: string): number {

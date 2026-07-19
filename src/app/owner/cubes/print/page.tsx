@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { isAdmin } from "@/lib/admin";
+import { getBaseUrl } from "@/lib/config";
 import PrintManager, { type PrintCube } from "./PrintManager";
 
 interface Props {
@@ -22,7 +23,7 @@ export default async function CubePrintPage({ searchParams }: Props) {
     select: { id: true, code: true },
   });
 
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? process.env.AUTH_URL ?? "https://spacecube-web.vercel.app";
+  const baseUrl = getBaseUrl();
 
   const printCubes: PrintCube[] = cubes.map((c) => ({ id: c.id, code: c.code, url: `${baseUrl}/c/${c.code}` }));
 

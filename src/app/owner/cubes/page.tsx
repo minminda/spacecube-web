@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { isAdmin } from "@/lib/admin";
+import { getBaseUrl } from "@/lib/config";
 import CubeManager, { type CubeRow, type SpaceOption } from "./CubeManager";
 
 interface Props {
@@ -38,7 +39,7 @@ export default async function CubesPage({ searchParams }: Props) {
 
   const lastScanByCube = new Map(lastScans.map((s) => [s.cubeId as string, s._max.scannedAt]));
 
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? process.env.AUTH_URL ?? "https://spacecube-web.vercel.app";
+  const baseUrl = getBaseUrl();
 
   const cubeRows: CubeRow[] = cubes.map((c) => ({
     id: c.id,

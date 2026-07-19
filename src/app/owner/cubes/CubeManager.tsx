@@ -57,6 +57,7 @@ function StatusBadge({ status }: { status: CubeStatus }) {
 type ConfirmAction =
   | { type: "unassign"; cube: CubeRow }
   | { type: "disable"; cube: CubeRow }
+  | { type: "delete"; cube: CubeRow }
   | { type: "assign"; cube: CubeRow; targetSpace: SpaceOption };
 
 export default function CubeManager({ cubes, spaceOptions, baseUrl, initialFocusCode }: Props) {
@@ -174,8 +175,10 @@ export default function CubeManager({ cubes, spaceOptions, baseUrl, initialFocus
         });
       } else if (confirmAction.type === "unassign") {
         res = await fetch(`/api/cubes/${confirmAction.cube.id}/unassign`, { method: "POST" });
-      } else {
+      } else if (confirmAction.type === "disable") {
         res = await fetch(`/api/cubes/${confirmAction.cube.id}/disable`, { method: "POST" });
+      } else {
+        res = await fetch(`/api/cubes/${confirmAction.cube.id}`, { method: "DELETE" });
       }
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -186,8 +189,10 @@ export default function CubeManager({ cubes, spaceOptions, baseUrl, initialFocus
         showToast(`${confirmAction.cube.code} 큐브가 '${confirmAction.targetSpace.name}' 공간에 연결되었습니다.`);
       } else if (confirmAction.type === "unassign") {
         showToast(`${confirmAction.cube.code}의 연결이 해제되었습니다.`);
-      } else {
+      } else if (confirmAction.type === "disable") {
         showToast(`${confirmAction.cube.code}가 비활성화되었습니다.`);
+      } else {
+        showToast(`${confirmAction.cube.code}가 삭제되었습니다.`);
       }
       router.refresh();
     } finally {
@@ -342,6 +347,16 @@ export default function CubeManager({ cubes, spaceOptions, baseUrl, initialFocus
                       큐브 다시 활성화
                     </button>
                   )}
+                  {cube.status !== "ASSIGNED" && (
+                    <button
+                      type="button"
+                      onClick={() => setConfirmAction({ type: "delete", cube })}
+                      className="border px-3 py-1.5 transition-colors hover:border-red-500 hover:text-red-500"
+                      style={{ borderColor: "var(--border)", color: "var(--dim)" }}
+                    >
+                      큐브 삭제
+                    </button>
+                  )}
                 </div>
               </div>
             );
@@ -468,6 +483,12 @@ export default function CubeManager({ cubes, spaceOptions, baseUrl, initialFocus
                 필요하면 나중에 다시 활성화할 수 있습니다.
               </p>
             )}
+            {confirmAction.type === "delete" && (
+              <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>
+                {confirmAction.cube.code}를 삭제하면 되돌릴 수 없습니다.<br />
+                이미 인쇄한 QR이 있다면 더 이상 사용할 수 없습니다.
+              </p>
+            )}
             <div className="flex gap-3">
               <button type="button" onClick={() => setConfirmAction(null)} disabled={busy} className="flex-1 py-2.5 text-sm border" style={{ borderColor: "var(--border)", color: "var(--dim)" }}>
                 취소
@@ -477,7 +498,7 @@ export default function CubeManager({ cubes, spaceOptions, baseUrl, initialFocus
                 onClick={runConfirm}
                 disabled={busy}
                 className="flex-1 py-2.5 text-sm border disabled:opacity-40"
-                style={confirmAction.type === "disable" ? { borderColor: "#ef4444", color: "#ef4444" } : { borderColor: "var(--fg)" }}
+                style={confirmAction.type === "disable" || confirmAction.type === "delete" ? { borderColor: "#ef4444", color: "#ef4444" } : { borderColor: "var(--fg)" }}
               >
                 {busy ? "처리 중..." : "확인"}
               </button>

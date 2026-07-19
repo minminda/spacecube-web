@@ -3,6 +3,7 @@ import Link from "next/link";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { isAdmin } from "@/lib/admin";
+import { getBaseUrl } from "@/lib/config";
 import CubeQR from "@/components/CubeQR";
 
 interface Props {
@@ -20,7 +21,7 @@ export default async function QRPage({ params }: Props) {
   const space = await prisma.space.findUnique({ where: { id }, include: { cube: true } });
   if (!space) notFound();
 
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? process.env.AUTH_URL ?? "https://spacecube-web.vercel.app";
+  const baseUrl = getBaseUrl();
 
   return (
     <main className="flex flex-col min-h-screen px-6 py-8 gap-6">
