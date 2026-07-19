@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { EpisodeState } from "@/lib/episodeState";
+import LockIcon from "@/components/LockIcon";
 
 interface EpisodeSummary {
   id: string;
@@ -96,7 +97,10 @@ export default function EpisodeSection({ spaceSlug, episodes, banner }: Props) {
                 </span>
               )}
               {ep.state === "LOCKED" && (
-                <span className="text-xs flex-shrink-0" aria-hidden>🔒 잠겨 있음</span>
+                <span className="text-xs flex-shrink-0 inline-flex items-center gap-1" style={{ color: "var(--dim)" }}>
+                  <LockIcon className="w-3 h-3" />
+                  잠겨 있음
+                </span>
               )}
             </div>
           );
