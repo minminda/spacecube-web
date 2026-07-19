@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import QRCode from "qrcode";
+import { CENTER_LOGO_RATIO, CENTER_LOGO_LINES, injectCenterLogoIntoSvg, drawCenterLogoOnCanvas } from "@/lib/qrLogo";
 
 interface Props {
   url: string;
@@ -18,24 +19,46 @@ export default function CubeQR({ url, code, size = 96, showActions = false }: Pr
   const [copied, setCopied] = useState<"url" | "code" | null>(null);
 
   useEffect(() => {
-    if (canvasRef.current) {
-      QRCode.toCanvas(canvasRef.current, url, {
+    let cancelled = false;
+    async function drawCanvas() {
+      if (!canvasRef.current) return;
+      await QRCode.toCanvas(canvasRef.current, url, {
         width: size,
         margin: 1,
+        errorCorrectionLevel: "H",
         color: { dark: "#111111", light: "#ffffff" },
-      }).catch(() => {});
+      });
+      // 캔버스 텍스트는 폰트가 로드되기 전에 그리면 계속 대체 폰트로 남으므로, 로고 텍스트를
+      // 그리기 전에 폰트 로딩이 끝나길 기다린다(Pretendard는 루트 레이아웃에서 <link>로 로드됨).
+      await document.fonts.ready.catch(() => {});
+      if (cancelled || !canvasRef.current) return;
+      drawCenterLogoOnCanvas(canvasRef.current, size, { ratio: CENTER_LOGO_RATIO, lines: CENTER_LOGO_LINES });
     }
-    if (showActions) {
-      QRCode.toString(url, { type: "svg", margin: 1, color: { dark: "#111111", light: "#ffffff" } })
-        .then(setSvgMarkup)
-        .catch(() => setSvgMarkup(null));
-    }
-  }, [url, size, showActions]);
+    drawCanvas().catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [url, size]);
+
+  useEffect(() => {
+    if (!showActions) return;
+    let cancelled = false;
+    QRCode.toString(url, { type: "svg", margin: 1, errorCorrectionLevel: "H", color: { dark: "#111111", light: "#ffffff" } })
+      .then((raw) => {
+        if (!cancelled) setSvgMarkup(injectCenterLogoIntoSvg(raw, { ratio: CENTER_LOGO_RATIO, lines: CENTER_LOGO_LINES }));
+      })
+      .catch(() => {
+        if (!cancelled) setSvgMarkup(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [url, showActions]);
 
   function downloadPng() {
     if (!canvasRef.current) return;
     const link = document.createElement("a");
-    link.download = `spacecube-${code}.png`;
+    link.download = `${code}.png`;
     link.href = canvasRef.current.toDataURL("image/png");
     link.click();
   }
@@ -45,7 +68,7 @@ export default function CubeQR({ url, code, size = 96, showActions = false }: Pr
     const blob = new Blob([svgMarkup], { type: "image/svg+xml" });
     const url2 = URL.createObjectURL(blob);
     const link = document.createElement("a");
-    link.download = `spacecube-${code}.svg`;
+    link.download = `${code}.svg`;
     link.href = url2;
     link.click();
     setTimeout(() => URL.revokeObjectURL(url2), 1000);
