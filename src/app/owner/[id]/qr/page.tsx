@@ -3,7 +3,7 @@ import Link from "next/link";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { isAdmin } from "@/lib/admin";
-import { getBaseUrl } from "@/lib/config";
+import { getCubeUrl } from "@/lib/cube";
 import CubeQR from "@/components/CubeQR";
 
 interface Props {
@@ -20,8 +20,6 @@ export default async function QRPage({ params }: Props) {
   const { id } = await params;
   const space = await prisma.space.findUnique({ where: { id }, include: { cube: true } });
   if (!space) notFound();
-
-  const baseUrl = getBaseUrl();
 
   return (
     <main className="flex flex-col min-h-screen px-6 py-8 gap-6">
@@ -41,7 +39,7 @@ export default async function QRPage({ params }: Props) {
       {space.cube ? (
         <>
           <div className="flex flex-col items-center p-6 border gap-6" style={{ borderColor: "var(--border)" }}>
-            <CubeQR url={`${baseUrl}/c/${space.cube.code}`} code={space.cube.code} size={220} showActions />
+            <CubeQR url={getCubeUrl(space.cube.code)} code={space.cube.code} size={220} showActions />
           </div>
 
           <div className="space-y-2 text-xs" style={{ color: "var(--dim)" }}>

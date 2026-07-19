@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { normalizeCubeCode, getCubeByCode, resolveCubeDestination } from "@/lib/cube";
 import { createPendingUnlockToken, grantSpaceUnlock, PENDING_UNLOCK_COOKIE, PENDING_UNLOCK_MAX_AGE_SECONDS } from "@/lib/spaceUnlock";
 
 export const dynamic = "force-dynamic";
@@ -14,15 +15,13 @@ export const dynamic = "force-dynamic";
  */
 export async function GET(req: NextRequest, { params }: { params: Promise<{ code: string }> }) {
   const { code } = await params;
-  const normalizedCode = code.trim().toUpperCase();
+  const normalizedCode = normalizeCubeCode(code);
   const origin = req.nextUrl.origin;
 
-  const cube = await prisma.cube.findUnique({
-    where: { code: normalizedCode },
-    select: { id: true, status: true, spaceId: true, space: { select: { slug: true } } },
-  });
+  const cube = await getCubeByCode(normalizedCode);
+  const destination = resolveCubeDestination(cube);
 
-  if (!cube || cube.status !== "ASSIGNED" || !cube.spaceId || !cube.space) {
+  if (destination.type !== "redirect" || !cube || !cube.spaceId) {
     // 이 사이 상태가 바뀌었거나(비활성화 등) 애초에 잘못된 코드라면 안내 화면으로 되돌린다.
     return NextResponse.redirect(new URL(`/c/${normalizedCode}`, origin));
   }
@@ -51,7 +50,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ code
 
   // logged=1: 이 방문은 이미 위에서 기록했으니, 공간 페이지의 ScanTracker가 같은 방문을
   // SpaceScan에 중복으로 남기지 않도록 신호를 함께 보낸다(기존 /c/[code] 동작과 동일).
-  const response = NextResponse.redirect(new URL(`/space/${cube.space.slug}?src=qr&logged=1`, origin));
+  const response = NextResponse.redirect(new URL(`/space/${destination.slug}?src=qr&logged=1`, origin));
 
   if (userId) {
     // 이미 로그인돼 있으면 바로 Unlock을 부여한다 — 쿠키가 필요 없다.

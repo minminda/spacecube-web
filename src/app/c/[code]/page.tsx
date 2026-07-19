@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { auth } from "@/auth";
-import { prisma } from "@/lib/prisma";
 import { isAdmin } from "@/lib/admin";
+import { normalizeCubeCode, getCubeByCode, resolveCubeDestination } from "@/lib/cube";
 
 export const dynamic = "force-dynamic";
 
@@ -12,24 +12,12 @@ interface Props {
 
 export default async function CubeEntryPage({ params }: Props) {
   const { code } = await params;
-  const normalizedCode = code.trim().toUpperCase();
+  const normalizedCode = normalizeCubeCode(code);
 
-  const cube = await prisma.cube.findUnique({
-    where: { code: normalizedCode },
-    select: { id: true, status: true, space: { select: { id: true, slug: true } } },
-  });
+  const cube = await getCubeByCode(normalizedCode);
+  const destination = resolveCubeDestination(cube);
 
-  if (!cube) {
-    return (
-      <main className="flex flex-col items-center justify-center min-h-screen px-6 text-center gap-3">
-        <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>
-          유효하지 않은 공간큐브입니다.
-        </p>
-      </main>
-    );
-  }
-
-  if (cube.status === "ASSIGNED" && cube.space) {
+  if (destination.type === "redirect") {
     // 스캔 로그 남기기 + (로그인 상태면) SpaceUnlock 즉시 부여 + (비로그인이면) 짧은 만료의
     // 서명 쿠키 발급은 전부 쿠키를 쓸 수 있어야 해서 Server Component가 아닌 Route Handler
     // (/api/cube-entry/[code])에서 처리한다. 이 페이지는 큐브 코드만 다시 실어 넘긴다 —
@@ -37,24 +25,34 @@ export default async function CubeEntryPage({ params }: Props) {
     redirect(`/api/cube-entry/${normalizedCode}`);
   }
 
-  if (cube.status === "DISABLED") {
+  if (destination.type === "not_found") {
     return (
       <main className="flex flex-col items-center justify-center min-h-screen px-6 text-center gap-3">
-        <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>
-          현재 사용할 수 없는 공간큐브입니다.
+        <p className="text-sm leading-relaxed whitespace-pre-line" style={{ color: "var(--dim)" }}>
+          {"등록되지 않은 큐브입니다.\n큐브의 QR을 다시 확인해주세요."}
         </p>
       </main>
     );
   }
 
-  // UNASSIGNED — 아직 공간과 연결되지 않은 큐브
+  if (destination.type === "disabled") {
+    return (
+      <main className="flex flex-col items-center justify-center min-h-screen px-6 text-center gap-3">
+        <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>
+          현재 사용할 수 없는 큐브입니다.
+        </p>
+      </main>
+    );
+  }
+
+  // unassigned — 아직 공간과 연결되지 않은 큐브
   const session = await auth();
   const admin = !!session?.user?.email && isAdmin(session.user.email);
 
   return (
     <main className="flex flex-col items-center justify-center min-h-screen px-6 text-center gap-5">
       <p className="text-sm leading-relaxed whitespace-pre-line" style={{ color: "var(--dim)" }}>
-        {"아직 공간과 연결되지 않은 큐브입니다.\n\n설치가 완료된 후\n이 공간의 이야기가 열립니다."}
+        {"아직 공간과 연결되지 않은 큐브입니다.\n운영자에게 문의해주세요."}
       </p>
       {admin && (
         <Link

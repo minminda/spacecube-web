@@ -6,6 +6,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import CubeQR from "@/components/CubeQR";
 import { formatDotDate as formatDate } from "@/lib/time";
+import { buildCubeUrl } from "@/lib/cubeUrl";
 import { useToast } from "@/hooks/useToast";
 
 type CubeStatus = "UNASSIGNED" | "ASSIGNED" | "DISABLED";
@@ -291,7 +292,7 @@ export default function CubeManager({ cubes, spaceOptions, baseUrl, initialFocus
       ) : (
         <div className="space-y-3">
           {filtered.map((cube) => {
-            const qrUrl = `${baseUrl}/c/${cube.code}`;
+            const qrUrl = buildCubeUrl(baseUrl, cube.code);
             return (
               <div key={cube.id} className="p-4 border space-y-3" style={{ borderColor: "var(--border)", opacity: cube.status === "DISABLED" ? 0.6 : 1 }}>
                 <div className="flex gap-4">

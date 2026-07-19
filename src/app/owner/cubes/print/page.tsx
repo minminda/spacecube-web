@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { isAdmin } from "@/lib/admin";
-import { getBaseUrl } from "@/lib/config";
+import { getCubeUrl } from "@/lib/cube";
 import PrintManager, { type PrintCube } from "./PrintManager";
 
 interface Props {
@@ -23,9 +23,7 @@ export default async function CubePrintPage({ searchParams }: Props) {
     select: { id: true, code: true },
   });
 
-  const baseUrl = getBaseUrl();
-
-  const printCubes: PrintCube[] = cubes.map((c) => ({ id: c.id, code: c.code, url: `${baseUrl}/c/${c.code}` }));
+  const printCubes: PrintCube[] = cubes.map((c) => ({ id: c.id, code: c.code, url: getCubeUrl(c.code) }));
 
   return <PrintManager cubes={printCubes} />;
 }
