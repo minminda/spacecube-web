@@ -1,7 +1,10 @@
 /** 큐브 QR 중앙 브랜드 로고 — 순수 문자열/숫자 로직만 담아 canvas(PNG)와 SVG 양쪽에서 재사용한다. */
 
-/** 로고 영역이 QR 전체 너비에서 차지하는 비율(약 15%) — errorCorrectionLevel H(30% 복원)에서 안전한 수준 */
-export const CENTER_LOGO_RATIO = 0.15;
+/** 로고 영역이 QR 전체 너비에서 차지하는 비율(약 20%) — errorCorrectionLevel H(30% 복원) 기준
+ * 면적으로는 4%(0.2×0.2)에 불과해 여유가 커서, 가독성을 위해 15%보다 키웠다. */
+export const CENTER_LOGO_RATIO = 0.2;
+/** 로고 정사각형 안에서 글자가 차지하는 비율 — 두 줄이 겹치지 않을 상한(약 0.43) 안에서 최대한 키움 */
+export const CENTER_LOGO_FONT_RATIO = 0.4;
 export const CENTER_LOGO_LINES: [string, string] = ["공간", "큐브"];
 export const CENTER_LOGO_FONT_STACK = `Pretendard, "Malgun Gothic", sans-serif`;
 
@@ -22,7 +25,7 @@ export function injectCenterLogoIntoSvg(
   const size = Math.min(w, h) * ratio;
   const cx = w / 2;
   const cy = h / 2;
-  const fontSize = size * 0.32;
+  const fontSize = size * CENTER_LOGO_FONT_RATIO;
 
   const overlay =
     `<rect x="${(cx - size / 2).toFixed(2)}" y="${(cy - size / 2).toFixed(2)}" width="${size.toFixed(2)}" height="${size.toFixed(2)}" fill="#ffffff"/>` +
@@ -54,7 +57,7 @@ export function drawCenterLogoOnCanvas(
   ctx.fillStyle = "#111111";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  const fontSize = Math.max(logoSize * 0.32, 6);
+  const fontSize = Math.max(logoSize * CENTER_LOGO_FONT_RATIO, 7);
   ctx.font = `700 ${fontSize}px ${CENTER_LOGO_FONT_STACK}`;
   ctx.fillText(line1, cx, cy - fontSize * 0.55);
   ctx.fillText(line2, cx, cy + fontSize * 0.55);

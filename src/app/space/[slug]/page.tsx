@@ -25,7 +25,10 @@ import { resolveLocalizedField } from "@/lib/i18nContent";
 import { DEFAULT_LOCALE, type LocaleCode } from "@/lib/locales";
 import { ENABLE_MULTILINGUAL } from "@/lib/pilotFlags";
 
-interface Props { params: Promise<{ slug: string }> }
+interface Props {
+  params: Promise<{ slug: string }>;
+  searchParams: Promise<{ src?: string }>;
+}
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
@@ -39,8 +42,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-export default async function SpacePage({ params }: Props) {
+export default async function SpacePage({ params, searchParams }: Props) {
   const { slug } = await params;
+  const { src } = await searchParams;
+  const fromQr = src === "qr";
 
   const [space, session] = await Promise.all([
     prisma.space.findUnique({ where: { slug, isActive: true } }),
@@ -246,7 +251,12 @@ export default async function SpacePage({ params }: Props) {
               ) : (
                 // 잠긴 상태에서는 Episode 제목/진행도 등 상세 이야기를 전혀 내려보내지 않는다 —
                 // "이야기가 있다"는 사실과 안내만 보여준다.
-                <SpaceLockNotice naverMapUrl={space.naverMapUrl} />
+                <SpaceLockNotice
+                  naverMapUrl={space.naverMapUrl}
+                  fromQr={fromQr}
+                  isLoggedIn={!!session}
+                  loginHref={`/login?callbackUrl=${encodeURIComponent(`/space/${slug}?src=qr`)}`}
+                />
               )}
             </>
           )}
