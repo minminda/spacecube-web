@@ -22,7 +22,7 @@ export default async function RecordPage({ params, searchParams }: Props) {
   const intent = intentParam === "unlock" ? "unlock" : "record";
 
   const session = await auth();
-  if (!session?.user?.email) {
+  if (!session?.user?.id) {
     const callback = `/space/${slug}/record${intentParam ? `?intent=${intentParam}` : ""}`;
     redirect(`/login?callbackUrl=${encodeURIComponent(callback)}`);
   }
@@ -39,7 +39,7 @@ export default async function RecordPage({ params, searchParams }: Props) {
   });
   if (!space) notFound();
 
-  const user = await prisma.user.findUnique({ where: { email: session.user.email } });
+  const user = await prisma.user.findUnique({ where: { id: session.user.id } });
   if (!user) notFound();
 
   // 취향 점수 입력은 이 공간의 이야기를 여는 관문이다 — Cube QR로 실제 잠금을 해제한

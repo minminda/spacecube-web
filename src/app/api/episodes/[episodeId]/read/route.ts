@@ -8,12 +8,12 @@ interface Props { params: Promise<{ episodeId: string }> }
 
 export async function POST(_req: Request, { params }: Props) {
   const session = await auth();
-  if (!session?.user?.email) {
+  if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const { episodeId } = await params;
-  const user = await prisma.user.findUnique({ where: { email: session.user.email } });
+  const user = await prisma.user.findUnique({ where: { id: session.user.id } });
   if (!user) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const episode = await prisma.episode.findUnique({ where: { id: episodeId }, select: { id: true } });

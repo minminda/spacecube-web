@@ -27,8 +27,8 @@ export default async function GuestbookArchiveSessionPage({ params, searchParams
   }
 
   const session = await auth();
-  const user = session?.user?.email
-    ? await prisma.user.findUnique({ where: { email: session.user.email }, select: { id: true } })
+  const user = session?.user?.id
+    ? await prisma.user.findUnique({ where: { id: session.user.id }, select: { id: true } })
     : null;
   const hasRecord = user ? (await prisma.record.count({ where: { userId: user.id, spaceId: space.id } })) > 0 : false;
 
@@ -81,7 +81,7 @@ export default async function GuestbookArchiveSessionPage({ params, searchParams
         <p className="text-sm" style={{ color: "var(--dim)" }}>아직 남겨진 방명록이 없습니다.</p>
       ) : (
         <ArchiveSessionView
-          isLoggedIn={!!session?.user?.email}
+          isLoggedIn={!!session?.user?.id}
           currentUserId={user?.id ?? null}
           highlightId={highlight ?? null}
           enableComments={ENABLE_GUESTBOOK_COMMENTS}

@@ -18,8 +18,8 @@ export default async function GuestbookArchiveListPage({ params }: Props) {
   if (!space) notFound();
 
   const session = await auth();
-  const user = session?.user?.email
-    ? await prisma.user.findUnique({ where: { email: session.user.email }, select: { id: true } })
+  const user = session?.user?.id
+    ? await prisma.user.findUnique({ where: { id: session.user.id }, select: { id: true } })
     : null;
   const hasRecord = user ? (await prisma.record.count({ where: { userId: user.id, spaceId: space.id } })) > 0 : false;
 

@@ -38,10 +38,10 @@ const MIN_RECORDS_FOR_SIMILARITY = 2; // 취향 데이터가 지나치게 부족
 
 export default async function ArchivePage() {
   const session = await auth();
-  if (!session?.user?.email) redirect("/login");
+  if (!session?.user?.id) redirect("/login");
 
   const user = await prisma.user.findUnique({
-    where: { email: session.user.email },
+    where: { id: session.user.id },
     include: {
       records: {
         orderBy: { visitedAt: "desc" },

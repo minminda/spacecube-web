@@ -6,10 +6,10 @@ interface Ctx { params: Promise<{ recordId: string }> }
 
 export async function DELETE(_req: Request, { params }: Ctx) {
   const session = await auth();
-  if (!session?.user?.email)
+  if (!session?.user?.id)
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const user = await prisma.user.findUnique({ where: { email: session.user.email } });
+  const user = await prisma.user.findUnique({ where: { id: session.user.id } });
   if (!user) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const { recordId } = await params;

@@ -1,52 +1,62 @@
 import { signIn } from "@/auth";
+import { sanitizeRedirectPath } from "@/lib/safeRedirect";
+import SocialLoginButton from "./SocialLoginButton";
 
 interface Props {
   searchParams: Promise<{ callbackUrl?: string; error?: string }>;
 }
 
+const ERROR_MESSAGES: Record<string, string> = {
+  OAuthAccountNotLinked: "이미 다른 방법으로 가입된 이메일이에요. 처음 가입했던 방법으로 로그인해주세요.",
+};
+const DEFAULT_ERROR_MESSAGE = "카카오 로그인을 완료하지 못했습니다. 다시 시도해주세요.";
+
 export default async function LoginPage({ searchParams }: Props) {
   const { callbackUrl, error } = await searchParams;
-  // 오픈 리다이렉트 방지 — 같은 오리진의 절대 경로만 허용
-  const redirectTo = callbackUrl && callbackUrl.startsWith("/") ? callbackUrl : "/";
+  const redirectTo = sanitizeRedirectPath(callbackUrl);
+  const errorMessage = error ? (ERROR_MESSAGES[error] ?? DEFAULT_ERROR_MESSAGE) : null;
 
   return (
     <main className="flex flex-col justify-center min-h-screen px-6 py-12 gap-8">
       <div className="space-y-4">
         <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>공간큐브</p>
         <h1 className="text-3xl font-bold leading-tight whitespace-pre-line">
-          공간 경험을 기록하고,{"\n"}취향을 발견해봐
+          기록을 이어가려면{"\n"}로그인이 필요해요.
         </h1>
+        <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>
+          로그인하면 취향 점수와 방문 기록을 내 아카이브에 저장할 수 있습니다.
+        </p>
       </div>
 
       <div style={{ borderTop: "1px solid var(--border)" }} />
 
-      {error === "kakao_email_required" && (
-        <p className="text-xs leading-relaxed" style={{ color: "#e0a030" }}>
-          카카오 계정에 이메일 제공 동의가 필요합니다. 카카오톡 설정에서 이메일 제공에 동의한 뒤 다시 시도해주세요.
-        </p>
+      {errorMessage && (
+        <p className="text-xs leading-relaxed" style={{ color: "#e0a030" }}>{errorMessage}</p>
       )}
 
       <div className="flex flex-col gap-3">
-        <form action={async () => { "use server"; await signIn("google", { redirectTo }); }}>
-          <button
-            type="submit"
-            className="w-full text-sm font-medium py-3 border hover:bg-[var(--fg)] hover:text-[var(--bg)] transition-colors"
-            style={{ borderColor: "var(--fg)", color: "var(--fg)" }}
-          >
-            Google로 시작하기
-          </button>
+        <form action={async () => { "use server"; await signIn("kakao", { redirectTo }); }}>
+          <SocialLoginButton style={{ borderColor: "#FEE500", background: "#FEE500", color: "#191919" }}>
+            <span className="inline-flex items-center justify-center gap-2">
+              <svg viewBox="0 0 24 24" className="w-4 h-4" aria-hidden>
+                <ellipse cx="12" cy="11" rx="9" ry="7.5" fill="#191919" />
+                <path d="M8 16.5 L6.2 20 L10.5 17.2 Z" fill="#191919" />
+              </svg>
+              카카오로 계속하기
+            </span>
+          </SocialLoginButton>
         </form>
 
-        <form action={async () => { "use server"; await signIn("kakao", { redirectTo }); }}>
-          <button
-            type="submit"
-            className="w-full text-sm font-medium py-3 border transition-opacity hover:opacity-90"
-            style={{ borderColor: "#FEE500", background: "#FEE500", color: "#191919" }}
-          >
-            카카오로 시작하기
-          </button>
+        <form action={async () => { "use server"; await signIn("google", { redirectTo }); }}>
+          <SocialLoginButton style={{ borderColor: "var(--fg)", color: "var(--fg)" }}>
+            Google로 계속하기
+          </SocialLoginButton>
         </form>
       </div>
+
+      <p className="text-xs text-center" style={{ color: "var(--dim)" }}>
+        공간과 이야기는 로그인하지 않아도 볼 수 있습니다.
+      </p>
     </main>
   );
 }

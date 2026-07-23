@@ -30,7 +30,7 @@ export default async function VisitCompletePage({ params, searchParams }: Props)
   const { recordId } = await searchParams;
 
   const session = await auth();
-  if (!session?.user?.email) redirect(`/login?callbackUrl=${encodeURIComponent(`/space/${slug}/complete${recordId ? `?recordId=${recordId}` : ""}`)}`);
+  if (!session?.user?.id) redirect(`/login?callbackUrl=${encodeURIComponent(`/space/${slug}/complete${recordId ? `?recordId=${recordId}` : ""}`)}`);
 
   const space = await prisma.space.findUnique({
     where: { slug, isActive: true },
@@ -38,7 +38,7 @@ export default async function VisitCompletePage({ params, searchParams }: Props)
   });
   if (!space) notFound();
 
-  const user = await prisma.user.findUnique({ where: { email: session.user.email }, select: { id: true } });
+  const user = await prisma.user.findUnique({ where: { id: session.user.id }, select: { id: true } });
   if (!user) notFound();
 
   // recordId는 반드시 로그인 사용자 · 이 공간의 Record여야 한다 — 다른 사용자/다른 공간의

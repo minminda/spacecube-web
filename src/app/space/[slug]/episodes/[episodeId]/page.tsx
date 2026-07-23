@@ -93,8 +93,8 @@ export default async function EpisodeDetailPage({ params }: Props) {
   let visitCount = 0;
   let userId: string | null = null;
   let spaceUnlocked = false;
-  if (session?.user?.email) {
-    const user = await prisma.user.findUnique({ where: { email: session.user.email }, select: { id: true } });
+  if (session?.user?.id) {
+    const user = await prisma.user.findUnique({ where: { id: session.user.id }, select: { id: true } });
     if (user) {
       userId = user.id;
       visitCount = await prisma.record.count({ where: { userId: user.id, spaceId: space.id } });

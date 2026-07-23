@@ -31,8 +31,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ code
 
   const session = await auth();
   let userId: string | null = null;
-  if (session?.user?.email) {
-    const user = await prisma.user.findUnique({ where: { email: session.user.email }, select: { id: true } });
+  if (session?.user?.id) {
+    const user = await prisma.user.findUnique({ where: { id: session.user.id }, select: { id: true } });
     userId = user?.id ?? null;
   }
   if (debug) console.log(`[cube-entry] space=${destination.slug} loggedIn=${!!userId}`);

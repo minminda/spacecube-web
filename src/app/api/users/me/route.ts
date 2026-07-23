@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 
 export async function PATCH(req: Request) {
   const session = await auth();
-  if (!session?.user?.email)
+  if (!session?.user?.id)
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json();
@@ -33,7 +33,7 @@ export async function PATCH(req: Request) {
   }
 
   const updated = await prisma.user.update({
-    where: { email: session.user.email },
+    where: { id: session.user.id },
     data,
     select: { nickname: true, visibility: true },
   });

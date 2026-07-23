@@ -8,12 +8,12 @@ interface Props { params: Promise<{ id: string }> }
 
 export async function POST(_req: Request, { params }: Props) {
   const session = await auth();
-  if (!session?.user?.email) {
+  if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const { id: spaceId } = await params;
-  const user = await prisma.user.findUnique({ where: { email: session.user.email } });
+  const user = await prisma.user.findUnique({ where: { id: session.user.id } });
   if (!user) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const space = await prisma.space.findUnique({ where: { id: spaceId }, select: { id: true } });
@@ -29,12 +29,12 @@ export async function POST(_req: Request, { params }: Props) {
 
 export async function DELETE(_req: Request, { params }: Props) {
   const session = await auth();
-  if (!session?.user?.email) {
+  if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const { id: spaceId } = await params;
-  const user = await prisma.user.findUnique({ where: { email: session.user.email } });
+  const user = await prisma.user.findUnique({ where: { id: session.user.id } });
   if (!user) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   await prisma.savedSpace.deleteMany({ where: { userId: user.id, spaceId } });

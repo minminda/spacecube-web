@@ -16,10 +16,10 @@ export async function PATCH(req: NextRequest, { params }: Props) {
     return NextResponse.json({ error: "현재 댓글 기능을 사용할 수 없습니다.", code: "COMMENTS_DISABLED" }, { status: 403 });
   }
   const session = await auth();
-  if (!session?.user?.email) {
+  if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  const user = await prisma.user.findUnique({ where: { email: session.user.email } });
+  const user = await prisma.user.findUnique({ where: { id: session.user.id } });
   if (!user) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
@@ -52,10 +52,10 @@ export async function DELETE(_req: NextRequest, { params }: Props) {
     return NextResponse.json({ error: "현재 댓글 기능을 사용할 수 없습니다.", code: "COMMENTS_DISABLED" }, { status: 403 });
   }
   const session = await auth();
-  if (!session?.user?.email) {
+  if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  const user = await prisma.user.findUnique({ where: { email: session.user.email } });
+  const user = await prisma.user.findUnique({ where: { id: session.user.id } });
   if (!user) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }

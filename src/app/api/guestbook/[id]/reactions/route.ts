@@ -19,9 +19,9 @@ export async function GET(_req: Request, { params }: Props) {
 
   const [reactionCount, myReaction] = await Promise.all([
     prisma.guestbookReaction.count({ where: { postId } }),
-    session?.user?.email
+    session?.user?.id
       ? prisma.user
-          .findUnique({ where: { email: session.user.email } })
+          .findUnique({ where: { id: session.user.id } })
           .then((u) => (u ? prisma.guestbookReaction.findUnique({ where: { postId_userId: { postId, userId: u.id } } }) : null))
       : Promise.resolve(null),
   ]);
@@ -32,10 +32,10 @@ export async function GET(_req: Request, { params }: Props) {
 // 공감 토글 — 로그인 사용자만, 포스트잇당 1회. 다시 누르면 취소. 자신의 글은 정책 상수로 차단(MVP: 차단).
 export async function POST(_req: Request, { params }: Props) {
   const session = await auth();
-  if (!session?.user?.email) {
+  if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  const user = await prisma.user.findUnique({ where: { email: session.user.email } });
+  const user = await prisma.user.findUnique({ where: { id: session.user.id } });
   if (!user) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }

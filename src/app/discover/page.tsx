@@ -70,9 +70,9 @@ export default async function DiscoverPage({ searchParams }: Props) {
   let userTopTags: TagKey[] = [];
   let userTagCountMap: Partial<Record<TagKey, number>> = {};
 
-  if (session?.user?.email) {
+  if (session?.user?.id) {
     const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
+      where: { id: session.user.id },
       select: { id: true },
     });
     if (user) {

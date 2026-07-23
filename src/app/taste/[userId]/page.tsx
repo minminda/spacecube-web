@@ -27,7 +27,7 @@ export default async function TasteJourneyPage({ params }: Props) {
   // "존재 자체를 숨겨야 하는" 요구사항은 없으므로 자연스러운 안내로 처리)
   if (!target) notFound();
 
-  if (session?.user?.email === target.email) {
+  if (session?.user?.id === target.id) {
     const { redirect } = await import("next/navigation");
     redirect("/archive");
   }
@@ -61,9 +61,9 @@ export default async function TasteJourneyPage({ params }: Props) {
   let isLoggedIn = false;
   let alreadySaved = false;
   let isSelf = false;
-  if (session?.user?.email) {
+  if (session?.user?.id) {
     isLoggedIn = true;
-    const me = await prisma.user.findUnique({ where: { email: session.user.email } });
+    const me = await prisma.user.findUnique({ where: { id: session.user.id } });
     if (me) {
       isSelf = me.id === userId;
       if (!isSelf) {

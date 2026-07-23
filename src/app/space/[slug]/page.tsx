@@ -81,7 +81,7 @@ export default async function SpacePage({ params }: Props) {
   }
 
   const [user, episodesRaw, anonymousReactions, allTagRecords] = await Promise.all([
-    session?.user?.email ? prisma.user.findUnique({ where: { email: session.user.email } }) : Promise.resolve(null),
+    session?.user?.id ? prisma.user.findUnique({ where: { id: session.user.id } }) : Promise.resolve(null),
     prisma.episode.findMany({
       where: { spaceId: space.id, published: true },
       orderBy: { displayOrder: "asc" },

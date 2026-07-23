@@ -71,8 +71,8 @@ export default async function GuestbookPage({ params, searchParams }: Props) {
   // 이번 방문(가장 최근 Record)의 id — "방문 1회당 흔적/댓글 1개" 정책의 기준.
   let currentRecordId: string | null = null;
 
-  const user = session?.user?.email
-    ? await prisma.user.findUnique({ where: { email: session.user.email }, select: { id: true, nickname: true } })
+  const user = session?.user?.id
+    ? await prisma.user.findUnique({ where: { id: session.user.id }, select: { id: true, nickname: true } })
     : null;
 
   if (user) {
@@ -220,7 +220,7 @@ export default async function GuestbookPage({ params, searchParams }: Props) {
         <GuestbookCanvas
           space={space}
           initialNotes={initialNotes}
-          isLoggedIn={!!session?.user?.email}
+          isLoggedIn={!!session?.user?.id}
           initialMyNoteId={myNoteId}
           initialCanWriteThisVisit={canWriteThisVisit}
           hasCommentedThisVisit={hasCommentedThisVisit}
