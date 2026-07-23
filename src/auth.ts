@@ -14,11 +14,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(prisma),
   providers: [
     // next-auth 내장 Kakao provider의 기본 authorization URL은
-    // "https://kauth.kakao.com/oauth/authorize?scope"로 끝에 값 없는 scope 파라미터가
-    // 붙어있다 — 그대로 두면 실제 요청에 "scope=" (빈 문자열)가 포함되어 카카오 인증 서버가
-    // 계정 선택 이후 단계(동의 화면 구성)에서 KOE101 오류를 낸다. scope 파라미터 자체를
-    // 아예 안 보내도록 URL을 명시적으로 덮어쓴다 — 콘솔에 설정된 동의항목대로 동작하게 된다.
-    Kakao({ authorization: "https://kauth.kakao.com/oauth/authorize" }),
+    // "https://kauth.kakao.com/oauth/authorize?scope"로 끝에 값 없는(빈 문자열) scope
+    // 파라미터가 붙어있다 — 이건 의도적으로 그대로 둬야 한다. @auth/core의 normalizeOAuth가
+    // "authorization URL에 scope 파라미터가 아예 없으면 openid profile email을 기본값으로
+    // 채워 넣는" 내부 로직을 갖고 있어서, scope 파라미터를 제거하면 오히려 카카오 동의항목에
+    // 없는 openid/profile/email이 요청에 섞여 들어가 KOE205(설정하지 않은 동의 항목 요청)로
+    // 거부된다. 즉 기본 빈 scope가 이 자동완성을 막아주는 역할을 하므로 손대지 않는다.
+    Kakao,
     Google,
   ],
   pages: {
