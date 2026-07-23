@@ -26,11 +26,23 @@ interface SpaceData {
   ownerName?: string;
   ownerPhotoUrl?: string;
   ownerBio?: string;
+  hasOperatorPin?: boolean;
 }
 
 interface Props {
   mode: "new" | "edit";
   space?: SpaceData;
+}
+
+const WEAK_PIN_PATTERN = /^(\d)\1{3}$/;
+function isSequentialPin(pin: string): boolean {
+  const digits = pin.split("").map(Number);
+  const ascending = digits.every((d, i) => i === 0 || d === digits[i - 1] + 1);
+  const descending = digits.every((d, i) => i === 0 || d === digits[i - 1] - 1);
+  return ascending || descending;
+}
+function isWeakPin(pin: string): boolean {
+  return WEAK_PIN_PATTERN.test(pin) || isSequentialPin(pin);
 }
 
 const SPACE_TYPES = ["독립서점", "소품샵", "전시공간", "개인 영화관", "문화 카페", "복합문화공간"];
@@ -76,6 +88,11 @@ export default function SpaceForm({ mode, space }: Props) {
   const [selectedSpaceTags, setSelectedSpaceTags] = useState<TagKey[]>(
     (space?.spaceTags ?? []) as TagKey[]
   );
+
+  // 운영 접근 설정 — 새 PIN을 입력하지 않으면 기존 PIN이 그대로 유지된다(빈 값은 전송 안 함).
+  const [newPin, setNewPin] = useState("");
+  const [confirmPin, setConfirmPin] = useState("");
+  const [pinError, setPinError] = useState("");
 
   const [form, setForm] = useState({
     name: space?.name ?? "",
@@ -130,6 +147,19 @@ export default function SpaceForm({ mode, space }: Props) {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    setPinError("");
+
+    if (newPin || confirmPin) {
+      if (!/^\d{4}$/.test(newPin)) {
+        setPinError("비밀번호는 숫자 4자리로 입력해주세요.");
+        return;
+      }
+      if (newPin !== confirmPin) {
+        setPinError("두 비밀번호가 일치하지 않습니다.");
+        return;
+      }
+    }
+
     setLoading(true);
     setError("");
     const url = mode === "new" ? "/api/spaces" : `/api/spaces/${space!.id}`;
@@ -146,6 +176,7 @@ export default function SpaceForm({ mode, space }: Props) {
         spaceTags: selectedSpaceTags,
         ...ownerForm,
         ownerPhotoUrl: ownerPhotoUrl || null,
+        ...(newPin ? { newOperatorPin: newPin } : {}),
       }),
     });
     const data = await res.json();
@@ -285,6 +316,53 @@ export default function SpaceForm({ mode, space }: Props) {
             placeholder="방문객에게 남기고 싶은 짧은 한마디 (예: 오늘도 편하게 머물다 가셨으면 좋겠습니다.)"
             rows={2} className="w-full text-sm px-3 py-2.5 border resize-none" style={inputStyle} />
         </Field>
+
+        {/* 운영 접근 설정 */}
+        {mode === "edit" && space && (
+          <>
+            <div style={{ borderTop: "1px solid var(--border)" }} />
+            <div className="space-y-3">
+              <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>운영 접근 설정</p>
+              <p className="text-xs" style={{ color: "var(--dim)" }}>
+                {space.hasOperatorPin ? "운영 비밀번호가 등록되어 있습니다." : "운영 비밀번호가 등록되어 있지 않습니다."}
+              </p>
+              <p className="text-xs leading-relaxed" style={{ color: "var(--dim)" }}>
+                이 비밀번호는 해당 공간 운영자가 /operator에서 관리 페이지에 접속할 때 사용합니다.
+              </p>
+
+              <Field label={space.hasOperatorPin ? "새 비밀번호 (변경 시에만 입력)" : "새 비밀번호 등록"}>
+                <input
+                  type="password"
+                  inputMode="numeric"
+                  maxLength={4}
+                  value={newPin}
+                  onChange={(e) => setNewPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                  placeholder="숫자 4자리"
+                  className="w-full text-sm px-3 py-2.5 border"
+                  style={inputStyle}
+                />
+              </Field>
+
+              <Field label="비밀번호 확인">
+                <input
+                  type="password"
+                  inputMode="numeric"
+                  maxLength={4}
+                  value={confirmPin}
+                  onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                  placeholder="숫자 4자리 재입력"
+                  className="w-full text-sm px-3 py-2.5 border"
+                  style={inputStyle}
+                />
+              </Field>
+
+              {newPin.length === 4 && isWeakPin(newPin) && (
+                <p className="text-xs" style={{ color: "#e0a030" }}>너무 쉬운 비밀번호예요. 다른 조합을 권장해요.</p>
+              )}
+              {pinError && <p className="text-xs text-red-400">{pinError}</p>}
+            </div>
+          </>
+        )}
 
         {/* 태그 */}
         <div style={{ borderTop: "1px solid var(--border)" }} />

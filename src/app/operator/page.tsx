@@ -1,15 +1,14 @@
 import type { Metadata } from "next";
-import { redirect } from "next/navigation";
 import Link from "next/link";
-import { auth } from "@/auth";
+import { getOperatorSession } from "@/lib/operatorSession";
 import { prisma } from "@/lib/prisma";
-import { resolveOperatorSpaces } from "@/lib/operatorAuth";
 import { computeReportPeriod } from "@/lib/reportPeriod";
 import { formatDotDate as formatDate } from "@/lib/time";
 import { GuestbookSessionStatus, MonthlyReportStatus } from "@prisma/client";
 import PastReportsSelect from "./PastReportsSelect";
 import MonthlyMemo from "./MonthlyMemo";
 import GuestbookBrowser from "./GuestbookBrowser";
+import OperatorAccessGate from "./OperatorAccessGate";
 import { ENABLE_REPORT_AI_ANALYSIS } from "@/lib/pilotFlags";
 
 export const metadata: Metadata = {
@@ -18,7 +17,7 @@ export const metadata: Metadata = {
 };
 
 interface Props {
-  searchParams: Promise<{ spaceId?: string; reportId?: string }>;
+  searchParams: Promise<{ reportId?: string }>;
 }
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
@@ -34,65 +33,29 @@ function pct(rate: number): string {
 }
 
 export default async function OperatorPage({ searchParams }: Props) {
-  const session = await auth();
-  if (!session?.user?.email) redirect("/login?callbackUrl=/operator");
+  const session = await getOperatorSession();
 
-  const user = await prisma.user.findUnique({ where: { email: session.user.email } });
-  if (!user) redirect("/login?callbackUrl=/operator");
+  if (!session) {
+    return (
+      <main className="flex flex-col min-h-screen px-6 py-8">
+        <OperatorAccessGate />
+      </main>
+    );
+  }
 
-  const spaces = await resolveOperatorSpaces(user.id, user.email);
-  const { spaceId: requestedSpaceId, reportId: requestedReportId } = await searchParams;
-
-  const header = (
-    <div className="space-y-1" style={{ color: "var(--dim)" }}>
-      <div className="flex justify-between">
-        <p className="text-xs">공간큐브 / 월간 운영</p>
-        <Link href="/" className="text-xs" style={{ color: "var(--dim)" }}>← 홈</Link>
-      </div>
-      <p className="text-xs">─────────────────────────────</p>
-    </div>
-  );
-
-  if (spaces.length === 0) {
+  const spaceId = session.spaceId;
+  const activeSpace = await prisma.space.findUnique({ where: { id: spaceId } });
+  if (!activeSpace) {
     return (
       <main className="flex flex-col min-h-screen px-6 py-8 gap-6">
-        {header}
         <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>
-          현재 연결된 공간이 없습니다. 공간큐브 관리자에게 문의해주세요.
+          공간을 찾을 수 없습니다. 공간큐브 관리자에게 문의해주세요.
         </p>
       </main>
     );
   }
 
-  const activeSpace =
-    (requestedSpaceId && spaces.find((s) => s.id === requestedSpaceId)) ?? (spaces.length === 1 ? spaces[0] : null);
-
-  if (!activeSpace) {
-    return (
-      <main className="flex flex-col min-h-screen px-6 py-8 gap-8">
-        {header}
-        <div className="space-y-1.5">
-          <h1 className="text-xl font-bold">담당 공간을 선택해주세요</h1>
-        </div>
-        <div className="space-y-3">
-          {spaces.map((s) => (
-            <Link
-              key={s.id}
-              href={`/operator?spaceId=${s.id}`}
-              className="block p-4 border transition-colors hover:bg-[var(--fg)] hover:text-[var(--bg)]"
-              style={{ borderColor: "var(--border)" }}
-            >
-              {s.name}
-            </Link>
-          ))}
-        </div>
-      </main>
-    );
-  }
-
-  // activeSpace는 resolveOperatorSpaces가 이미 "이 사용자가 접근 가능한 공간"만 돌려준 spaces 배열 안에서만
-  // 찾으므로(관리자면 전체, 아니면 ownerId=user.id인 것만) 이 시점에 이미 인가가 검증된 상태다.
-  const spaceId = activeSpace.id;
+  const { reportId: requestedReportId } = await searchParams;
 
   const now = new Date();
   const reportNotStarted =
@@ -150,26 +113,7 @@ export default async function OperatorPage({ searchParams }: Props) {
 
   return (
     <main className="flex flex-col min-h-screen px-6 py-8 gap-10">
-      {header}
-
       <div className="space-y-1.5">
-        {spaces.length > 1 && (
-          <div className="flex gap-2 flex-wrap pb-1">
-            {spaces.map((s) => (
-              <Link
-                key={s.id}
-                href={`/operator?spaceId=${s.id}`}
-                className="text-xs px-2.5 py-1 border transition-colors"
-                style={{
-                  borderColor: s.id === spaceId ? "var(--fg)" : "var(--border)",
-                  color: s.id === spaceId ? "var(--fg)" : "var(--dim)",
-                }}
-              >
-                {s.name}
-              </Link>
-            ))}
-          </div>
-        )}
         <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>{activeSpace.name}</p>
         <h1 className="text-xl font-bold">월간 운영 일지</h1>
         <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>

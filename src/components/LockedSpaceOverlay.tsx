@@ -12,7 +12,7 @@ export default function LockedSpaceOverlay() {
       className="absolute inset-0 flex items-center justify-center"
       style={{ background: "rgba(10,10,10,0.5)", backdropFilter: "blur(1.5px)" }}
     >
-      <svg viewBox="0 0 24 24" className="w-11 h-11" style={{ color: "#ffffff" }}>
+      <svg viewBox="0 0 24 24" className="w-[38px] h-[38px]" style={{ color: "#ffffff" }}>
         <polygon
           points="12,2.5 20.5,7.25 20.5,16.75 12,21.5 3.5,16.75 3.5,7.25"
           fill="currentColor"

@@ -3,7 +3,7 @@ import Link from "next/link";
 
 export const metadata: Metadata = {
   title: "추천 방식 — 공간큐브",
-  description: "공간큐브는 평점이나 인기순이 아니라, 사용자가 공간에서 남긴 태그를 바탕으로 취향과 닮은 공간을 찾습니다.",
+  description: "공간큐브는 인기나 평점보다, 사용자가 실제 공간에서 남긴 경험 데이터를 바탕으로 다음 공간을 찾습니다.",
 };
 
 function Divider() {
@@ -33,12 +33,12 @@ export default function RecommendationPage() {
       <div className="space-y-4">
         <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>추천 방식</p>
         <h1 className="text-2xl font-bold leading-snug">
-          공간큐브는 어떻게<br />공간을 추천할까요?
+          공간큐브는 어떻게<br />나와 맞는 공간을 찾을까요?
         </h1>
         <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>
-          공간큐브는 평점이나 인기순이 아니라,<br />
-          사용자가 공간에서 남긴 태그를 바탕으로<br />
-          취향과 닮은 공간을 찾습니다.
+          공간큐브는 인기나 평점보다,<br />
+          사용자가 실제 공간에서 남긴 경험 데이터를 바탕으로<br />
+          다음 공간을 찾습니다.
         </p>
       </div>
 
@@ -54,46 +54,26 @@ export default function RecommendationPage() {
         <div className="space-y-3 pl-4 border-l" style={{ borderColor: "var(--border)" }}>
           <div className="flex items-center gap-3">
             <SectionIndex n="01" />
-            <p className="text-base font-semibold">공간을 기록합니다</p>
+            <p className="text-base font-semibold">공간을 직접 경험합니다</p>
           </div>
           <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>
-            사용자는 공간을 방문한 뒤,<br />
-            그 공간에서 느낀 태그를 최대 2개 선택합니다.
+            추천은 검색 기록이 아니라,<br />
+            실제 공간에서 QR을 인식하고 경험한 기록에서 시작됩니다.
           </p>
-          <div className="flex flex-wrap gap-2 pt-1">
-            {["조용한", "영감 있는", "편안한", "독특한", "다시 오고 싶은", "감각 있는", "따뜻한", "집중되는"].map((tag) => (
-              <span
-                key={tag}
-                className="text-xs px-2.5 py-1 border"
-                style={{ borderColor: "var(--border)", color: "var(--dim)" }}
-              >
-                {tag}
-              </span>
-            ))}
-          </div>
         </div>
 
         {/* 2 */}
         <div className="space-y-3 pl-4 border-l" style={{ borderColor: "var(--border)" }}>
           <div className="flex items-center gap-3">
             <SectionIndex n="02" />
-            <p className="text-base font-semibold">취향을 집계합니다</p>
+            <p className="text-base font-semibold">취향 점수를 남깁니다</p>
           </div>
           <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>
-            공간 3곳 이상을 기록하면,<br />
-            선택한 태그가 누적되어 사용자의 취향 프로파일이 만들어집니다.
+            공간을 경험한 뒤, 이 공간이 나와 얼마나 잘 맞았는지<br />
+            1~5점의 취향 점수로 남깁니다.
           </p>
-          <div className="space-y-1.5 py-2 px-3 border" style={{ borderColor: "var(--border)" }}>
-            {[["조용한", "3"], ["집중되는", "2"], ["감각 있는", "1"]].map(([tag, count]) => (
-              <div key={tag} className="flex justify-between text-xs" style={{ color: "var(--dim)" }}>
-                <span>{tag}</span>
-                <span style={{ color: "var(--fg)" }}>{count}</span>
-              </div>
-            ))}
-          </div>
           <p className="text-xs leading-relaxed" style={{ color: "var(--dim)" }}>
-            이 값은 사용자가 어떤 분위기의 공간을<br />
-            반복해서 좋아했는지 보여줍니다.
+            방명록 작성은 선택이며, 점수만 저장해도 추천에 반영됩니다.
           </p>
         </div>
 
@@ -101,11 +81,26 @@ export default function RecommendationPage() {
         <div className="space-y-3 pl-4 border-l" style={{ borderColor: "var(--border)" }}>
           <div className="flex items-center gap-3">
             <SectionIndex n="03" />
-            <p className="text-base font-semibold">공간 태그와 비교합니다</p>
+            <p className="text-base font-semibold">가장 최근의 평가를 반영합니다</p>
           </div>
           <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>
-            각 공간은 그 공간에 어울리는 태그를 가지고 있습니다.<br />
-            사용자의 취향 태그와 공간 태그가 얼마나 겹치는지 비교합니다.
+            같은 공간을 다시 방문해 점수를 남기면,<br />
+            이전 점수를 계속 쌓지 않고 가장 최근 평가를 사용합니다.
+          </p>
+          <p className="text-xs leading-relaxed" style={{ color: "var(--dim)" }}>
+            취향이 바뀌거나 경험이 달라진 점을 반영하기 위한 방식입니다.
+          </p>
+        </div>
+
+        {/* 4 */}
+        <div className="space-y-3 pl-4 border-l" style={{ borderColor: "var(--border)" }}>
+          <div className="flex items-center gap-3">
+            <SectionIndex n="04" />
+            <p className="text-base font-semibold">공간 데이터와 비교합니다</p>
+          </div>
+          <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>
+            사용자가 여러 공간에서 남긴 경험과<br />
+            각 공간이 가진 특성을 비교해 잘 맞을 가능성이 높은 공간을 찾습니다.
           </p>
           <div className="space-y-2">
             {[
@@ -118,24 +113,9 @@ export default function RecommendationPage() {
               </div>
             ))}
           </div>
-        </div>
-
-        {/* 4 */}
-        <div className="space-y-3 pl-4 border-l" style={{ borderColor: "var(--border)" }}>
-          <div className="flex items-center gap-3">
-            <SectionIndex n="04" />
-            <p className="text-base font-semibold">취향과 닮은 공간을 보여줍니다</p>
-          </div>
-          <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>
-            겹치는 태그가 많을수록,<br />
-            그리고 사용자가 자주 선택한 태그와 일치할수록<br />
-            취향에 더 가까운 공간으로 판단합니다.
-          </p>
-          <p
-            className="text-xs px-3 py-2 border-l-2 leading-relaxed"
-            style={{ borderColor: "var(--fg)", color: "var(--dim)" }}
-          >
-            &ldquo;조용한, 집중되는 태그가 최근 기록과 비슷합니다.&rdquo;
+          <p className="text-xs leading-relaxed" style={{ color: "var(--dim)" }}>
+            공간 3곳 이상을 기록하면 취향과 닮은 공간 추천이 본격적으로 시작됩니다.<br />
+            공간을 처음 경험한 직후에도, 그 공간과 잘 맞는 다음 한 곳을 바로 보여주는 화면도 있어요.
           </p>
         </div>
 
@@ -143,19 +123,45 @@ export default function RecommendationPage() {
         <div className="space-y-3 pl-4 border-l" style={{ borderColor: "var(--border)" }}>
           <div className="flex items-center gap-3">
             <SectionIndex n="05" />
-            <p className="text-base font-semibold">지역 안에서 먼저 추천합니다</p>
+            <p className="text-base font-semibold">다음 공간을 제안합니다</p>
           </div>
           <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>
-            공간큐브는 지역 기반 서비스이기 때문에,<br />
-            사용자가 선택한 지역 안에서 먼저 취향과 가까운 공간을 보여줍니다.
-          </p>
-          <p className="text-xs leading-relaxed" style={{ color: "var(--dim)" }}>
-            망원을 선택한 경우, 망원 안에 있는 공간 중<br />
-            사용자의 취향 태그와 가까운 공간이 먼저 표시됩니다.<br /><br />
-            멀리 있는 좋은 공간보다,<br />
-            지금 갈 수 있는 나와 맞는 공간을 찾기 위한 방식입니다.
+            현재 탐험할 수 있는 지역과 공간 안에서<br />
+            사용자의 기록과 가까운 공간을 우선적으로 보여줍니다.
           </p>
         </div>
+
+        {/* 6 */}
+        <div className="space-y-3 pl-4 border-l" style={{ borderColor: "var(--border)" }}>
+          <div className="flex items-center gap-3">
+            <SectionIndex n="06" />
+            <p className="text-base font-semibold">취향이 비슷한 사람도 참고할 수 있습니다</p>
+          </div>
+          <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>
+            기록이 충분히 쌓이면, 나와 취향이 닮은 다른 사람들이<br />
+            어떤 공간을 좋아했는지도 함께 볼 수 있습니다.
+          </p>
+          <p className="text-xs leading-relaxed" style={{ color: "var(--dim)" }}>
+            단, 공간큐브는 사람을 팔로우하게 만드는 서비스가 아니라,<br />
+            공간을 따라 취향을 발견하는 서비스라는 점을 유지합니다.
+          </p>
+        </div>
+      </section>
+
+      <Divider />
+
+      {/* ── 추천과 방명록의 관계 ────────────────────────── */}
+      <section className="space-y-3">
+        <p
+          className="text-sm font-semibold leading-relaxed pl-3 border-l-2"
+          style={{ borderColor: "var(--fg)" }}
+        >
+          추천은 기록의 결과이고, 방명록은 선택 경험입니다.
+        </p>
+        <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>
+          취향 점수를 저장하면 추천 데이터가 만들어집니다.<br />
+          방문자의 이야기를 남기는 방명록은 원할 때만 참여할 수 있습니다.
+        </p>
       </section>
 
       <Divider />
@@ -167,7 +173,7 @@ export default function RecommendationPage() {
             // 추천은 더 정교해집니다
           </p>
           <p className="text-xs" style={{ color: "var(--border)" }}>
-            현재 구현 중이거나 앞으로 추가될 방향입니다.
+            아직 구현되지 않은, 앞으로 추가될 방향입니다.
           </p>
         </div>
 
@@ -181,19 +187,6 @@ export default function RecommendationPage() {
             취향과 닮은 공간을 먼저 보여주지만,<br />
             앞으로는 사용자의 취향을 조금 넓혀줄 수 있는 공간도 함께 제안할 수 있습니다.
           </p>
-          <p className="text-xs leading-relaxed" style={{ color: "var(--dim)" }}>
-            조용한 / 집중되는 / 편안한 공간을 주로 기록했다면,<br />
-            완전히 반대되는 공간이 아니라<br />
-            조용하지만 조금 더 감각 있는 공간,<br />
-            편안하지만 새로운 대화가 생길 수 있는 공간처럼<br />
-            한 걸음 확장된 공간을 제안합니다.
-          </p>
-          <p
-            className="text-xs px-3 py-2 border-l-2 leading-relaxed"
-            style={{ borderColor: "var(--border)", color: "var(--dim)" }}
-          >
-            &ldquo;익숙한 취향에서 조금 넓어질 수 있는 공간입니다.&rdquo;
-          </p>
         </div>
 
         {/* B */}
@@ -203,21 +196,8 @@ export default function RecommendationPage() {
             <p className="text-base font-semibold">행동 데이터를 함께 반영합니다</p>
           </div>
           <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>
-            단순히 태그만 보는 것이 아니라,<br />
-            사용자의 행동 데이터도 함께 반영할 수 있습니다.
-          </p>
-          <div className="space-y-1 text-xs" style={{ color: "var(--dim)" }}>
-            {[
-              "어떤 공간을 다시 방문했는지",
-              "어떤 공간을 저장했는지",
-              "어떤 추천을 실제로 눌렀는지",
-              "어떤 공간을 기록까지 남겼는지",
-            ].map((item) => (
-              <p key={item}>· {item}</p>
-            ))}
-          </div>
-          <p className="text-xs leading-relaxed" style={{ color: "var(--dim)" }}>
-            이런 행동은 단순한 선택보다 더 강한 취향 신호가 될 수 있습니다.
+            취향 점수만이 아니라,<br />
+            재방문·저장 같은 사용자의 다른 행동 데이터도 함께 반영할 수 있습니다.
           </p>
         </div>
 
@@ -225,38 +205,11 @@ export default function RecommendationPage() {
         <div className="space-y-3 pl-4 border-l" style={{ borderColor: "var(--border)" }}>
           <div className="flex items-center gap-3">
             <SectionIndex n="C" />
-            <p className="text-base font-semibold">비슷한 취향의 사용자 흐름을 참고합니다</p>
-          </div>
-          <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>
-            기록이 충분히 쌓이면,<br />
-            나와 비슷한 취향을 가진 사람들이 어떤 공간을 좋아했는지도 참고할 수 있습니다.
-          </p>
-          <p className="text-xs leading-relaxed" style={{ color: "var(--dim)" }}>
-            단, 공간큐브는 사람을 팔로우하게 만드는 서비스가 아니라,<br />
-            공간을 따라 취향을 발견하는 서비스라는 점을 유지합니다.
-          </p>
-        </div>
-
-        {/* D */}
-        <div className="space-y-3 pl-4 border-l" style={{ borderColor: "var(--border)" }}>
-          <div className="flex items-center gap-3">
-            <SectionIndex n="D" />
             <p className="text-base font-semibold">공간 간 연결을 강화합니다</p>
           </div>
           <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>
             단일 공간 추천을 넘어,<br />
             하나의 지역 안에서 이어질 수 있는 공간 흐름도 제안할 수 있습니다.
-          </p>
-          <div className="space-y-1 text-xs py-2 px-3 border" style={{ borderColor: "var(--border)", color: "var(--dim)" }}>
-            <p>조용히 책을 읽는 공간</p>
-            <p style={{ color: "var(--border)" }}>→</p>
-            <p>천천히 차를 마시는 공간</p>
-            <p style={{ color: "var(--border)" }}>→</p>
-            <p>낮은 대화가 가능한 공간</p>
-          </div>
-          <p className="text-xs leading-relaxed" style={{ color: "var(--dim)" }}>
-            공간을 하나씩 나열하는 것이 아니라,<br />
-            사용자의 상태와 취향에 맞는 작은 탐험 흐름을 만들 수 있습니다.
           </p>
         </div>
       </section>
@@ -274,7 +227,7 @@ export default function RecommendationPage() {
             "리뷰 수로 추천하지 않습니다.",
             "단순 인기순으로 추천하지 않습니다.",
             "광고비를 기준으로 추천하지 않습니다.",
-            "무조건 많은 공간을 보여주지 않습니다.",
+            "방명록 작성량으로 추천하지 않습니다.",
           ].map((item) => (
             <p key={item} className="flex gap-3">
               <span style={{ color: "var(--border)" }}>—</span>
@@ -286,8 +239,8 @@ export default function RecommendationPage() {
           className="text-sm leading-relaxed pt-2 pl-3 border-l-2"
           style={{ borderColor: "var(--fg)", color: "var(--dim)" }}
         >
-          공간큐브의 추천은 좋은 공간을 고르는 일이 아니라,<br />
-          나와 맞는 공간을 발견하는 과정에 가깝습니다.
+          공간큐브의 추천은 가장 유명한 공간을 고르는 일이 아니라,<br />
+          지금의 나와 잘 맞을 가능성이 있는 공간을 발견하는 과정입니다.
         </p>
       </section>
 

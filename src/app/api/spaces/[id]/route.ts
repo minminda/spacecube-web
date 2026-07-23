@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { isAdmin } from "@/lib/admin";
+import { hashOperatorPin, isValidPinFormat } from "@/lib/operatorPin";
 
 export const dynamic = "force-dynamic";
 
@@ -29,7 +30,21 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     imagePositionY,
     ownerName, ownerPhotoUrl, ownerBio,
     ownerValues, ownerPlaylistUrl, ownerBlogUrl, ownerSocialUrl,
+    newOperatorPin,
   } = await req.json();
+
+  let pinUpdateData: { operatorPinHash: string; operatorPinUpdatedAt: Date; operatorAccessVersion: { increment: number } } | null = null;
+  if (newOperatorPin !== undefined && newOperatorPin !== "") {
+    if (typeof newOperatorPin !== "string" || !isValidPinFormat(newOperatorPin)) {
+      return NextResponse.json({ error: "운영 비밀번호는 숫자 4자리여야 해요." }, { status: 400 });
+    }
+    // PIN 변경 시 operatorAccessVersion을 올려 이미 발급된 운영 세션 쿠키를 전부 무효화한다.
+    pinUpdateData = {
+      operatorPinHash: await hashOperatorPin(newOperatorPin),
+      operatorPinUpdatedAt: new Date(),
+      operatorAccessVersion: { increment: 1 },
+    };
+  }
 
   const updated = await prisma.space.update({
     where: { id },
@@ -59,6 +74,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       ...(ownerPlaylistUrl !== undefined ? { ownerPlaylistUrl: ownerPlaylistUrl || null } : {}),
       ...(ownerBlogUrl !== undefined ? { ownerBlogUrl: ownerBlogUrl || null } : {}),
       ...(ownerSocialUrl !== undefined ? { ownerSocialUrl: ownerSocialUrl || null } : {}),
+      ...(pinUpdateData ?? {}),
     },
   });
 

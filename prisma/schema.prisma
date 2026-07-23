@@ -24,18 +24,17 @@ model User {
   records               Record[]
   spaces                Space[]
   collections           Collection[]
-  savedTastes           SavedTaste[]          @relation("SavedBy")
-  savedByOthers         SavedTaste[]          @relation("SavedTarget")
+  savedTastes           SavedTaste[]        @relation("SavedBy")
+  savedByOthers         SavedTaste[]        @relation("SavedTarget")
   guestbookNotes        GuestbookNote[]
   episodeReads          EpisodeRead[]
   savedSpaces           SavedSpace[]
   spaceScans            SpaceScan[]
   spaceUnlocks          SpaceUnlock[]
   guestbookReactions    GuestbookReaction[]
-  operatorMonthlyNotes  OperatorMonthlyNote[]
   guestbookComments     GuestbookComment[]
-  notificationsReceived Notification[]        @relation("NotificationReceiver")
-  notificationsSent     Notification[]        @relation("NotificationSender")
+  notificationsReceived Notification[]      @relation("NotificationReceiver")
+  notificationsSent     Notification[]      @relation("NotificationSender")
 }
 
 model Account {
@@ -123,6 +122,12 @@ model Space {
   operatorNotifyEmail String?
   operatorNotifyPhone String?
 
+  // 운영자 PIN 인증(/operator) — 계정 연결 없이 "공간 검색 + 4자리 PIN"으로 운영 화면에 접근한다.
+  // operatorAccessVersion은 PIN 변경 시 +1 되어, 이미 발급된 운영 세션 쿠키를 전부 즉시 무효화한다.
+  operatorPinHash       String?
+  operatorPinUpdatedAt  DateTime?
+  operatorAccessVersion Int       @default(1)
+
   owner                User?                 @relation(fields: [ownerId], references: [id], onDelete: SetNull)
   records              Record[]
   collectionItems      CollectionItem[]
@@ -202,9 +207,9 @@ model GuestbookSession {
 
   // 군집별 표시 여부 — 질문 내용이 있어도 이 값이 false면 방문자 캔버스에 나타나지 않는다
   // (getVisibleClusters가 "내용 존재 && visible" 둘 다 확인). FREE는 이 값으로만 판정한다.
-  freeLabelVisible  Boolean @default(true)
-  question1Visible  Boolean @default(true)
-  question2Visible  Boolean @default(true)
+  freeLabelVisible Boolean @default(true)
+  question1Visible Boolean @default(true)
+  question2Visible Boolean @default(true)
 
   // 군집별 글자 크기(px, 12~48 허용)/색상(#RRGGBB) — 기본값은 기존 하드코딩 렌더링과
   // 시각적으로 동일하게 역산함(검정 배경 위 rgba(255,255,255,alpha) 지각색 ≈ 채널값 round(255*alpha)).
@@ -218,8 +223,8 @@ model GuestbookSession {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  space Space           @relation(fields: [spaceId], references: [id], onDelete: Cascade)
-  notes GuestbookNote[]
+  space    Space              @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  notes    GuestbookNote[]
   comments GuestbookComment[]
 
   @@map("guestbook_sessions")
@@ -530,21 +535,19 @@ model MonthlyReportFeaturedPost {
   @@map("monthly_report_featured_posts")
 }
 
-// 운영자가 리포트별로 남기는 비공개 메모 — 해당 공간의 운영자/관리자만 조회 가능.
+// 운영자가 리포트별로 남기는 비공개 메모 — 공간+리포트당 공유 메모 1개(PIN 접근에는 개별 로그인
+// 사용자가 없으므로 운영자 단위가 아니라 공간 단위로 공유한다). 해당 공간의 운영 PIN을 아는 사람만 조회 가능.
 model OperatorMonthlyNote {
   id              String   @id @default(cuid())
-  monthlyReportId String
+  monthlyReportId String   @unique
   spaceId         String
-  operatorId      String
   content         String   @db.Text
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  report   SpaceMonthlyReport @relation(fields: [monthlyReportId], references: [id], onDelete: Cascade)
-  space    Space              @relation(fields: [spaceId], references: [id], onDelete: Cascade)
-  operator User               @relation(fields: [operatorId], references: [id], onDelete: Cascade)
+  report SpaceMonthlyReport @relation(fields: [monthlyReportId], references: [id], onDelete: Cascade)
+  space  Space              @relation(fields: [spaceId], references: [id], onDelete: Cascade)
 
-  @@unique([monthlyReportId, operatorId])
   @@map("operator_monthly_notes")
 }
 

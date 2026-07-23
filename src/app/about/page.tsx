@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "공간큐브 소개",
-  description: "공간 경험을 기록하고, 그 기록을 통해 자신의 취향을 발견하는 서비스입니다.",
+  description: "검색해도 나오지 않는 사람의 이야기를 통해 공간을 다르게 보게 만드는 서비스입니다.",
 };
 
 export default function AboutPage() {
@@ -18,15 +18,39 @@ export default function AboutPage() {
       <div style={{ borderTop: "1px solid var(--border)" }} />
 
       <section className="px-6 py-14 space-y-6">
-        <p className="text-xs uppercase tracking-widest" style={{ color: "var(--border)" }}>공간큐브는</p>
         <p className="text-xl font-bold leading-snug whitespace-pre-line">
-          공간 경험을 기록하고,{"\n"}그 기록을 통해 자신의 취향을 발견하는 서비스입니다.
+          공간을 만든 사람을 이해하면,{"\n"}같은 공간도 조금 다르게 보입니다.
         </p>
-        <ul className="space-y-2 pt-2">
+        <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>
+          공간큐브는 검색으로는 알기 어려운 공간과 사람의 이야기를 발견하게 하는 서비스입니다.
+          메뉴, 영업시간, 평점보다 그 공간이 어떤 시간을 지나 지금의 모습이 되었는지를 기록합니다.
+        </p>
+      </section>
+
+      <div style={{ borderTop: "1px solid var(--border)" }} />
+
+      <section className="px-6 py-12 space-y-6">
+        <p className="text-xs uppercase tracking-widest" style={{ color: "var(--border)" }}>왜 공간큐브를 만들었나요?</p>
+        <p className="text-sm leading-loose whitespace-pre-line" style={{ color: "var(--dim)" }}>
+          우리는 많은 공간을 검색하지만, 그 공간을 만든 사람의 시간까지는 알기 어렵습니다.{"\n"}
+          멋진 결과만 보면 공간은 감탄의 대상이 되지만, 그 뒤의 선택과 실패, 반복된 시간을 알게 되면{"\n"}
+          공간은 한 사람의 이야기로 기억됩니다.
+        </p>
+      </section>
+
+      <div style={{ borderTop: "1px solid var(--border)" }} />
+
+      <section className="px-6 py-12 space-y-5">
+        <p className="text-xs uppercase tracking-widest" style={{ color: "var(--border)" }}>무엇을 담나요?</p>
+        <ul className="space-y-2">
           {[
-            "작은 문화공간의 이야기와 철학을 발견합니다.",
-            "공간을 단순 정보가 아닌 경험으로 기록합니다.",
-            "취향이 비슷한 공간들을 천천히 연결합니다.",
+            "처음 이 일을 좋아하게 된 순간",
+            "작게 시작했던 시절",
+            "포기하지 못했던 선택",
+            "매일 지키는 작은 습관",
+            "아직 버리지 못한 물건",
+            "오래 기억하는 손님",
+            "그 시간이 현재 공간에 남은 방식",
           ].map((s, i) => (
             <li key={i} className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>· {s}</li>
           ))}
@@ -36,52 +60,13 @@ export default function AboutPage() {
       <div style={{ borderTop: "1px solid var(--border)" }} />
 
       <section className="px-6 py-12 space-y-6">
-        <p className="text-xs uppercase tracking-widest" style={{ color: "var(--border)" }}>왜 공간큐브를 만들었는가</p>
-        <div className="space-y-3">
-          <p className="text-xs" style={{ color: "var(--dim)" }}>현재 공간 플랫폼은</p>
-          <ul className="space-y-1.5">
-            {[
-              "리뷰, 평점, 인기순, 빠른 소비 중심으로 움직입니다.",
-              "이미 유명한 공간만 반복 노출됩니다.",
-              "공간의 철학은 전달되지 않습니다.",
-              "사용자는 공간보다 정보만 소비하게 됩니다.",
-            ].map((item, i) => (
-              <li key={i} className="text-sm leading-relaxed pl-3" style={{ color: "var(--dim)", borderLeft: "1px solid var(--border)" }}>
-                {item}
-              </li>
-            ))}
-          </ul>
-        </div>
-        <p className="text-sm leading-loose whitespace-pre-line">
-          사람들은 많은 공간을 경험하지만,{"\n"}시간이 지나면 그 공간과 자신의 취향을 잊어버립니다.{"\n\n"}우리는 공간을 검색하고 소비하지만,{"\n"}왜 그 공간이 좋았는지는 남기지 못합니다.
-        </p>
-      </section>
-
-      <div style={{ borderTop: "1px solid var(--border)" }} />
-
-      <section className="px-6 py-12 space-y-5">
-        <p className="text-xs uppercase tracking-widest" style={{ color: "var(--border)" }}>공간큐브가 기록하는 공간</p>
+        <p className="text-xs uppercase tracking-widest" style={{ color: "var(--border)" }}>어떻게 경험하나요?</p>
         <p className="text-sm leading-loose whitespace-pre-line" style={{ color: "var(--dim)" }}>
-          공간큐브는 운영자의 취향과 철학이 담긴 작은 문화공간들을 기록합니다.{"\n"}단순히 유명한 공간보다, 공간만의 결이 느껴지는 곳을 중요하게 생각합니다.
-        </p>
-        <div className="flex flex-wrap gap-2 pt-1">
-          {["독립서점", "작은 전시공간", "LP바", "조용한 카페", "소품샵", "복합문화공간"].map((ex, i) => (
-            <span key={i} className="text-xs px-2.5 py-1 border" style={{ borderColor: "var(--border)", color: "var(--dim)" }}>
-              {ex}
-            </span>
-          ))}
-        </div>
-      </section>
-
-      <div style={{ borderTop: "1px solid var(--border)" }} />
-
-      <section className="px-6 py-12 space-y-6">
-        <p className="text-xs uppercase tracking-widest" style={{ color: "var(--border)" }}>경험의 흐름</p>
-        <p className="text-sm leading-loose whitespace-pre-line" style={{ color: "var(--dim)" }}>
-          공간큐브는 기록을 강요하지 않습니다.{"\n"}사람은 기록하기 위해 공간에 가는 것이 아니라,{"\n"}공간을 경험하기 위해 방문합니다.{"\n"}기록은 경험 이후 자연스럽게 남습니다.
+          공간에 놓인 큐브를 발견하고 QR을 인식하면, 그 장소에서만 만날 수 있는 이야기가 열립니다.{"\n"}
+          이야기를 읽고 나면 사용자는 사진 속 공간이 아니라 지금 눈앞의 자리와 물건, 사람을 다시 바라보게 됩니다.
         </p>
         <ol className="space-y-0 pt-2">
-          {["공간 발견", "큐브 발견", "QR 스캔", "공간 이야기", "짧은 기록", "취향 축적", "다음 공간 탐험"].map((step, i, arr) => (
+          {["큐브 발견", "QR 인식", "공간을 만든 사람의 이야기", "공간을 다시 바라보기", "취향 점수 저장", "다음 공간 발견"].map((step, i, arr) => (
             <li key={i} className="flex items-start gap-4">
               <div className="flex flex-col items-center">
                 <span className="w-5 h-5 flex-shrink-0 border flex items-center justify-center text-xs" style={{ borderColor: "var(--border)", color: "var(--dim)" }}>
@@ -100,36 +85,19 @@ export default function AboutPage() {
       <div style={{ borderTop: "1px solid var(--border)" }} />
 
       <section className="px-6 py-12 space-y-5">
-        <p className="text-xs uppercase tracking-widest" style={{ color: "var(--border)" }}>공간큐브 오브젝트</p>
-        <p className="text-sm leading-loose whitespace-pre-line">
-          공간큐브는 단순한 QR 코드가 아닙니다.{"\n"}각 공간에 하나씩 놓이는 작은 오브젝트이며,{"\n"}그 공간의 이야기로 들어가는 입구 역할을 합니다.
-        </p>
-        <ul className="space-y-1.5 pt-1">
-          {["공간의 중심", "발견의 신호", "탐험의 시작점"].map((role, i) => (
-            <li key={i} className="text-sm" style={{ color: "var(--dim)" }}>· {role}</li>
+        <p className="text-xs uppercase tracking-widest" style={{ color: "var(--border)" }}>공간큐브가 하지 않는 것</p>
+        <ul className="space-y-1.5">
+          {[
+            "검색 가능한 정보를 반복하지 않습니다.",
+            "운영자를 완벽한 사람처럼 포장하지 않습니다.",
+            "억지 감동이나 성공담을 만들지 않습니다.",
+            "별점과 인기순으로 공간의 가치를 정하지 않습니다.",
+          ].map((item, i) => (
+            <li key={i} className="text-sm leading-relaxed pl-3" style={{ color: "var(--dim)", borderLeft: "1px solid var(--border)" }}>
+              {item}
+            </li>
           ))}
         </ul>
-      </section>
-
-      <div style={{ borderTop: "1px solid var(--border)" }} />
-
-      <section className="px-6 py-12 space-y-6">
-        <p className="text-xs uppercase tracking-widest" style={{ color: "var(--border)" }}>공간큐브가 지향하는 연결</p>
-        <p className="text-sm leading-loose whitespace-pre-line">
-          공간큐브는 사람을 팔로우하는 서비스가 아닙니다.{"\n"}공간을 통해 취향을 발견하고,{"\n"}그 취향을 따라 다른 공간으로 이어지는 경험을 만듭니다.
-        </p>
-        <div className="flex flex-col gap-3 pt-1">
-          <div className="flex flex-wrap gap-2">
-            {["리뷰 경쟁", "별점", "인기순"].map((item, i) => (
-              <span key={i} className="text-xs px-2.5 py-1 border line-through" style={{ borderColor: "var(--border)", color: "var(--border)" }}>{item}</span>
-            ))}
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {["기록", "감정", "탐험", "취향"].map((item, i) => (
-              <span key={i} className="text-xs px-2.5 py-1 border" style={{ borderColor: "var(--fg)", color: "var(--fg)" }}>{item}</span>
-            ))}
-          </div>
-        </div>
       </section>
 
       <div style={{ borderTop: "1px solid var(--border)" }} />
@@ -137,7 +105,7 @@ export default function AboutPage() {
       <section className="px-6 py-14 space-y-4">
         <p className="text-xs uppercase tracking-widest" style={{ color: "var(--border)" }}>공간큐브는</p>
         <p className="text-lg font-bold leading-snug pl-3" style={{ borderLeft: "2px solid var(--fg)" }}>
-          취향은 설명보다 경험 속에서 드러난다고 믿습니다.
+          공간을 완벽하게 설명하는 서비스가 아니라,{"\n"}그 공간을 조금 더 인간적으로 기억하게 만드는 서비스입니다.
         </p>
       </section>
 
