@@ -12,7 +12,15 @@ import { prisma } from "@/lib/prisma";
 // 강제로 요구하는 커스텀 로직을 두지 않는다 — 실제 동의항목은 카카오 디벨로퍼스 콘솔에서 정한다.
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(prisma),
-  providers: [Kakao, Google],
+  providers: [
+    // next-auth 내장 Kakao provider의 기본 authorization URL은
+    // "https://kauth.kakao.com/oauth/authorize?scope"로 끝에 값 없는 scope 파라미터가
+    // 붙어있다 — 그대로 두면 실제 요청에 "scope=" (빈 문자열)가 포함되어 카카오 인증 서버가
+    // 계정 선택 이후 단계(동의 화면 구성)에서 KOE101 오류를 낸다. scope 파라미터 자체를
+    // 아예 안 보내도록 URL을 명시적으로 덮어쓴다 — 콘솔에 설정된 동의항목대로 동작하게 된다.
+    Kakao({ authorization: "https://kauth.kakao.com/oauth/authorize" }),
+    Google,
+  ],
   pages: {
     signIn: "/login",
   },
