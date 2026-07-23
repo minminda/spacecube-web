@@ -39,3 +39,10 @@ export const ALLOW_SELF_GUESTBOOK_REACTION = false;
  * 렌더링에는 영향을 주지 않도록 분리 — true로 바꾸면 즉시 복구.
  */
 export const ENABLE_DARK_MODE_TOGGLE = false;
+
+/**
+ * 최초 진입 시 표시되는 인트로(OnboardingOverlay) 노출 여부.
+ * 지금은 홈/요청 페이지를 지연 없이 바로 보여주기 위해 끈다.
+ * 컴포넌트, localStorage 로직은 삭제하지 않고 그대로 두되 마운트만 막음 — true로 바꾸면 즉시 복구.
+ */
+export const ENABLE_INITIAL_ONBOARDING = false;

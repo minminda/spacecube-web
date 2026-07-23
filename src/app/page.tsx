@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { ENABLE_REGION_STORIES, ENABLE_TASTE_STORIES } from "@/lib/features";
 import HomeStoryCard from "./HomeStoryCard";
 import QrScanSheet from "./QrScanSheet";
+import HomeLogoutButton from "@/components/HomeLogoutButton";
 
 const FLOW_STEPS = ["큐브 발견", "QR 스캔", "공간 이야기", "취향 저장", "흔적 남기기", "다음 공간 추천"];
 
@@ -104,6 +105,7 @@ export default async function Home() {
             <Link href="/archive" className="text-sm" style={{ color: "var(--dim)" }}>
               내 아카이브
             </Link>
+            <HomeLogoutButton />
             {admin && (
               <Link href="/owner" className="block text-xs" style={{ color: "var(--border)" }}>
                 관리자

@@ -3,7 +3,7 @@ import "./globals.css";
 import ThemeToggle from "@/components/ThemeToggle";
 import OnboardingOverlay from "@/components/OnboardingOverlay";
 import Navbar from "@/components/Navbar";
-import { ENABLE_DARK_MODE_TOGGLE } from "@/lib/features";
+import { ENABLE_DARK_MODE_TOGGLE, ENABLE_INITIAL_ONBOARDING } from "@/lib/features";
 import { getBaseUrl } from "@/lib/config";
 
 const BASE_URL = getBaseUrl();
@@ -39,7 +39,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <div className="max-w-sm md:max-w-2xl mx-auto min-h-screen">
           {children}
         </div>
-        <OnboardingOverlay />
+        {ENABLE_INITIAL_ONBOARDING && <OnboardingOverlay />}
         {ENABLE_DARK_MODE_TOGGLE && <ThemeToggle />}
       </body>
     </html>
