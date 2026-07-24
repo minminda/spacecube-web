@@ -17,7 +17,7 @@ export default function HomeLogoutButton() {
       type="button"
       onClick={handleClick}
       disabled={loading}
-      className="block text-sm disabled:opacity-60"
+      className="block w-full text-sm disabled:opacity-60"
       style={{ color: "var(--dim)" }}
     >
       {loading ? "로그아웃 중..." : "로그아웃"}
