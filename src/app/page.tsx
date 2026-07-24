@@ -102,7 +102,7 @@ export default async function Home() {
       <div className="text-center space-y-2">
         {session ? (
           <>
-            <Link href="/archive" className="text-sm" style={{ color: "var(--dim)" }}>
+            <Link href="/archive" className="block text-sm" style={{ color: "var(--dim)" }}>
               내 아카이브
             </Link>
             <HomeLogoutButton />
