@@ -12,9 +12,9 @@ const NAV_ITEMS = [
 export default function Navbar() {
   const pathname = usePathname();
 
-  // 운영자 화면(/owner, /operator)은 완전히 분리된 레이아웃·헤더를 쓰므로 일반 사용자 Navbar는
+  // 운영자 화면(/admin, /operator)은 완전히 분리된 레이아웃·헤더를 쓰므로 일반 사용자 Navbar는
   // 아예 렌더링하지 않는다 — 운영 관리 진입 흔적이 일반 사용자 화면에 남지 않는다.
-  if (pathname.startsWith("/owner") || pathname.startsWith("/operator")) return null;
+  if (pathname.startsWith("/admin") || pathname.startsWith("/operator")) return null;
 
   return (
     <nav

@@ -56,7 +56,7 @@ export default async function CubeEntryPage({ params }: Props) {
       </p>
       {admin && (
         <Link
-          href={`/owner/cubes?code=${encodeURIComponent(normalizedCode)}`}
+          href={`/admin/cubes?code=${encodeURIComponent(normalizedCode)}`}
           className="text-sm px-5 py-2.5 border transition-colors hover:bg-[var(--fg)] hover:text-[var(--bg)]"
           style={{ borderColor: "var(--fg)" }}
         >

@@ -23,7 +23,7 @@ export default async function DiscoverPage({ searchParams }: Props) {
 
   // district 미지정 — 지역을 고르는 진입 화면 (홈에서 "공간 둘러보기"로 옴)
   if (!district) {
-    // HIDDEN 지역은 지도 자체에서 제외 — 관리자 화면(/owner/districts)에만 계속 보인다.
+    // HIDDEN 지역은 지도 자체에서 제외 — 관리자 화면(/admin/districts)에만 계속 보인다.
     const districts = await prisma.district.findMany({
       where: { status: { in: ["ACTIVE", "COMING_SOON"] } },
       orderBy: { order: "asc" },

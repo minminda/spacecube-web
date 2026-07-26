@@ -8,7 +8,7 @@ import DistrictMapMarker from "@/components/DistrictMapMarker";
 /* ── 공간 둘러보기 SVG 지역 선택 지도 ──────────────────────────────
    지도 API/외부 라이브러리 없이 순수 SVG + CSS transform으로만 구현한다.
    배경(격자+한강)은 코드에 고정, 지역 마커 위치·줌 설정·노출 상태는
-   관리자(/owner/districts)가 편집한 값을 그대로 쓴다(discover/page.tsx가
+   관리자(/admin/districts)가 편집한 값을 그대로 쓴다(discover/page.tsx가
    DB에서 조회해 내려줌). ACTIVE 지역을 누르면 그 지역의 줌 중심으로
    SVG 전체가 확대된 뒤 지역 페이지로 이동하고, COMING_SOON 지역은
    이동 없이 안내 문구만 보여준다. ──────────────────────────────── */

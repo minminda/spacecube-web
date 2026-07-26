@@ -107,7 +107,7 @@ export default async function Home() {
             </Link>
             <HomeLogoutButton />
             {admin && (
-              <Link href="/owner" className="block text-xs" style={{ color: "var(--border)" }}>
+              <Link href="/admin" className="block text-xs" style={{ color: "var(--border)" }}>
                 관리자
               </Link>
             )}
