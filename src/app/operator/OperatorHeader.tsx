@@ -13,6 +13,7 @@ export default function OperatorHeader({ hasSession }: { hasSession: boolean }) 
 
   async function findAnotherSpace() {
     await fetch("/api/operator/logout", { method: "POST" });
+    router.push("/operator");
     router.refresh();
   }
 

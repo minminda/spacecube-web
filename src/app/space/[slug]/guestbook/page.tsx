@@ -149,7 +149,7 @@ export default async function GuestbookPage({ params, searchParams }: Props) {
 
   const [dbNotes, settingsRow, commentedThisVisitCount] = await Promise.all([
     prisma.guestbookNote.findMany({
-      where: { guestbookSessionId: activeSession.id },
+      where: { guestbookSessionId: activeSession.id, isHidden: false, deletedAt: null },
       orderBy: { createdAt: "asc" },
       select: {
         id: true, userId: true, recordId: true, content: true, nickname: true, imageUrl: true,

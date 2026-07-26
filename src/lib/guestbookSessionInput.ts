@@ -98,3 +98,27 @@ export function parseGuestbookSessionInput(
     question2Color: resolveClusterColor(body.question2Color, current.question2Color),
   };
 }
+
+export interface GuestbookStyleInput {
+  question1FontSize: number;
+  question2FontSize: number;
+  question1Color: string;
+  question2Color: string;
+}
+
+/**
+ * 운영자용 "방명록 화면 설정"(/operator/[spaceId]/guestbook-settings) 전용 좁은 파서 —
+ * 질문 1·질문 2의 글자 크기·색상만 받는다. 질문 문구·표시여부·위치·자유 영역 스타일은
+ * 관리자 전용이라 이 파서가 다루지 않는다(parseGuestbookSessionInput과 clamp 유틸만 공유).
+ */
+export function parseGuestbookStyleInput(
+  body: Record<string, unknown>,
+  current: GuestbookStyleInput,
+): GuestbookStyleInput {
+  return {
+    question1FontSize: clampFontSize(body.question1FontSize, current.question1FontSize),
+    question2FontSize: clampFontSize(body.question2FontSize, current.question2FontSize),
+    question1Color: resolveClusterColor(body.question1Color, current.question1Color),
+    question2Color: resolveClusterColor(body.question2Color, current.question2Color),
+  };
+}

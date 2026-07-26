@@ -44,7 +44,7 @@ export default async function GuestbookArchiveSessionPage({ params, searchParams
   }
 
   const notes = await prisma.guestbookNote.findMany({
-    where: { guestbookSessionId: guestbookSession.id },
+    where: { guestbookSessionId: guestbookSession.id, isHidden: false, deletedAt: null },
     orderBy: { createdAt: "asc" },
     select: {
       id: true,

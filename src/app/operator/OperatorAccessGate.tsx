@@ -53,7 +53,7 @@ export default function OperatorAccessGate() {
       <PinStep
         space={selected}
         onBack={() => setSelected(null)}
-        onSuccess={() => router.refresh()}
+        onSuccess={() => router.push(`/operator/${selected.id}`)}
       />
     );
   }

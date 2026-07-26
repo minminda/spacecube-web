@@ -128,6 +128,13 @@ model Space {
   operatorPinUpdatedAt  DateTime?
   operatorAccessVersion Int       @default(1)
 
+  // 운영자 자기 정보 — 방문자에게 노출되는 ownerName/ownerBio와는 별개로, 운영자 본인이
+  // /operator/[spaceId]/settings에서 직접 관리하는 내부 연락처·리포트 수신 설정.
+  operatorContactName        String?
+  operatorContactEmail       String?
+  operatorReportEmail        String?
+  operatorReportEmailEnabled Boolean @default(true)
+
   owner                User?                 @relation(fields: [ownerId], references: [id], onDelete: SetNull)
   records              Record[]
   collectionItems      CollectionItem[]
@@ -260,6 +267,12 @@ model GuestbookNote {
   color              String      @default("#F6E7A8")
   createdAt          DateTime    @default(now())
   updatedAt          DateTime    @default(now()) @updatedAt
+
+  // 운영자 방명록 관리(/operator/[spaceId]/guestbook) — 숨김은 가역적, 삭제는 소프트 삭제
+  // (복구 UI 없음). 방문자 화면(진행 중/아카이브 캔버스) 쿼리에서는 둘 다 제외해야 한다.
+  isHidden  Boolean   @default(false)
+  hiddenAt  DateTime?
+  deletedAt DateTime?
 
   user    User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   space   Space            @relation(fields: [spaceId], references: [id], onDelete: Cascade)
