@@ -1,11 +1,11 @@
 /* ── 방명록 세션 저장 입력 파싱/검증 (관리자·운영자 공통) ──────────────────
-   /api/spaces/[id]/guestbook-sessions/{active,draft}(관리자, 전 필드) PUT과
-   /api/operator/spaces/[spaceId]/guestbook-style(운영자, 스타일 4필드만) PATCH가
-   공유하는 단일 검증 지점 — 여러 라우트가 같은 필드 파싱/클램프 로직을 중복
-   구현하지 않는다. 순수 함수(요청 body와 "현재 값"만 받는다, Prisma 직접 호출
-   없음)라 유닛 테스트 가능. 항상 성공한다 — 값이 없거나 잘못된 필드는 current
-   (갱신 대상의 현재 값)로 조용히 폴백하고, 어두운 색상 저장 차단 같은 하드
-   실패는 두지 않는다(경고는 폼에서 즉시 보여준다). ── */
+   /api/spaces/[id]/guestbook-sessions/{active,draft}(관리자, isAdmin, 전체 공간)와
+   /api/operator/spaces/[spaceId]/guestbook-session(운영자, requireOperatorSpace, 자기
+   공간만)가 공유하는 단일 검증 지점 — 두 라우트의 필드 범위는 완전히 동일하고 인가
+   게이트만 다르다. 순수 함수(요청 body와 "현재 값"만 받는다, Prisma 직접 호출 없음)라
+   유닛 테스트 가능. 항상 성공한다 — 값이 없거나 잘못된 필드는 current(갱신 대상의 현재
+   값)로 조용히 폴백하고, 어두운 색상 저장 차단 같은 하드 실패는 두지 않는다(경고는
+   폼에서 즉시 보여준다). ── */
 
 import {
   clampFontSize,
@@ -71,50 +71,14 @@ function readQuestionText(body: Record<string, unknown>, key: string, fallback: 
   return typeof v === "string" && v.trim() ? v.trim().slice(0, MAX_QUESTION_LEN) : null;
 }
 
-export interface GuestbookStyleInput {
-  question1FontSize: number;
-  question2FontSize: number;
-  question1Color: string;
-  question2Color: string;
-}
-
-/* ── 공통 방명록 처리 로직 ─────────────────────────────────────────────
-   질문 1·질문 2의 글자 크기·색상을 파싱/클램프하는 이 함수 하나가 관리자용
-   전체 필드 파서(parseGuestbookSessionInput)와 운영자용 좁은 파서 양쪽의
-   유일한 계산 지점이다. 두 파서는 이 로직을 그대로 가져다 쓰고, 차이는 오직
-   "어떤 API 게이트를 통해 호출되는가"에만 있다:
-
-     공통 방명록 처리 로직(parseGuestbookStyleInput)
-     ├─ 관리자 API(guestbook-sessions/active·draft, isAdmin) → 전체 공간 접근 가능,
-     │  질문 문구·표시여부·위치·자유 영역 스타일까지 전 필드 수정 가능
-     └─ 운영자 API(guestbook-style, requireOperatorSpace) → 인증된 자신의 공간만
-        접근 가능, 질문1·2 글자 크기·색상 4필드만 수정 가능
-
-   즉 관리자는 이 4필드를 포함해 세션의 모든 것을 바꿀 수 있고(제한 없음), 운영자는
-   이 4필드만, 그것도 자기 공간에 한해서만 바꿀 수 있다 — 권한이 배타적으로 충돌하는
-   게 아니라 관리자 권한이 운영자 권한을 완전히 포함하는 상하위 관계다. ──────── */
-export function parseGuestbookStyleInput(
-  body: Record<string, unknown>,
-  current: GuestbookStyleInput,
-): GuestbookStyleInput {
-  return {
-    question1FontSize: clampFontSize(body.question1FontSize, current.question1FontSize),
-    question2FontSize: clampFontSize(body.question2FontSize, current.question2FontSize),
-    question1Color: resolveClusterColor(body.question1Color, current.question1Color),
-    question2Color: resolveClusterColor(body.question2Color, current.question2Color),
-  };
-}
-
 /**
  * body의 필드를 current(갱신 대상의 현재 값, 없으면 DEFAULT_SESSION_FIELDS) 기준으로
- * 파싱/클램프/폴백한다. 항상 성공한다. 질문1·2 글자 크기·색상은 parseGuestbookStyleInput을
- * 그대로 위임해, 운영자용 좁은 API와 계산 로직이 갈라지지 않게 한다.
+ * 파싱/클램프/폴백한다. 항상 성공한다.
  */
 export function parseGuestbookSessionInput(
   body: Record<string, unknown>,
   current: GuestbookSessionInput,
 ): GuestbookSessionInput {
-  const style = parseGuestbookStyleInput(body, current);
   return {
     question1: readQuestionText(body, "question1", current.question1),
     question2: readQuestionText(body, "question2", current.question2),
@@ -128,10 +92,10 @@ export function parseGuestbookSessionInput(
     question2ClusterX: readNumber(body, "question2ClusterX", current.question2ClusterX),
     question2ClusterY: readNumber(body, "question2ClusterY", current.question2ClusterY),
     freeLabelFontSize: clampFontSize(body.freeLabelFontSize, current.freeLabelFontSize),
-    question1FontSize: style.question1FontSize,
-    question2FontSize: style.question2FontSize,
+    question1FontSize: clampFontSize(body.question1FontSize, current.question1FontSize),
+    question2FontSize: clampFontSize(body.question2FontSize, current.question2FontSize),
     freeLabelColor: resolveClusterColor(body.freeLabelColor, current.freeLabelColor),
-    question1Color: style.question1Color,
-    question2Color: style.question2Color,
+    question1Color: resolveClusterColor(body.question1Color, current.question1Color),
+    question2Color: resolveClusterColor(body.question2Color, current.question2Color),
   };
 }

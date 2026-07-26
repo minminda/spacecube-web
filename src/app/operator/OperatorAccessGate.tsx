@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 interface SpaceResult {
-  id: string;
+  slug: string;
   name: string;
   district: string | null;
   type: string;
@@ -24,7 +24,7 @@ export default function OperatorAccessGate() {
     const trimmed = query.trim();
     if (debounceRef.current) clearTimeout(debounceRef.current);
 
-    if (trimmed.length < 1) {
+    if (trimmed.length < 2) {
       setResults(null);
       setSearching(false);
       return;
@@ -53,7 +53,7 @@ export default function OperatorAccessGate() {
       <PinStep
         space={selected}
         onBack={() => setSelected(null)}
-        onSuccess={() => router.push(`/operator/${selected.id}`)}
+        onSuccess={() => router.push(`/operator/${selected.slug}`)}
       />
     );
   }
@@ -88,7 +88,7 @@ export default function OperatorAccessGate() {
           <div className="space-y-2">
             {results.map((s) => (
               <button
-                key={s.id}
+                key={s.slug}
                 type="button"
                 onClick={() => setSelected(s)}
                 className="w-full text-left p-3 border transition-colors hover:bg-[var(--fg)] hover:text-[var(--bg)]"
@@ -119,7 +119,7 @@ function PinStep({ space, onBack, onSuccess }: { space: SpaceResult; onBack: () 
     const res = await fetch("/api/operator/verify-pin", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ spaceId: space.id, pin: value }),
+      body: JSON.stringify({ slug: space.slug, pin: value }),
     });
     setVerifying(false);
 

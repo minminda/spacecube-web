@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireOperatorSpace } from "@/lib/operatorSession";
 import { GuestbookSessionStatus } from "@prisma/client";
-import { parseGuestbookStyleInput } from "@/lib/guestbookSessionInput";
+import { parseGuestbookSessionInput } from "@/lib/guestbookSessionInput";
 
 export const dynamic = "force-dynamic";
 
@@ -11,13 +11,14 @@ interface Props {
 }
 
 /**
- * 운영자가 직접 바꿀 수 있는 범위는 자신의 공간(requireOperatorSpace)의 현재 ACTIVE 세션
- * 중 질문 1·질문 2 글자 크기·색상뿐이다 — 질문 문구·표시여부·위치·자유 영역 스타일은 계속
- * 관리자 전용(guestbook-sessions/active, isAdmin으로 전체 공간 접근 가능). 두 라우트 모두
- * guestbookSessionInput.ts의 같은 계산 로직(parseGuestbookStyleInput)을 쓴다 — 갈리는 건
- * 권한 게이트와 필드 범위뿐이다.
+ * 운영자용 방명록 편집 — 현재 ACTIVE 세션의 질문 문구·표시여부·글자크기·색상·위치를
+ * 전부 바꿀 수 있다(자기 공간에 한해서만, requireOperatorSpace). 관리자용
+ * /api/spaces/[id]/guestbook-sessions/active와 완전히 같은 파서(parseGuestbookSessionInput,
+ * guestbookSessionInput.ts)를 공유한다 — 필드 범위 차이 없음, 인가 게이트(공간 범위)만 다르다.
+ * DRAFT 준비·"새 방명록 시작"·지난 방명록 아카이브는 여전히 관리자 전용이라 이 라우트가
+ * 다루지 않는다.
  */
-export async function PATCH(req: NextRequest, { params }: Props) {
+export async function PUT(req: NextRequest, { params }: Props) {
   const { spaceId } = await params;
   if (!(await requireOperatorSpace(spaceId))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -31,7 +32,7 @@ export async function PATCH(req: NextRequest, { params }: Props) {
   }
 
   const body = await req.json().catch(() => ({}));
-  const data = parseGuestbookStyleInput(body, active);
+  const data = parseGuestbookSessionInput(body, active);
 
   const updated = await prisma.guestbookSession.update({ where: { id: active.id }, data });
   return NextResponse.json(updated);

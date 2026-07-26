@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound, redirect } from "next/navigation";
-import { requireOperatorSpace } from "@/lib/operatorSession";
+import { notFound } from "next/navigation";
+import { resolveOperatorSpaceOrRedirect } from "@/lib/operatorSession";
 import { prisma } from "@/lib/prisma";
 
 export const metadata: Metadata = {
@@ -10,20 +10,17 @@ export const metadata: Metadata = {
 };
 
 interface Props {
-  params: Promise<{ spaceId: string }>;
+  params: Promise<{ slug: string }>;
 }
 
 const MENU_ITEMS = [
-  { href: "space", title: "내 공간 관리", desc: "공개 중인 공간 페이지를 확인합니다." },
-  { href: "guestbook", title: "방명록 관리", desc: "방문자의 기록을 확인하고 관리합니다." },
-  { href: "guestbook-settings", title: "방명록 화면 설정", desc: "질문의 크기와 색상을 설정합니다." },
-  { href: "cube", title: "큐브·QR 확인", desc: "QR 연결 상태를 확인합니다." },
-  { href: "settings", title: "운영자 설정", desc: "비밀번호와 이메일을 관리합니다." },
+  { href: "space", title: "내 공간 관리", desc: "공개 중인 공간 페이지를 확인하고 수정 요청을 보냅니다." },
+  { href: "guestbook", title: "방명록 관리", desc: "방명록 화면을 설정하고 방문자의 기록을 관리합니다." },
 ] as const;
 
 export default async function OperatorHomePage({ params }: Props) {
-  const { spaceId } = await params;
-  if (!(await requireOperatorSpace(spaceId))) redirect("/operator");
+  const { slug: slugParam } = await params;
+  const { id: spaceId, slug } = await resolveOperatorSpaceOrRedirect(slugParam, "");
 
   const space = await prisma.space.findUnique({
     where: { id: spaceId },
@@ -57,7 +54,7 @@ export default async function OperatorHomePage({ params }: Props) {
         {MENU_ITEMS.map((item) => (
           <Link
             key={item.href}
-            href={`/operator/${spaceId}/${item.href}`}
+            href={`/operator/${slug}/${item.href}`}
             className="flex items-center justify-between gap-4 p-4 border transition-colors hover:bg-[var(--fg)] hover:text-[var(--bg)] group"
             style={{ borderColor: "var(--border)" }}
           >

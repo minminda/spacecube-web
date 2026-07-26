@@ -13,6 +13,7 @@
 
 import { createHmac, timingSafeEqual } from "crypto";
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 
 export const OPERATOR_SESSION_COOKIE = "sc_operator_access";
@@ -106,4 +107,31 @@ export async function getOperatorSession(): Promise<{ spaceId: string } | null> 
 export async function requireOperatorSpace(spaceId: string): Promise<boolean> {
   const session = await getOperatorSession();
   return session?.spaceId === spaceId;
+}
+
+export interface OperatorSpaceRef {
+  id: string;
+  slug: string;
+}
+
+/**
+ * /operator/[slug]/** 페이지가 공통으로 쓰는 진입 검증. URL에는 DB cuid를 노출하지 않고
+ * Space.slug를 쓴다(기존 /space/[slug]와 같은 필드 재사용, 새 slug 체계를 만들지 않음).
+ *
+ * slug로 못 찾으면 레거시 DB id URL(`/operator/cmn2r2bb8...`)로 접근한 것일 수 있어 id로
+ * 한 번 더 찾는다 — 있으면 올바른 slug URL로 307(임시) redirect한다. slug는 이미
+ * `/space/[slug]`에서도 공개되는 정보라 redirect 자체에 인증 확인을 앞세우지 않고,
+ * 실제 접근 가능 여부는 도착한 slug 페이지가 requireOperatorSpace로 다시 검증한다.
+ */
+export async function resolveOperatorSpaceOrRedirect(slugParam: string, subpath: string): Promise<OperatorSpaceRef> {
+  const space = await prisma.space.findUnique({ where: { slug: slugParam }, select: { id: true, slug: true } });
+
+  if (!space) {
+    const bySpaceId = await prisma.space.findUnique({ where: { id: slugParam }, select: { id: true, slug: true } });
+    if (bySpaceId) redirect(`/operator/${bySpaceId.slug}${subpath}`);
+    redirect("/operator");
+  }
+
+  if (!(await requireOperatorSpace(space.id))) redirect("/operator");
+  return space;
 }

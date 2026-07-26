@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getOperatorSession } from "@/lib/operatorSession";
+import { prisma } from "@/lib/prisma";
 import OperatorAccessGate from "./OperatorAccessGate";
 
 export const metadata: Metadata = {
@@ -10,7 +11,10 @@ export const metadata: Metadata = {
 
 export default async function OperatorPage() {
   const session = await getOperatorSession();
-  if (session) redirect(`/operator/${session.spaceId}`);
+  if (session) {
+    const space = await prisma.space.findUnique({ where: { id: session.spaceId }, select: { slug: true } });
+    if (space) redirect(`/operator/${space.slug}`);
+  }
 
   return (
     <main className="flex flex-col min-h-screen px-6 py-8">

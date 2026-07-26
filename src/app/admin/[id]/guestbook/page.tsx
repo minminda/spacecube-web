@@ -5,26 +5,12 @@ import { isAdmin } from "@/lib/admin";
 import { prisma } from "@/lib/prisma";
 import { GuestbookSessionStatus } from "@prisma/client";
 import { ENABLE_GUESTBOOK_IMAGE } from "@/lib/pilotFlags";
-import GuestbookAdminPage from "./GuestbookAdminPage";
+import { normalizeCanvasSettingsRow } from "@/lib/guestbookSettingsInput";
+import GuestbookEditor from "@/components/guestbook/GuestbookEditor";
 
 interface Props {
   params: Promise<{ id: string }>;
 }
-
-const SETTINGS_DEFAULTS = {
-  backgroundType: "color" as const,
-  backgroundColor: "#000000",
-  backgroundImageUrl: "",
-  backgroundOpacity: 1,
-  layoutType: "scatter" as const,
-  defaultPostitColor: "#F6E7A8",
-  initialZoom: 1,
-  initialX: 0,
-  initialY: 0,
-  allowRotation: true,
-  allowImage: true,
-  showNickname: true,
-};
 
 function toEditableFields(s: {
   question1: string | null;
@@ -67,10 +53,8 @@ function toEditableFields(s: {
 }
 
 /**
- * 관리자 방명록 통합 관리 페이지 — 예전 /admin/[id]/guestbook-settings(배경·레이아웃)와
- * /admin/[id]/guestbook-sessions(질문·군집·스타일)를 여기 하나로 합쳤다. 두 데이터를
- * 한 번의 서버 컴포넌트 요청에서 같이 조회해, 페이지를 오가며 같은 공간을 두 번
- * 조회하던 중복 호출이 없다.
+ * 관리자 방명록 통합 관리 페이지 — 공용 GuestbookEditor(role="admin")를 렌더링한다.
+ * 운영자 페이지(/operator/[slug]/guestbook)도 같은 컴포넌트를 role="operator"로 쓴다.
  */
 export default async function GuestbookAdminRoutePage({ params }: Props) {
   const session = await auth();
@@ -81,7 +65,7 @@ export default async function GuestbookAdminRoutePage({ params }: Props) {
   const space = await prisma.space.findUnique({ where: { id: spaceId }, select: { id: true, name: true, slug: true } });
   if (!space) notFound();
 
-  const [active, draft, archived, settingsRow] = await Promise.all([
+  const [active, draft, archived, settingsRow, notes] = await Promise.all([
     prisma.guestbookSession.findFirst({ where: { spaceId, status: GuestbookSessionStatus.ACTIVE } }),
     prisma.guestbookSession.findFirst({ where: { spaceId, status: GuestbookSessionStatus.DRAFT } }),
     prisma.guestbookSession.findMany({
@@ -97,26 +81,25 @@ export default async function GuestbookAdminRoutePage({ params }: Props) {
       },
     }),
     prisma.guestbookSettings.findUnique({ where: { spaceId } }),
+    prisma.guestbookNote.findMany({
+      where: { spaceId, deletedAt: null },
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        content: true,
+        nickname: true,
+        clusterType: true,
+        createdAt: true,
+        isHidden: true,
+        _count: { select: { reactions: true } },
+        session: { select: { status: true } },
+      },
+    }),
   ]);
 
   const activePostitCount = active ? await prisma.guestbookNote.count({ where: { guestbookSessionId: active.id } }) : 0;
 
-  const settings = settingsRow
-    ? {
-        backgroundType: settingsRow.backgroundType as "color" | "image",
-        backgroundColor: settingsRow.backgroundColor ?? SETTINGS_DEFAULTS.backgroundColor,
-        backgroundImageUrl: settingsRow.backgroundImageUrl ?? "",
-        backgroundOpacity: settingsRow.backgroundOpacity,
-        layoutType: settingsRow.layoutType as "scatter" | "grid" | "radial",
-        defaultPostitColor: settingsRow.defaultPostitColor,
-        initialZoom: settingsRow.initialZoom,
-        initialX: settingsRow.initialX,
-        initialY: settingsRow.initialY,
-        allowRotation: settingsRow.allowRotation,
-        allowImage: settingsRow.allowImage,
-        showNickname: settingsRow.showNickname,
-      }
-    : SETTINGS_DEFAULTS;
+  const settings = normalizeCanvasSettingsRow(settingsRow);
 
   return (
     <main className="flex flex-col min-h-screen px-6 py-8 gap-6">
@@ -133,9 +116,16 @@ export default async function GuestbookAdminRoutePage({ params }: Props) {
         <h1 className="text-xl font-bold">{space.name}</h1>
       </div>
 
-      <GuestbookAdminPage
-        spaceId={space.id}
+      <GuestbookEditor
+        role="admin"
         spaceSlug={space.slug}
+        endpoints={{
+          activeSession: `/api/spaces/${space.id}/guestbook-sessions/active`,
+          draftSession: `/api/spaces/${space.id}/guestbook-sessions/draft`,
+          activateDraft: `/api/spaces/${space.id}/guestbook-sessions/activate`,
+          canvasSettings: `/api/spaces/${space.id}/guestbook-settings`,
+          notesBase: `/api/spaces/${space.id}`,
+        }}
         active={
           active
             ? { id: active.id, startsAt: active.startsAt?.toISOString() ?? null, fields: toEditableFields(active) }
@@ -154,6 +144,16 @@ export default async function GuestbookAdminRoutePage({ params }: Props) {
         settings={settings}
         hasCustomSettings={!!settingsRow}
         enableImage={ENABLE_GUESTBOOK_IMAGE}
+        notes={notes.map((n) => ({
+          id: n.id,
+          content: n.content,
+          nickname: n.nickname,
+          clusterType: n.clusterType,
+          createdAt: n.createdAt.toISOString(),
+          reactionCount: n._count.reactions,
+          isHidden: n.isHidden,
+          isActive: n.session.status === GuestbookSessionStatus.ACTIVE,
+        }))}
       />
     </main>
   );

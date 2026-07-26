@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import { notFound, redirect } from "next/navigation";
-import { requireOperatorSpace } from "@/lib/operatorSession";
+import { notFound } from "next/navigation";
+import { resolveOperatorSpaceOrRedirect } from "@/lib/operatorSession";
 import { prisma } from "@/lib/prisma";
 import { getBaseUrl } from "@/lib/config";
 import OperatorBackLink from "../OperatorBackLink";
@@ -10,12 +10,12 @@ export const metadata: Metadata = {
 };
 
 interface Props {
-  params: Promise<{ spaceId: string }>;
+  params: Promise<{ slug: string }>;
 }
 
 export default async function OperatorSpacePage({ params }: Props) {
-  const { spaceId } = await params;
-  if (!(await requireOperatorSpace(spaceId))) redirect("/operator");
+  const { slug: slugParam } = await params;
+  const { id: spaceId, slug } = await resolveOperatorSpaceOrRedirect(slugParam, "/space");
 
   const space = await prisma.space.findUnique({
     where: { id: spaceId },
@@ -27,7 +27,7 @@ export default async function OperatorSpacePage({ params }: Props) {
 
   return (
     <main className="flex flex-col min-h-screen px-6 py-8 gap-6">
-      <OperatorBackLink spaceId={spaceId} />
+      <OperatorBackLink slug={slug} />
 
       <div className="space-y-1.5">
         <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>내 공간 관리</p>

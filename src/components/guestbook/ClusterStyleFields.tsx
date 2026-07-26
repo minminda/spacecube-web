@@ -1,9 +1,9 @@
 "use client";
 
 /* ── 방명록 질문 군집(자유/질문1/질문2) 글자 크기·색상 편집 폼 ────────────────
-   관리자 페이지(/admin/[id]/guestbook)와 운영자 페이지(/operator/[spaceId]/guestbook-settings)
-   양쪽에서 동일하게 재사용한다 — 원래 GuestbookAdminPage.tsx 안에 있던 비공개 함수를
-   그대로 추출한 것이라 동작은 바뀌지 않는다. ──────────────────────────────── */
+   관리자 페이지(/admin/[id]/guestbook)와 운영자 페이지(/operator/[spaceId]/guestbook)가
+   공용 GuestbookEditor(src/components/guestbook/GuestbookEditor.tsx)를 통해 동일하게
+   재사용한다. ──────────────────────────────────────────────────────── */
 
 import { useEffect, useState } from "react";
 import {

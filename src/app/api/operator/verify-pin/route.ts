@@ -6,22 +6,23 @@ import { getClientIp, isRateLimited, recordFailedAttempt, resetAttempts } from "
 
 export const dynamic = "force-dynamic";
 
+/** 클라이언트는 slug만 보낸다 — DB cuid는 서버 내부에서만 조회·사용한다. */
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
-  const spaceId = typeof body.spaceId === "string" ? body.spaceId : "";
+  const slug = typeof body.slug === "string" ? body.slug : "";
   const pin = typeof body.pin === "string" ? body.pin : "";
 
-  if (!spaceId || !isValidPinFormat(pin)) {
+  if (!slug || !isValidPinFormat(pin)) {
     return NextResponse.json({ error: "INVALID_FORMAT" }, { status: 400 });
   }
 
   const ip = getClientIp(req);
-  if (isRateLimited(spaceId, ip)) {
+  if (isRateLimited(slug, ip)) {
     return NextResponse.json({ error: "RATE_LIMITED" }, { status: 429 });
   }
 
   const space = await prisma.space.findUnique({
-    where: { id: spaceId },
+    where: { slug },
     select: { id: true, operatorPinHash: true, operatorAccessVersion: true },
   });
   if (!space) {
@@ -33,11 +34,11 @@ export async function POST(req: NextRequest) {
 
   const valid = await verifyOperatorPin(pin, space.operatorPinHash);
   if (!valid) {
-    recordFailedAttempt(spaceId, ip);
+    recordFailedAttempt(slug, ip);
     return NextResponse.json({ error: "INVALID" }, { status: 401 });
   }
 
-  resetAttempts(spaceId, ip);
+  resetAttempts(slug, ip);
   await setOperatorSessionCookie(space.id, space.operatorAccessVersion);
   return NextResponse.json({ ok: true });
 }

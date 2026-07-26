@@ -1,5 +1,11 @@
 "use client";
 
+/* ── 방명록 포스트잇 관리 (관리자·운영자 공통) ────────────────────────────
+   /admin/[id]/guestbook의 "방명록 기록" 탭과 /operator/[slug]/guestbook의 "방명록 기록"
+   탭이 이 컴포넌트 하나를 그대로 쓴다. 차이는 오직 apiBasePath뿐이다
+   (관리자 = /api/spaces/[id], 운영자 = /api/operator/spaces/[spaceId]) — 실제 숨김/삭제
+   처리는 양쪽 다 src/lib/guestbookNoteModeration.ts의 같은 서비스 함수를 호출한다. ──── */
+
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { formatDotDate } from "@/lib/time";
@@ -24,7 +30,7 @@ const MODES: { key: Mode; label: string }[] = [
   { key: "hidden", label: "숨김된 글" },
 ];
 
-export default function GuestbookManageList({ spaceId, notes }: { spaceId: string; notes: Note[] }) {
+export default function GuestbookNoteManager({ apiBasePath, notes }: { apiBasePath: string; notes: Note[] }) {
   const router = useRouter();
   const [mode, setMode] = useState<Mode>("newest");
   const [openId, setOpenId] = useState<string | null>(null);
@@ -42,7 +48,7 @@ export default function GuestbookManageList({ spaceId, notes }: { spaceId: strin
 
   async function toggleHidden(id: string, next: boolean) {
     setBusyId(id);
-    await fetch(`/api/operator/spaces/${spaceId}/guestbook-notes/${id}`, {
+    await fetch(`${apiBasePath}/guestbook-notes/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ isHidden: next }),
@@ -53,7 +59,7 @@ export default function GuestbookManageList({ spaceId, notes }: { spaceId: strin
 
   async function deleteNote(id: string) {
     setBusyId(id);
-    await fetch(`/api/operator/spaces/${spaceId}/guestbook-notes/${id}`, { method: "DELETE" });
+    await fetch(`${apiBasePath}/guestbook-notes/${id}`, { method: "DELETE" });
     setBusyId(null);
     setConfirmDeleteId(null);
     setOpenId(null);
