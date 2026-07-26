@@ -15,6 +15,15 @@ const nextConfig: NextConfig = {
     // 뒤로가기/앞으로가기 포함 매 진입마다 서버에서 다시 조회한다.
     staleTimes: { dynamic: 0 },
   },
+  // 관리자 페이지 경로를 /owner → /admin으로 개명했다("운영자(operator)"와의 이름 혼동 제거).
+  // 기존 /owner/** 북마크·외부 링크가 깨지지 않도록 하위호환 리다이렉트를 둔다.
+  // permanent: false(307) — 나중에 경로를 또 바꿀 여지를 남기려고 영구 리다이렉트는 피한다.
+  async redirects() {
+    return [
+      { source: "/owner", destination: "/admin", permanent: false },
+      { source: "/owner/:path*", destination: "/admin/:path*", permanent: false },
+    ];
+  },
 };
 
 export default nextConfig;
