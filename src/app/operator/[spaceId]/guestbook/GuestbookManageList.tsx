@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { formatDotDate } from "@/lib/time";
+import { CLUSTER_LABELS } from "@/lib/guestbookClusterStyle";
 
 interface Note {
   id: string;
@@ -14,12 +15,6 @@ interface Note {
   isHidden: boolean;
   isActive: boolean;
 }
-
-const CLUSTER_LABELS: Record<string, string> = {
-  FREE: "자유",
-  QUESTION_1: "질문 1",
-  QUESTION_2: "질문 2",
-};
 
 type Mode = "newest" | "oldest" | "hidden";
 

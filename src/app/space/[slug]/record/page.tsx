@@ -2,8 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 import { resolveCurrentVisitRecord } from "@/lib/visit";
-import { requireSpaceUnlock } from "@/lib/spaceUnlock";
-import { isAdmin } from "@/lib/admin";
+import { requireSpaceUnlock, canBypassSpaceLock } from "@/lib/spaceUnlock";
 import SpaceLockNotice from "@/components/SpaceLockNotice";
 import RecordForm from "./RecordForm";
 
@@ -45,7 +44,7 @@ export default async function RecordPage({ params, searchParams }: Props) {
   // 취향 점수 입력은 이 공간의 이야기를 여는 관문이다 — Cube QR로 실제 잠금을 해제한
   // 사용자만 접근 가능(관리자·해당 공간 운영자는 예외). URL을 알아도 직접 접근으로는
   // 열리지 않는다: /api/records도 동일한 기준으로 다시 검증한다.
-  const bypass = isAdmin(session.user.email) || (!!space.ownerId && space.ownerId === user.id);
+  const bypass = canBypassSpaceLock(session.user.email, space, user.id);
   const unlocked = bypass || (await requireSpaceUnlock(user.id, space.id));
   if (!unlocked) {
     return (

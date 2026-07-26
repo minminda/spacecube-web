@@ -70,7 +70,9 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  if (pending.length > 0) {
+  // 프로덕션에서는 리포트 페이로드 전체를 로그에 남기지 않는다(개수만 확인 가능하면 충분).
+  const debug = process.env.NODE_ENV !== "production";
+  if (debug && pending.length > 0) {
     console.log(`[cron/monthly-reports] 신규 발행 리포트 ${pending.length}건:`, JSON.stringify(pending));
   }
 

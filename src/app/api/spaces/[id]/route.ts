@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { isAdmin } from "@/lib/admin";
 import { hashOperatorPin, isValidPinFormat } from "@/lib/operatorPin";
+import { syncLegacySpaceTagsToSpaceTag } from "@/lib/spaceTagSync";
 
 export const dynamic = "force-dynamic";
 
@@ -54,7 +55,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       openingHours: openingHours || null,
       naverMapUrl: naverMapUrl || null,
       description,
-      spaceTags: spaceTags ?? [],
+      // 다른 선택 필드처럼 undefined 보호를 둔다 — 예전엔 spaceTags를 body에 안 보내면
+      // 조용히 []로 지워졌다(감사에서 지적된 버그).
+      ...(spaceTags !== undefined ? { spaceTags } : {}),
       imageUrl: imageUrl || null,
       imageZoom: typeof imageZoom === "number" ? imageZoom : 1,
       imagePositionX: typeof imagePositionX === "number" ? imagePositionX : 0.5,
@@ -77,6 +80,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       ...(pinUpdateData ?? {}),
     },
   });
+
+  await syncLegacySpaceTagsToSpaceTag(updated.id, updated.spaceTags);
 
   return NextResponse.json(updated);
 }

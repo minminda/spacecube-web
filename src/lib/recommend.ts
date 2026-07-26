@@ -2,6 +2,11 @@ import { TagKey } from "@prisma/client";
 import { TAG_LABELS } from "@/lib/tags";
 import { getLatestRecordPerSpace, type SpaceVisitRecord } from "@/lib/taste";
 
+/** 공간-태그 연결(신규 SpaceTag) 한 건의 최소 형태 — recommend.ts 전역에서 공유. */
+export interface SpaceTagLinkLike {
+  tag: { legacyKey: TagKey | null; isActive: boolean; useForRecommendation: boolean };
+}
+
 export interface SpaceCandidate {
   id: string;
   name: string;
@@ -11,6 +16,26 @@ export interface SpaceCandidate {
   type: string;
   district: string | null;
   spaceTags: TagKey[];
+  /** 관리자가 연결한 신규 태그(SpaceTag) — 있으면 이쪽을 우선 쓰고 없으면 spaceTags로 폴백. */
+  spaceTagLinks?: SpaceTagLinkLike[];
+}
+
+/** 유효한 SpaceTag 연결만 남긴다(비활성/추천제외/레거시 매핑 없는 신규 태그 제외). */
+function getValidSpaceTagLinks(space: { spaceTagLinks?: SpaceTagLinkLike[] }): SpaceTagLinkLike[] {
+  return (space.spaceTagLinks ?? []).filter(
+    (l) => l.tag.isActive && l.tag.useForRecommendation && l.tag.legacyKey,
+  );
+}
+
+/**
+ * 공간의 "유효 태그 목록"을 계산한다 — 관리자가 SpaceTag(신규)를 연결해두면 그 legacyKey들을
+ * 쓰고, 아직 연결이 없으면 레거시 spaceTags 배열로 폴백한다. buildWeightedTasteVector가 쓰던
+ * 폴백 규칙을 후보 공간 스코어링 함수들(scoreSpace 계열)도 동일하게 따르도록 하나로 모았다 —
+ * 백필로 SpaceTag가 채워지는 공간부터 자동으로 신규 시스템이 우선 적용된다.
+ */
+function resolveEffectiveTagKeys(space: { spaceTags: TagKey[]; spaceTagLinks?: SpaceTagLinkLike[] }): TagKey[] {
+  const links = getValidSpaceTagLinks(space);
+  return links.length > 0 ? links.map((l) => l.tag.legacyKey as TagKey) : space.spaceTags;
 }
 
 /**
@@ -21,20 +46,21 @@ export function scoreSpaceWeighted(
   space: SpaceCandidate,
   userTagCounts: Partial<Record<TagKey, number>>,
 ): number {
-  return space.spaceTags.reduce((sum, tag) => sum + (userTagCounts[tag] ?? 0), 0);
+  return resolveEffectiveTagKeys(space).reduce((sum, tag) => sum + (userTagCounts[tag] ?? 0), 0);
 }
 
 /** 태그 겹침 기반 CBF 점수 (0~1) */
 export function scoreSpace(space: SpaceCandidate, userTopTags: TagKey[]): number {
-  if (userTopTags.length === 0 || space.spaceTags.length === 0) return 0;
-  const overlap = userTopTags.filter((t) => space.spaceTags.includes(t)).length;
-  const maxLen = Math.max(userTopTags.length, space.spaceTags.length, 1);
+  const tags = resolveEffectiveTagKeys(space);
+  if (userTopTags.length === 0 || tags.length === 0) return 0;
+  const overlap = userTopTags.filter((t) => tags.includes(t)).length;
+  const maxLen = Math.max(userTopTags.length, tags.length, 1);
   return overlap / maxLen;
 }
 
 /** 추천 이유 문구 생성 */
 export function getRecommendReason(space: SpaceCandidate, userTopTags: TagKey[]): string {
-  const matched = userTopTags.filter((t) => space.spaceTags.includes(t));
+  const matched = userTopTags.filter((t) => resolveEffectiveTagKeys(space).includes(t));
   if (matched.length === 0) return "";
   if (matched.length === 1) return `${TAG_LABELS[matched[0]]} 공간을 자주 기록하셨습니다.`;
   const labels = matched.slice(0, 2).map((t) => TAG_LABELS[t]);
@@ -90,21 +116,21 @@ export function vectorTopTags(vector: TasteVector): [TagKey, number][] {
 }
 
 /** 벡터 기반 추천: 겹치는 태그 가중치 합산, 점수 높은 순 상위 N개 (0점 제외) */
-export function rankSpacesByVector<T extends { spaceTags: TagKey[] }>(
+export function rankSpacesByVector<T extends { spaceTags: TagKey[]; spaceTagLinks?: SpaceTagLinkLike[] }>(
   candidates: T[],
   vector: TasteVector,
   limit = 3,
 ): (T & { score: number })[] {
   return candidates
-    .map((s) => ({ ...s, score: s.spaceTags.reduce((sum, t) => sum + (vector[t] ?? 0), 0) }))
+    .map((s) => ({ ...s, score: resolveEffectiveTagKeys(s).reduce((sum, t) => sum + (vector[t] ?? 0), 0) }))
     .filter((s) => s.score > 0)
     .sort((a, b) => b.score - a.score)
     .slice(0, limit);
 }
 
 /** 벡터 기반 추천 이유 — 기술적 느낌 없이 "결이 닮은" 문장으로 */
-export function getVectorReason(space: { spaceTags: TagKey[] }, vector: TasteVector): string {
-  const matched = space.spaceTags
+export function getVectorReason(space: { spaceTags: TagKey[]; spaceTagLinks?: SpaceTagLinkLike[] }, vector: TasteVector): string {
+  const matched = resolveEffectiveTagKeys(space)
     .filter((t) => (vector[t] ?? 0) > 0)
     .sort((a, b) => (vector[b] ?? 0) - (vector[a] ?? 0))
     .slice(0, 2);
@@ -126,10 +152,7 @@ export interface WeightedVectorRecord extends SpaceVisitRecord {
   tasteScore: number | null;
   space: {
     spaceTags: TagKey[]; // 레거시 폴백
-    spaceTagLinks?: {
-      weight: number;
-      tag: { legacyKey: TagKey | null; isActive: boolean; useForRecommendation: boolean };
-    }[];
+    spaceTagLinks?: (SpaceTagLinkLike & { weight: number })[];
   };
 }
 
@@ -141,11 +164,9 @@ export function buildWeightedTasteVector(records: WeightedVectorRecord[]): Taste
   const vector: TasteVector = {};
   for (const r of getLatestRecordPerSpace(records)) {
     const score = r.tasteScore ?? 3; // 점수 없는 레거시 기록은 중립 가중치
-    const links = (r.space.spaceTagLinks ?? []).filter(
-      (l) => l.tag.isActive && l.tag.useForRecommendation && l.tag.legacyKey,
-    );
+    const links = getValidSpaceTagLinks(r.space);
     if (links.length > 0) {
-      for (const link of links) {
+      for (const link of links as (SpaceTagLinkLike & { weight: number })[]) {
         const key = link.tag.legacyKey as TagKey;
         vector[key] = (vector[key] ?? 0) + score * link.weight;
       }

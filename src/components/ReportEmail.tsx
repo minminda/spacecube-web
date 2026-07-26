@@ -1,4 +1,5 @@
 import type { ReportEmailData } from "@/lib/monthlyReport";
+import { CLUSTER_LABELS } from "@/lib/guestbookClusterStyle";
 
 /* ── 월간 운영 리포트 — 관리자 Preview와 실제 메일이 공유하는 단일 컴포넌트 ──────────
    이메일 클라이언트는 Tailwind/외부 스타일시트/CSS 변수를 신뢰할 수 없으므로 전부 인라인
@@ -15,12 +16,6 @@ const COLOR = {
   tagBg: "#f5f5f3",
   up: "#1a7f37",
   down: "#c0392b",
-};
-
-const CLUSTER_LABELS: Record<string, string> = {
-  FREE: "자유",
-  QUESTION_1: "질문 1",
-  QUESTION_2: "질문 2",
 };
 
 const CHANGE_ARROW: Record<"up" | "down" | "flat", string> = {

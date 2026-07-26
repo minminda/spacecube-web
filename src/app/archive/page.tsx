@@ -92,7 +92,10 @@ export default async function ArchivePage() {
     allRecords.length >= 3 && myTopTagList.length > 0
       ? prisma.space.findMany({
           where: { isActive: true, id: { notIn: [...visitedIds] } },
-          select: { id: true, name: true, slug: true, tagline: true, imageUrl: true, type: true, district: true, spaceTags: true },
+          select: {
+            id: true, name: true, slug: true, tagline: true, imageUrl: true, type: true, district: true,
+            spaceTags: true, spaceTagLinks: { include: { tag: true } },
+          },
           take: 30,
         })
       : Promise.resolve([]),

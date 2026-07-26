@@ -44,6 +44,7 @@ const CANDIDATE_SELECT = {
   district: true,
   naverMapUrl: true,
   spaceTags: true,
+  spaceTagLinks: { include: { tag: true } },
 } as const;
 
 /**

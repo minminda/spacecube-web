@@ -8,8 +8,7 @@ import { GuestbookSessionStatus } from "@prisma/client";
 import { getVisibleClusters } from "@/lib/guestbookSession";
 import { resolveCurrentVisitRecordId } from "@/lib/guestbookVisit";
 import { formatDotDate as formatDate } from "@/lib/time";
-import { requireSpaceUnlock } from "@/lib/spaceUnlock";
-import { isAdmin } from "@/lib/admin";
+import { requireSpaceUnlock, canBypassSpaceLock } from "@/lib/spaceUnlock";
 import { ENABLE_GUESTBOOK_IMAGE, ENABLE_GUESTBOOK_COMMENTS } from "@/lib/pilotFlags";
 import SpaceLockNotice from "@/components/SpaceLockNotice";
 import GuestbookCanvas from "./GuestbookCanvas";
@@ -89,7 +88,7 @@ export default async function GuestbookPage({ params, searchParams }: Props) {
     currentRecordId = resolveCurrentVisitRecordId(requestedVisitId, recentRecords);
     previousVisitAt = recentRecords.length > 1 ? recentRecords[1].visitedAt : null;
 
-    const bypass = isAdmin(session!.user!.email) || (!!space.ownerId && space.ownerId === user.id);
+    const bypass = canBypassSpaceLock(session!.user!.email, space, user.id);
     unlocked = bypass || (await requireSpaceUnlock(user.id, space.id));
   }
 

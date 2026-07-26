@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { isAdmin } from "@/lib/admin";
+import { syncLegacySpaceTagsToSpaceTag } from "@/lib/spaceTagSync";
 
 export const dynamic = "force-dynamic";
 
@@ -58,6 +59,8 @@ export async function POST(req: NextRequest) {
       imagePositionY: typeof imagePositionY === "number" ? imagePositionY : 0.5,
     },
   });
+
+  await syncLegacySpaceTagsToSpaceTag(space.id, space.spaceTags);
 
   return NextResponse.json(space, { status: 201 });
 }

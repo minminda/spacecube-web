@@ -5,8 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 import { buildRewardSummary } from "@/lib/guestbookReward";
 import { isOwnedRecord } from "@/lib/guestbookVisit";
-import { requireSpaceUnlock } from "@/lib/spaceUnlock";
-import { isAdmin } from "@/lib/admin";
+import { requireSpaceUnlock, canBypassSpaceLock } from "@/lib/spaceUnlock";
 import RecommendationCard from "./RecommendationCard";
 
 /* ── 방문 완료·추천 페이지 ────────────────────────────────────
@@ -52,7 +51,7 @@ export default async function VisitCompletePage({ params, searchParams }: Props)
 
   // Record는 이제 SpaceUnlock 없이는 생성될 수 없지만(방어선), 이 페이지도 독립적으로
   // 한 번 더 확인한다 — 보호 경로는 각자 서버에서 재검증한다는 원칙을 그대로 따른다.
-  const bypass = isAdmin(session.user.email) || (!!space.ownerId && space.ownerId === user.id);
+  const bypass = canBypassSpaceLock(session.user.email, space, user.id);
   if (!bypass && !(await requireSpaceUnlock(user.id, space.id))) notFound();
 
   // 이번 방문에서 포스트잇을 남겼는지 — "사용자가 이 공간에 흔적을 하나라도 가지고 있는지"가

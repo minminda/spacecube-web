@@ -4,8 +4,7 @@ import type { Metadata } from "next";
 import { cookies, headers } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
-import { resolveSpaceAccess } from "@/lib/spaceUnlock";
-import { isAdmin } from "@/lib/admin";
+import { resolveSpaceAccess, canBypassSpaceLock } from "@/lib/spaceUnlock";
 import SpaceLockNotice from "@/components/SpaceLockNotice";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { LOCALE_COOKIE_NAME, resolveInitialLocale, availableLocalesForSpace } from "@/lib/localeResolve";
@@ -98,7 +97,7 @@ export default async function EpisodeDetailPage({ params }: Props) {
     if (user) {
       userId = user.id;
       visitCount = await prisma.record.count({ where: { userId: user.id, spaceId: space.id } });
-      const bypass = isAdmin(session.user.email) || (!!space.ownerId && space.ownerId === user.id);
+      const bypass = canBypassSpaceLock(session.user.email, space, user.id);
       spaceUnlocked = await resolveSpaceAccess({ userId: user.id, spaceId: space.id, isBypass: bypass });
     }
   } else {

@@ -24,6 +24,7 @@ import { createHmac, timingSafeEqual } from "crypto";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { isNewVisit, REVISIT_INTERVAL_HOURS } from "@/lib/visit";
+import { isAdmin } from "@/lib/admin";
 
 /** QR 스캔 인증 쿠키 — 로그인 여부와 무관하게 "이 브라우저가 유효한 큐브 QR을 스캔했다"는
  * 서명된 증거. 비로그인 방문자의 열람 권한 판정 자체(hasAnonymousSpaceAccess)에 쓰이고,
@@ -171,9 +172,23 @@ async function claimQrAccessForUser(userId: string, spaceId: string): Promise<bo
 }
 
 /**
+ * 관리자 계정이거나 이 공간의 소유자(ownerId)로 등록된 계정이면 SpaceUnlock 없이도 잠긴
+ * 공간에 접근할 수 있다 — 6개 보호 페이지/API(공간 상세, record, complete, guestbook,
+ * episodes/[episodeId], api/records)가 각자 동일한 조합식을 복붙해 쓰던 것을 하나로 모았다.
+ * email이 없는 카카오 로그인 사용자도 isAdmin이 안전하게 false를 반환하므로 문제없다.
+ */
+export function canBypassSpaceLock(
+  email: string | null | undefined,
+  space: { ownerId: string | null },
+  userId: string,
+): boolean {
+  return isAdmin(email) || (!!space.ownerId && space.ownerId === userId);
+}
+
+/**
  * 로그인 사용자 전용 판정 함수. 이미 SpaceUnlock이 있으면 즉시 true, 없으면 QR_ACCESS_COOKIE로
  * 방금 로그인한 스캔을 이어서 확정할 수 있는지 시도한다. 관리자·운영자 예외는 이 함수의
- * 책임이 아니다 — 호출부가 isAdmin/canAccessSpace와 함께 조합해서 쓴다. 비로그인 방문자의
+ * 책임이 아니다 — 호출부가 canBypassSpaceLock과 함께 조합해서 쓴다. 비로그인 방문자의
  * 판정은 hasAnonymousSpaceAccess를 따로 쓴다(resolveSpaceAccess가 둘을 합쳐준다).
  */
 export async function requireSpaceUnlock(userId: string, spaceId: string): Promise<boolean> {

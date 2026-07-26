@@ -24,6 +24,13 @@ export const COLOR_PRESETS = {
   MINT: "#A8E6CF",
 } as const;
 
+/** 군집 타입(ClusterType) → 한국어 라벨. 운영자 방명록 관리 화면과 월간 리포트 이메일 양쪽에서 공유. */
+export const CLUSTER_LABELS: Record<string, string> = {
+  FREE: "자유",
+  QUESTION_1: "질문 1",
+  QUESTION_2: "질문 2",
+};
+
 export const DEFAULT_FREE_FONT_SIZE = 14;
 export const DEFAULT_QUESTION_FONT_SIZE = 16;
 export const DEFAULT_FREE_COLOR = "#8C8C8C";

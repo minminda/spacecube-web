@@ -16,16 +16,16 @@ beforeAll(() => {
 describe("createQrAccessToken / verifyQrAccessToken", () => {
   it("정상 발급한 토큰은 그대로 검증을 통과하고 원래 payload를 복원한다", async () => {
     const { createQrAccessToken, verifyQrAccessToken } = await import("./spaceUnlock");
-    const token = createQrAccessToken("SC-0001", "space-1");
+    const token = createQrAccessToken("GC-001", "space-1");
     const payload = verifyQrAccessToken(token);
     expect(payload).not.toBeNull();
-    expect(payload?.cubeCode).toBe("SC-0001");
+    expect(payload?.cubeCode).toBe("GC-001");
     expect(payload?.spaceId).toBe("space-1");
   });
 
   it("서명이 조작된 토큰은 거부한다", async () => {
     const { createQrAccessToken, verifyQrAccessToken } = await import("./spaceUnlock");
-    const token = createQrAccessToken("SC-0001", "space-1");
+    const token = createQrAccessToken("GC-001", "space-1");
     const [body] = token.split(".");
     const tampered = `${body}.forged-signature-xxxxxxxxxxxxxxxxxxxxxxx`;
     expect(verifyQrAccessToken(tampered)).toBeNull();
@@ -33,9 +33,9 @@ describe("createQrAccessToken / verifyQrAccessToken", () => {
 
   it("본문(body)이 조작돼 다른 공간을 가리키도록 바뀌면 서명 불일치로 거부한다", async () => {
     const { createQrAccessToken, verifyQrAccessToken } = await import("./spaceUnlock");
-    const token = createQrAccessToken("SC-0001", "space-1");
+    const token = createQrAccessToken("GC-001", "space-1");
     const [, sig] = token.split(".");
-    const forgedBody = Buffer.from(JSON.stringify({ cubeCode: "SC-0001", spaceId: "someone-elses-space", exp: Date.now() + 1000000 })).toString("base64url");
+    const forgedBody = Buffer.from(JSON.stringify({ cubeCode: "GC-001", spaceId: "someone-elses-space", exp: Date.now() + 1000000 })).toString("base64url");
     expect(verifyQrAccessToken(`${forgedBody}.${sig}`)).toBeNull();
   });
 
@@ -43,7 +43,7 @@ describe("createQrAccessToken / verifyQrAccessToken", () => {
     const { verifyQrAccessToken } = await import("./spaceUnlock");
     // 모듈 내부와 동일한 형식(base64url body + HMAC-SHA256 서명)으로, exp만 과거로 둔
     // "정상 서명이지만 만료된" 토큰을 직접 구성해 만료 검증 경로를 테스트한다.
-    const expiredPayload = { cubeCode: "SC-0001", spaceId: "space-1", exp: Date.now() - 1000 };
+    const expiredPayload = { cubeCode: "GC-001", spaceId: "space-1", exp: Date.now() - 1000 };
     const body = Buffer.from(JSON.stringify(expiredPayload)).toString("base64url");
     const sig = createHmac("sha256", "test-secret-for-unit-tests").update(body).digest("base64url");
     expect(verifyQrAccessToken(`${body}.${sig}`)).toBeNull();
@@ -59,8 +59,8 @@ describe("createQrAccessToken / verifyQrAccessToken", () => {
 
   it("서로 다른 cubeCode/spaceId는 서로 다른 토큰을 만든다(재사용 불가)", async () => {
     const { createQrAccessToken } = await import("./spaceUnlock");
-    const a = createQrAccessToken("SC-0001", "space-1");
-    const b = createQrAccessToken("SC-0002", "space-1");
+    const a = createQrAccessToken("GC-001", "space-1");
+    const b = createQrAccessToken("GC-002", "space-1");
     expect(a).not.toBe(b);
   });
 });

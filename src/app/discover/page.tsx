@@ -56,6 +56,7 @@ export default async function DiscoverPage({ searchParams }: Props) {
       id: true, slug: true, name: true, tagline: true,
       type: true, openingHours: true, imageUrl: true,
       district: true, spaceTags: true, naverMapUrl: true,
+      spaceTagLinks: { include: { tag: true } },
     },
   });
 

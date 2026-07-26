@@ -11,8 +11,11 @@ interface Props {
 }
 
 /**
- * 운영자가 직접 바꿀 수 있는 범위는 현재 ACTIVE 세션의 질문 1·질문 2 글자 크기·색상뿐이다
- * — 질문 문구·표시여부·위치·자유 영역 스타일은 계속 관리자 전용(guestbook-sessions/active).
+ * 운영자가 직접 바꿀 수 있는 범위는 자신의 공간(requireOperatorSpace)의 현재 ACTIVE 세션
+ * 중 질문 1·질문 2 글자 크기·색상뿐이다 — 질문 문구·표시여부·위치·자유 영역 스타일은 계속
+ * 관리자 전용(guestbook-sessions/active, isAdmin으로 전체 공간 접근 가능). 두 라우트 모두
+ * guestbookSessionInput.ts의 같은 계산 로직(parseGuestbookStyleInput)을 쓴다 — 갈리는 건
+ * 권한 게이트와 필드 범위뿐이다.
  */
 export async function PATCH(req: NextRequest, { params }: Props) {
   const { spaceId } = await params;

@@ -7,8 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 import { TAG_LABELS } from "@/lib/tags";
 import type { Metadata } from "next";
-import { resolveSpaceAccess } from "@/lib/spaceUnlock";
-import { isAdmin } from "@/lib/admin";
+import { resolveSpaceAccess, canBypassSpaceLock } from "@/lib/spaceUnlock";
 import { isNewVisit } from "@/lib/visit";
 import { computeEpisodeState } from "@/lib/episodeState";
 import SpaceLockNotice from "@/components/SpaceLockNotice";
@@ -125,7 +124,7 @@ export default async function SpacePage({ params }: Props) {
     const priorVisitCount = isThisVisitRecord ? visitCount - 1 : visitCount;
     isFirstVisit = priorVisitCount === 0;
 
-    const bypass = isAdmin(session?.user?.email) || (!!space.ownerId && space.ownerId === user.id);
+    const bypass = canBypassSpaceLock(session?.user?.email, space, user.id);
     unlocked = await resolveSpaceAccess({ userId: user.id, spaceId: space.id, isBypass: bypass });
   } else {
     // 비로그인 방문자 — 실제 QR 스캔(QR_ACCESS_COOKIE)만 있으면 로그인 없이도 이야기를 읽을 수 있다.

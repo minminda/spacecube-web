@@ -409,7 +409,7 @@ enum CubeStatus {
 // spaceId를 @unique로 둬서 "공간 하나엔 큐브 하나만" 정책을 DB 제약으로 보장한다.
 model Cube {
   id     String     @id @default(cuid())
-  code   String     @unique // 예: SC-0001, 생성 후 변경 불가
+  code   String     @unique // 예: GC-001, 생성 후 변경 불가
   status CubeStatus @default(UNASSIGNED)
 
   spaceId String? @unique
