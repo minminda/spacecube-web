@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { resolveOperatorSpaceOrRedirect } from "@/lib/operatorSession";
 import { prisma } from "@/lib/prisma";
 import { getBaseUrl } from "@/lib/config";
+import { resolveSpaceTypeLabel } from "@/lib/spaceType";
 import OperatorBackLink from "../OperatorBackLink";
 
 export const metadata: Metadata = {
@@ -19,9 +20,13 @@ export default async function OperatorSpacePage({ params }: Props) {
 
   const space = await prisma.space.findUnique({
     where: { id: spaceId },
-    include: { cube: { select: { code: true } } },
+    include: {
+      cube: { select: { code: true } },
+      spaceTagLinks: { include: { tag: { include: { categoryRef: true } } } },
+    },
   });
   if (!space) notFound();
+  const typeLabel = resolveSpaceTypeLabel(space.spaceTagLinks, space.type);
 
   const pageUrl = `${getBaseUrl()}/space/${space.slug}`;
 
@@ -42,7 +47,7 @@ export default async function OperatorSpacePage({ params }: Props) {
       )}
 
       <div className="space-y-3 text-sm">
-        <Row label="공간 유형" value={space.type} />
+        <Row label="공간 유형" value={typeLabel} />
         <Row label="공개 상태" value={space.isActive ? "공개 중" : "비공개"} />
         <Row label="공간 페이지 URL" value={pageUrl} mono />
         <Row label="연결된 큐브 코드" value={space.cube?.code ?? "미배정"} />

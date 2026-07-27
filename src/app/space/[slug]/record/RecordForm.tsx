@@ -20,8 +20,8 @@ const SCORE_LABELS: Record<number, string> = {
 interface Props {
   space: { id: string; name: string; slug: string; tagline?: string | null };
   spaceTags: TagKey[];
-  /** 관리자가 이 공간에 연결한 활성 태그 이름 (있으면 이걸 우선 표시, 없으면 spaceTags로 폴백) */
-  displayTags?: string[] | null;
+  /** 관리자가 이 공간에 연결한 활성 태그를 카테고리별로 묶은 목록 (있으면 이걸 우선 표시, 없으면 spaceTags로 폴백) */
+  displayTagGroups?: { category: string; names: string[] }[] | null;
   visitCount: number;
   previousRecord: { tags: TagKey[]; tasteScore: number | null } | null;
   /** 이번 방문(재방문 인정 간격 내)에 이미 저장된 Record. 있으면 폼을 이 값으로 프리필하고 재입력을 강요하지 않는다. */
@@ -30,7 +30,7 @@ interface Props {
   intent?: "record" | "unlock";
 }
 
-export default function RecordForm({ space, spaceTags, displayTags, visitCount, previousRecord, currentVisitRecord, intent = "record" }: Props) {
+export default function RecordForm({ space, spaceTags, displayTagGroups, visitCount, previousRecord, currentVisitRecord, intent = "record" }: Props) {
   const isUnlock = intent === "unlock";
   const tagsToShow = spaceTags.length > 0 ? spaceTags : ALL_TAGS;
   const router = useRouter();
@@ -146,21 +146,33 @@ export default function RecordForm({ space, spaceTags, displayTags, visitCount, 
       <p className="text-xs" style={{ color: "var(--border)" }}>─────────────────────────────</p>
 
       {/* 공간 취향 태그 — 선택 불가, 공간의 결 설명용 (unlock 화면에서는 생략, 태그 없이 담백하게).
-          관리자가 연결한 활성 태그(displayTags)가 있으면 그걸 쓰고, 없으면 레거시 spaceTags로 폴백 */}
-      {!ENABLE_RECORD_TAG_SELECTION && !isUnlock && ((displayTags?.length ?? 0) > 0 || spaceTags.length > 0) && (
+          관리자가 연결한 활성 태그(displayTagGroups)가 있으면 카테고리별로 묶어 보여주고,
+          없으면 레거시 spaceTags를 한 줄로 폴백 표시한다. */}
+      {!ENABLE_RECORD_TAG_SELECTION && !isUnlock && ((displayTagGroups?.length ?? 0) > 0 || spaceTags.length > 0) && (
         <div className="space-y-3">
           <p className="text-xs" style={{ color: "var(--dim)" }}>// 이 공간은 이런 결을 가지고 있어요</p>
-          <div className="flex flex-wrap gap-2">
-            {(displayTags ?? spaceTags.map((t) => TAG_LABELS[t])).map((label) => (
-              <span
-                key={label}
-                className="text-xs px-2.5 py-1 border select-none"
-                style={{ borderColor: "var(--border)", color: "var(--dim)" }}
-              >
-                {label}
-              </span>
-            ))}
-          </div>
+          {displayTagGroups ? (
+            <div className="space-y-2.5">
+              {displayTagGroups.map((group) => (
+                <div key={group.category} className="space-y-1">
+                  <p className="text-xs" style={{ color: "var(--border)" }}>{group.category}</p>
+                  <p className="text-sm" style={{ color: "var(--dim)" }}>{group.names.join(" · ")}</p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {spaceTags.map((t) => (
+                <span
+                  key={t}
+                  className="text-xs px-2.5 py-1 border select-none"
+                  style={{ borderColor: "var(--border)", color: "var(--dim)" }}
+                >
+                  {TAG_LABELS[t]}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

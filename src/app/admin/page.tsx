@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { isAdmin } from "@/lib/admin";
 import { ENABLE_REGION_STORIES, ENABLE_TASTE_STORIES } from "@/lib/features";
 import { ENABLE_MULTILINGUAL } from "@/lib/pilotFlags";
+import { resolveSpaceTypeLabel } from "@/lib/spaceType";
 import DeleteSpaceButton from "./DeleteSpaceButton";
 
 export default async function AdminPage() {
@@ -14,6 +15,7 @@ export default async function AdminPage() {
 
   const spaces = await prisma.space.findMany({
     orderBy: { createdAt: "desc" },
+    include: { spaceTagLinks: { include: { tag: { include: { categoryRef: true } } } } },
   });
 
   // MVP 기간 반응보드 링크 비활성화 — true로 바꾸면 즉시 원상복구
@@ -99,7 +101,7 @@ export default async function AdminPage() {
                     <p style={{ color: "var(--dim)" }}>[비활성]</p>
                   )}
                 </div>
-                <p>type     : {space.type}</p>
+                <p>type     : {resolveSpaceTypeLabel(space.spaceTagLinks, space.type)}</p>
                 <p>district : {space.district ?? "—"}</p>
                 <p>loc      : {space.location}</p>
                 <p>url      : /space/{space.slug}</p>

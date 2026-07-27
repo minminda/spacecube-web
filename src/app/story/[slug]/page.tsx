@@ -3,6 +3,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { prisma } from "@/lib/prisma";
 import type { Metadata } from "next";
+import { resolveSpaceTypeLabel } from "@/lib/spaceType";
 
 interface Props { params: Promise<{ slug: string }> }
 
@@ -32,7 +33,10 @@ export default async function StoryPage({ params }: Props) {
         orderBy: { order: "asc" },
         include: {
           space: {
-            select: { id: true, name: true, slug: true, type: true, district: true, imageUrl: true, tagline: true, location: true },
+            select: {
+              id: true, name: true, slug: true, type: true, district: true, imageUrl: true, tagline: true, location: true,
+              spaceTagLinks: { include: { tag: { include: { categoryRef: true } } } },
+            },
           },
         },
       },
@@ -153,7 +157,7 @@ export default async function StoryPage({ params }: Props) {
                       <p className="text-xs leading-snug truncate" style={{ color: "var(--dim)" }}>{space.tagline}</p>
                     )}
                     <p className="text-xs" style={{ color: "var(--dim)" }}>
-                      {[space.type, space.district].filter(Boolean).join(" · ")}
+                      {[resolveSpaceTypeLabel(space.spaceTagLinks, space.type), space.district].filter(Boolean).join(" · ")}
                     </p>
                   </div>
                 </Link>

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { resolveSpaceTypeLabel } from "@/lib/spaceType";
 
 export const dynamic = "force-dynamic";
 
@@ -13,10 +14,20 @@ export async function GET(req: NextRequest) {
 
   const spaces = await prisma.space.findMany({
     where: { name: { contains: q, mode: "insensitive" } },
-    select: { slug: true, name: true, district: true, type: true },
+    select: {
+      slug: true, name: true, district: true, type: true,
+      spaceTagLinks: { include: { tag: { include: { categoryRef: true } } } },
+    },
     orderBy: { name: "asc" },
     take: 10,
   });
 
-  return NextResponse.json({ spaces });
+  return NextResponse.json({
+    spaces: spaces.map((s) => ({
+      slug: s.slug,
+      name: s.name,
+      district: s.district,
+      type: resolveSpaceTypeLabel(s.spaceTagLinks, s.type),
+    })),
+  });
 }

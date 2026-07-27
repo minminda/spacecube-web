@@ -1,15 +1,14 @@
 import Link from "next/link";
-import { TagKey } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
-import { aggregateTags } from "@/lib/taste";
 import {
   scoreSpaceWeighted, getRecommendReason,
-  buildTasteVector, vectorTopTags, getVectorReason,
+  buildWeightedTasteVector, vectorTopTags, getVectorReason,
 } from "@/lib/recommend";
 import { isAdmin } from "@/lib/admin";
 import { getUserUnlockSets } from "@/lib/spaceUnlock";
 import { ENABLE_TASTE_SCORE_RECOMMENDATION } from "@/lib/features";
+import { resolveSpaceTypeLabel } from "@/lib/spaceType";
 import DiscoverEntry, { type DiscoverDistrict } from "../DiscoverEntry";
 import SpaceCards from "./SpaceCards";
 import SpaceDiscoveryCard from "./SpaceDiscoveryCard";
@@ -56,7 +55,7 @@ export default async function DiscoverPage({ searchParams }: Props) {
       id: true, slug: true, name: true, tagline: true,
       type: true, openingHours: true, imageUrl: true,
       district: true, spaceTags: true, naverMapUrl: true,
-      spaceTagLinks: { include: { tag: true } },
+      spaceTagLinks: { include: { tag: { include: { categoryRef: true } } } },
     },
   });
 
@@ -68,8 +67,8 @@ export default async function DiscoverPage({ searchParams }: Props) {
   // SpaceUnlock(마지막 스캔으로부터 12시간 이내) 기준이다. 추천 TOP3와 전체 목록이
   // 이 하나의 집합을 공유한다(SpaceDiscoveryCard 공용 컴포넌트, 페이지별 중복 판정 없음).
   let unlockedSpaceIds: string[] = [];
-  let userTopTags: TagKey[] = [];
-  let userTagCountMap: Partial<Record<TagKey, number>> = {};
+  let userTopTagIds: string[] = [];
+  let userTagCountMap: Partial<Record<string, number>> = {};
 
   if (session?.user?.id) {
     const user = await prisma.user.findUnique({
@@ -80,7 +79,7 @@ export default async function DiscoverPage({ searchParams }: Props) {
       const [userRecords, unlockSets] = await Promise.all([
         prisma.record.findMany({
           where: { userId: user.id },
-          include: { tags: true, space: { select: { spaceTags: true } } },
+          include: { space: { select: { spaceTagLinks: { include: { tag: true } } } } },
         }),
         getUserUnlockSets(user.id),
       ]);
@@ -92,16 +91,9 @@ export default async function DiscoverPage({ searchParams }: Props) {
 
       if (recordCount >= 3) {
         hasEnoughRecords = true;
-        if (ENABLE_TASTE_SCORE_RECOMMENDATION) {
-          // tasteScore 가중 벡터 — 높은 점수를 준 공간의 태그가 더 강하게 반영
-          userTagCountMap = buildTasteVector(userRecords);
-          userTopTags = vectorTopTags(userTagCountMap).slice(0, 3).map(([t]) => t);
-        } else {
-          // 레거시: 태그 선택 빈도 기반
-          const tagCounts = aggregateTags(userRecords);
-          userTagCountMap = Object.fromEntries(tagCounts) as Partial<Record<TagKey, number>>;
-          userTopTags = tagCounts.slice(0, 3).map(([t]) => t);
-        }
+        // tasteScore × SpaceTag.weight 가중 벡터 — 높은 점수를 준 공간의 태그가 더 강하게 반영
+        userTagCountMap = buildWeightedTasteVector(userRecords);
+        userTopTagIds = vectorTopTags(userTagCountMap).slice(0, 3).map(([id]) => id);
       }
     }
   }
@@ -133,7 +125,7 @@ export default async function DiscoverPage({ searchParams }: Props) {
     slug: s.slug,
     name: s.name,
     tagline: s.tagline,
-    type: s.type,
+    type: resolveSpaceTypeLabel(s.spaceTagLinks, s.type),
     openingHours: s.openingHours,
     imageUrl: s.imageUrl,
     district: s.district,
@@ -187,7 +179,7 @@ export default async function DiscoverPage({ searchParams }: Props) {
                         id: rec.id,
                         slug: rec.slug,
                         name: rec.name,
-                        type: rec.type,
+                        type: resolveSpaceTypeLabel(rec.spaceTagLinks, rec.type),
                         district: rec.district,
                         imageUrl: rec.imageUrl,
                         naverMapUrl: rec.naverMapUrl,
@@ -197,7 +189,7 @@ export default async function DiscoverPage({ searchParams }: Props) {
                       recommendationReason={
                         ENABLE_TASTE_SCORE_RECOMMENDATION
                           ? getVectorReason(rec, userTagCountMap)
-                          : getRecommendReason(rec, userTopTags)
+                          : getRecommendReason(rec, userTopTagIds)
                       }
                     />
                   ))}

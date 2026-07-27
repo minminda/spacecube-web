@@ -3,6 +3,7 @@ import Link from "next/link";
 import { auth } from "@/auth";
 import { isAdmin } from "@/lib/admin";
 import { prisma } from "@/lib/prisma";
+import { resolveSpaceTypeLabel } from "@/lib/spaceType";
 import StoryForm from "../../StoryForm";
 
 interface Props { params: Promise<{ id: string }> }
@@ -14,19 +15,23 @@ export default async function EditStoryPage({ params }: Props) {
 
   const { id } = await params;
 
-  const [story, spaces] = await Promise.all([
+  const [story, spacesRaw] = await Promise.all([
     prisma.contentStory.findUnique({
       where: { id },
       include: { storySpaces: { orderBy: { order: "asc" }, select: { spaceId: true } } },
     }),
     prisma.space.findMany({
       where: { isActive: true },
-      select: { id: true, name: true, type: true, district: true },
+      select: {
+        id: true, name: true, type: true, district: true,
+        spaceTagLinks: { include: { tag: { include: { categoryRef: true } } } },
+      },
       orderBy: { name: "asc" },
     }),
   ]);
 
   if (!story) notFound();
+  const spaces = spacesRaw.map((s) => ({ id: s.id, name: s.name, district: s.district, type: resolveSpaceTypeLabel(s.spaceTagLinks, s.type) }));
 
   const initialData = {
     id: story.id,

@@ -46,33 +46,13 @@ export function aggregateTags(
   return (Object.entries(count) as [TagKey, number][]).sort((a, b) => b[1] - a[1]);
 }
 
-export function getTastePhrase(topTags: [TagKey, number][]): string {
+/**
+ * 취향 프로파일 한 줄 소개 — 관리자가 태그를 자유롭게 늘릴 수 있게 되면서(카테고리/태그 리팩터)
+ * 8개 조합을 손으로 나열하던 방식은 더 이상 확장 가능하지 않다. 상위 1~2개 태그 이름을 조합한
+ * 일반 템플릿으로 대체한다 — 손으로 다듬은 예전 문장만큼 매끄럽진 않지만 임의 태그에 대응한다.
+ */
+export function getTastePhrase(topTags: { name: string; weight: number }[]): string {
   if (topTags.length === 0) return "나만의 공간을 탐험하는 사람";
-  const tags = topTags.map(([t]) => t);
-
-  if (tags.includes("QUIET") && tags.includes("FOCUSED"))          return "조용히 집중할 수 있는 공간을 좋아하는 사람";
-  if (tags.includes("QUIET") && tags.includes("INSPIRING"))        return "조용히 영감을 얻는 공간을 찾는 사람";
-  if (tags.includes("QUIET") && tags.includes("COMFORTABLE"))      return "조용하고 편안한 공간에서 오래 머무는 사람";
-  if (tags.includes("WARM") && tags.includes("COMFORTABLE"))       return "따뜻하고 편안한 분위기를 즐기는 사람";
-  if (tags.includes("UNIQUE") && tags.includes("INSPIRING"))       return "독특하고 영감 있는 공간을 탐험하는 사람";
-  if (tags.includes("SENSIBLE") && tags.includes("UNIQUE"))        return "감각적이고 독특한 공간을 발견하는 사람";
-  if (tags.includes("INSPIRING") && tags.includes("SENSIBLE"))     return "영감 있고 감각적인 공간에 끌리는 사람";
-  if (tags.includes("COMFORTABLE") && tags.includes("WANT_AGAIN")) return "편안해서 다시 찾고 싶은 공간을 좋아하는 사람";
-
-  const fallback: Partial<Record<TagKey, string>> = {
-    QUIET:      "조용한 공간에서 오래 머무는 사람",
-    INSPIRING:  "영감을 주는 공간을 찾는 사람",
-    COMFORTABLE:"편안한 공간을 즐기는 사람",
-    UNIQUE:     "독특한 공간을 탐험하는 사람",
-    WANT_AGAIN: "다시 찾고 싶은 공간을 만드는 사람",
-    SENSIBLE:   "감각 있는 공간에 끌리는 사람",
-    WARM:       "따뜻한 분위기의 공간을 좋아하는 사람",
-    FOCUSED:    "집중할 수 있는 공간을 선호하는 사람",
-  };
-  return fallback[tags[0]] ?? "나만의 공간을 탐험하는 사람";
-}
-
-export function tagOverlap(a: TagKey[], b: TagKey[]): number {
-  const setB = new Set(b);
-  return a.filter((t) => setB.has(t)).length;
+  if (topTags.length === 1) return `${topTags[0].name} 공간을 좋아하는 사람`;
+  return `${topTags[0].name}, ${topTags[1].name} 공간을 좋아하는 사람`;
 }

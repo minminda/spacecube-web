@@ -14,24 +14,32 @@ export default async function EditSpacePage({ params }: Props) {
   if (!isAdmin(session.user.email)) redirect("/");
 
   const { id } = await params;
-  const space = await prisma.space.findUnique({ where: { id } });
+  const [space, categories, spaceTagLinks] = await Promise.all([
+    prisma.space.findUnique({ where: { id } }),
+    prisma.category.findMany({
+      where: { isActive: true },
+      orderBy: { displayOrder: "asc" },
+      include: { tags: { where: { isActive: true }, orderBy: { displayOrder: "asc" }, select: { id: true, name: true } } },
+    }),
+    prisma.spaceTag.findMany({ where: { spaceId: id }, select: { tagId: true, weight: true, isPrimary: true, visibleToUsers: true } }),
+  ]);
   if (!space) notFound();
 
   return (
     <SpaceForm
       mode="edit"
+      categories={categories}
+      existingTagLinks={spaceTagLinks}
       space={{
         id: space.id,
         name: space.name,
         slug: space.slug,
-        type: space.type,
         district: space.district ?? "",
         location: space.location,
         tagline: space.tagline ?? "",
         openingHours: space.openingHours ?? "",
         naverMapUrl: space.naverMapUrl ?? "",
         description: space.description,
-        spaceTags: space.spaceTags ?? [],
         imageUrl: space.imageUrl ?? "",
         imageZoom: space.imageZoom ?? 1,
         imagePositionX: space.imagePositionX ?? 0.5,

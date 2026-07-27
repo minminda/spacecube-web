@@ -3,9 +3,13 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { isAdmin } from "@/lib/admin";
 import { hashOperatorPin, isValidPinFormat } from "@/lib/operatorPin";
-import { syncLegacySpaceTagsToSpaceTag } from "@/lib/spaceTagSync";
+import { enforceSingleSelectCategories, resolveSpaceTypeName, type TagLinkInput } from "@/lib/tagLinks";
 
 export const dynamic = "force-dynamic";
+
+function isTagLinkInput(v: unknown): v is TagLinkInput {
+  return typeof v === "object" && v !== null && typeof (v as Record<string, unknown>).tagId === "string";
+}
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
@@ -19,12 +23,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   }
 
   const {
-    name, type, district, location,
+    name, district, location,
     tagline, openingHours, naverMapUrl,
     description, philosophy, ownerMessage,
     experienceGuide, spacePoints,
     storyItems,
-    spaceTags,
+    tagLinks,
     imageUrl,
     imageZoom,
     imagePositionX,
@@ -33,6 +37,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     ownerValues, ownerPlaylistUrl, ownerBlogUrl, ownerSocialUrl,
     newOperatorPin,
   } = await req.json();
+
+  // "공간 유형" 카테고리 선택이 있으면 Space.type 파생 캐시를 갱신한다. 없으면(빈 tagLinks 등)
+  // 기존 값을 그대로 둔다 — 다른 선택 필드처럼 의도치 않은 초기화를 방지한다.
+  const rawTagLinks = Array.isArray(tagLinks) ? tagLinks.filter(isTagLinkInput) : [];
+  const normalizedLinks = await enforceSingleSelectCategories(rawTagLinks);
+  const resolvedType = await resolveSpaceTypeName(normalizedLinks);
 
   let pinUpdateData: { operatorPinHash: string; operatorPinUpdatedAt: Date; operatorAccessVersion: { increment: number } } | null = null;
   if (newOperatorPin !== undefined && newOperatorPin !== "") {
@@ -50,14 +60,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const updated = await prisma.space.update({
     where: { id },
     data: {
-      name, type, district, location,
+      name, district, location,
+      ...(resolvedType ? { type: resolvedType } : {}),
       tagline: tagline || null,
       openingHours: openingHours || null,
       naverMapUrl: naverMapUrl || null,
       description,
-      // 다른 선택 필드처럼 undefined 보호를 둔다 — 예전엔 spaceTags를 body에 안 보내면
-      // 조용히 []로 지워졌다(감사에서 지적된 버그).
-      ...(spaceTags !== undefined ? { spaceTags } : {}),
       imageUrl: imageUrl || null,
       imageZoom: typeof imageZoom === "number" ? imageZoom : 1,
       imagePositionX: typeof imagePositionX === "number" ? imagePositionX : 0.5,
@@ -81,7 +89,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     },
   });
 
-  await syncLegacySpaceTagsToSpaceTag(updated.id, updated.spaceTags);
+  await prisma.$transaction([
+    prisma.spaceTag.deleteMany({ where: { spaceId: id } }),
+    ...(normalizedLinks.length > 0
+      ? [prisma.spaceTag.createMany({ data: normalizedLinks.map((l) => ({ spaceId: id, ...l })) })]
+      : []),
+  ]);
 
   return NextResponse.json(updated);
 }

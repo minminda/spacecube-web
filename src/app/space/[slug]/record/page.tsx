@@ -15,6 +15,24 @@ interface Props {
   searchParams: Promise<{ intent?: string }>;
 }
 
+interface DisplayTagLink {
+  tag: { name: string; categoryRef: { name: string; displayOrder: number } | null };
+}
+
+/** 노출 태그를 카테고리별로 묶는다 — 카테고리 표시 순서(displayOrder) 기준 정렬, 미분류는 맨 뒤. */
+function groupDisplayTagsByCategory(links: DisplayTagLink[]): { category: string; names: string[] }[] {
+  const groups = new Map<string, { order: number; names: string[] }>();
+  for (const link of links) {
+    const category = link.tag.categoryRef?.name ?? "기타";
+    const order = link.tag.categoryRef?.displayOrder ?? Number.MAX_SAFE_INTEGER;
+    if (!groups.has(category)) groups.set(category, { order, names: [] });
+    groups.get(category)!.names.push(link.tag.name);
+  }
+  return [...groups.entries()]
+    .sort((a, b) => a[1].order - b[1].order)
+    .map(([category, g]) => ({ category, names: g.names }));
+}
+
 export default async function RecordPage({ params, searchParams }: Props) {
   const { slug } = await params;
   const { intent: intentParam } = await searchParams;
@@ -32,7 +50,7 @@ export default async function RecordPage({ params, searchParams }: Props) {
       spaceTagLinks: {
         where: { visibleToUsers: true, tag: { isActive: true } },
         orderBy: { weight: "desc" },
-        include: { tag: { select: { name: true } } },
+        include: { tag: { select: { name: true, categoryRef: { select: { name: true, displayOrder: true } } } } },
       },
     },
   });
@@ -69,16 +87,16 @@ export default async function RecordPage({ params, searchParams }: Props) {
   // 저장했다는 뜻이므로 폼을 그 값으로 프리필하고 재입력을 강요하지 않는다.
   const currentVisitRecord = resolveCurrentVisitRecord(lastRecord);
 
-  // 관리자가 연결한 활성 태그가 있으면 그 이름을 쓰고, 없으면 기존 레거시 태그로 폴백
-  const displayTags = space.spaceTagLinks.length > 0
-    ? space.spaceTagLinks.slice(0, 6).map((l) => l.tag.name)
+  // 관리자가 연결한 활성 태그가 있으면 카테고리별로 묶어서 쓰고, 없으면 기존 레거시 태그로 폴백
+  const displayTagGroups = space.spaceTagLinks.length > 0
+    ? groupDisplayTagsByCategory(space.spaceTagLinks)
     : null;
 
   return (
     <RecordForm
       space={{ id: space.id, name: space.name, slug: space.slug, tagline: space.tagline }}
       spaceTags={space.spaceTags}
-      displayTags={displayTags}
+      displayTagGroups={displayTagGroups}
       visitCount={visitCount}
       previousRecord={lastRecord ? { tags: lastRecord.tags.map((t) => t.tag), tasteScore: lastRecord.tasteScore } : null}
       currentVisitRecord={currentVisitRecord}

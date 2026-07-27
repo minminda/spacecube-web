@@ -3,6 +3,7 @@ import Link from "next/link";
 import { auth } from "@/auth";
 import { isAdmin } from "@/lib/admin";
 import { prisma } from "@/lib/prisma";
+import { resolveSpaceTypeLabel } from "@/lib/spaceType";
 import StoryForm from "../StoryForm";
 
 export default async function NewStoryPage() {
@@ -10,11 +11,15 @@ export default async function NewStoryPage() {
   if (!session?.user?.email) redirect("/login");
   if (!isAdmin(session.user.email)) redirect("/");
 
-  const spaces = await prisma.space.findMany({
+  const spacesRaw = await prisma.space.findMany({
     where: { isActive: true },
-    select: { id: true, name: true, type: true, district: true },
+    select: {
+      id: true, name: true, type: true, district: true,
+      spaceTagLinks: { include: { tag: { include: { categoryRef: true } } } },
+    },
     orderBy: { name: "asc" },
   });
+  const spaces = spacesRaw.map((s) => ({ id: s.id, name: s.name, district: s.district, type: resolveSpaceTypeLabel(s.spaceTagLinks, s.type) }));
 
   return (
     <main className="flex flex-col min-h-screen px-6 py-8 gap-6">

@@ -2,9 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { isAdmin } from "@/lib/admin";
-import { syncLegacySpaceTagsToSpaceTag } from "@/lib/spaceTagSync";
+import { enforceSingleSelectCategories, resolveSpaceTypeName, type TagLinkInput } from "@/lib/tagLinks";
 
 export const dynamic = "force-dynamic";
+
+function isTagLinkInput(v: unknown): v is TagLinkInput {
+  return typeof v === "object" && v !== null && typeof (v as Record<string, unknown>).tagId === "string";
+}
 
 export async function POST(req: NextRequest) {
   const session = await auth();
@@ -19,19 +23,24 @@ export async function POST(req: NextRequest) {
   if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
 
   const {
-    name, slug, type, district, location,
+    name, slug, district, location,
     tagline, openingHours, naverMapUrl,
     description, philosophy, ownerMessage,
     experienceGuide, spacePoints,
     storyItems,
-    spaceTags,
+    tagLinks,
     imageUrl,
     imageZoom,
     imagePositionX,
     imagePositionY,
   } = await req.json();
 
-  if (!name || !slug || !type || !district || !location || !description) {
+  // "공간 유형" 카테고리 선택(SpaceForm에서 필수)이 Space.type 파생 캐시가 된다.
+  const rawTagLinks = Array.isArray(tagLinks) ? tagLinks.filter(isTagLinkInput) : [];
+  const normalizedLinks = await enforceSingleSelectCategories(rawTagLinks);
+  const resolvedType = await resolveSpaceTypeName(normalizedLinks);
+
+  if (!name || !slug || !resolvedType || !district || !location || !description) {
     return NextResponse.json({ error: "필수 항목이 빠졌어요." }, { status: 400 });
   }
 
@@ -43,7 +52,7 @@ export async function POST(req: NextRequest) {
   const space = await prisma.space.create({
     data: {
       ownerId: user.id,
-      name, slug, type, district, location,
+      name, slug, type: resolvedType, district, location,
       tagline: tagline || null,
       openingHours: openingHours || null,
       naverMapUrl: naverMapUrl || null,
@@ -52,7 +61,6 @@ export async function POST(req: NextRequest) {
       experienceGuide: experienceGuide || null,
       spacePoints: spacePoints || null,
       storyItems: storyItems ?? null,
-      spaceTags: spaceTags ?? [],
       imageUrl: imageUrl || null,
       imageZoom: typeof imageZoom === "number" ? imageZoom : 1,
       imagePositionX: typeof imagePositionX === "number" ? imagePositionX : 0.5,
@@ -60,7 +68,11 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  await syncLegacySpaceTagsToSpaceTag(space.id, space.spaceTags);
+  if (normalizedLinks.length > 0) {
+    await prisma.spaceTag.createMany({
+      data: normalizedLinks.map((l) => ({ spaceId: space.id, ...l })),
+    });
+  }
 
   return NextResponse.json(space, { status: 201 });
 }

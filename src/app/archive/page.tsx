@@ -19,6 +19,7 @@ import {
   ENABLE_TASTE_SCORE_RECOMMENDATION,
   ENABLE_RECOMMENDATION_PLAYLIST_UI,
 } from "@/lib/features";
+import { resolveSpaceTypeLabel } from "@/lib/spaceType";
 import RecommendationPlaylist, { type PlaylistCard } from "@/components/RecommendationPlaylist";
 import { formatDotDate as formatDate } from "@/lib/time";
 
@@ -32,6 +33,11 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
       {children}
     </p>
   );
+}
+
+/** 카드 등 좁은 공간에 보여줄 태그 이름 — 사용자 화면에 노출 가능한 활성 태그만, 최대 3개. */
+function visibleTagNames(links: { visibleToUsers: boolean; tag: { name: string; isActive: boolean } }[]): string[] {
+  return links.filter((l) => l.visibleToUsers && l.tag.isActive).slice(0, 3).map((l) => l.tag.name);
 }
 
 const MIN_RECORDS_FOR_SIMILARITY = 2; // 취향 데이터가 지나치게 부족한 사용자 제외 기준
@@ -63,7 +69,14 @@ export default async function ArchivePage() {
       },
       savedSpaces: {
         orderBy: { createdAt: "desc" },
-        include: { space: { select: { id: true, name: true, slug: true, type: true, district: true, imageUrl: true, tagline: true, spaceTags: true } } },
+        include: {
+          space: {
+            select: {
+              id: true, name: true, slug: true, type: true, district: true, imageUrl: true, tagline: true, spaceTags: true,
+              spaceTagLinks: { include: { tag: { include: { categoryRef: true } } } },
+            },
+          },
+        },
       },
     },
   });
@@ -76,13 +89,23 @@ export default async function ArchivePage() {
 
   const allRecords = user.records;
 
-  // 취향 프로파일: tasteScore × 태그 가중치 벡터(신규) 또는 태그 빈도(레거시, 플래그 복구용 보존)
+  // 취향 프로파일: tasteScore × 태그 가중치 벡터(신규, Tag.id 기준) 또는 태그 빈도(레거시 TagKey, 플래그 복구용 보존)
   const tasteVector = ENABLE_TASTE_SCORE_RECOMMENDATION ? buildWeightedTasteVector(allRecords) : null;
-  const allTags      = tasteVector ? vectorTopTags(tasteVector) : aggregateTags(allRecords);
+  const allTags: [string, number][] = tasteVector ? vectorTopTags(tasteVector) : aggregateTags(allRecords);
   const topTags      = allTags.slice(0, 5);
-  const tastePhrase  = getTastePhrase(topTags);
   const maxCount     = topTags[0]?.[1] ?? 1;
   const myTopTagList = topTags.slice(0, 3).map(([t]) => t);
+
+  // 표시용 이름 조회 — 신규(Tag.id) 벡터는 이 기록들이 참조한 SpaceTag에서 이름을 모으고,
+  // 레거시(TagKey) 빈도는 TAG_LABELS로 바로 찾는다.
+  const tagNameById = new Map(
+    allRecords.flatMap((r) => r.space.spaceTagLinks.map((l) => [l.tag.id, l.tag.name] as const)),
+  );
+  const topTagsWithNames = topTags.map(([id, weight]) => ({
+    name: tagNameById.get(id) ?? TAG_LABELS[id as keyof typeof TAG_LABELS] ?? id,
+    weight,
+  }));
+  const tastePhrase = getTastePhrase(topTagsWithNames);
 
   const visitedIds = new Set(allRecords.map((r) => r.space.id));
   const savedTargetIds = new Set(user.savedTastes.map((st) => st.targetUserId));
@@ -103,7 +126,12 @@ export default async function ArchivePage() {
       where: { userId: user.id },
       orderBy: { createdAt: "desc" },
       include: {
-        space: { select: { name: true, slug: true, spaceTags: true } },
+        space: {
+          select: {
+            name: true, slug: true, spaceTags: true,
+            spaceTagLinks: { where: { visibleToUsers: true, tag: { isActive: true } }, include: { tag: true } },
+          },
+        },
         session: { select: { id: true, status: true } },
       },
     }),
@@ -137,7 +165,7 @@ export default async function ArchivePage() {
         name: s.name,
         district: s.district,
         imageUrl: s.imageUrl,
-        tagLabels: s.spaceTags.slice(0, 3).map((t) => TAG_LABELS[t]),
+        tagLabels: visibleTagNames(s.spaceTagLinks ?? []),
         reason: getVectorReason(s, tasteVector),
       }))
     : [];
@@ -149,8 +177,8 @@ export default async function ArchivePage() {
     name: s.space.name,
     district: s.space.district,
     imageUrl: s.space.imageUrl,
-    tagLabels: s.space.spaceTags.slice(0, 3).map((t) => TAG_LABELS[t]),
-    reason: s.space.tagline ?? [s.space.type, s.space.district].filter(Boolean).join(" · "),
+    tagLabels: visibleTagNames(s.space.spaceTagLinks),
+    reason: s.space.tagline ?? [resolveSpaceTypeLabel(s.space.spaceTagLinks, s.space.type), s.space.district].filter(Boolean).join(" · "),
   }));
 
   // 내 취향과 닮은 사람 — 코사인 유사도 상위 3명 (취향 데이터 부족/미방문 사용자 제외)
@@ -160,7 +188,7 @@ export default async function ArchivePage() {
       const theirVector = buildWeightedTasteVector(u.records);
       const score = cosineSimilarity(tasteVector, theirVector);
       const tagLabels = aggregateTags(u.records).slice(0, 3).map(([t]) => TAG_LABELS[t]);
-      const phrase = getTastePhrase(aggregateTags(u.records).slice(0, 5));
+      const phrase = getTastePhrase(aggregateTags(u.records).slice(0, 5).map(([t, count]) => ({ name: TAG_LABELS[t], weight: count })));
       const seenSpaces = new Set<string>();
       const spaces = u.records
         .filter((r) => {
@@ -193,7 +221,7 @@ export default async function ArchivePage() {
 
   const savedTasteCards = user.savedTastes.map((st) => {
     const tTags = aggregateTags(st.target.records).slice(0, 3).map(([t]) => TAG_LABELS[t]);
-    const phrase = getTastePhrase(aggregateTags(st.target.records).slice(0, 5));
+    const phrase = getTastePhrase(aggregateTags(st.target.records).slice(0, 5).map(([t, count]) => ({ name: TAG_LABELS[t], weight: count })));
     const seenSpaces = new Set<string>();
     const spaces = st.target.records
       .filter((r) => {
@@ -226,20 +254,20 @@ export default async function ArchivePage() {
               : <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>아직 기록이 없어.<br />공간 안의 큐브를 스캔해봐.</p>}
           </section>
 
-          {allRecords.length > 0 && topTags.length > 0 && (
+          {allRecords.length > 0 && topTagsWithNames.length > 0 && (
             <section className="mb-10 space-y-2.5">
-              {topTags.map(([tag, count]) => {
-                const filled = Math.round((count / maxCount) * 10);
+              {topTagsWithNames.map(({ name, weight }) => {
+                const filled = Math.round((weight / maxCount) * 10);
                 return (
-                  <div key={tag} className="flex items-center gap-4 text-xs">
-                    <span className="w-16 flex-shrink-0 text-right text-xs" style={{ color: "var(--dim)" }}>{TAG_LABELS[tag]}</span>
+                  <div key={name} className="flex items-center gap-4 text-xs">
+                    <span className="w-16 flex-shrink-0 text-right text-xs" style={{ color: "var(--dim)" }}>{name}</span>
                     <div className="flex-1 h-0.5 relative" style={{ background: "var(--border)" }}>
                       <div
                         className="absolute inset-y-0 left-0 h-full"
                         style={{ width: `${filled * 10}%`, background: "var(--fg)", transition: "width 0.6s ease" }}
                       />
                     </div>
-                    <span className="w-4 text-right" style={{ color: "var(--dim)" }}>{count}</span>
+                    <span className="w-4 text-right" style={{ color: "var(--dim)" }}>{weight}</span>
                   </div>
                 );
               })}
@@ -422,8 +450,8 @@ export default async function ArchivePage() {
                             </p>
                             <p className="text-[10px]" style={{ color: "#8a7d5c" }}>
                               {formatDate(note.createdAt)}
-                              {note.space.spaceTags.length > 0 &&
-                                ` · ${note.space.spaceTags.slice(0, 2).map((t) => TAG_LABELS[t]).join(" · ")}`}
+                              {note.space.spaceTagLinks.length > 0 &&
+                                ` · ${note.space.spaceTagLinks.slice(0, 2).map((l) => l.tag.name).join(" · ")}`}
                             </p>
                           </div>
                         </Link>

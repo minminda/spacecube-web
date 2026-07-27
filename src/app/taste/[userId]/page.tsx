@@ -5,6 +5,7 @@ import { auth } from "@/auth";
 import { TAG_LABELS } from "@/lib/tags";
 import { aggregateTags, getTastePhrase, getLatestRecordPerSpace } from "@/lib/taste";
 import { formatDotDate as formatDate } from "@/lib/time";
+import { resolveSpaceTypeLabel } from "@/lib/spaceType";
 import SaveTasteButton from "@/components/SaveTasteButton";
 
 interface Props { params: Promise<{ userId: string }> }
@@ -18,7 +19,15 @@ export default async function TasteJourneyPage({ params }: Props) {
     include: {
       records: {
         orderBy: { visitedAt: "desc" },
-        include: { space: { select: { id: true, name: true, slug: true, type: true, district: true } }, tags: true },
+        include: {
+          space: {
+            select: {
+              id: true, name: true, slug: true, type: true, district: true,
+              spaceTagLinks: { include: { tag: { include: { categoryRef: true } } } },
+            },
+          },
+          tags: true,
+        },
       },
     },
   });
@@ -44,7 +53,7 @@ export default async function TasteJourneyPage({ params }: Props) {
   }
 
   const topTags = aggregateTags(target.records).slice(0, 5);
-  const tastePhrase = getTastePhrase(topTags);
+  const tastePhrase = getTastePhrase(topTags.map(([t, count]) => ({ name: TAG_LABELS[t], weight: count })));
 
   // 같은 공간을 여러 번 방문했어도 공간당 최신 방문 1개만 — 추천/취향 프로파일과 동일한
   // 공통 함수(getLatestRecordPerSpace)를 재사용해 "최신 기록만 반영" 기준을 하나로 통일한다.
@@ -117,7 +126,7 @@ export default async function TasteJourneyPage({ params }: Props) {
                 <div className="space-y-1 min-w-0">
                   <p className="text-sm font-semibold leading-snug group-hover:underline">{r.space.name}</p>
                   <p className="text-xs" style={{ color: "var(--dim)" }}>
-                    {[r.space.type, r.space.district].filter(Boolean).join(" · ")}
+                    {[resolveSpaceTypeLabel(r.space.spaceTagLinks, r.space.type), r.space.district].filter(Boolean).join(" · ")}
                   </p>
                   {r.memo && (
                     <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>&ldquo;{r.memo}&rdquo;</p>

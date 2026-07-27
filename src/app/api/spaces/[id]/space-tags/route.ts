@@ -2,16 +2,14 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { isAdmin } from "@/lib/admin";
 import { prisma } from "@/lib/prisma";
+import { enforceSingleSelectCategories, type TagLinkInput } from "@/lib/tagLinks";
 
 export const dynamic = "force-dynamic";
 
 interface Props { params: Promise<{ id: string }> }
 
-interface LinkInput {
-  tagId: string;
-  weight: number;
-  isPrimary: boolean;
-  visibleToUsers: boolean;
+function isTagLinkInput(v: unknown): v is TagLinkInput {
+  return typeof v === "object" && v !== null && typeof (v as Record<string, unknown>).tagId === "string";
 }
 
 export async function PUT(req: Request, { params }: Props) {
@@ -25,16 +23,9 @@ export async function PUT(req: Request, { params }: Props) {
   if (!space) return NextResponse.json({ error: "공간을 찾을 수 없어요." }, { status: 404 });
 
   const body = await req.json().catch(() => ({}));
-  const links: LinkInput[] = Array.isArray(body.links)
-    ? body.links
-        .filter((l: unknown): l is Record<string, unknown> => typeof l === "object" && l !== null && typeof (l as Record<string, unknown>).tagId === "string")
-        .map((l: Record<string, unknown>) => ({
-          tagId: l.tagId as string,
-          weight: typeof l.weight === "number" ? l.weight : 1,
-          isPrimary: l.isPrimary === true,
-          visibleToUsers: l.visibleToUsers !== false,
-        }))
-    : [];
+  const rawLinks: TagLinkInput[] = Array.isArray(body.links) ? body.links.filter(isTagLinkInput) : [];
+  // 클라이언트가 실수로 SINGLE 카테고리에 2개를 보내도 서버가 한 번 더 강제한다.
+  const links = await enforceSingleSelectCategories(rawLinks);
 
   await prisma.$transaction([
     prisma.spaceTag.deleteMany({ where: { spaceId } }),

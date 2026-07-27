@@ -2,8 +2,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { TagKey } from "@prisma/client";
-import { TAG_LABELS, ALL_TAGS } from "@/lib/tags";
 import Image from "next/image";
 import ImagePositionEditor from "@/components/ImagePositionEditor";
 
@@ -11,14 +9,12 @@ interface SpaceData {
   id: string;
   name: string;
   slug: string;
-  type: string;
   district: string;
   location: string;
   tagline: string;
   openingHours: string;
   naverMapUrl: string;
   description: string;
-  spaceTags: string[];
   imageUrl?: string;
   imageZoom?: number;
   imagePositionX?: number;
@@ -29,9 +25,27 @@ interface SpaceData {
   hasOperatorPin?: boolean;
 }
 
+type SelectionType = "SINGLE" | "MULTI";
+
+interface CategoryOption {
+  id: string;
+  name: string;
+  selectionType: SelectionType;
+  tags: { id: string; name: string }[];
+}
+
+interface ExistingTagLink {
+  tagId: string;
+  weight: number;
+  isPrimary: boolean;
+  visibleToUsers: boolean;
+}
+
 interface Props {
   mode: "new" | "edit";
   space?: SpaceData;
+  categories: CategoryOption[];
+  existingTagLinks?: ExistingTagLink[];
 }
 
 const WEAK_PIN_PATTERN = /^(\d)\1{3}$/;
@@ -45,7 +59,6 @@ function isWeakPin(pin: string): boolean {
   return WEAK_PIN_PATTERN.test(pin) || isSequentialPin(pin);
 }
 
-const SPACE_TYPES = ["독립서점", "소품샵", "전시공간", "개인 영화관", "문화 카페", "복합문화공간"];
 const DISTRICTS = ["서촌", "성수", "망원", "북촌", "가로수길", "이태원", "홍대", "연남동", "한남동", "익선동"];
 const CLOUDINARY_URL = `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload`;
 const UPLOAD_PRESET = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET!;
@@ -63,7 +76,7 @@ async function uploadToCloudinary(file: File): Promise<string | null> {
   }
 }
 
-export default function SpaceForm({ mode, space }: Props) {
+export default function SpaceForm({ mode, space, categories, existingTagLinks }: Props) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -85,8 +98,8 @@ export default function SpaceForm({ mode, space }: Props) {
     positionY: space?.imagePositionY ?? 0.5,
   });
 
-  const [selectedSpaceTags, setSelectedSpaceTags] = useState<TagKey[]>(
-    (space?.spaceTags ?? []) as TagKey[]
+  const [selectedTagIds, setSelectedTagIds] = useState<Set<string>>(
+    new Set((existingTagLinks ?? []).map((l) => l.tagId))
   );
 
   // 운영 접근 설정 — 새 PIN을 입력하지 않으면 기존 PIN이 그대로 유지된다(빈 값은 전송 안 함).
@@ -97,7 +110,6 @@ export default function SpaceForm({ mode, space }: Props) {
   const [form, setForm] = useState({
     name: space?.name ?? "",
     slug: space?.slug ?? "",
-    type: space?.type ?? "",
     district: space?.district ?? "",
     location: space?.location ?? "",
     tagline: space?.tagline ?? "",
@@ -105,8 +117,6 @@ export default function SpaceForm({ mode, space }: Props) {
     naverMapUrl: space?.naverMapUrl ?? "",
     description: space?.description ?? "",
   });
-
-  const MAX_SPACE_TAGS = 7;
 
   function handleOwnerChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) {
     const { name, value } = e.target;
@@ -137,17 +147,48 @@ export default function SpaceForm({ mode, space }: Props) {
     });
   }
 
-  function toggleSpaceTag(tag: TagKey) {
-    setSelectedSpaceTags((prev) => {
-      if (prev.includes(tag)) return prev.filter((t) => t !== tag);
-      if (prev.length >= MAX_SPACE_TAGS) return prev;
-      return [...prev, tag];
+  function toggleTag(category: CategoryOption, tagId: string) {
+    setSelectedTagIds((prev) => {
+      const next = new Set(prev);
+      if (category.selectionType === "SINGLE") {
+        // 같은 카테고리 안의 다른 선택은 해제 — 필수 항목이라 다시 눌러도 해제되지 않는다.
+        category.tags.forEach((t) => next.delete(t.id));
+        next.add(tagId);
+      } else if (next.has(tagId)) {
+        next.delete(tagId);
+      } else {
+        next.add(tagId);
+      }
+      return next;
+    });
+  }
+
+  function buildTagLinks() {
+    const existingByTagId = new Map((existingTagLinks ?? []).map((l) => [l.tagId, l]));
+    return [...selectedTagIds].map((tagId) => {
+      const existing = existingByTagId.get(tagId);
+      return {
+        tagId,
+        weight: existing?.weight ?? 1,
+        isPrimary: existing?.isPrimary ?? false,
+        visibleToUsers: existing?.visibleToUsers ?? true,
+      };
     });
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setPinError("");
+    setError("");
+
+    for (const category of categories) {
+      if (category.selectionType !== "SINGLE") continue;
+      const hasSelection = category.tags.some((t) => selectedTagIds.has(t.id));
+      if (!hasSelection) {
+        setError(`${category.name}을(를) 선택해주세요.`);
+        return;
+      }
+    }
 
     if (newPin || confirmPin) {
       if (!/^\d{4}$/.test(newPin)) {
@@ -173,7 +214,7 @@ export default function SpaceForm({ mode, space }: Props) {
         imageZoom: heroImage.zoom,
         imagePositionX: heroImage.positionX,
         imagePositionY: heroImage.positionY,
-        spaceTags: selectedSpaceTags,
+        tagLinks: buildTagLinks(),
         ...ownerForm,
         ownerPhotoUrl: ownerPhotoUrl || null,
         ...(newPin ? { newOperatorPin: newPin } : {}),
@@ -227,13 +268,27 @@ export default function SpaceForm({ mode, space }: Props) {
           <p className="text-xs mt-1" style={{ color: "var(--dim)" }}>/space/{form.slug || "..."}</p>
         </Field>
 
-        <Field label="공간 유형 *">
-          <select name="type" value={form.type} onChange={handleChange} required
-            className="w-full text-sm px-3 py-2.5 border" style={inputStyle}>
-            <option value="">선택</option>
-            {SPACE_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
-          </select>
-        </Field>
+        {categories.map((category) => (
+          <Field key={category.id} label={`${category.name}${category.selectionType === "SINGLE" ? " *" : " (선택)"}`}>
+            <div className="flex flex-wrap gap-2">
+              {category.tags.map((tag) => {
+                const selected = selectedTagIds.has(tag.id);
+                return (
+                  <button key={tag.id} type="button" onClick={() => toggleTag(category, tag.id)}
+                    className="px-3 py-1.5 text-xs border transition-colors"
+                    style={selected
+                      ? { borderColor: "var(--fg)", background: "var(--fg)", color: "var(--bg)" }
+                      : { borderColor: "var(--border)", color: "var(--dim)" }}>
+                    {tag.name}
+                  </button>
+                );
+              })}
+              {category.tags.length === 0 && (
+                <p className="text-xs" style={{ color: "var(--dim)" }}>아직 태그가 없어요 — 태그 관리에서 먼저 추가해주세요.</p>
+              )}
+            </div>
+          </Field>
+        ))}
 
         <Field label="지역 *">
           <select name="district" value={form.district} onChange={handleChange} required
@@ -363,35 +418,6 @@ export default function SpaceForm({ mode, space }: Props) {
             </div>
           </>
         )}
-
-        {/* 태그 */}
-        <div style={{ borderTop: "1px solid var(--border)" }} />
-        <div className="space-y-3">
-          <div className="flex justify-between items-center">
-            <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>
-              방문자 태그 (최대 {MAX_SPACE_TAGS}개)
-            </p>
-            <p className="text-xs" style={{ color: selectedSpaceTags.length >= MAX_SPACE_TAGS ? "var(--fg)" : "var(--dim)" }}>
-              {selectedSpaceTags.length}/{MAX_SPACE_TAGS}
-            </p>
-          </div>
-          <p className="text-xs" style={{ color: "var(--dim)" }}>방문자가 기록할 때 이 태그 중 2개를 고르게 돼.</p>
-          <div className="flex flex-wrap gap-2">
-            {ALL_TAGS.map((tag) => {
-              const selected = selectedSpaceTags.includes(tag);
-              const disabled = !selected && selectedSpaceTags.length >= MAX_SPACE_TAGS;
-              return (
-                <button key={tag} type="button" onClick={() => toggleSpaceTag(tag)} disabled={disabled}
-                  className="px-3 py-1.5 text-xs border transition-colors disabled:opacity-30"
-                  style={selected
-                    ? { borderColor: "var(--fg)", background: "var(--fg)", color: "var(--bg)" }
-                    : { borderColor: "var(--border)", color: "var(--dim)" }}>
-                  {TAG_LABELS[tag]}
-                </button>
-              );
-            })}
-          </div>
-        </div>
 
         {error && <p className="text-xs text-red-400">{error}</p>}
 

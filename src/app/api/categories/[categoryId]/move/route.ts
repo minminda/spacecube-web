@@ -6,7 +6,7 @@ import { moveInOrder } from "@/lib/adminReorder";
 
 export const dynamic = "force-dynamic";
 
-interface Props { params: Promise<{ tagId: string }> }
+interface Props { params: Promise<{ categoryId: string }> }
 
 export async function POST(req: Request, { params }: Props) {
   const session = await auth();
@@ -14,25 +14,17 @@ export async function POST(req: Request, { params }: Props) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { tagId } = await params;
+  const { categoryId } = await params;
   const { direction } = await req.json().catch(() => ({})) as { direction?: "up" | "down" };
   if (direction !== "up" && direction !== "down") {
     return NextResponse.json({ error: "direction은 up 또는 down이어야 해요." }, { status: 400 });
   }
 
-  const tag = await prisma.tag.findUnique({ where: { id: tagId }, select: { categoryId: true } });
-  if (!tag) return NextResponse.json({ error: "태그를 찾을 수 없어요." }, { status: 404 });
-
-  // 카테고리별로 묶어서 보여주는 관리자 UI에 맞춰, 같은 카테고리(또는 같은 미분류 그룹) 안에서만 순서를 바꾼다.
-  const siblings = await prisma.tag.findMany({
-    where: { categoryId: tag.categoryId },
-    orderBy: { displayOrder: "asc" },
-    select: { id: true },
-  });
-  const nextOrder = moveInOrder(siblings.map((t) => t.id), tagId, direction);
+  const all = await prisma.category.findMany({ orderBy: { displayOrder: "asc" }, select: { id: true } });
+  const nextOrder = moveInOrder(all.map((c) => c.id), categoryId, direction);
 
   await prisma.$transaction(
-    nextOrder.map((id, i) => prisma.tag.update({ where: { id }, data: { displayOrder: i } }))
+    nextOrder.map((id, i) => prisma.category.update({ where: { id }, data: { displayOrder: i } }))
   );
 
   return NextResponse.json({ ok: true });

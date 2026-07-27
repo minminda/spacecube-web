@@ -15,12 +15,13 @@ export async function POST(req: Request) {
   const name = typeof body.name === "string" ? body.name.trim() : "";
   if (!name) return NextResponse.json({ error: "태그 이름은 필수예요." }, { status: 400 });
 
-  const count = await prisma.tag.count();
+  const categoryId = typeof body.categoryId === "string" && body.categoryId ? body.categoryId : null;
+  const count = await prisma.tag.count({ where: { categoryId } });
 
   const tag = await prisma.tag.create({
     data: {
       name,
-      category: body.category || null,
+      categoryId,
       description: body.description || null,
       displayOrder: count,
       isActive: true,

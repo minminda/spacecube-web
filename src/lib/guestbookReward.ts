@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
-import { TAG_LABELS } from "@/lib/tags";
 import { buildWeightedTasteVector, rankSpacesByVector, getVectorReason, vectorTopTags } from "@/lib/recommend";
 import { getUserUnlockSets } from "@/lib/spaceUnlock";
+import { resolveSpaceTypeLabel } from "@/lib/spaceType";
 
 export interface RewardTag {
   label: string;
@@ -44,7 +44,7 @@ const CANDIDATE_SELECT = {
   district: true,
   naverMapUrl: true,
   spaceTags: true,
-  spaceTagLinks: { include: { tag: true } },
+  spaceTagLinks: { include: { tag: { include: { categoryRef: true } } } },
 } as const;
 
 /**
@@ -71,9 +71,10 @@ export async function buildRewardSummary(userId: string, spaceId: string): Promi
   ]);
 
   const vector = buildWeightedTasteVector(userRecords);
+  const tagNameById = new Map(userRecords.flatMap((r) => r.space.spaceTagLinks.map((l) => [l.tag.id, l.tag.name] as const)));
   const topTags: RewardTag[] = vectorTopTags(vector)
     .slice(0, 2)
-    .map(([tag, weight]) => ({ label: TAG_LABELS[tag], weight }));
+    .map(([tagId, weight]) => ({ label: tagNameById.get(tagId) ?? tagId, weight }));
   const tasteHighlight = topTags.length > 0 ? `이번 기록으로 '${topTags[0].label}' 취향이 조금 더 선명해졌습니다.` : null;
 
   const visitedIds = new Set(userRecords.map((r) => r.spaceId));
@@ -97,7 +98,7 @@ export async function buildRewardSummary(userId: string, spaceId: string): Promi
     slug: s.slug,
     name: s.name,
     imageUrl: s.imageUrl,
-    type: s.type,
+    type: resolveSpaceTypeLabel(s.spaceTagLinks, s.type),
     district: s.district,
     naverMapUrl: s.naverMapUrl,
     reason: getVectorReason(s, vector),

@@ -10,10 +10,42 @@ export default async function TagsAdminPage() {
   if (!session?.user?.email) redirect("/login");
   if (!isAdmin(session.user.email)) redirect("/");
 
-  const tags = await prisma.tag.findMany({
-    orderBy: { displayOrder: "asc" },
-    include: { _count: { select: { recordTags: true, spaceLinks: true } } },
+  const [categories, unclassifiedTags] = await Promise.all([
+    prisma.category.findMany({
+      orderBy: { displayOrder: "asc" },
+      include: {
+        tags: {
+          orderBy: { displayOrder: "asc" },
+          include: { _count: { select: { recordTags: true, spaceLinks: true } } },
+        },
+      },
+    }),
+    prisma.tag.findMany({
+      where: { categoryId: null },
+      orderBy: { displayOrder: "asc" },
+      include: { _count: { select: { recordTags: true, spaceLinks: true } } },
+    }),
+  ]);
+
+  const toRow = (t: { id: string; name: string; description: string | null; isActive: boolean; useForRecommendation: boolean; _count: { recordTags: number; spaceLinks: number } }) => ({
+    id: t.id,
+    name: t.name,
+    description: t.description ?? "",
+    isActive: t.isActive,
+    useForRecommendation: t.useForRecommendation,
+    usageCount: t._count.recordTags + t._count.spaceLinks,
   });
+
+  const initialCategories = categories.map((c) => ({
+    id: c.id,
+    name: c.name,
+    selectionType: c.selectionType,
+    isActive: c.isActive,
+    tags: c.tags.map(toRow),
+  }));
+  const initialUnclassified = unclassifiedTags.map(toRow);
+
+  const totalTags = initialCategories.reduce((sum, c) => sum + c.tags.length, 0) + initialUnclassified.length;
 
   return (
     <main className="flex flex-col min-h-screen px-6 py-8 gap-6">
@@ -27,20 +59,10 @@ export default async function TagsAdminPage() {
 
       <div className="space-y-1">
         <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>태그 관리</p>
-        <h1 className="text-xl font-bold">전체 태그 {tags.length}개</h1>
+        <h1 className="text-xl font-bold">전체 태그 {totalTags}개</h1>
       </div>
 
-      <TagManager
-        initialTags={tags.map((t) => ({
-          id: t.id,
-          name: t.name,
-          category: t.category ?? "",
-          description: t.description ?? "",
-          isActive: t.isActive,
-          useForRecommendation: t.useForRecommendation,
-          usageCount: t._count.recordTags + t._count.spaceLinks,
-        }))}
-      />
+      <TagManager initialCategories={initialCategories} initialUnclassified={initialUnclassified} />
     </main>
   );
 }
