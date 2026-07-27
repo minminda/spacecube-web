@@ -25,6 +25,11 @@ function getValidSpaceTagLinks(space: { spaceTagLinks?: SpaceTagLinkLike[] }): S
   return (space.spaceTagLinks ?? []).filter((l) => l.tag.isActive && l.tag.useForRecommendation);
 }
 
+/** 카드 등 좁은 공간에 보여줄 태그 이름 — 사용자 화면에 노출 가능한 활성 태그만, 최대 3개. */
+export function visibleTagNames(links: SpaceTagLinkLike[]): string[] {
+  return links.filter((l) => l.visibleToUsers && l.tag.isActive).slice(0, 3).map((l) => l.tag.name);
+}
+
 /** 빈도 가중 CBF 점수 — 사용자가 많이 선택한 태그일수록 높은 점수 (userTagCounts는 Tag.id 기준) */
 export function scoreSpaceWeighted(
   space: SpaceCandidate,
