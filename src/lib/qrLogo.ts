@@ -13,7 +13,7 @@ export const CENTER_LOGO_BORDER_RATIO = 0.01;
 export const CENTER_LOGO_LINES: [string, string] = ["공간", "큐브"];
 export const CENTER_LOGO_FONT_STACK = `Pretendard, "Malgun Gothic", sans-serif`;
 /** 두 줄 사이 간격(줄 중심 간 거리) — fontSize 대비 배수. 좁은 행간을 위해 1.1 → 0.92로 줄임 */
-const LINE_GAP_RATIO = 0.46; // 중심에서 위/아래로 각각 이만큼(× fontSize) 이동 → 총 간격 0.92×fontSize
+export const LINE_GAP_RATIO = 0.46; // 중심에서 위/아래로 각각 이만큼(× fontSize) 이동 → 총 간격 0.92×fontSize
 
 /** qrcode 라이브러리가 만든 SVG 문자열(viewBox="0 0 W H") 안에 검정 테두리 사각형 + 흰 배경 +
  * 2줄 텍스트를 주입한다. viewBox 형식이 예상과 다르면(라이브러리 버전 변경 등) 원본을 그대로

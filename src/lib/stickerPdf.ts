@@ -2,6 +2,7 @@ import { jsPDF } from "jspdf";
 import { buildQrMatrix } from "./qrVector";
 import { computeGrid, paginate, type GridLayout } from "./printSheet";
 import { BRAND_FONT_BASE64 } from "./brandFont.generated";
+import { CENTER_LOGO_RATIO, CENTER_LOGO_FONT_RATIO, CENTER_LOGO_BORDER_RATIO, CENTER_LOGO_LINES, LINE_GAP_RATIO } from "./qrLogo";
 
 /** 스티커 실제 제작 크기 — 요구사항 고정값(45×45mm), 임의 조정 금지. */
 const CELL_SIZE_MM = 45;
@@ -11,21 +12,46 @@ const GRID_ROWS = 3;
 const GAP_MM = 8;
 /** QR 자체의 quiet zone(격리 여백) — QR 표준 권장값(4모듈)을 그대로 써서 실물 스캔 안정성을 확보. */
 const QR_QUIET_ZONE_MODULES = 4;
-/** 셀 안에서 QR이 차지하는 정사각형 크기 — 상단 브랜드 캡션을 추가해도 이 값은 절대 줄이지 않는다
- * (QR 위에 텍스트를 얹지 않고 셀 상단에 별도 자리를 내어, QR 자체는 항상 이 크기 그대로 유지된다). */
+/** 셀 안에서 QR이 차지하는 정사각형 크기 — 중앙 브랜드 로고는 이 정사각형 위에 겹쳐 그려질 뿐
+ * QR 자체 크기를 줄이지 않는다(qrLogo.ts와 동일하게 H급 에러정정 여유 안에서 중앙 22%만 덮음). */
 const QR_SIZE_MM = 34;
-/** 상단 "공간큐브" 브랜드 캡션이 차지하는 띠 높이 — QR보다 확실히 작고 눈에 덜 띄게. */
-const BRAND_CAPTION_BAND_MM = 5;
-/** 하단 코드 텍스트 띠 높이 — 셀 전체(45mm)에서 위 두 값을 뺀 나머지를 그대로 쓴다.
- * QR_SIZE_MM을 나중에 바꾸더라도 세 구간 합이 항상 45mm가 되도록 하드코딩하지 않고 역산한다. */
-const CODE_CAPTION_BAND_MM = CELL_SIZE_MM - BRAND_CAPTION_BAND_MM - QR_SIZE_MM;
 
 const BRAND_FONT_NAME = "PretendardBrand";
-const BRAND_TEXT = "공간큐브";
+/** mm 단위 실측값을 jsPDF의 setFontSize(pt 고정)로 넘기기 위한 변환 계수. */
+const PT_PER_MM = 72 / 25.4;
 
 function registerBrandFont(doc: jsPDF) {
   doc.addFileToVFS(`${BRAND_FONT_NAME}.ttf`, BRAND_FONT_BASE64);
   doc.addFont(`${BRAND_FONT_NAME}.ttf`, BRAND_FONT_NAME, "normal");
+}
+
+/** QR 중앙에 흰 박스+테두리+"공간"/"큐브" 2줄 텍스트를 겹쳐 그린다 — 화면 미리보기(CubeQR/qrLogo.ts)와
+ * 완전히 동일한 비율을 그대로 재사용해 미리보기·실제 PDF가 같은 디자인으로 보이게 한다. */
+function drawCenterLogo(doc: jsPDF, centerX: number, centerY: number, qrSizeMm: number) {
+  const logoSizeMm = qrSizeMm * CENTER_LOGO_RATIO;
+  const strokeWidthMm = Math.max(qrSizeMm * CENTER_LOGO_BORDER_RATIO, 0.15);
+  const fontSizeMm = logoSizeMm * CENTER_LOGO_FONT_RATIO;
+  const halfGapMm = fontSizeMm * LINE_GAP_RATIO;
+
+  doc.setFillColor(255, 255, 255);
+  doc.rect(centerX - logoSizeMm / 2, centerY - logoSizeMm / 2, logoSizeMm, logoSizeMm, "F");
+
+  doc.setDrawColor(17, 17, 17);
+  doc.setLineWidth(strokeWidthMm);
+  doc.rect(
+    centerX - logoSizeMm / 2 + strokeWidthMm / 2,
+    centerY - logoSizeMm / 2 + strokeWidthMm / 2,
+    logoSizeMm - strokeWidthMm,
+    logoSizeMm - strokeWidthMm,
+    "S",
+  );
+
+  doc.setFont(BRAND_FONT_NAME, "normal");
+  doc.setFontSize(fontSizeMm * PT_PER_MM);
+  doc.setTextColor(17, 17, 17);
+  const [line1, line2] = CENTER_LOGO_LINES;
+  doc.text(line1, centerX, centerY - halfGapMm, { align: "center", baseline: "middle" });
+  doc.text(line2, centerX, centerY + halfGapMm, { align: "center", baseline: "middle" });
 }
 
 export interface StickerCube {
@@ -48,18 +74,11 @@ function cellOrigin(layout: GridLayout, index: number): { x: number; y: number }
 
 function drawQrCell(doc: jsPDF, cube: StickerCube, x: number, y: number) {
   const centerX = x + CELL_SIZE_MM / 2;
-
-  // 상단 "공간큐브" 브랜드 캡션 — QR 위에 얹지 않고 별도 띠에 작게 배치해 QR 인식 영역을 침범하지 않는다.
-  doc.setFont(BRAND_FONT_NAME, "normal");
-  doc.setFontSize(7);
-  doc.setTextColor(60, 60, 60);
-  doc.text(BRAND_TEXT, centerX, y + BRAND_CAPTION_BAND_MM / 2, { align: "center", baseline: "middle" });
-
   const matrix = buildQrMatrix(cube.url, "H");
   const totalModules = matrix.size + QR_QUIET_ZONE_MODULES * 2;
   const moduleSizeMm = QR_SIZE_MM / totalModules;
   const qrX = x + (CELL_SIZE_MM - QR_SIZE_MM) / 2;
-  const qrY = y + BRAND_CAPTION_BAND_MM;
+  const qrY = y + 3;
 
   doc.setFillColor(17, 17, 17);
   for (let row = 0; row < matrix.size; row++) {
@@ -72,10 +91,13 @@ function drawQrCell(doc: jsPDF, cube: StickerCube, x: number, y: number) {
     }
   }
 
+  // QR 중앙 22% 영역에 브랜드 로고를 겹쳐 그린다 — QR 정사각형 크기(QR_SIZE_MM) 자체는 그대로 유지.
+  drawCenterLogo(doc, qrX + QR_SIZE_MM / 2, qrY + QR_SIZE_MM / 2, QR_SIZE_MM);
+
   doc.setFont("helvetica", "bold");
   doc.setFontSize(11);
   doc.setTextColor(17, 17, 17);
-  doc.text(cube.code, centerX, qrY + QR_SIZE_MM + CODE_CAPTION_BAND_MM / 2, { align: "center", baseline: "middle" });
+  doc.text(cube.code, centerX, qrY + QR_SIZE_MM + 5.5, { align: "center", baseline: "middle" });
 }
 
 function drawNumberCell(doc: jsPDF, code: string, x: number, y: number) {
