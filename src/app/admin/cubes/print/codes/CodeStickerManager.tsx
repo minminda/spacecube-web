@@ -2,44 +2,34 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import CubeQR from "@/components/CubeQR";
 import { A4_WIDTH_MM, A4_HEIGHT_MM, PAGE_MARGIN_MM, computeGrid, paginate } from "@/lib/printSheet";
 
-/* ── QR 스티커 시트 (A4, mm 단위) ────────────────────────────────────────
-   큐브 번호 스티커(같은 큐브의 반대편 면에 붙는, /admin/cubes/print/codes)와는
-   완전히 분리된 별도 인쇄물 — 이 화면엔 QR만 배치하고, 번호 스티커 내용은
-   포함하지 않는다. QR 아래엔 항상 코드가 함께 표시된다(선택 옵션 아님) —
-   QR과 코드가 항상 한 세트로 보여야 어떤 큐브인지 헷갈리지 않는다.
+/* ── 큐브 번호 스티커 시트 (A4, mm 단위) ──────────────────────────────────
+   QR 스티커(/admin/cubes/print)와 완전히 분리된 별도 인쇄물 — 이 화면엔
+   큐브 코드 텍스트만 배치하고 QR은 포함하지 않는다. 실제 큐브에서 QR과
+   반대편 바닥면에 붙는 스티커라 부착 위치가 완전히 다르기 때문. ── */
 
-   50x50mm 미만 스티커는 제작 업체가 개별 재단할 수 없어 A4 시트에 여러 개를
-   배치해 시트째 제작한다(printSheet.ts). 셀 안쪽 여백(quiet zone 버퍼)과
-   셀 사이 간격은 QR 코드의 quiet zone을 침범하지 않도록 넉넉히 둔다. ── */
-
-export interface PrintCube {
+export interface StickerCube {
   id: string;
   code: string;
-  url: string;
 }
 
 interface Props {
-  cubes: PrintCube[];
+  cubes: StickerCube[];
 }
 
-const QR_SIZE_OPTIONS_MM = [
-  { label: "40mm", value: 40 },
-  { label: "50mm", value: 50 },
-  { label: "60mm", value: 60 },
+const SIZE_OPTIONS_MM = [
+  { label: "50×25mm", w: 50, h: 25 },
+  { label: "60×30mm", w: 60, h: 30 },
+  { label: "70×35mm", w: 70, h: 35 },
 ] as const;
 
 const GAP_MM = 6;
-const CELL_PADDING_MM = 4; // QR과 절취선 사이 여백 — QR quiet zone 보호
-const TEXT_ROW_MM = 8; // 코드 텍스트가 차지하는 높이
-const CONTENT_GAP_MM = 2; // QR과 코드 텍스트 사이 간격
-const QR_RASTER_PX = 600; // 인쇄 해상도 확보용 캔버스 픽셀 크기(표시 크기는 mm로 별도 고정)
+const CELL_PADDING_MM = 3;
 
-export default function PrintManager({ cubes }: Props) {
+export default function CodeStickerManager({ cubes }: Props) {
   const [selected, setSelected] = useState<Set<string>>(new Set(cubes.map((c) => c.id)));
-  const [qrSizeMm, setQrSizeMm] = useState<number>(50);
+  const [sizeIndex, setSizeIndex] = useState(0);
 
   function toggle(id: string) {
     setSelected((prev) => {
@@ -57,21 +47,19 @@ export default function PrintManager({ cubes }: Props) {
   }
 
   const toPrint = cubes.filter((c) => selected.has(c.id));
-
-  const cellWidthMm = qrSizeMm + CELL_PADDING_MM * 2;
-  const cellHeightMm = qrSizeMm + TEXT_ROW_MM + CONTENT_GAP_MM + CELL_PADDING_MM * 2;
-  const grid = computeGrid(cellWidthMm, cellHeightMm, GAP_MM);
+  const size = SIZE_OPTIONS_MM[sizeIndex];
+  const grid = computeGrid(size.w, size.h, GAP_MM);
   const pages = paginate(toPrint, grid.perPage);
 
   return (
     <div className="min-h-screen px-6 py-8" style={{ background: "var(--bg)", color: "var(--fg)" }}>
       <div className="no-print flex flex-col gap-4 mb-8">
         <div className="flex justify-between items-center">
-          <h1 className="text-xl font-bold">QR 스티커 인쇄</h1>
+          <h1 className="text-xl font-bold">큐브 번호 스티커 인쇄</h1>
           <Link href="/admin/cubes" className="text-xs" style={{ color: "var(--dim)" }}>&lt; 큐브 관리</Link>
         </div>
         <p className="text-xs leading-relaxed" style={{ color: "var(--dim)" }}>
-          큐브 번호 스티커(반대편 면)는 별도 화면에서 인쇄해주세요 — <Link href="/admin/cubes/print/codes" className="underline">번호 스티커 인쇄로 이동 →</Link>
+          QR 스티커(QR이 붙는 면)는 별도 화면에서 인쇄해주세요 — <Link href="/admin/cubes/print" className="underline">QR 스티커 인쇄로 이동 →</Link>
         </p>
 
         {cubes.length === 0 ? (
@@ -86,14 +74,14 @@ export default function PrintManager({ cubes }: Props) {
 
             <div className="flex gap-6 flex-wrap items-center text-xs">
               <div className="flex items-center gap-2">
-                <span style={{ color: "var(--dim)" }}>스티커 크기(QR 한 변)</span>
-                {QR_SIZE_OPTIONS_MM.map((opt) => (
+                <span style={{ color: "var(--dim)" }}>스티커 크기</span>
+                {SIZE_OPTIONS_MM.map((opt, i) => (
                   <button
-                    key={opt.value}
+                    key={opt.label}
                     type="button"
-                    onClick={() => setQrSizeMm(opt.value)}
+                    onClick={() => setSizeIndex(i)}
                     className="border px-2.5 py-1 transition-colors"
-                    style={{ borderColor: qrSizeMm === opt.value ? "var(--fg)" : "var(--border)", color: qrSizeMm === opt.value ? "var(--fg)" : "var(--dim)" }}
+                    style={{ borderColor: sizeIndex === i ? "var(--fg)" : "var(--border)", color: sizeIndex === i ? "var(--fg)" : "var(--dim)" }}
                   >
                     {opt.label}
                   </button>
@@ -110,7 +98,7 @@ export default function PrintManager({ cubes }: Props) {
                 className="self-start text-sm px-4 py-2 border transition-colors hover:bg-[var(--fg)] hover:text-[var(--bg)] disabled:opacity-40"
                 style={{ borderColor: "var(--fg)" }}
               >
-                [[ QR 스티커 PDF 다운로드 ]]
+                [[ 큐브 번호 스티커 PDF 다운로드 ]]
               </button>
               <p className="text-xs" style={{ color: "var(--dim)" }}>
                 인쇄 대화상자가 열리면 프린터 선택에서 &lsquo;PDF로 저장&rsquo;을 선택해주세요.
@@ -129,7 +117,7 @@ export default function PrintManager({ cubes }: Props) {
         )}
       </div>
 
-      {/* 인쇄 영역 — 화면에서는 미리보기, 인쇄 시에는 이 부분만 A4 페이지 단위로 출력된다 */}
+      {/* 인쇄 영역 — QR 없이 코드 텍스트만, A4 페이지 단위로 출력 */}
       <div className="print-area">
         {pages.map((page, pageIndex) => (
           <div
@@ -147,7 +135,7 @@ export default function PrintManager({ cubes }: Props) {
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: `repeat(${grid.cols}, ${cellWidthMm}mm)`,
+                gridTemplateColumns: `repeat(${grid.cols}, ${size.w}mm)`,
                 gap: `${GAP_MM}mm`,
               }}
             >
@@ -156,20 +144,19 @@ export default function PrintManager({ cubes }: Props) {
                   key={c.id}
                   className="sticker-cell"
                   style={{
-                    width: `${cellWidthMm}mm`,
-                    height: `${cellHeightMm}mm`,
+                    width: `${size.w}mm`,
+                    height: `${size.h}mm`,
                     border: "0.3mm dashed #999",
                     padding: `${CELL_PADDING_MM}mm`,
                     boxSizing: "border-box",
                     display: "flex",
-                    flexDirection: "column",
                     alignItems: "center",
                     justifyContent: "center",
-                    gap: `${CONTENT_GAP_MM}mm`,
                   }}
                 >
-                  <CubeQR url={c.url} code={c.code} size={QR_RASTER_PX} displaySize={`${qrSizeMm}mm`} />
-                  <p style={{ fontSize: "3mm", fontFamily: "monospace", letterSpacing: "0.04em", color: "#000", margin: 0 }}>{c.code}</p>
+                  <p style={{ fontSize: "5mm", fontFamily: "monospace", fontWeight: 700, letterSpacing: "0.04em", color: "#000", margin: 0 }}>
+                    {c.code}
+                  </p>
                 </div>
               ))}
             </div>

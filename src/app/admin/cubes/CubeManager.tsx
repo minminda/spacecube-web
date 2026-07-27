@@ -245,7 +245,14 @@ export default function CubeManager({ cubes, spaceOptions, baseUrl, initialFocus
             className="text-sm px-4 py-2 border transition-colors text-center"
             style={{ borderColor: "var(--border)", color: "var(--dim)" }}
           >
-            {selected.size > 0 ? `[ 선택 ${selected.size}개 인쇄 ]` : "[ 인쇄 페이지 ]"}
+            {selected.size > 0 ? `[ QR 스티커 인쇄 (${selected.size}개) ]` : "[ QR 스티커 인쇄 ]"}
+          </Link>
+          <Link
+            href={selected.size > 0 ? `/admin/cubes/print/codes?codes=${[...selected].map((id) => cubes.find((c) => c.id === id)?.code).filter(Boolean).join(",")}` : "/admin/cubes/print/codes"}
+            className="text-sm px-4 py-2 border transition-colors text-center"
+            style={{ borderColor: "var(--border)", color: "var(--dim)" }}
+          >
+            {selected.size > 0 ? `[ 번호 스티커 인쇄 (${selected.size}개) ]` : "[ 번호 스티커 인쇄 ]"}
           </Link>
           {selected.size > 0 && (
             <button type="button" onClick={clearSelection} className="text-xs px-3 py-2" style={{ color: "var(--dim)" }}>
