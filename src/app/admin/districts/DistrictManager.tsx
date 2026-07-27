@@ -192,7 +192,7 @@ export default function DistrictManager({ initialDistricts }: { initialDistricts
             {effectiveDistricts.map((d) => (
               <g
                 key={d.id}
-                className="cursor-grab active:cursor-grabbing"
+                className="district-marker-admin cursor-grab active:cursor-grabbing"
                 onPointerDown={(e) => startDragging(d.id, e)}
                 style={{ touchAction: "none" }}
               >
@@ -203,6 +203,7 @@ export default function DistrictManager({ initialDistricts }: { initialDistricts
             ))}
           </svg>
         </div>
+        <style>{`.district-marker-admin:hover { filter: drop-shadow(0 0 2px currentColor); }`}</style>
       </div>
 
       {/* ── 새 지역 추가 ── */}

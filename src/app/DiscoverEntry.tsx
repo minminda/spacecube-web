@@ -120,7 +120,13 @@ export default function DiscoverEntry({ districts }: { districts: DiscoverDistri
                 >
                   {/* 터치 히트영역 확대 — 마커보다 넉넉한 투명 원(시각적으로는 보이지 않음) */}
                   <circle cx={d.markerX} cy={d.markerY} r={26} fill="transparent" />
-                  <DistrictMapMarker name={d.name} x={d.markerX} y={d.markerY} status={d.status} />
+                  <DistrictMapMarker
+                    name={d.name}
+                    x={d.markerX}
+                    y={d.markerY}
+                    status={d.status}
+                    selected={zooming?.name === d.name}
+                  />
                 </g>
               );
             })}
@@ -130,6 +136,7 @@ export default function DiscoverEntry({ districts }: { districts: DiscoverDistri
 
       <style>{`
         .district-marker { outline: none; }
+        .district-marker:hover,
         .district-marker:focus-visible { filter: drop-shadow(0 0 2.5px currentColor); }
         @media (prefers-reduced-motion: reduce) {
           .seoul-map-zoom { transition: none !important; }
