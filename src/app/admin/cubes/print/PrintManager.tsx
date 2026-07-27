@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import CubeQR from "@/components/CubeQR";
+import { buildQrStickerPdf, buildNumberStickerPdf } from "@/lib/stickerPdf";
 
 export interface PrintCube {
   id: string;
@@ -14,16 +15,17 @@ interface Props {
   cubes: PrintCube[];
 }
 
-const SIZE_OPTIONS = [
-  { label: "작게", value: 96 },
-  { label: "보통", value: 140 },
-  { label: "크게", value: 200 },
-] as const;
+const PREVIEW_QR_SIZE = 96;
+
+function dateStamp() {
+  const d = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}`;
+}
 
 export default function PrintManager({ cubes }: Props) {
   const [selected, setSelected] = useState<Set<string>>(new Set(cubes.map((c) => c.id)));
-  const [qrSize, setQrSize] = useState<number>(140);
-  const [showCode, setShowCode] = useState(true);
+  const [generating, setGenerating] = useState<"qr" | "number" | null>(null);
 
   function toggle(id: string) {
     setSelected((prev) => {
@@ -42,11 +44,33 @@ export default function PrintManager({ cubes }: Props) {
 
   const toPrint = cubes.filter((c) => selected.has(c.id));
 
+  async function downloadQrPdf() {
+    if (generating || toPrint.length === 0) return;
+    setGenerating("qr");
+    try {
+      const doc = buildQrStickerPdf(toPrint.map((c) => ({ code: c.code, url: c.url })));
+      doc.save(`qr-stickers-${dateStamp()}.pdf`);
+    } finally {
+      setGenerating(null);
+    }
+  }
+
+  async function downloadNumberPdf() {
+    if (generating || toPrint.length === 0) return;
+    setGenerating("number");
+    try {
+      const doc = buildNumberStickerPdf(toPrint.map((c) => c.code));
+      doc.save(`number-stickers-${dateStamp()}.pdf`);
+    } finally {
+      setGenerating(null);
+    }
+  }
+
   return (
     <div className="min-h-screen px-6 py-8" style={{ background: "var(--bg)", color: "var(--fg)" }}>
-      <div className="no-print flex flex-col gap-4 mb-8">
+      <div className="flex flex-col gap-4 mb-8">
         <div className="flex justify-between items-center">
-          <h1 className="text-xl font-bold">QR 인쇄</h1>
+          <h1 className="text-xl font-bold">QR / 번호 스티커 제작 파일</h1>
           <Link href="/admin/cubes" className="text-xs" style={{ color: "var(--dim)" }}>&lt; 큐브 관리</Link>
         </div>
 
@@ -54,42 +78,36 @@ export default function PrintManager({ cubes }: Props) {
           <p className="text-sm" style={{ color: "var(--dim)" }}>인쇄할 큐브가 없어요.</p>
         ) : (
           <>
+            <p className="text-xs leading-relaxed" style={{ color: "var(--dim)" }}>
+              스티커 실제 크기 45×45mm · A4 한 페이지 3열×3행(9개) 자동 분할 · QR은 벡터로 생성되어 확대해도 깨지지 않습니다.
+            </p>
+
             <div className="flex gap-3 flex-wrap text-xs">
               <button type="button" onClick={selectAll} className="border px-3 py-1.5" style={{ borderColor: "var(--border)", color: "var(--dim)" }}>전체 선택</button>
               <button type="button" onClick={selectNone} className="border px-3 py-1.5" style={{ borderColor: "var(--border)", color: "var(--dim)" }}>선택 해제</button>
               <span className="self-center" style={{ color: "var(--dim)" }}>{selected.size} / {cubes.length}개 선택됨</span>
             </div>
 
-            <div className="flex gap-6 flex-wrap items-center text-xs">
-              <div className="flex items-center gap-2">
-                <span style={{ color: "var(--dim)" }}>QR 크기</span>
-                {SIZE_OPTIONS.map((opt) => (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    onClick={() => setQrSize(opt.value)}
-                    className="border px-2.5 py-1 transition-colors"
-                    style={{ borderColor: qrSize === opt.value ? "var(--fg)" : "var(--border)", color: qrSize === opt.value ? "var(--fg)" : "var(--dim)" }}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-              <label className="flex items-center gap-2 cursor-pointer" style={{ color: "var(--dim)" }}>
-                <input type="checkbox" checked={showCode} onChange={(e) => setShowCode(e.target.checked)} />
-                코드 텍스트 표시
-              </label>
+            <div className="flex gap-3 flex-wrap">
+              <button
+                type="button"
+                onClick={downloadQrPdf}
+                disabled={toPrint.length === 0 || generating !== null}
+                className="text-sm px-4 py-2 border transition-colors hover:bg-[var(--fg)] hover:text-[var(--bg)] disabled:opacity-40"
+                style={{ borderColor: "var(--fg)" }}
+              >
+                {generating === "qr" ? "생성 중..." : "[[ QR 스티커 PDF 다운로드 ]]"}
+              </button>
+              <button
+                type="button"
+                onClick={downloadNumberPdf}
+                disabled={toPrint.length === 0 || generating !== null}
+                className="text-sm px-4 py-2 border transition-colors hover:bg-[var(--fg)] hover:text-[var(--bg)] disabled:opacity-40"
+                style={{ borderColor: "var(--border)", color: "var(--dim)" }}
+              >
+                {generating === "number" ? "생성 중..." : "[[ 번호 스티커 PDF 다운로드 ]]"}
+              </button>
             </div>
-
-            <button
-              type="button"
-              onClick={() => window.print()}
-              disabled={toPrint.length === 0}
-              className="self-start text-sm px-4 py-2 border transition-colors hover:bg-[var(--fg)] hover:text-[var(--bg)] disabled:opacity-40"
-              style={{ borderColor: "var(--fg)" }}
-            >
-              [[ 인쇄하기 ]]
-            </button>
 
             <div className="grid gap-2" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))" }}>
               {cubes.map((c) => (
@@ -103,24 +121,15 @@ export default function PrintManager({ cubes }: Props) {
         )}
       </div>
 
-      {/* 인쇄 영역 — 화면에서는 미리보기, 인쇄 시에는 이 부분만 출력된다 */}
-      <div className="print-area grid gap-8" style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${qrSize + 40}px, 1fr))` }}>
+      {/* 미리보기 — 화면 표시용 래스터 캔버스이며, 실제 다운로드되는 PDF는 항상 벡터로 별도 생성된다 */}
+      <div className="grid gap-8" style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${PREVIEW_QR_SIZE + 40}px, 1fr))` }}>
         {toPrint.map((c) => (
-          <div key={c.id} className="print-card flex flex-col items-center gap-2 py-4">
-            <CubeQR url={c.url} code={c.code} size={qrSize} />
-            {showCode && <p className="text-sm font-mono tracking-wide">{c.code}</p>}
+          <div key={c.id} className="flex flex-col items-center gap-2 py-4">
+            <CubeQR url={c.url} code={c.code} size={PREVIEW_QR_SIZE} />
+            <p className="text-sm font-mono tracking-wide">{c.code}</p>
           </div>
         ))}
       </div>
-
-      <style>{`
-        @media print {
-          .no-print { display: none !important; }
-          body { background: #fff !important; color: #000 !important; }
-          .print-area { gap: 24px !important; }
-          .print-card { break-inside: avoid; page-break-inside: avoid; }
-        }
-      `}</style>
     </div>
   );
 }
