@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import CubeQR from "@/components/CubeQR";
-import { buildQrStickerPdf, buildNumberStickerPdf } from "@/lib/stickerPdf";
+import { buildQrStickerPdf, buildGcCodeStickerPdf } from "@/lib/stickerPdf";
 
 export interface PrintCube {
   id: string;
@@ -25,7 +25,7 @@ function dateStamp() {
 
 export default function PrintManager({ cubes }: Props) {
   const [selected, setSelected] = useState<Set<string>>(new Set(cubes.map((c) => c.id)));
-  const [generating, setGenerating] = useState<"qr" | "number" | null>(null);
+  const [generating, setGenerating] = useState<"qr" | "gc" | null>(null);
 
   function toggle(id: string) {
     setSelected((prev) => {
@@ -55,12 +55,12 @@ export default function PrintManager({ cubes }: Props) {
     }
   }
 
-  async function downloadNumberPdf() {
+  async function downloadGcCodePdf() {
     if (generating || toPrint.length === 0) return;
-    setGenerating("number");
+    setGenerating("gc");
     try {
-      const doc = buildNumberStickerPdf(toPrint.map((c) => c.code));
-      doc.save(`number-stickers-${dateStamp()}.pdf`);
+      const doc = buildGcCodeStickerPdf(toPrint.map((c) => c.code));
+      doc.save(`gc-code-stickers-${dateStamp()}.pdf`);
     } finally {
       setGenerating(null);
     }
@@ -70,7 +70,7 @@ export default function PrintManager({ cubes }: Props) {
     <div className="min-h-screen px-6 py-8" style={{ background: "var(--bg)", color: "var(--fg)" }}>
       <div className="flex flex-col gap-4 mb-8">
         <div className="flex justify-between items-center">
-          <h1 className="text-xl font-bold">QR / 번호 스티커 제작 파일</h1>
+          <h1 className="text-xl font-bold">QR / GC 코드 스티커 제작 파일</h1>
           <Link href="/admin/cubes" className="text-xs" style={{ color: "var(--dim)" }}>&lt; 큐브 관리</Link>
         </div>
 
@@ -79,7 +79,9 @@ export default function PrintManager({ cubes }: Props) {
         ) : (
           <>
             <p className="text-xs leading-relaxed" style={{ color: "var(--dim)" }}>
-              스티커 실제 크기 45×45mm · A4 한 페이지 3열×3행(9개) 자동 분할 · QR은 벡터로 생성되어 확대해도 깨지지 않습니다.
+              QR 스티커 — 재단 45×45mm / 작업 49×49mm, A4 3열×3행(9개) 자동 분할, QR과 중앙 로고만 포함.<br />
+              GC 코드 스티커 — 재단 20×10mm, A4에 최대한 효율적으로 배치, 코드 텍스트만 포함.<br />
+              두 PDF 모두 도무송 칼선(M100)을 재단사이즈 기준으로 함께 생성하며, QR은 벡터라 확대해도 깨지지 않습니다.
             </p>
 
             <div className="flex gap-3 flex-wrap text-xs">
@@ -100,12 +102,12 @@ export default function PrintManager({ cubes }: Props) {
               </button>
               <button
                 type="button"
-                onClick={downloadNumberPdf}
+                onClick={downloadGcCodePdf}
                 disabled={toPrint.length === 0 || generating !== null}
                 className="text-sm px-4 py-2 border transition-colors hover:bg-[var(--fg)] hover:text-[var(--bg)] disabled:opacity-40"
                 style={{ borderColor: "var(--border)", color: "var(--dim)" }}
               >
-                {generating === "number" ? "생성 중..." : "[[ 번호 스티커 PDF 다운로드 ]]"}
+                {generating === "gc" ? "생성 중..." : "[[ GC 코드 스티커 PDF 다운로드 ]]"}
               </button>
             </div>
 
@@ -121,12 +123,12 @@ export default function PrintManager({ cubes }: Props) {
         )}
       </div>
 
-      {/* 미리보기 — 화면 표시용 래스터 캔버스이며, 실제 다운로드되는 PDF는 항상 벡터로 별도 생성된다 */}
+      {/* 미리보기 — QR 스티커 PDF와 동일하게 QR+중앙 로고만 보여준다(코드 텍스트는 GC 코드 스티커 쪽에만 있음).
+          화면은 CubeQR 캔버스로 그리지만, 실제 다운로드 PDF는 항상 벡터로 별도 생성된다. */}
       <div className="grid gap-8" style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${PREVIEW_QR_SIZE + 40}px, 1fr))` }}>
         {toPrint.map((c) => (
           <div key={c.id} className="flex flex-col items-center gap-2 py-4">
             <CubeQR url={c.url} code={c.code} size={PREVIEW_QR_SIZE} />
-            <p className="text-sm font-mono tracking-wide">{c.code}</p>
           </div>
         ))}
       </div>
