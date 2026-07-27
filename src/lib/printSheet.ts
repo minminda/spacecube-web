@@ -1,60 +1,36 @@
-/** 스티커 시트 A4 그리드 레이아웃.
+/** 스티커 시트 그리드 계산 — 순수하게 "셀 크기+간격이 주어졌을 때 페이지에 몇 열/행이
+ * 들어가는지"만 계산한다. 실제 페이지 안에서의 정렬(중앙 정렬, 여백)은 더 이상 여기서
+ * mm 좌표로 미리 계산하지 않는다 — CSS Grid(`justify-content/align-content: center`)가
+ * 매 페이지마다 실제로 채워진 항목 수에 맞춰 자동으로 중앙 정렬하도록 렌더링 쪽에 맡긴다.
  *
- * 도무송(다이컷) 스티커는 "재단사이즈"(실제 잘려나가는 최종 크기)와 "작업사이즈"
- * (그 둘레에 여유를 둔 인쇄 캔버스 크기, 칼선이 씹히거나 인접 항목과 겹치지 않게
- * 하는 안전 여백)가 다르다. 그리드는 항상 "작업사이즈"를 셀 크기로 써서 배치하고,
- * 그 안에서 재단선은 셀 중앙에 재단사이즈 그대로 그린다(cellOrigin 계산 후 호출부에서
- * bleed만큼 오프셋).
- *
- * 두 가지 배치 방식이 있다:
- * - computeGrid: 열/행 수를 고정값으로 받아 여백만 계산(QR 스티커 — "페이지당 정확히
- *   9개(3x3)"가 리터럴 요구사항이라 페이지에 더 들어갈 수 있어도 늘리지 않는다).
- * - computeMaxFitGrid: 셀 크기만 받아 페이지에 최대한 많이 들어가도록 열/행 수를
- *   역산(GC 코드 스티커 — "A4에 최대한 효율적으로 배치"가 요구사항).
+ * 이전엔 여기서 marginXMm/marginYMm까지 계산해 각 셀을 절대좌표(position:absolute)로
+ * 배치했는데, 그 방식은 "페이지가 꽉 찼을 때" 기준으로만 여백을 계산해서 마지막 페이지에
+ * 항목이 적게 남으면(예: 9개 중 1개) 그 여백 그대로 좌상단에 남아 화면이 한쪽으로
+ * 심하게 치우쳐 보이는 문제가 있었다. CSS Grid는 그 페이지에 실제로 있는 항목 수만큼의
+ * 트랙만 채워 그 블록 자체를 중앙에 두므로 이 문제가 구조적으로 발생하지 않는다.
  */
 
 export const A4_WIDTH_MM = 210;
 export const A4_HEIGHT_MM = 297;
 
-export interface GridConfig {
+export interface GridDimensions {
   cols: number;
   rows: number;
-  cellWidthMm: number;
-  cellHeightMm: number;
-  gapMm: number;
-}
-
-export interface GridLayout extends GridConfig {
-  marginXMm: number;
-  marginYMm: number;
   perPage: number;
 }
 
-/** 고정된 열/행/셀크기/간격으로 그리드를 A4 페이지 가운데에 배치했을 때의 여백을 계산한다. */
-export function computeGrid(config: GridConfig, pageWidthMm = A4_WIDTH_MM, pageHeightMm = A4_HEIGHT_MM): GridLayout {
-  const { cols, rows, cellWidthMm, cellHeightMm, gapMm } = config;
-  const usedWidth = cols * cellWidthMm + (cols - 1) * gapMm;
-  const usedHeight = rows * cellHeightMm + (rows - 1) * gapMm;
-  return {
-    ...config,
-    marginXMm: (pageWidthMm - usedWidth) / 2,
-    marginYMm: (pageHeightMm - usedHeight) / 2,
-    perPage: cols * rows,
-  };
-}
-
-export interface MaxFitConfig {
-  cellWidthMm: number;
-  cellHeightMm: number;
-  gapMm: number;
-}
-
-/** 셀 크기만으로 페이지에 최대한 많이 들어가는 열/행 수를 역산한 뒤 computeGrid로 여백까지 계산한다. */
-export function computeMaxFitGrid(config: MaxFitConfig, pageWidthMm = A4_WIDTH_MM, pageHeightMm = A4_HEIGHT_MM): GridLayout {
-  const { cellWidthMm, cellHeightMm, gapMm } = config;
+/** 셀 크기만으로 페이지에 최대한 많이 들어가는 열/행 수를 역산한다(GC 코드 스티커 —
+ * "A4에 최대한 효율적으로 배치"). */
+export function computeMaxFitGrid(
+  cellWidthMm: number,
+  cellHeightMm: number,
+  gapMm: number,
+  pageWidthMm = A4_WIDTH_MM,
+  pageHeightMm = A4_HEIGHT_MM,
+): GridDimensions {
   const cols = Math.max(1, Math.floor((pageWidthMm + gapMm) / (cellWidthMm + gapMm)));
   const rows = Math.max(1, Math.floor((pageHeightMm + gapMm) / (cellHeightMm + gapMm)));
-  return computeGrid({ cols, rows, cellWidthMm, cellHeightMm, gapMm }, pageWidthMm, pageHeightMm);
+  return { cols, rows, perPage: cols * rows };
 }
 
 /** 전체 항목을 perPage개씩 페이지로 나눈다. 항목이 없으면 빈 배열을 반환한다. */
@@ -65,4 +41,16 @@ export function paginate<T>(items: T[], perPage: number): T[][] {
     pages.push(items.slice(i, i + perPage));
   }
   return pages;
+}
+
+/** 한 페이지 분량을 cols개씩 행으로 나눈다. 렌더링 쪽에서 각 행을 독립된 flex row로
+ * 그려야 마지막 행(항목 수가 cols보다 적은 행)도 자기 폭 기준으로 중앙 정렬된다 —
+ * 페이지 전체를 하나의 고정 열 그리드로 그리면 마지막 행이 항상 왼쪽으로 쏠린다. */
+export function chunkRows<T>(items: T[], cols: number): T[][] {
+  if (cols <= 0 || items.length === 0) return [];
+  const rows: T[][] = [];
+  for (let i = 0; i < items.length; i += cols) {
+    rows.push(items.slice(i, i + cols));
+  }
+  return rows;
 }

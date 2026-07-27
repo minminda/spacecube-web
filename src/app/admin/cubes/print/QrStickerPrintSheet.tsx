@@ -1,5 +1,5 @@
 import { buildQrMatrix } from "@/lib/qrVector";
-import { computeGrid, paginate } from "@/lib/printSheet";
+import { paginate, chunkRows, A4_WIDTH_MM, A4_HEIGHT_MM } from "@/lib/printSheet";
 import { CENTER_LOGO_RATIO, CENTER_LOGO_FONT_RATIO, CENTER_LOGO_BORDER_RATIO, CENTER_LOGO_LINES, LINE_GAP_RATIO } from "@/lib/qrLogo";
 import {
   QR_CUT_SIZE_MM,
@@ -13,7 +13,6 @@ import {
   CUT_LINE_COLOR,
   CUT_LINE_WIDTH_MM,
 } from "@/lib/stickerSpec";
-import { A4_WIDTH_MM, A4_HEIGHT_MM } from "@/lib/printSheet";
 
 export interface PrintCubeInput {
   code: string;
@@ -96,34 +95,40 @@ function QrCellSvg({ url }: { url: string }) {
 }
 
 export default function QrStickerPrintSheet({ cubes }: { cubes: PrintCubeInput[] }) {
-  const layout = computeGrid({ cols: QR_GRID_COLS, rows: QR_GRID_ROWS, cellWidthMm: QR_WORK_SIZE_MM, cellHeightMm: QR_WORK_SIZE_MM, gapMm: QR_GAP_MM });
-  const pages = paginate(cubes, layout.perPage);
+  const perPage = QR_GRID_COLS * QR_GRID_ROWS;
+  const pages = paginate(cubes, perPage);
 
   return (
     <>
-      {pages.map((page, pageIndex) => (
-        <div
-          key={pageIndex}
-          style={{
-            width: `${A4_WIDTH_MM}mm`,
-            height: `${A4_HEIGHT_MM}mm`,
-            position: "relative",
-            breakAfter: pageIndex < pages.length - 1 ? "page" : "auto",
-          }}
-        >
-          {page.map((cube, i) => {
-            const col = i % layout.cols;
-            const row = Math.floor(i / layout.cols);
-            const left = layout.marginXMm + col * (QR_WORK_SIZE_MM + QR_GAP_MM);
-            const top = layout.marginYMm + row * (QR_WORK_SIZE_MM + QR_GAP_MM);
-            return (
-              <div key={cube.code} style={{ position: "absolute", left: `${left}mm`, top: `${top}mm` }}>
-                <QrCellSvg url={cube.url} />
+      {pages.map((page, pageIndex) => {
+        const rows = chunkRows(page, QR_GRID_COLS);
+        return (
+          <div
+            key={pageIndex}
+            style={{
+              width: `${A4_WIDTH_MM}mm`,
+              height: `${A4_HEIGHT_MM}mm`,
+              display: "flex",
+              flexDirection: "column",
+              // 행 묶음 전체를 세로로 가운데 정렬(justifyContent)하고, 각 행은 자기 너비
+              // 기준으로 가로 가운데 정렬(alignItems)한다 — 마지막 행에 3개보다 적게
+              // 남아도 그 행 자체가 페이지 중앙에 오므로 한쪽으로 치우치지 않는다.
+              justifyContent: "center",
+              alignItems: "center",
+              gap: `${QR_GAP_MM}mm`,
+              breakAfter: pageIndex < pages.length - 1 ? "page" : "auto",
+            }}
+          >
+            {rows.map((row, rowIndex) => (
+              <div key={rowIndex} style={{ display: "flex", flexDirection: "row", gap: `${QR_GAP_MM}mm` }}>
+                {row.map((cube) => (
+                  <QrCellSvg key={cube.code} url={cube.url} />
+                ))}
               </div>
-            );
-          })}
-        </div>
-      ))}
+            ))}
+          </div>
+        );
+      })}
     </>
   );
 }

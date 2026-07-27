@@ -1,4 +1,4 @@
-import { computeMaxFitGrid, paginate, A4_WIDTH_MM, A4_HEIGHT_MM } from "@/lib/printSheet";
+import { computeMaxFitGrid, paginate, chunkRows, A4_WIDTH_MM, A4_HEIGHT_MM } from "@/lib/printSheet";
 import { GC_CUT_WIDTH_MM, GC_CUT_HEIGHT_MM, GC_BLEED_MM, GC_WORK_WIDTH_MM, GC_WORK_HEIGHT_MM, GC_GAP_MM, GC_TEXT_MARGIN_MM, CUT_LINE_COLOR, CUT_LINE_WIDTH_MM } from "@/lib/stickerSpec";
 
 /** work 셀(24x10+블리드mm) 좌표계 안에 도무송 칼선(재단사이즈 기준) + 코드 텍스트만 그린다.
@@ -38,34 +38,40 @@ function GcCodeCellSvg({ code }: { code: string }) {
 }
 
 export default function GcCodeStickerPrintSheet({ codes }: { codes: string[] }) {
-  const layout = computeMaxFitGrid({ cellWidthMm: GC_WORK_WIDTH_MM, cellHeightMm: GC_WORK_HEIGHT_MM, gapMm: GC_GAP_MM });
+  const layout = computeMaxFitGrid(GC_WORK_WIDTH_MM, GC_WORK_HEIGHT_MM, GC_GAP_MM);
   const pages = paginate(codes, layout.perPage);
 
   return (
     <>
-      {pages.map((page, pageIndex) => (
-        <div
-          key={pageIndex}
-          style={{
-            width: `${A4_WIDTH_MM}mm`,
-            height: `${A4_HEIGHT_MM}mm`,
-            position: "relative",
-            breakAfter: pageIndex < pages.length - 1 ? "page" : "auto",
-          }}
-        >
-          {page.map((code, i) => {
-            const col = i % layout.cols;
-            const row = Math.floor(i / layout.cols);
-            const left = layout.marginXMm + col * (GC_WORK_WIDTH_MM + GC_GAP_MM);
-            const top = layout.marginYMm + row * (GC_WORK_HEIGHT_MM + GC_GAP_MM);
-            return (
-              <div key={code} style={{ position: "absolute", left: `${left}mm`, top: `${top}mm` }}>
-                <GcCodeCellSvg code={code} />
+      {pages.map((page, pageIndex) => {
+        const rows = chunkRows(page, layout.cols);
+        return (
+          <div
+            key={pageIndex}
+            style={{
+              width: `${A4_WIDTH_MM}mm`,
+              height: `${A4_HEIGHT_MM}mm`,
+              display: "flex",
+              flexDirection: "column",
+              // QR 스티커와 동일한 원리 — 열 수는 페이지 크기에서 역산하되, 각 행을
+              // 자기 너비 기준으로 가로 중앙 정렬해 마지막 행(또는 항목이 적은 페이지)도
+              // 왼쪽으로 쏠리지 않고 항상 페이지 중앙에서 균형을 유지한다.
+              justifyContent: "center",
+              alignItems: "center",
+              gap: `${GC_GAP_MM}mm`,
+              breakAfter: pageIndex < pages.length - 1 ? "page" : "auto",
+            }}
+          >
+            {rows.map((row, rowIndex) => (
+              <div key={rowIndex} style={{ display: "flex", flexDirection: "row", gap: `${GC_GAP_MM}mm` }}>
+                {row.map((code) => (
+                  <GcCodeCellSvg key={code} code={code} />
+                ))}
               </div>
-            );
-          })}
-        </div>
-      ))}
+            ))}
+          </div>
+        );
+      })}
     </>
   );
 }
