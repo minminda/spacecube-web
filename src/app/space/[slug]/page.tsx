@@ -321,13 +321,16 @@ export default async function SpacePage({ params }: Props) {
           </Link>
         </div>
 
-        <div className="sticky bottom-0 px-6 pb-8 pt-4" style={{ background: "var(--bg)", borderTop: "1px solid var(--border)" }}>
+        <div
+          className="sticky bottom-0 px-6 pt-4"
+          style={{ background: "var(--bg)", borderTop: "1px solid var(--border)", paddingBottom: "calc(2rem + env(safe-area-inset-bottom))" }}
+        >
           <Link
             href={ctaHref}
-            className="block w-full text-center text-sm font-medium py-3 border hover:bg-[var(--fg)] hover:text-[var(--bg)] transition-colors"
+            className="tap-target flex items-center justify-center w-full text-center text-sm font-medium py-3 border hover:bg-[var(--fg)] hover:text-[var(--bg)] transition-colors"
             style={{ borderColor: "var(--fg)" }}
           >
-            기록하고 흔적 열기
+            방명록 열기
           </Link>
         </div>
       </div>

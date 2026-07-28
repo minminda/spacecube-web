@@ -32,14 +32,14 @@ export default function SpaceLockNotice({ naverMapUrl, backHref, backLabel = "�
             href={naverMapUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="w-full text-center text-sm py-3 border"
+            className="tap-target flex items-center justify-center w-full text-center text-sm py-3 border"
             style={{ borderColor: "var(--fg)" }}
           >
             위치 확인하기
           </a>
         )}
         {backHref && (
-          <Link href={backHref} className="w-full text-center text-sm py-3 border" style={{ borderColor: "var(--border)", color: "var(--dim)" }}>
+          <Link href={backHref} className="tap-target flex items-center justify-center w-full text-center text-sm py-3 border" style={{ borderColor: "var(--border)", color: "var(--dim)" }}>
             {backLabel}
           </Link>
         )}

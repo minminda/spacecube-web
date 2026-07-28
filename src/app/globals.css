@@ -35,6 +35,13 @@ body {
   font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
   -webkit-font-smoothing: antialiased;
   letter-spacing: -0.01em;
+  /* 한글은 단어(어절) 중간에서 줄바꿈되지 않게 하는 게 기본이어야 자연스럽다 — 페이지마다
+     break-keep 클래스를 반복해서 붙이는 대신 여기서 한 번에 상속시킨다. word-break는 상속
+     속성이라 이 값이 명시적으로 오버라이드(Tailwind의 break-all/break-words 등, 클래스
+     선택자라 엘리먼트 선택자보다 우선순위가 높음)되지 않는 한 모든 하위 요소에 적용된다.
+     overflow-wrap은 keep-all이 못 끊는 긴 영단어/URL이 컨테이너를 넘칠 때의 최후 안전장치. */
+  word-break: keep-all;
+  overflow-wrap: break-word;
 }
 
 ::selection {
@@ -90,7 +97,7 @@ body {
   margin-top: 20px;
 }
 
-/* ── 모바일 탭 타깃 — 하단 고정/주요 CTA 버튼 공용 최소 높이(44px). */
+/* ── 모바일 탭 타깃 — 주요 CTA 버튼 공용 최소 높이. */
 .tap-target {
-  min-height: 44px;
+  min-height: 48px;
 }

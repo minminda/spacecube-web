@@ -148,7 +148,12 @@ export default function SpaceDiscoveryCard({ space, isUnlocked, variant = "defau
             aria-label="잠긴 공간 안내"
             onClick={(e) => e.stopPropagation()}
             className="w-full sm:max-w-sm p-6 space-y-5"
-            style={{ background: "var(--bg)", border: "1px solid var(--border)", borderBottom: "none" }}
+            style={{
+              background: "var(--bg)",
+              border: "1px solid var(--border)",
+              borderBottom: "none",
+              paddingBottom: "calc(1.5rem + env(safe-area-inset-bottom))",
+            }}
           >
             <div className="space-y-2.5">
               <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>{space.name}</p>
@@ -163,7 +168,7 @@ export default function SpaceDiscoveryCard({ space, isUnlocked, variant = "defau
                   href={space.naverMapUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-full text-center text-sm py-3 border"
+                  className="tap-target flex items-center justify-center w-full text-center text-sm py-3 border"
                   style={{ borderColor: "var(--fg)" }}
                 >
                   위치 보기
@@ -172,7 +177,7 @@ export default function SpaceDiscoveryCard({ space, isUnlocked, variant = "defau
               <button
                 type="button"
                 onClick={() => setDialogOpen(false)}
-                className="w-full text-sm py-3 border"
+                className="tap-target w-full text-sm py-3 border"
                 style={{ borderColor: "var(--border)", color: "var(--dim)" }}
               >
                 닫기

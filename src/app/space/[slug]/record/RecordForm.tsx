@@ -260,11 +260,9 @@ export default function RecordForm({ space, spaceTags, displayTagGroups, visitCo
         {loading
           ? "// 저장 중..."
           : hasSavedThisVisit && !isDirty
-          ? "[[ 방명록 다시 보기 ]]"
+          ? "[[ 방명록 다시 열기 ]]"
           : hasSavedThisVisit && isDirty
           ? "[[ 변경한 점수로 업데이트 ]]"
-          : isUnlock
-          ? "[[ 흔적 보러가기 ]]"
           : "[[ 방명록 열기 ]]"}
       </button>
     </main>

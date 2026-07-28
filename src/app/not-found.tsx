@@ -19,7 +19,7 @@ export default function NotFound() {
 
       <Link
         href="/"
-        className="text-sm py-2 px-4 border hover:bg-[var(--fg)] hover:text-[var(--bg)] transition-colors text-center"
+        className="tap-target flex items-center justify-center text-sm py-2 px-4 border hover:bg-[var(--fg)] hover:text-[var(--bg)] transition-colors text-center"
         style={{ borderColor: "var(--fg)" }}
       >
         [[ 홈으로 ]]

@@ -166,7 +166,7 @@ export default async function ArchiveSpaceDetailPage({ params }: Props) {
 
       <Link
         href={`/space/${space.slug}`}
-        className="block text-center text-sm font-medium py-3 border hover:bg-[var(--fg)] hover:text-[var(--bg)] transition-colors"
+        className="tap-target flex items-center justify-center text-center text-sm font-medium py-3 border hover:bg-[var(--fg)] hover:text-[var(--bg)] transition-colors"
         style={{ borderColor: "var(--fg)" }}
       >
         공간 이야기 보러가기

@@ -175,7 +175,7 @@ export default async function StoryPage({ params }: Props) {
         </p>
         <Link
           href={`/discover${story.district ? `?district=${encodeURIComponent(story.district)}` : ""}`}
-          className="block w-full text-center text-sm font-medium py-3 border hover:bg-[var(--fg)] hover:text-[var(--bg)] transition-colors"
+          className="tap-target flex items-center justify-center w-full text-center text-sm font-medium py-3 border hover:bg-[var(--fg)] hover:text-[var(--bg)] transition-colors"
           style={{ borderColor: "var(--fg)" }}
         >
           공간 둘러보기 →

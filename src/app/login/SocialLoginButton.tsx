@@ -17,7 +17,7 @@ export default function SocialLoginButton({ children, style, className }: Props)
     <button
       type="submit"
       disabled={pending}
-      className={`w-full text-sm font-medium py-3 border transition-opacity disabled:opacity-60 ${className ?? ""}`}
+      className={`tap-target w-full text-sm font-medium py-3 border transition-opacity disabled:opacity-60 ${className ?? ""}`}
       style={style}
     >
       {pending ? "이동 중..." : children}

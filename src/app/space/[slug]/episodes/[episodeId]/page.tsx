@@ -304,7 +304,7 @@ export default async function EpisodeDetailPage({ params }: Props) {
           className="tap-target flex items-center justify-center w-full text-center text-sm py-3 border hover:bg-[var(--fg)] hover:text-[var(--bg)] transition-colors"
           style={{ borderColor: "var(--fg)" }}
         >
-          기록하고 흔적 열기
+          방명록 열기
         </Link>
         <Link href={`/space/${space.slug}`} className="text-xs text-center py-1" style={{ color: "var(--border)" }}>
           공간 페이지로 돌아가기

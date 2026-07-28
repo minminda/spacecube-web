@@ -114,7 +114,7 @@ export default function AboutPage() {
       <div className="px-6 py-10">
         <Link
           href="/discover"
-          className="block w-full text-center text-sm font-medium py-3 border hover:bg-[var(--fg)] hover:text-[var(--bg)] transition-colors"
+          className="tap-target flex items-center justify-center w-full text-center text-sm font-medium py-3 border hover:bg-[var(--fg)] hover:text-[var(--bg)] transition-colors"
           style={{ borderColor: "var(--fg)" }}
         >
           공간 둘러보기 →

@@ -156,7 +156,7 @@ export default function WaitlistPage() {
         <button
           type="submit"
           disabled={submitting || !name.trim() || !phone.trim()}
-          className="w-full py-3 text-sm font-medium border transition-colors disabled:opacity-40"
+          className="tap-target w-full py-3 text-sm font-medium border transition-colors disabled:opacity-40"
           style={{
             borderColor: "var(--fg)",
             background: "var(--fg)",

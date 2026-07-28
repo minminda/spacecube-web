@@ -123,7 +123,7 @@ export default async function GuestbookPage({ params, searchParams }: Props) {
           className="tap-target inline-flex items-center justify-center text-sm py-3 px-6 border hover:bg-[var(--fg)] hover:text-[var(--bg)] transition-colors"
           style={{ borderColor: "var(--fg)" }}
         >
-          기록하고 흔적 열기
+          방명록 열기
         </Link>
         <Link href={`/space/${slug}`} className="text-xs" style={{ color: "var(--border)" }}>← 공간으로</Link>
       </main>

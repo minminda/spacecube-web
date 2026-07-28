@@ -65,7 +65,10 @@ export default function QrScanSheet() {
               className="fixed bottom-0 inset-x-0 z-50 rounded-t-3xl"
               style={{ background: "var(--bg)" }}
             >
-              <div className="mx-auto max-w-sm px-6 pt-3 pb-9 space-y-6">
+              <div
+                className="mx-auto max-w-sm px-6 pt-3 space-y-6"
+                style={{ paddingBottom: "calc(2.25rem + env(safe-area-inset-bottom))" }}
+              >
                 <div className="flex justify-center">
                   <div className="w-9 h-1 rounded-full" style={{ background: "var(--border)" }} />
                 </div>
