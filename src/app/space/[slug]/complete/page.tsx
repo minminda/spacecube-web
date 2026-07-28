@@ -56,10 +56,18 @@ export default async function VisitCompletePage({ params, searchParams }: Props)
 
   // 이번 방문에서 포스트잇을 남겼는지 — "사용자가 이 공간에 흔적을 하나라도 가지고 있는지"가
   // 아니라, 이번 Record와 정확히 연결된 GuestbookNote가 있는지로 판정한다.
-  const noteThisVisit = await prisma.guestbookNote.findFirst({
-    where: { recordId: record.id },
-    select: { id: true },
-  });
+  const [noteThisVisit] = await Promise.all([
+    prisma.guestbookNote.findFirst({
+      where: { recordId: record.id },
+      select: { id: true },
+    }),
+    // 파일럿 최소 계측(recommendation_view) — 이번 방문이 실제로 완료·추천 화면에 도달했음을
+    // 1회만 기록한다(추천 후보 유무와 무관, "완료 화면을 확인한 시점" 자체를 기록).
+    prisma.record.updateMany({
+      where: { id: record.id, recommendationViewedAt: null },
+      data: { recommendationViewedAt: new Date() },
+    }).catch(() => {}),
+  ]);
   const wroteThisVisit = !!noteThisVisit;
 
   // 추천/취향 업데이트 요약은 기존 buildRewardSummary(= buildWeightedTasteVector →

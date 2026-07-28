@@ -578,6 +578,11 @@ model Record {
   tasteScore Int? // 취향 적합도 1~5 (신규 기록 UX)
   visitedAt  DateTime @default(now())
 
+  // 파일럿 최소 계측 — 이번 방문(Record)이 해당 화면에 실제로 도달한 최초 시각(선택, 1회만 기록).
+  // 새 이벤트 테이블 대신 이미 "방문 1건"을 대표하는 이 행에 직접 얹는다.
+  guestbookViewedAt      DateTime?
+  recommendationViewedAt DateTime?
+
   user  User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   space Space       @relation(fields: [spaceId], references: [id], onDelete: Cascade)
   tags  RecordTag[]

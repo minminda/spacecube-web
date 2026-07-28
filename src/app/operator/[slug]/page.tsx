@@ -14,7 +14,7 @@ interface Props {
 }
 
 const MENU_ITEMS = [
-  { href: "space", title: "내 공간 관리", desc: "공개 중인 공간 페이지를 확인하고 수정 요청을 보냅니다." },
+  { href: "space", title: "내 공간 관리", desc: "공개 중인 공간 페이지를 확인합니다." },
   { href: "guestbook", title: "방명록 관리", desc: "방명록 화면을 설정하고 방문자의 기록을 관리합니다." },
 ] as const;
 

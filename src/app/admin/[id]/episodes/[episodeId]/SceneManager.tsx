@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import ImagePositionEditor, { type ImageTransform } from "@/components/ImagePositionEditor";
 import { useToast } from "@/hooks/useToast";
 import Toast from "@/components/Toast";
+import { validateSceneFields } from "@/lib/sceneInput";
 
 interface SceneData {
   id: string;
@@ -146,7 +147,10 @@ function SceneCard({
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
+  const validation = validateSceneFields(title, content);
+
   async function save() {
+    if (!validation.ok) return;
     setSaving(true);
     const res = await fetch(`/api/scenes/${scene.id}`, {
       method: "PATCH",
@@ -254,14 +258,19 @@ function SceneCard({
           )}
           <button
             onClick={save}
-            disabled={saving}
+            disabled={saving || !validation.ok}
             className="text-xs px-3 py-1 border transition-colors hover:bg-[var(--fg)] hover:text-[var(--bg)] disabled:opacity-40"
             style={{ borderColor: "var(--fg)" }}
+            title={!validation.ok ? validation.error : undefined}
           >
             {saving ? "저장 중..." : "저장"}
           </button>
         </div>
       </div>
+
+      {!validation.ok && (
+        <p className="text-xs" style={{ color: "#c0392b" }}>{validation.error}</p>
+      )}
     </div>
   );
 }

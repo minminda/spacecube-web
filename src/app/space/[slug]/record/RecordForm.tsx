@@ -6,6 +6,9 @@ import { TagKey } from "@prisma/client";
 import { TAG_LABELS, ALL_TAGS } from "@/lib/tags";
 import TagChip from "@/components/TagChip";
 import { ENABLE_RECORD_TAG_SELECTION } from "@/lib/features";
+import { formatFetchException } from "@/lib/formatFetchError";
+
+const SUBMIT_TIMEOUT_MS = 10_000;
 
 const MAX_TAGS = 2;
 
@@ -37,6 +40,7 @@ export default function RecordForm({ space, spaceTags, displayTagGroups, visitCo
   const [selectedTags, setSelectedTags] = useState<TagKey[]>([]);
   const [tasteScore, setTasteScore] = useState<number | null>(currentVisitRecord?.tasteScore ?? null);
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const isRevisit = !isUnlock && visitCount > 0;
   const visitNumber = visitCount + 1;
@@ -68,7 +72,7 @@ export default function RecordForm({ space, spaceTags, displayTagGroups, visitCo
     : tasteScore !== null;
 
   async function handleSubmit() {
-    if (!canSubmit) return;
+    if (!canSubmit || loading) return;
 
     // 이번 방문에 이미 저장된 점수를 그대로 두고 있다면(수정하지 않았다면) 다시
     // 저장을 시도하지 않고 방명록으로 바로 이동한다 — 같은 페이지에서 재제출을
@@ -81,23 +85,35 @@ export default function RecordForm({ space, spaceTags, displayTagGroups, visitCo
     }
 
     setLoading(true);
-    const res = await fetch("/api/records", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        spaceId: space.id,
-        tasteScore,
-        ...(ENABLE_RECORD_TAG_SELECTION ? { tags: selectedTags } : {}),
-      }),
-    });
-    if (res.ok) {
-      const saved = await res.json().catch(() => null);
-      // 이번 방문에서 생성/갱신된 Record를 방명록이 식별할 수 있게 id를 넘긴다(점수 값 자체는 넘기지 않음).
-      const visitParam = saved?.id ? `visit=${saved.id}` : "";
-      // unlock: 흔적을 보러 감(view) / record: 흔적을 남기러 감(write)
-      const query = isUnlock ? visitParam : ["mode=write", visitParam].filter(Boolean).join("&");
-      router.push(`/space/${space.slug}/guestbook${query ? `?${query}` : ""}`);
-    } else {
+    setErrorMessage(null);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), SUBMIT_TIMEOUT_MS);
+    try {
+      const res = await fetch("/api/records", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          spaceId: space.id,
+          tasteScore,
+          ...(ENABLE_RECORD_TAG_SELECTION ? { tags: selectedTags } : {}),
+        }),
+        signal: controller.signal,
+      });
+      if (res.ok) {
+        const saved = await res.json().catch(() => null);
+        // 이번 방문에서 생성/갱신된 Record를 방명록이 식별할 수 있게 id를 넘긴다(점수 값 자체는 넘기지 않음).
+        const visitParam = saved?.id ? `visit=${saved.id}` : "";
+        // unlock: 흔적을 보러 감(view) / record: 흔적을 남기러 감(write)
+        const query = isUnlock ? visitParam : ["mode=write", visitParam].filter(Boolean).join("&");
+        router.push(`/space/${space.slug}/guestbook${query ? `?${query}` : ""}`);
+        return;
+      }
+      const data = await res.json().catch(() => ({}));
+      setErrorMessage(data.error ?? "저장에 실패했어요. 다시 시도해주세요.");
+    } catch (err) {
+      setErrorMessage(formatFetchException(err));
+    } finally {
+      clearTimeout(timeout);
       setLoading(false);
     }
   }
@@ -253,6 +269,10 @@ export default function RecordForm({ space, spaceTags, displayTagGroups, visitCo
           </>
         )}
       </p>
+
+      {errorMessage && (
+        <p className="text-xs leading-relaxed break-keep" style={{ color: "#c0392b" }}>{errorMessage}</p>
+      )}
 
       <button onClick={handleSubmit} disabled={!canSubmit || loading}
         className="tap-target w-full text-sm py-3 px-4 border hover:bg-[var(--fg)] hover:text-[var(--bg)] transition-colors disabled:opacity-30"

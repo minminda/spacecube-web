@@ -163,6 +163,15 @@ export default async function GuestbookPage({ params, searchParams }: Props) {
           where: { userId: user.id, guestbookSessionId: activeSession.id, recordId: currentRecordId },
         })
       : Promise.resolve(0),
+    // 파일럿 최소 계측(guestbook_view) — 이번 방문이 실제로 방명록 캔버스에 도달했음을
+    // 1회만 기록한다(where에 IS NULL 조건이 있어 이미 값이 있으면 자연스럽게 no-op).
+    // 실패해도 화면 렌더에는 영향 없도록 조용히 무시한다.
+    currentRecordId
+      ? prisma.record.updateMany({
+          where: { id: currentRecordId, guestbookViewedAt: null },
+          data: { guestbookViewedAt: new Date() },
+        }).catch(() => {})
+      : Promise.resolve(),
   ]);
 
   // "한 번의 방문은 하나의 흔적을 남긴다" — 내 흔적 중 가장 최근 것(있다면), 그리고 이번 방문에

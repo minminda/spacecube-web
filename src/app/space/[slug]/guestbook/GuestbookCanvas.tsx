@@ -27,6 +27,9 @@ import {
 } from "@/lib/postitCollision";
 import { computeInitialViewport } from "@/lib/guestbookViewport";
 import { useToast } from "@/hooks/useToast";
+import { formatFetchException } from "@/lib/formatFetchError";
+
+const SUBMIT_TIMEOUT_MS = 10_000;
 
 const ALREADY_COMMENTED_MSG = "이번 방문의 답글을 이미 남겼습니다. 다음 방문에서 새로운 답글을 남길 수 있어요.";
 
@@ -450,6 +453,8 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
   async function handleSubmit() {
     if (!composer || !content.trim() || saving) return;
     setSaving(true);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), SUBMIT_TIMEOUT_MS);
     try {
       const res = await fetch("/api/guestbook", {
         method: "POST",
@@ -463,12 +468,25 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
           imageUrl: photoUrl,
           clusterType: composerClusterType,
         }),
+        signal: controller.signal,
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         if (data.code === "POSITION_OCCUPIED" || data.code === "POSTIT_POSITION_OCCUPIED") {
           showToast("다른 사람이 방금 이 자리에 흔적을 남겼어요. 다른 위치를 골라주세요.");
           cancelCompose();
+          return;
+        }
+        if (data.code === "VISIT_ALREADY_POSTED") {
+          // 응답을 못 받은 채 재시도한 경우 등 — 실제로는 이전 시도가 이미 성공한 상태다.
+          // 실패로 보이지 않게 성공과 동일하게 캔버스를 정리한다(새로고침하면 내 흔적이 보인다).
+          showToast("이번 방문에 이미 흔적을 남기셨어요.");
+          setComposer(null);
+          setContent("");
+          setPhotoPreview(null);
+          setPhotoUrl(null);
+          preComposeTransformRef.current = null;
+          exitWriteMode();
           return;
         }
         showToast(data.error ?? "저장에 실패했습니다.");
@@ -489,7 +507,10 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
       // 포스트잇 저장만으로 캔버스를 닫거나 추천을 강제로 띄우지 않는다 — 짧은 완료 피드백만 주고
       // 캔버스 탐색을 계속할 수 있게 둔다. 추천은 "다음으로"(handleFinishVisit)를 눌렀을 때만 노출.
       showToast("흔적이 저장되었습니다.");
+    } catch (err) {
+      showToast(formatFetchException(err));
     } finally {
+      clearTimeout(timeout);
       setSaving(false);
     }
   }
