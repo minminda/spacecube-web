@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useLayoutEffect, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -46,8 +46,8 @@ const DEFAULT_SCALE = 0.35; // 콘텐츠가 없을 때 쓰는 안정적인 기�
 const MIN_INITIAL_SCALE = 0.16; // 최종(줌아웃 후) 배율 하한 — 질문/포스트잇이 너무 작아 안 보이는 걸 방지
 const MAX_INITIAL_SCALE = 0.9; // 최종(줌아웃 후) 배율 상한 — 콘텐츠가 아주 좁게 몰려 있어도 과하게 확대되지 않도록
 const MAX_SCALE = 2.2; // 캔버스 전체 최대 줌 — TransformWrapper와 진입 연출 시작 배율 계산이 공유하는 상한
-const INTRO_HOLD_MS = 350; // 확대된 시작 지점에서 잠깐 머무는 시간(0.3~0.8s)
-const INTRO_DURATION_MS = 2000; // 목표 배율까지 줌아웃하는 시간(1.5~2.5s)
+const INTRO_HOLD_MS = 150; // 확대된 시작 지점에서 잠깐 머무는 시간
+const INTRO_DURATION_MS = 700; // 목표 배율까지 줌아웃하는 시간 — 전체 진입 연출(hold+줌아웃)이 약 700~1000ms 범위에 들어오도록
 const INTRO_START_SCALE_MULTIPLIER = 1.6; // 시작 배율 = 목표 배율의 약 1.4~1.8배
 const GRID_CELL_W = 220;
 const GRID_CELL_H = 260;
@@ -199,11 +199,18 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
   // "특정 좌표로 강제 이동"이 아니라 이번 세션의 질문 군집 + 포스트잇 좌표로 계산한 중심을
   // 기준으로 하며, 페이지 진입 시 한 번만 실행되고(포스트잇 작성/공감/내 기록 이동 등으로
   // 다시 실행되지 않음) 사용자 조작이 시작되면 cancelIntro()가 즉시 중단시킨다.
-  useLayoutEffect(() => {
+  //
+  // TransformWrapper의 onInit에서 트리거한다 — react-zoom-pan-pinch는 자신의 wrapper/content DOM을
+  // useEffect(패시브 이펙트)에서 연결하므로, 여기서 useLayoutEffect로 setTransform을 먼저 호출하면
+  // 라이브러리가 아직 준비되지 않아 조용히 무시된다(관찰됨: 화면이 그냥 기본 배율로 시작해버림).
+  // onInit은 라이브러리가 실제로 준비된 시점에 정확히 한 번 불리므로 이 경쟁 상태가 없다.
+  const introRanRef = useRef(false);
+  const startIntro = useCallback((ctrl: ReactZoomPanPinchContentRef) => {
+    if (introRanRef.current) return; // StrictMode 등으로 인한 중복 호출 방지
     if (focusId) return; // focus 진입(딥링크)은 별도 effect가 특정 포스트잇으로 바로 이동시킨다
     const viewport = viewportRef.current;
-    const ctrl = transformRef.current;
-    if (!viewport || !ctrl) return;
+    if (!viewport) return;
+    introRanRef.current = true;
 
     const { clientWidth, clientHeight } = viewport;
     const points = [
@@ -215,12 +222,21 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
     const targetScale = points.length === 0
       ? DEFAULT_SCALE
       : Math.min(Math.max((Math.min(clientWidth, clientHeight) / span) * settings.initialZoom, MIN_INITIAL_SCALE), MAX_INITIAL_SCALE);
-    const startScale = Math.min(targetScale * INTRO_START_SCALE_MULTIPLIER, MAX_SCALE);
-
-    const startX = clientWidth / 2 - cx * startScale;
-    const startY = clientHeight / 2 - cy * startScale;
     const endX = clientWidth / 2 - cx * targetScale;
     const endY = clientHeight / 2 - cy * targetScale;
+
+    // 모션 감소 환경 — 확대→줌아웃 연출 없이 최종 fit-to-view 상태로 바로 진입
+    const reduceMotion = typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    if (reduceMotion) {
+      ctrl.setTransform(endX, endY, targetScale, 0);
+      setScalePct(Math.round(targetScale * 100));
+      setIntroPlaying(false);
+      return;
+    }
+
+    const startScale = Math.min(targetScale * INTRO_START_SCALE_MULTIPLIER, MAX_SCALE);
+    const startX = clientWidth / 2 - cx * startScale;
+    const startY = clientHeight / 2 - cy * startScale;
 
     ctrl.setTransform(startX, startY, startScale, 0);
     setScalePct(Math.round(startScale * 100));
@@ -234,12 +250,14 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
       introTimersRef.current.push(endTimer);
     }, INTRO_HOLD_MS);
     introTimersRef.current.push(holdTimer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusId]);
 
+  useEffect(() => {
     return () => {
       introTimersRef.current.forEach(clearTimeout);
       introTimersRef.current = [];
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   /** 캔버스 위 임의의 월드 좌표로 부드럽게 이동/확대하는 공통 함수.
@@ -709,6 +727,7 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
           pinch={{ step: 6 }}
           doubleClick={{ disabled: true }}
           panning={{ excluded: ["composer-block", "textarea", "button"] }}
+          onInit={(ref) => startIntro(ref)}
           onPanningStart={() => cancelIntro()}
           onWheelStart={() => cancelIntro()}
           onPinchStart={() => cancelIntro()}
@@ -1045,13 +1064,15 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
                   )}
 
                   {!isMine && focused.userId && (
-                    <Link
-                      href={`/taste/${focused.userId}`}
-                      className="inline-block mt-4 text-xs py-1.5 px-2.5 border transition-colors"
-                      style={{ borderColor: INK, color: INK }}
-                    >
-                      이 사용자의 공간 아카이브 보기 →
-                    </Link>
+                    <div className="mt-7">
+                      <Link
+                        href={`/taste/${focused.userId}`}
+                        className="inline-block text-xs py-1.5 px-2.5 border transition-colors"
+                        style={{ borderColor: INK, color: INK }}
+                      >
+                        이 사용자의 공간 아카이브 보기 →
+                      </Link>
+                    </div>
                   )}
 
                   {isMine && (
