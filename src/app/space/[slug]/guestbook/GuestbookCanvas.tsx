@@ -668,10 +668,10 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
               className="absolute inset-0 flex items-center justify-center pointer-events-none px-8"
             >
               <div className="text-center space-y-2">
-                <p className="text-sm leading-relaxed" style={{ color: "rgba(255,255,255,0.55)" }}>
+                <p className="text-sm leading-relaxed break-keep" style={{ color: "rgba(255,255,255,0.55)" }}>
                   아직 첫 번째 흔적을 기다리고 있습니다.
                 </p>
-                <p className="text-sm leading-relaxed" style={{ color: "rgba(255,255,255,0.55)" }}>
+                <p className="text-sm leading-relaxed break-keep" style={{ color: "rgba(255,255,255,0.55)" }}>
                   첫 번째 이야기를 남겨보세요.
                 </p>
               </div>
@@ -916,10 +916,10 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
             type="button"
             onClick={finishVisit}
             disabled={navigatingToComplete || !currentRecordId}
-            className="w-full min-h-[44px] text-sm font-medium py-3 px-3 transition-opacity disabled:opacity-40"
+            className="tap-target w-full text-sm font-medium py-3 px-3 transition-opacity disabled:opacity-40 break-keep"
             style={{ background: "#fff", color: "#000" }}
           >
-            {navigatingToComplete ? "이동 중..." : "이번 경험 마치기"}
+            {navigatingToComplete ? "이동 중..." : myNoteId ? "이번 경험 마치기" : "작성하지 않고 마치기"}
           </button>
         </div>
       </div>
@@ -1131,14 +1131,14 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
               className="w-full max-w-xs p-7 text-center space-y-4"
               style={{ background: "#111", border: "1px solid #2a2a2a" }}
             >
-              <p className="text-sm leading-relaxed" style={{ color: "#eee" }}>
+              <p className="text-sm leading-relaxed break-keep" style={{ color: "#eee" }}>
                 지난 방문 이후
                 <br />새로운 흔적 {newNotesCount}개가 추가되었습니다.
               </p>
               <button
                 type="button"
                 onClick={() => setRevisitNoticeOpen(false)}
-                className="w-full text-xs py-2.5 border transition-colors hover:bg-white hover:text-black"
+                className="tap-target w-full text-xs py-2.5 border transition-colors hover:bg-white hover:text-black"
                 style={{ borderColor: "#eee", color: "#eee" }}
               >
                 확인

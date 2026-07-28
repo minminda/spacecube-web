@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { normalizeCubeCode, getCubeByCode, resolveCubeDestination } from "@/lib/cube";
+import { resolveEntryDestination } from "@/lib/episodeEntry";
 import { createQrAccessToken, grantSpaceUnlock, QR_ACCESS_COOKIE, QR_ACCESS_COOKIE_MAX_AGE_SECONDS } from "@/lib/spaceUnlock";
 
 export const dynamic = "force-dynamic";
@@ -52,9 +53,16 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ code
       /* 로그 기록 실패가 방문 자체를 막으면 안 된다 */
     });
 
-  // logged=1: 이 방문은 이미 위에서 기록했으니, 공간 페이지의 ScanTracker가 같은 방문을
-  // SpaceScan에 중복으로 남기지 않도록 신호를 함께 보낸다(기존 /c/[code] 동작과 동일).
-  const response = NextResponse.redirect(new URL(`/space/${destination.slug}?src=qr&logged=1`, origin));
+  // 사용자가 이미 QR을 찍은 상태이므로, 공간 페이지에서 다시 Episode를 고르게 하지 않고
+  // 대표 이야기(없으면 표시 순서가 가장 빠른 공개 이야기)로 바로 들여보낸다. 공개된 이야기가
+  // 하나도 없으면 공간 페이지로 폴백(그 페이지가 "준비 중" 상태를 이미 처리한다).
+  const entry = await resolveEntryDestination(cube.spaceId);
+  const destinationPath =
+    entry.type === "episode" ? `/space/${destination.slug}/episodes/${entry.episodeId}` : `/space/${destination.slug}`;
+
+  // logged=1: 이 방문은 이미 위에서 기록했으니, 도착 페이지의 ScanTracker(공간 페이지에만 있음)가
+  // 같은 방문을 SpaceScan에 중복으로 남기지 않도록 신호를 함께 보낸다(기존 /c/[code] 동작과 동일).
+  const response = NextResponse.redirect(new URL(`${destinationPath}?src=qr&logged=1`, origin));
 
   // 로그인 여부와 무관하게 항상 QR 접근 쿠키를 남긴다 — 비로그인 방문자는 이 쿠키만으로
   // 12시간 동안 이 공간을 읽을 수 있다(hasAnonymousSpaceAccess).

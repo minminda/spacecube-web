@@ -77,19 +77,19 @@ export default async function VisitCompletePage({ params, searchParams }: Props)
       <div className="space-y-2">
         {wroteThisVisit ? (
           <>
-            <p className="text-xl font-bold leading-snug whitespace-pre-line">
+            <p className="text-xl font-bold leading-snug break-keep whitespace-pre-line">
               {"당신의 흔적이\n이 공간에 남았습니다."}
             </p>
-            <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>
+            <p className="text-sm leading-relaxed break-keep" style={{ color: "var(--dim)" }}>
               이번 기록으로 당신의 취향이 조금 더 선명해졌어요.
             </p>
           </>
         ) : (
           <>
-            <p className="text-xl font-bold leading-snug whitespace-pre-line">
+            <p className="text-xl font-bold leading-snug break-keep whitespace-pre-line">
               {"이번 공간의 취향을\n저장했습니다."}
             </p>
-            <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>
+            <p className="text-sm leading-relaxed break-keep" style={{ color: "var(--dim)" }}>
               흔적을 남기지 않아도 당신의 취향에는 반영되었어요.
             </p>
           </>
@@ -156,7 +156,7 @@ export default async function VisitCompletePage({ params, searchParams }: Props)
         {summary.recommendations.length > 0 ? (
           <Link
             href="/discover"
-            className="block w-full text-center text-sm font-medium py-3 border hover:bg-[var(--fg)] hover:text-[var(--bg)] transition-colors"
+            className="tap-target flex items-center justify-center w-full text-center text-sm font-medium py-3 border hover:bg-[var(--fg)] hover:text-[var(--bg)] transition-colors"
             style={{ borderColor: "var(--fg)" }}
           >
             추천 공간 둘러보기
@@ -164,7 +164,7 @@ export default async function VisitCompletePage({ params, searchParams }: Props)
         ) : (
           <Link
             href="/archive"
-            className="block w-full text-center text-sm font-medium py-3 border hover:bg-[var(--fg)] hover:text-[var(--bg)] transition-colors"
+            className="tap-target flex items-center justify-center w-full text-center text-sm font-medium py-3 border hover:bg-[var(--fg)] hover:text-[var(--bg)] transition-colors"
             style={{ borderColor: "var(--fg)" }}
           >
             내 아카이브 보기

@@ -115,12 +115,12 @@ export default async function GuestbookPage({ params, searchParams }: Props) {
   if (!hasRecord) {
     return (
       <main className="flex flex-col items-center justify-center min-h-screen px-6 gap-6 text-center">
-        <p className="text-sm leading-relaxed whitespace-pre-line" style={{ color: "var(--dim)" }}>
+        <p className="text-sm leading-relaxed break-keep whitespace-pre-line" style={{ color: "var(--dim)" }}>
           {"이 공간에 대한 기록을 남기면\n다른 방문자들의 이야기를 볼 수 있어요."}
         </p>
         <Link
           href={`/space/${slug}/record`}
-          className="inline-block text-sm py-3 px-6 border hover:bg-[var(--fg)] hover:text-[var(--bg)] transition-colors"
+          className="tap-target inline-flex items-center justify-center text-sm py-3 px-6 border hover:bg-[var(--fg)] hover:text-[var(--bg)] transition-colors"
           style={{ borderColor: "var(--fg)" }}
         >
           기록하고 흔적 열기

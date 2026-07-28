@@ -77,3 +77,20 @@ body {
   from { opacity: 0; transform: translateY(8px); }
   to   { opacity: 1; transform: translateY(0); }
 }
+
+/* ── 모바일 우선 본문 타이포그래피 — 이야기(Episode) 본문처럼 긴 글을 읽는 화면에서 공용으로 쓴다.
+   한 줄에 너무 많은 글자가 들어가지 않도록 max-width는 각 페이지가 별도로 지정한다. */
+.story-copy {
+  font-size: 16px;
+  line-height: 1.75;
+  word-break: keep-all; /* 한글 단어 중간에서 줄바꿈되지 않도록 */
+  overflow-wrap: break-word; /* 긴 영어 단어/URL은 필요하면 화면 안에서 줄바꿈 */
+}
+.story-copy + .story-copy {
+  margin-top: 20px;
+}
+
+/* ── 모바일 탭 타깃 — 하단 고정/주요 CTA 버튼 공용 최소 높이(44px). */
+.tap-target {
+  min-height: 44px;
+}

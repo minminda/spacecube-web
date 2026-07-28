@@ -48,6 +48,7 @@ export default async function SpaceEpisodesPage({ params }: Props) {
           title: ep.title,
           unlockVisitCount: ep.unlockVisitCount,
           published: ep.published,
+          isFeatured: ep.isFeatured,
           sceneCount: ep._count.scenes,
         }))}
       />

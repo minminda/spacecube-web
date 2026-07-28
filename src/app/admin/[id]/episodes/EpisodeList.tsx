@@ -12,6 +12,7 @@ interface EpisodeRow {
   title: string;
   unlockVisitCount: number;
   published: boolean;
+  isFeatured: boolean;
   sceneCount: number;
 }
 
@@ -49,7 +50,7 @@ export default function EpisodeList({ spaceId, initialEpisodes }: Props) {
     const created = await res.json();
     setEpisodes((prev) => [
       ...prev,
-      { id: created.id, episodeNumber: created.episodeNumber, title: created.title, unlockVisitCount: created.unlockVisitCount, published: created.published, sceneCount: 0 },
+      { id: created.id, episodeNumber: created.episodeNumber, title: created.title, unlockVisitCount: created.unlockVisitCount, published: created.published, isFeatured: false, sceneCount: 0 },
     ]);
   }
 
@@ -63,6 +64,23 @@ export default function EpisodeList({ spaceId, initialEpisodes }: Props) {
     setBusyId(null);
     if (res.ok) {
       setEpisodes((prev) => prev.map((e) => (e.id === ep.id ? { ...e, published: !e.published } : e)));
+    } else {
+      showToast("변경에 실패했어요.");
+    }
+  }
+
+  /** 대표 이야기 지정/해제 — 공간당 최대 1개라 지정 시 다른 행의 배지도 함께 내려간다. */
+  async function toggleFeatured(ep: EpisodeRow) {
+    const nextFeatured = !ep.isFeatured;
+    setBusyId(ep.id);
+    const res = await fetch(`/api/episodes/${ep.id}/feature`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ featured: nextFeatured }),
+    });
+    setBusyId(null);
+    if (res.ok) {
+      setEpisodes((prev) => prev.map((e) => ({ ...e, isFeatured: e.id === ep.id ? nextFeatured : nextFeatured ? false : e.isFeatured })));
     } else {
       showToast("변경에 실패했어요.");
     }
@@ -133,7 +151,14 @@ export default function EpisodeList({ spaceId, initialEpisodes }: Props) {
             <div key={ep.id} className="p-4 border space-y-3" style={{ borderColor: "var(--border)", opacity: ep.published ? 1 : 0.55 }}>
               <div className="flex justify-between items-start">
                 <div className="space-y-1 text-xs" style={{ color: "var(--dim)" }}>
-                  <p style={{ color: "var(--fg)" }}>&gt; EP.{ep.episodeNumber} {ep.title}</p>
+                  <p style={{ color: "var(--fg)" }}>
+                    &gt; EP.{ep.episodeNumber} {ep.title}
+                    {ep.isFeatured && (
+                      <span className="ml-2 text-[10px] px-1.5 py-0.5 border" style={{ borderColor: "var(--fg)", color: "var(--fg)" }}>
+                        대표 이야기
+                      </span>
+                    )}
+                  </p>
                   <p>해금 방문 횟수 : {ep.unlockVisitCount === 0 ? "항상 공개" : `${ep.unlockVisitCount}회 이상`}</p>
                   <p>Scene : {ep.sceneCount}개</p>
                 </div>
@@ -141,6 +166,11 @@ export default function EpisodeList({ spaceId, initialEpisodes }: Props) {
                   {ep.published ? "공개" : "비공개"}
                 </span>
               </div>
+              {ep.isFeatured && ep.unlockVisitCount > 0 && (
+                <p className="text-xs" style={{ color: "var(--border)" }}>
+                  ⚠ QR 스캔 시 첫 방문자도 바로 이 이야기로 들어옵니다 — 해금 방문 횟수를 0으로 두는 것을 권장해요.
+                </p>
+              )}
               <div className="flex gap-2 text-xs flex-wrap items-center">
                 <button
                   onClick={() => move(ep.id, "up")}
@@ -168,6 +198,14 @@ export default function EpisodeList({ spaceId, initialEpisodes }: Props) {
                   style={{ borderColor: "var(--border)", color: "var(--dim)" }}
                 >
                   {ep.published ? "[비공개로]" : "[공개로]"}
+                </button>
+                <button
+                  onClick={() => toggleFeatured(ep)}
+                  disabled={busyId === ep.id}
+                  className="border px-3 py-1 transition-colors disabled:opacity-40"
+                  style={{ borderColor: "var(--border)", color: "var(--dim)" }}
+                >
+                  {ep.isFeatured ? "[대표 해제]" : "[대표로 설정]"}
                 </button>
                 <button
                   onClick={() => setConfirmDeleteId(ep.id)}

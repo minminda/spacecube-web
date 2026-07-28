@@ -759,6 +759,7 @@ model Episode {
   unlockVisitCount Int      @default(0) // 이 방문 횟수부터 열람 가능 (0 = 항상 공개)
   displayOrder     Int      @default(0)
   published        Boolean  @default(false)
+  isFeatured       Boolean  @default(false) // QR 스캔 직후 바로 진입시킬 "대표 이야기" — 공간당 최대 1개
   imageUrl         String?
   imageZoom        Float?   @default(1)
   imagePositionX   Float?   @default(0.5)

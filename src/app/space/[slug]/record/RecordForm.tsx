@@ -179,8 +179,13 @@ export default function RecordForm({ space, spaceTags, displayTagGroups, visitCo
       {/* 취향 적합도 평가 (필수) */}
       {!ENABLE_RECORD_TAG_SELECTION && (
         <div className="space-y-3">
-          <p className="text-xs" style={{ color: "var(--dim)" }}>
+          <p className="text-xs break-keep" style={{ color: "var(--dim)" }}>
             {isUnlock ? "// 먼저, 이 공간이 당신과 얼마나 잘 맞았나요?" : "// 이 공간은 당신의 취향과 얼마나 가까웠나요?"}
+          </p>
+          <p className="text-xs leading-relaxed break-keep" style={{ color: "var(--border)" }}>
+            남긴 취향 점수를 바탕으로
+            <br />
+            나와 맞는 다른 공간을 추천해드려요.
           </p>
           <div className="flex gap-2">
             {[1, 2, 3, 4, 5].map((n) => {
@@ -233,7 +238,7 @@ export default function RecordForm({ space, spaceTags, displayTagGroups, visitCo
 
       <p className="text-xs" style={{ color: "var(--border)" }}>─────────────────────────────</p>
 
-      <p className="text-xs leading-relaxed" style={{ color: "var(--dim)" }}>
+      <p className="text-xs leading-relaxed break-keep" style={{ color: "var(--dim)" }}>
         {isUnlock ? (
           <>
             당신의 경험을 먼저 남기면,
@@ -250,7 +255,7 @@ export default function RecordForm({ space, spaceTags, displayTagGroups, visitCo
       </p>
 
       <button onClick={handleSubmit} disabled={!canSubmit || loading}
-        className="w-full text-sm py-3 px-4 border hover:bg-[var(--fg)] hover:text-[var(--bg)] transition-colors disabled:opacity-30"
+        className="tap-target w-full text-sm py-3 px-4 border hover:bg-[var(--fg)] hover:text-[var(--bg)] transition-colors disabled:opacity-30"
         style={{ borderColor: "var(--fg)" }}>
         {loading
           ? "// 저장 중..."
@@ -260,7 +265,7 @@ export default function RecordForm({ space, spaceTags, displayTagGroups, visitCo
           ? "[[ 변경한 점수로 업데이트 ]]"
           : isUnlock
           ? "[[ 흔적 보러가기 ]]"
-          : "[[ 취향 저장하고 흔적 남기기 ]]"}
+          : "[[ 방명록 열기 ]]"}
       </button>
     </main>
   );

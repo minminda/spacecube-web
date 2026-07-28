@@ -1,12 +1,14 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { cookies, headers } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 import { resolveSpaceAccess, canBypassSpaceLock } from "@/lib/spaceUnlock";
 import SpaceLockNotice from "@/components/SpaceLockNotice";
 import StoryReadTracker from "@/components/StoryReadTracker";
+import SpaceUnlockScreen from "@/app/space/[slug]/SpaceUnlockScreen";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { LOCALE_COOKIE_NAME, resolveInitialLocale, availableLocalesForSpace } from "@/lib/localeResolve";
 import { resolveLocalizedField } from "@/lib/i18nContent";
@@ -162,6 +164,10 @@ export default async function EpisodeDetailPage({ params }: Props) {
 
   return (
     <main className="flex flex-col min-h-screen px-6 py-8 gap-8">
+      <Suspense fallback={null}>
+        <SpaceUnlockScreen />
+      </Suspense>
+
       <div className="flex items-center justify-between">
         <Link href={`/space/${space.slug}`} className="text-xs" style={{ color: "var(--dim)" }}>← {space.name}</Link>
         <div className="flex items-center gap-2">
@@ -181,9 +187,9 @@ export default async function EpisodeDetailPage({ params }: Props) {
       {/* 대표 사진은 공간 페이지에서 이미 보여줬으므로 여기서는 반복하지 않는다 —
           "이제부터 이야기가 시작된다"는 느낌으로 제목만 간결하게 연다. */}
       <div className="space-y-2">
-        <h1 className="text-2xl font-bold leading-tight">{localizedTitle}</h1>
+        <h1 className="text-2xl font-bold leading-tight break-keep">{localizedTitle}</h1>
         {localizedSubtitle && (
-          <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>{localizedSubtitle}</p>
+          <p className="text-sm leading-relaxed break-keep" style={{ color: "var(--dim)" }}>{localizedSubtitle}</p>
         )}
       </div>
 
@@ -233,15 +239,15 @@ export default async function EpisodeDetailPage({ params }: Props) {
                       Scene {sceneNumber}
                     </p>
                     {localized.title && (
-                      <h2 className="text-xl font-bold leading-snug">{localized.title}</h2>
+                      <h2 className="text-xl font-bold leading-snug break-keep">{localized.title}</h2>
                     )}
                     {bodyText && (
-                      <p className="text-base leading-8 whitespace-pre-line">{bodyText}</p>
+                      <p className="story-copy break-keep whitespace-pre-line">{bodyText}</p>
                     )}
                     {sceneImage}
                     {highlight && (
                       <p
-                        className="text-lg font-semibold leading-relaxed pl-4 whitespace-pre-line"
+                        className="text-lg font-semibold leading-relaxed break-keep pl-4 whitespace-pre-line"
                         style={{ borderLeft: "2px solid var(--fg)" }}
                       >
                         {highlight}
@@ -270,24 +276,24 @@ export default async function EpisodeDetailPage({ params }: Props) {
         {nextEpisode && nextEpisodeUnlocked ? (
           <Link href={`/space/${space.slug}/episodes/${nextEpisode.id}`} className="block space-y-3 transition-opacity hover:opacity-70">
             <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>다음 이야기 · EP.{nextEpisode.episodeNumber}</p>
-            <p className="text-lg font-bold leading-snug">{nextEpisode.title}</p>
+            <p className="text-lg font-bold leading-snug break-keep">{nextEpisode.title}</p>
             <p className="text-xs" style={{ color: "var(--border)" }}>지금 이어서 읽기 →</p>
           </Link>
         ) : nextEpisode ? (
           <div className="space-y-3">
-            <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>
+            <p className="text-sm leading-relaxed break-keep" style={{ color: "var(--dim)" }}>
               다음 방문에는<br />새로운 이야기가 열립니다.
             </p>
             <div className="space-y-1 py-2">
               <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>EP.{nextEpisode.episodeNumber}</p>
-              <p className="text-lg font-bold leading-snug">{nextEpisode.title}</p>
+              <p className="text-lg font-bold leading-snug break-keep">{nextEpisode.title}</p>
             </div>
             <p className="text-xs" style={{ color: "var(--border)" }}>다음 방문 후 열립니다.</p>
           </div>
         ) : (
           <div className="space-y-2">
-            <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>다음 이야기를 준비하고 있습니다.</p>
-            <p className="text-xs leading-relaxed" style={{ color: "var(--border)" }}>새로운 이야기가 추가되면 다시 찾아와 주세요.</p>
+            <p className="text-sm leading-relaxed break-keep" style={{ color: "var(--dim)" }}>다음 이야기를 준비하고 있습니다.</p>
+            <p className="text-xs leading-relaxed break-keep" style={{ color: "var(--border)" }}>새로운 이야기가 추가되면 다시 찾아와 주세요.</p>
           </div>
         )}
       </div>
@@ -295,7 +301,7 @@ export default async function EpisodeDetailPage({ params }: Props) {
       <div className="flex flex-col gap-3">
         <Link
           href={ctaHref}
-          className="block w-full text-center text-sm py-3 border hover:bg-[var(--fg)] hover:text-[var(--bg)] transition-colors"
+          className="tap-target flex items-center justify-center w-full text-center text-sm py-3 border hover:bg-[var(--fg)] hover:text-[var(--bg)] transition-colors"
           style={{ borderColor: "var(--fg)" }}
         >
           기록하고 흔적 열기
