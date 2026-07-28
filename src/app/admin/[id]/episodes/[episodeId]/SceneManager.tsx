@@ -10,6 +10,7 @@ interface SceneData {
   id: string;
   title: string;
   content: string;
+  summary: string;
   isActive: boolean;
   imageUrl: string;
   imageZoom: number;
@@ -43,6 +44,7 @@ export default function SceneManager({ episodeId, initialScenes }: { episodeId: 
         id: created.id,
         title: "",
         content: "",
+        summary: "",
         isActive: true,
         imageUrl: "",
         imageZoom: 1,
@@ -135,6 +137,7 @@ function SceneCard({
 }) {
   const [title, setTitle] = useState(scene.title);
   const [content, setContent] = useState(scene.content);
+  const [summary, setSummary] = useState(scene.summary);
   const [isActive, setIsActive] = useState(scene.isActive);
   const [image, setImage] = useState<ImageTransform>({
     imageUrl: scene.imageUrl, zoom: scene.imageZoom, positionX: scene.imagePositionX, positionY: scene.imagePositionY,
@@ -151,6 +154,7 @@ function SceneCard({
       body: JSON.stringify({
         title: title || null,
         content,
+        summary: summary || null,
         isActive,
         imageUrl: image.imageUrl || null,
         imageZoom: image.zoom,
@@ -196,6 +200,21 @@ function SceneCard({
         className={inputClass}
         style={{ ...inputStyle, resize: "vertical" }}
       />
+
+      <div className="space-y-1.5">
+        <label className="text-xs font-medium" style={{ color: "var(--dim)" }}>한 줄 요약</label>
+        <textarea
+          value={summary}
+          onChange={(e) => setSummary(e.target.value)}
+          placeholder="예: 매출을 생각하면 없애야 했지만, 제가 가장 앉고 싶은 자리라서 남겼습니다."
+          rows={2}
+          className={inputClass}
+          style={{ ...inputStyle, resize: "vertical" }}
+        />
+        <p className="text-xs leading-relaxed" style={{ color: "var(--border)" }}>
+          Scene의 핵심을 한 문장으로 정리해 주세요. 방문자 화면에서 본문 아래 강조 문장으로 표시됩니다.
+        </p>
+      </div>
 
       <div className="space-y-2">
         <div className="flex gap-2">

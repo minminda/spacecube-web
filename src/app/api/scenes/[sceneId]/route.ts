@@ -19,6 +19,7 @@ export async function PATCH(req: Request, { params }: Props) {
   const data: Record<string, unknown> = {};
   if ("title" in body) data.title = body.title || null;
   if (typeof body.content === "string") data.content = body.content;
+  if ("summary" in body) data.summary = typeof body.summary === "string" ? body.summary || null : null;
   if (typeof body.isActive === "boolean") data.isActive = body.isActive;
   if ("imageUrl" in body) data.imageUrl = body.imageUrl || null;
   if (typeof body.imageZoom === "number") data.imageZoom = body.imageZoom;

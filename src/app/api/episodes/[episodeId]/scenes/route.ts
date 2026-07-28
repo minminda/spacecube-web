@@ -27,6 +27,7 @@ export async function POST(req: Request, { params }: Props) {
       episodeId,
       title: body.title || null,
       content,
+      summary: typeof body.summary === "string" ? body.summary || null : null,
       displayOrder: count,
     },
   });

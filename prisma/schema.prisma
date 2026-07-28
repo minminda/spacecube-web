@@ -800,6 +800,7 @@ model Scene {
   episodeId        String
   title            String?
   content          String   @db.Text
+  summary          String?  @db.Text // 한 줄 요약 — 방문자 화면에서 본문 아래 강조 문장으로 표시(선택, 본문에서 자동 추출 안 함)
   displayOrder     Int      @default(0)
   isActive         Boolean  @default(true) // 비활성화 시 사용자 화면에서 숨김 (삭제 대안)
   imageUrl         String?
@@ -821,6 +822,7 @@ model SceneTranslation {
   locale       String
   title        String?
   content      String?           @db.Text
+  summary      String?           @db.Text // Scene.summary(한 줄 요약)의 번역본
   status       TranslationStatus @default(READY)
   sourceHash   String?
   errorMessage String?           @db.Text

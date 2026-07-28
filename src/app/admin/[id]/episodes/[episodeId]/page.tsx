@@ -60,6 +60,7 @@ export default async function EpisodeDetailPage({ params }: Props) {
           id: s.id,
           title: s.title ?? "",
           content: s.content,
+          summary: s.summary ?? "",
           isActive: s.isActive,
           imageUrl: s.imageUrl ?? "",
           imageZoom: s.imageZoom ?? 1,

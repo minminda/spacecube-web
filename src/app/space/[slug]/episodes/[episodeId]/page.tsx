@@ -55,7 +55,12 @@ export default async function EpisodeDetailPage({ params }: Props) {
   let usedContentFallback = false;
   let localizedTitle = episode.title;
   let localizedSubtitle = episode.description;
-  const localizedScenes = episode.scenes.map((s) => ({ id: s.id, title: s.title as string | null, content: s.content as string }));
+  const localizedScenes = episode.scenes.map((s) => ({
+    id: s.id,
+    title: s.title as string | null,
+    content: s.content as string,
+    summary: s.summary as string | null,
+  }));
 
   if (ENABLE_MULTILINGUAL && space.multilingualEnabled && space.supportedLocales.length > 0) {
     const [cookieStore, headerList] = await Promise.all([cookies(), headers()]);
@@ -84,7 +89,8 @@ export default async function EpisodeDetailPage({ params }: Props) {
         const english = sceneTranslations.find((t) => t.sceneId === scene.id && t.locale === "en");
         const titleR = resolveLocalizedField(locale, scene.title, primary?.title, english?.title);
         const contentR = resolveLocalizedField(locale, scene.content, primary?.content, english?.content);
-        localizedScenes[i] = { id: scene.id, title: titleR.value, content: contentR.value ?? scene.content };
+        const summaryR = resolveLocalizedField(locale, scene.summary, primary?.summary, english?.summary);
+        localizedScenes[i] = { id: scene.id, title: titleR.value, content: contentR.value ?? scene.content, summary: summaryR.value };
         if (contentR.usedFallback) anySceneFallback = true;
       }
 
@@ -201,14 +207,10 @@ export default async function EpisodeDetailPage({ params }: Props) {
             const hasContent = !!localized.content;
             if (hasContent) sceneNumber++;
 
-            // 마지막 문단은 이 Scene의 핵심 문장으로 보고 별도로 강조한다.
-            // 문단이 하나뿐이면(줄바꿈 두 번으로 나뉘지 않으면) 어색하게 쪼개지 않고 그대로 본문으로 둔다.
-            const paragraphs = hasContent
-              ? localized.content.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean)
-              : [];
-            const hasHighlight = paragraphs.length > 1;
-            const bodyText = hasHighlight ? paragraphs.slice(0, -1).join("\n\n") : paragraphs.join("\n\n");
-            const highlight = hasHighlight ? paragraphs[paragraphs.length - 1] : null;
+            // 본문은 입력된 내용을 그대로 보여준다(자동으로 마지막 문장을 잘라 요약처럼 쓰지 않는다).
+            // 강조 문장은 관리자가 별도로 입력한 summary만 쓴다 — 없으면 강조 영역 자체를 렌더하지 않는다.
+            const bodyText = localized.content;
+            const highlight = localized.summary && localized.summary.trim() ? localized.summary.trim() : null;
 
             const sceneImage = scene.imageUrl && (
               <div className="relative w-full overflow-hidden" style={{ aspectRatio: scene.imageAspectRatio ?? "3/2" }}>
