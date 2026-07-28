@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 import { resolveSpaceAccess, canBypassSpaceLock } from "@/lib/spaceUnlock";
 import SpaceLockNotice from "@/components/SpaceLockNotice";
+import StoryReadTracker from "@/components/StoryReadTracker";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { LOCALE_COOKIE_NAME, resolveInitialLocale, availableLocalesForSpace } from "@/lib/localeResolve";
 import { resolveLocalizedField } from "@/lib/i18nContent";
@@ -130,12 +131,13 @@ export default async function EpisodeDetailPage({ params }: Props) {
     );
   }
 
-  // 열람 가능한 상태에서 페이지를 열었으므로 읽음으로 기록
+  // 열람 가능한 상태에서 페이지를 열었으므로 조회로 기록한다(완독 여부는 StoryReadTracker가
+  // 실제 스크롤 신호를 보고 별도로 기록 — 여기서 completedAt을 같이 세팅하지 않는다).
   if (userId) {
     await prisma.episodeRead.upsert({
       where: { userId_episodeId: { userId, episodeId: episode.id } },
-      create: { userId, episodeId: episode.id, completedAt: new Date() },
-      update: { completedAt: new Date() },
+      create: { userId, episodeId: episode.id },
+      update: {},
     });
   }
 
@@ -255,6 +257,8 @@ export default async function EpisodeDetailPage({ params }: Props) {
           });
         })()}
       </div>
+
+      <StoryReadTracker episodeId={episode.id} enabled={!!userId} />
 
       {prevEpisode && (
         <Link href={`/space/${space.slug}/episodes/${prevEpisode.id}`} className="text-xs" style={{ color: "var(--dim)" }}>

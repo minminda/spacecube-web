@@ -517,6 +517,8 @@ model SpaceMonthlyReport {
   // 확장 지표 — 태그 기반 KPI(방문자 취향 TOP3/공간 사용 방식)를 대체하는 신규 리포트 구조용.
   qrScans                Int     @default(0) // 원시 QR 스캔 수(SpaceScan, 로그인 여부 무관)
   episodeViews           Int     @default(0) // 기간 내 최초 열람된 Episode 수(EpisodeRead.openedAt 기준)
+  episodeCompletions     Int     @default(0) // 위 조회 중 실제로 완독(마지막 섹션 도달)까지 간 수
+  avgReadDurationMs      Int? // 기간 내 스토리 페이지 평균 체류시간(ms), 표본 없으면 null
   newlyUnlockedEpisodes  Int     @default(0) // 기간 내 방문으로 새로 해제된 Episode 수(episodeState 로직 재사용)
   reactionsTotal         Int     @default(0) // 기간 내 작성된 포스트잇에 달린 공감 총합(스냅샷 시점 고정)
   tasteScoreDistribution Json? // [{ score: 1~5, count }]
@@ -837,6 +839,7 @@ model EpisodeRead {
   episodeId   String
   openedAt    DateTime  @default(now())
   completedAt DateTime?
+  durationMs  Int? // 클라이언트가 페이지를 벗어날 때 sendBeacon으로 보고하는 체류시간(ms)
 
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   episode Episode @relation(fields: [episodeId], references: [id], onDelete: Cascade)

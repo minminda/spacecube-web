@@ -13,6 +13,8 @@ export interface TasteScoreBucket {
 export interface ExtendedPeriodStats {
   qrScans: number; // 원시 QR 스캔 수(SpaceScan, 로그인 여부 무관)
   episodeViews: number; // 기간 내 최초 열람된 Episode 수(EpisodeRead.openedAt 기준)
+  episodeCompletions: number; // 위 조회 중 마지막 섹션까지 스크롤해 완독으로 기록된 수(EpisodeRead.completedAt not null)
+  avgReadDurationMs: number | null; // 기간 내 스토리 페이지 평균 체류시간(ms), 표본 없으면 null
   newlyUnlockedEpisodes: number; // 기간 내 방문으로 새로 해제된 Episode 수
   reactionsTotal: number; // 기간 내 작성된 포스트잇에 달린 공감 총합
   tasteScoreDistribution: TasteScoreBucket[]; // 1~5점 분포
@@ -74,9 +76,16 @@ export async function getExtendedPeriodStats(
   periodStart: Date,
   periodEnd: Date,
 ): Promise<ExtendedPeriodStats> {
-  const [qrScans, episodeViews, episodes, allRecords, periodRecords, reactionsTotal] = await Promise.all([
+  const [qrScans, episodeViews, episodeCompletions, durationAgg, episodes, allRecords, periodRecords, reactionsTotal] = await Promise.all([
     prisma.spaceScan.count({ where: { spaceId, scannedAt: { gte: periodStart, lt: periodEnd } } }),
     prisma.episodeRead.count({ where: { episode: { spaceId }, openedAt: { gte: periodStart, lt: periodEnd } } }),
+    prisma.episodeRead.count({
+      where: { episode: { spaceId }, openedAt: { gte: periodStart, lt: periodEnd }, completedAt: { not: null } },
+    }),
+    prisma.episodeRead.aggregate({
+      where: { episode: { spaceId }, openedAt: { gte: periodStart, lt: periodEnd }, durationMs: { not: null } },
+      _avg: { durationMs: true },
+    }),
     prisma.episode.findMany({ where: { spaceId, published: true }, select: { unlockVisitCount: true } }),
     prisma.record.findMany({ where: { spaceId }, select: { userId: true, visitedAt: true } }),
     prisma.record.findMany({
@@ -95,6 +104,7 @@ export async function getExtendedPeriodStats(
     periodEnd,
   );
   const tasteScoreDistribution = buildTasteScoreDistribution(periodRecords);
+  const avgReadDurationMs = durationAgg._avg.durationMs != null ? Math.round(durationAgg._avg.durationMs) : null;
 
-  return { qrScans, episodeViews, newlyUnlockedEpisodes, reactionsTotal, tasteScoreDistribution };
+  return { qrScans, episodeViews, episodeCompletions, avgReadDurationMs, newlyUnlockedEpisodes, reactionsTotal, tasteScoreDistribution };
 }

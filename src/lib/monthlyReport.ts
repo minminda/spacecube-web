@@ -86,6 +86,14 @@ function direction(before: number, after: number): "up" | "down" | "flat" {
   return "flat";
 }
 
+/** ms를 "2분 15초" / "45초" 형태로 표시한다. */
+export function formatDurationLabel(ms: number): string {
+  const totalSeconds = Math.max(0, Math.round(ms / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return minutes === 0 ? `${seconds}초` : `${minutes}분 ${seconds}초`;
+}
+
 export interface ReportKpiCard {
   key: string;
   label: string;
@@ -130,6 +138,49 @@ export function buildKpiCards(stats: PeriodKpiStats, previous: PeriodKpiStats | 
       change: previous
         ? { direction: direction(previous.guestbookRate, stats.guestbookRate), deltaLabel: pctPointDelta(previous.guestbookRate, stats.guestbookRate) }
         : null,
+    },
+  ];
+}
+
+export interface StoryReadStats {
+  episodeViews: number;
+  episodeCompletions: number;
+  avgReadDurationMs: number | null;
+}
+
+/**
+ * "공간 이야기" 카드 3개 — 스토리 조회 / 완독률 / 평균 체류시간. 나머지 KPI 카드와 같은
+ * ReportKpiCard 형태라 ReportEmail.tsx에서 동일한 표(KpiCardGrid)로 렌더된다. 체류시간은
+ * 표본이 작을 때 전월 대비 등락이 노이즈에 가까워 델타를 만들지 않는다(최소 계측 원칙).
+ */
+export function buildStoryCards(current: StoryReadStats, previous: StoryReadStats | null): ReportKpiCard[] {
+  const completionRate = current.episodeViews > 0 ? current.episodeCompletions / current.episodeViews : null;
+  const previousCompletionRate =
+    previous && previous.episodeViews > 0 ? previous.episodeCompletions / previous.episodeViews : null;
+
+  return [
+    {
+      key: "storyViews",
+      label: "스토리 조회",
+      value: `${current.episodeViews}회`,
+      change: previous
+        ? { direction: direction(previous.episodeViews, current.episodeViews), deltaLabel: countPercentDelta(previous.episodeViews, current.episodeViews) }
+        : null,
+    },
+    {
+      key: "storyCompletionRate",
+      label: "스토리 완독률",
+      value: completionRate != null ? `${Math.round(completionRate * 100)}%` : "—",
+      change:
+        completionRate != null && previousCompletionRate != null
+          ? { direction: direction(previousCompletionRate, completionRate), deltaLabel: pctPointDelta(previousCompletionRate, completionRate) }
+          : null,
+    },
+    {
+      key: "avgReadDuration",
+      label: "평균 체류시간",
+      value: current.avgReadDurationMs != null ? formatDurationLabel(current.avgReadDurationMs) : "—",
+      change: null,
     },
   ];
 }
@@ -298,6 +349,7 @@ export interface ReportEmailData {
   periodEnd: string;
   headline: string;
   kpiCards: ReportKpiCard[];
+  storyCards: ReportKpiCard[];
   changeInsights: string[];
   featuredPosts: ReportFeaturedPost[];
   questionParticipation: ReportQuestionParticipation[];
@@ -316,6 +368,7 @@ export async function computeMonthlyReportContent(
   periodStart: Date,
   periodEnd: Date,
   previousStats: PeriodKpiStats | null,
+  previousStoryStats: StoryReadStats | null = null,
 ): Promise<ReportEmailData> {
   const space = await prisma.space.findUnique({ where: { id: spaceId }, select: { name: true } });
 
@@ -344,6 +397,7 @@ export async function computeMonthlyReportContent(
     periodEnd: periodEnd.toISOString(),
     headline: buildHeadline(stats, usageSummary),
     kpiCards: buildKpiCards(stats, previousStats),
+    storyCards: buildStoryCards(extended, previousStoryStats),
     changeInsights: buildChangeInsights(stats, previousStats),
     featuredPosts,
     questionParticipation,
@@ -428,6 +482,8 @@ export async function generateOrGetMonthlyReport(spaceId: string, periodStart: D
           usageSummary,
           qrScans: extended.qrScans,
           episodeViews: extended.episodeViews,
+          episodeCompletions: extended.episodeCompletions,
+          avgReadDurationMs: extended.avgReadDurationMs,
           newlyUnlockedEpisodes: extended.newlyUnlockedEpisodes,
           reactionsTotal: extended.reactionsTotal,
           tasteScoreDistribution: extended.tasteScoreDistribution as unknown as Prisma.InputJsonValue,
@@ -490,6 +546,7 @@ export async function buildReportEmailDataFromStored(reportId: string): Promise<
     periodEnd: report.periodEnd.toISOString(),
     headline: report.headline ?? buildHeadline(toPeriodKpiStats(report), report.usageSummary),
     kpiCards: buildKpiCards(toPeriodKpiStats(report), previousStats),
+    storyCards: buildStoryCards(report, previousReport),
     changeInsights: (report.changeInsights as unknown as string[] | null) ?? [],
     featuredPosts: featuredRows.map((f) => ({ content: f.note.content, reactionCount: f.reactionCount, clusterType: f.note.clusterType })),
     questionParticipation: (report.questionParticipation as unknown as ReportQuestionParticipation[] | null) ?? [],

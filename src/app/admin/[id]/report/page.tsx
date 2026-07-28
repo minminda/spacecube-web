@@ -5,7 +5,7 @@ import { isAdmin } from "@/lib/admin";
 import { prisma } from "@/lib/prisma";
 import { recomputeSpaceKPI, getLatestSpaceKPI, getSpaceMonthlyKpi } from "@/lib/kpi";
 import { getExtendedPeriodStats } from "@/lib/reportMetrics";
-import { computeMonthlyReportContent, buildReportEmailDataFromStored } from "@/lib/monthlyReport";
+import { computeMonthlyReportContent, buildReportEmailDataFromStored, formatDurationLabel } from "@/lib/monthlyReport";
 import { resolvePreviewPeriods, inferReportDayPreset } from "@/lib/reportPeriod";
 import ReportEmail from "@/components/ReportEmail";
 import ReportSendSettingsForm from "./ReportSendSettingsForm";
@@ -61,9 +61,10 @@ export default async function ReportAdminPage({ params, searchParams }: Props) {
   const now = new Date();
   const { current, previous } = resolvePreviewPeriods(space.reportStartDate, now);
 
-  const [currentExtended, previousStats, archivedReports] = await Promise.all([
+  const [currentExtended, previousStats, previousExtended, archivedReports] = await Promise.all([
     getExtendedPeriodStats(spaceId, current.start, current.end),
     previous ? getSpaceMonthlyKpi(spaceId, previous.start, previous.end) : Promise.resolve(null),
+    previous ? getExtendedPeriodStats(spaceId, previous.start, previous.end) : Promise.resolve(null),
     prisma.spaceMonthlyReport.findMany({
       where: { spaceId },
       orderBy: { periodStart: "desc" },
@@ -74,7 +75,7 @@ export default async function ReportAdminPage({ params, searchParams }: Props) {
   const selectedReport = reportId ? archivedReports.find((r) => r.id === reportId) ?? null : null;
   const previewData = selectedReport
     ? await buildReportEmailDataFromStored(selectedReport.id)
-    : await computeMonthlyReportContent(spaceId, current.start, current.end, previousStats);
+    : await computeMonthlyReportContent(spaceId, current.start, current.end, previousStats, previousExtended);
   if (!previewData) notFound();
 
   return (
@@ -121,9 +122,21 @@ export default async function ReportAdminPage({ params, searchParams }: Props) {
             </div>
 
             <div className="space-y-2">
-              <p className="text-xs" style={{ color: "var(--dim)" }}>공간 이야기 (이번 기간 · 현재 수집 가능한 데이터 기준)</p>
+              <p className="text-xs" style={{ color: "var(--dim)" }}>공간 이야기 (이번 기간)</p>
               <div className="grid grid-cols-2 gap-3">
-                <StatBox label="Episode 조회 수" value={currentExtended.episodeViews} unit="회" />
+                <StatBox label="스토리 조회" value={currentExtended.episodeViews} unit="회" />
+                <StatBox
+                  label="스토리 완독률"
+                  value={currentExtended.episodeViews > 0 ? pct(currentExtended.episodeCompletions / currentExtended.episodeViews) : "—"}
+                  unit=""
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <StatBox
+                  label="평균 체류시간"
+                  value={currentExtended.avgReadDurationMs != null ? formatDurationLabel(currentExtended.avgReadDurationMs) : "—"}
+                  unit=""
+                />
                 <StatBox label="새로 해제된 Episode" value={currentExtended.newlyUnlockedEpisodes} unit="개" />
               </div>
             </div>

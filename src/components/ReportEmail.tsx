@@ -1,4 +1,4 @@
-import type { ReportEmailData } from "@/lib/monthlyReport";
+import type { ReportEmailData, ReportKpiCard } from "@/lib/monthlyReport";
 import { CLUSTER_LABELS } from "@/lib/guestbookClusterStyle";
 
 /* ── 월간 운영 리포트 — 관리자 Preview와 실제 메일이 공유하는 단일 컴포넌트 ──────────
@@ -55,28 +55,13 @@ export default function ReportEmail({ data, showAnalysis = false }: Props) {
 
       {/* ② 핵심 KPI */}
       <Section title="핵심 KPI">
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
-          <tbody>
-            {chunk(data.kpiCards, 2).map((row, i) => (
-              <tr key={i}>
-                {row.map((card) => (
-                  <td key={card.key} style={{ width: "50%", padding: 4, verticalAlign: "top" }}>
-                    <div style={{ border: `1px solid ${COLOR.border}`, padding: "12px 14px" }}>
-                      <p style={{ fontSize: 11, color: COLOR.dim, margin: "0 0 6px" }}>{card.label}</p>
-                      <p style={{ fontSize: 20, fontWeight: 700, margin: 0, lineHeight: 1.2 }}>{card.value}</p>
-                      {card.change && (
-                        <p style={{ fontSize: 11, margin: "6px 0 0", color: card.change.direction === "up" ? COLOR.up : card.change.direction === "down" ? COLOR.down : COLOR.dim }}>
-                          {CHANGE_ARROW[card.change.direction]} {card.change.deltaLabel}
-                        </p>
-                      )}
-                    </div>
-                  </td>
-                ))}
-                {row.length === 1 && <td style={{ width: "50%" }} />}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <KpiCardGrid cards={data.kpiCards} />
+      </Section>
+
+      {/* 공간 이야기 — "이야기를 끝까지 읽는가"를 확인하기 위한 최소 계측(스토리 조회/완독률/평균 체류시간).
+          규칙 기반 해설이 아니라 원자료 KPI이므로 showAnalysis 게이팅 없이 항상 노출한다. */}
+      <Section title="공간 이야기">
+        <KpiCardGrid cards={data.storyCards} />
       </Section>
 
       {/* ③ 이번 달 변화 (자동 생성 해설 — 파일럿 기간 숨김) */}
@@ -146,6 +131,33 @@ export default function ReportEmail({ data, showAnalysis = false }: Props) {
         공간큐브 · 이 리포트는 공간에서 수집된 데이터를 기반으로 자동 생성되었습니다.
       </p>
     </div>
+  );
+}
+
+function KpiCardGrid({ cards }: { cards: ReportKpiCard[] }) {
+  return (
+    <table style={{ width: "100%", borderCollapse: "collapse" }}>
+      <tbody>
+        {chunk(cards, 2).map((row, i) => (
+          <tr key={i}>
+            {row.map((card) => (
+              <td key={card.key} style={{ width: "50%", padding: 4, verticalAlign: "top" }}>
+                <div style={{ border: `1px solid ${COLOR.border}`, padding: "12px 14px" }}>
+                  <p style={{ fontSize: 11, color: COLOR.dim, margin: "0 0 6px" }}>{card.label}</p>
+                  <p style={{ fontSize: 20, fontWeight: 700, margin: 0, lineHeight: 1.2 }}>{card.value}</p>
+                  {card.change && (
+                    <p style={{ fontSize: 11, margin: "6px 0 0", color: card.change.direction === "up" ? COLOR.up : card.change.direction === "down" ? COLOR.down : COLOR.dim }}>
+                      {CHANGE_ARROW[card.change.direction]} {card.change.deltaLabel}
+                    </p>
+                  )}
+                </div>
+              </td>
+            ))}
+            {row.length === 1 && <td style={{ width: "50%" }} />}
+          </tr>
+        ))}
+      </tbody>
+    </table>
   );
 }
 
