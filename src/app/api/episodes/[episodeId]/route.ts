@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { isAdmin } from "@/lib/admin";
 import { prisma } from "@/lib/prisma";
+import { validateEpisodeSummary } from "@/lib/interviewInput";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +20,12 @@ export async function PATCH(req: Request, { params }: Props) {
   const data: Record<string, unknown> = {};
   if (typeof body.title === "string") data.title = body.title.trim();
   if ("description" in body) data.description = body.description || null;
+  if ("summary" in body) {
+    const summary = typeof body.summary === "string" ? body.summary.trim() : "";
+    const validation = validateEpisodeSummary(summary);
+    if (!validation.ok) return NextResponse.json({ error: validation.error }, { status: 400 });
+    data.summary = summary || null;
+  }
   if (Number.isInteger(body.unlockVisitCount)) data.unlockVisitCount = body.unlockVisitCount;
   if (typeof body.published === "boolean") data.published = body.published;
   if ("imageUrl" in body) data.imageUrl = body.imageUrl || null;

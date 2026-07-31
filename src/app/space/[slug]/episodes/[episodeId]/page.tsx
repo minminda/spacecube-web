@@ -23,12 +23,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { episodeId } = await params;
   const episode = await prisma.episode.findUnique({
     where: { id: episodeId },
-    select: { title: true, description: true, space: { select: { name: true } } },
+    select: { title: true, description: true, summary: true, space: { select: { name: true } } },
   });
   if (!episode) return {};
   return {
     title: `${episode.title} — ${episode.space.name} — 공간큐브`,
-    description: episode.description ?? undefined,
+    description: episode.summary ?? episode.description ?? undefined,
   };
 }
 

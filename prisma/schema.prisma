@@ -761,6 +761,7 @@ model Episode {
   episodeNumber    Int
   title            String
   description      String?  @db.Text
+  summary          String?  @db.Text // 한 줄 요약(선택) — 이야기의 핵심 문장, 본문에서 자동 추출하지 않음
   unlockVisitCount Int      @default(0) // 이 방문 횟수부터 열람 가능 (0 = 항상 공개)
   displayOrder     Int      @default(0)
   published        Boolean  @default(false)
@@ -773,12 +774,44 @@ model Episode {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
-  space        Space                @relation(fields: [spaceId], references: [id], onDelete: Cascade)
-  scenes       Scene[]
-  reads        EpisodeRead[]
-  translations EpisodeTranslation[]
+  space           Space                @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  scenes          Scene[]
+  reads           EpisodeRead[]
+  translations    EpisodeTranslation[]
+  interviewTopics InterviewTopic[]
 
   @@unique([spaceId, episodeNumber])
+}
+
+// 인터뷰 현장에서 쓰는 주제별 질문 준비 도구 — 에피소드마다 자유롭게 만드는 인터뷰 주제.
+// 콘텐츠 제작을 돕는 내부 도구로, 사용자 공개 화면에는 노출하지 않는다.
+model InterviewTopic {
+  id           String   @id @default(cuid())
+  episodeId    String
+  title        String
+  displayOrder Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  episode   Episode              @relation(fields: [episodeId], references: [id], onDelete: Cascade)
+  questions InterviewQuestion[]
+
+  @@map("interview_topics")
+}
+
+// 인터뷰 주제 아래 딸린 질문 — 아이패드 랜덤 뽑기 대상. interviewNote는 현장 답변/장면 메모(비공개).
+model InterviewQuestion {
+  id            String   @id @default(cuid())
+  topicId       String
+  content       String   @db.Text
+  interviewNote String?  @db.Text
+  displayOrder  Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  topic InterviewTopic @relation(fields: [topicId], references: [id], onDelete: Cascade)
+
+  @@map("interview_questions")
 }
 
 // 에피소드 제목/부제(description)의 언어별 번역본

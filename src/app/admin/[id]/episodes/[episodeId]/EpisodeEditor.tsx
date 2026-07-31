@@ -4,11 +4,13 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import ImagePositionEditor, { type ImageTransform } from "@/components/ImagePositionEditor";
 import ToggleSwitch from "@/components/ToggleSwitch";
+import { EPISODE_SUMMARY_MAX, validateEpisodeSummary } from "@/lib/interviewInput";
 
 interface EpisodeData {
   id: string;
   title: string;
   description: string;
+  summary: string;
   unlockVisitCount: number;
   published: boolean;
   imageUrl: string;
@@ -21,6 +23,7 @@ export default function EpisodeEditor({ episode }: { episode: EpisodeData }) {
   const router = useRouter();
   const [title, setTitle] = useState(episode.title);
   const [description, setDescription] = useState(episode.description);
+  const [summary, setSummary] = useState(episode.summary);
   const [unlockVisitCount, setUnlockVisitCount] = useState(episode.unlockVisitCount);
   const [published, setPublished] = useState(episode.published);
   const [image, setImage] = useState<ImageTransform>({
@@ -32,7 +35,10 @@ export default function EpisodeEditor({ episode }: { episode: EpisodeData }) {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
+  const summaryValidation = validateEpisodeSummary(summary);
+
   async function save() {
+    if (!summaryValidation.ok) return;
     setSaving(true);
     setSaved(false);
     const res = await fetch(`/api/episodes/${episode.id}`, {
@@ -41,6 +47,7 @@ export default function EpisodeEditor({ episode }: { episode: EpisodeData }) {
       body: JSON.stringify({
         title,
         description: description || null,
+        summary: summary || null,
         unlockVisitCount,
         published,
         imageUrl: image.imageUrl || null,
@@ -81,6 +88,24 @@ export default function EpisodeEditor({ episode }: { episode: EpisodeData }) {
         />
       </div>
 
+      <div className="space-y-1.5">
+        <p className={labelClass} style={labelStyle}>한 줄 요약 (선택)</p>
+        <input
+          value={summary}
+          onChange={(e) => setSummary(e.target.value)}
+          placeholder="완성된 공간처럼 보이지만, 사실은 아직도 매일 조금씩 배우고 있습니다."
+          maxLength={EPISODE_SUMMARY_MAX}
+          className={inputClass}
+          style={inputStyle}
+        />
+        <p className="text-xs leading-relaxed" style={{ color: "var(--border)" }}>
+          이야기의 핵심이나 계속 읽고 싶게 만드는 문장을 입력해주세요.
+        </p>
+        {!summaryValidation.ok && (
+          <p className="text-xs" style={{ color: "#c0392b" }}>{summaryValidation.error}</p>
+        )}
+      </div>
+
       <div className="space-y-2">
         <p className={labelClass} style={labelStyle}>해금 방문 횟수</p>
         <div className="flex items-center gap-3">
@@ -109,7 +134,7 @@ export default function EpisodeEditor({ episode }: { episode: EpisodeData }) {
 
       <button
         onClick={save}
-        disabled={saving || !title.trim()}
+        disabled={saving || !title.trim() || !summaryValidation.ok}
         className="py-3 text-sm font-medium border hover:bg-[var(--fg)] hover:text-[var(--bg)] transition-colors disabled:opacity-40"
         style={{ borderColor: "var(--fg)" }}
       >

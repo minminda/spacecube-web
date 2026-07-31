@@ -5,6 +5,7 @@ import { isAdmin } from "@/lib/admin";
 import { prisma } from "@/lib/prisma";
 import EpisodeEditor from "./EpisodeEditor";
 import SceneManager from "./SceneManager";
+import InterviewPrep from "./InterviewPrep";
 
 interface Props { params: Promise<{ id: string; episodeId: string }> }
 
@@ -18,7 +19,13 @@ export default async function EpisodeDetailPage({ params }: Props) {
     prisma.space.findUnique({ where: { id: spaceId }, select: { id: true, name: true } }),
     prisma.episode.findUnique({
       where: { id: episodeId },
-      include: { scenes: { orderBy: { displayOrder: "asc" } } },
+      include: {
+        scenes: { orderBy: { displayOrder: "asc" } },
+        interviewTopics: {
+          orderBy: { displayOrder: "asc" },
+          include: { questions: { orderBy: { displayOrder: "asc" } } },
+        },
+      },
     }),
   ]);
   if (!space || !episode || episode.spaceId !== spaceId) notFound();
@@ -43,6 +50,7 @@ export default async function EpisodeDetailPage({ params }: Props) {
           id: episode.id,
           title: episode.title,
           description: episode.description ?? "",
+          summary: episode.summary ?? "",
           unlockVisitCount: episode.unlockVisitCount,
           published: episode.published,
           imageUrl: episode.imageUrl ?? "",
@@ -50,6 +58,22 @@ export default async function EpisodeDetailPage({ params }: Props) {
           imagePositionX: episode.imagePositionX ?? 0.5,
           imagePositionY: episode.imagePositionY ?? 0.5,
         }}
+      />
+
+      <div style={{ borderTop: "1px solid var(--border)" }} />
+
+      <InterviewPrep
+        episodeId={episode.id}
+        episodeTitle={episode.title}
+        initialTopics={episode.interviewTopics.map((t) => ({
+          id: t.id,
+          title: t.title,
+          questions: t.questions.map((q) => ({
+            id: q.id,
+            content: q.content,
+            interviewNote: q.interviewNote ?? "",
+          })),
+        }))}
       />
 
       <div style={{ borderTop: "1px solid var(--border)" }} />
