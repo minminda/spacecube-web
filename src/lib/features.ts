@@ -46,3 +46,12 @@ export const ENABLE_DARK_MODE_TOGGLE = false;
  * 컴포넌트, localStorage 로직은 삭제하지 않고 그대로 두되 마운트만 막음 — true로 바꾸면 즉시 복구.
  */
 export const ENABLE_INITIAL_ONBOARDING = false;
+
+/**
+ * 상단 네비게이션의 "공간들"/"추천 방식" 메뉴 노출 여부.
+ * MVP 핵심 진입 흐름(홈 → QR 스캔 / 홈 → 공간 탐색)에 선택지를 분산시키지
+ * 않기 위해 상단 메뉴에서만 숨긴다 — /discover, /recommendation 페이지와
+ * 라우팅은 그대로 유지되며, true로 바꾸면 즉시 복구.
+ */
+export const ENABLE_NAV_DISCOVER_LINK = false;
+export const ENABLE_NAV_RECOMMENDATION_LINK = false;

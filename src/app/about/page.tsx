@@ -8,9 +8,11 @@ export const metadata: Metadata = {
   description: "검색해도 나오지 않는 사람의 이야기를 통해 공간을 다르게 보게 만드는 서비스입니다.",
 };
 
+const ICON_SIZE = 18;
+
 function DiscoverIcon() {
   return (
-    <svg width="36" height="36" viewBox="0 0 24 24" fill="none">
+    <svg width={ICON_SIZE} height={ICON_SIZE} viewBox="0 0 24 24" fill="none">
       <CubeGlyph outlineWidth={1.3} edgeWidth={1.1} />
     </svg>
   );
@@ -18,7 +20,7 @@ function DiscoverIcon() {
 
 function ScanIcon() {
   return (
-    <svg width="36" height="36" viewBox="0 0 40 40" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+    <svg width={ICON_SIZE} height={ICON_SIZE} viewBox="0 0 40 40" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
       <path d="M8 14 V9.5 a1 1 0 0 1 1-1 H14" />
       <path d="M32 14 V9.5 a1 1 0 0 0 -1-1 H26" />
       <path d="M8 26 V30.5 a1 1 0 0 0 1 1 H14" />
@@ -30,7 +32,7 @@ function ScanIcon() {
 
 function StoryIcon() {
   return (
-    <svg width="36" height="36" viewBox="0 0 40 40" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" strokeLinecap="round">
+    <svg width={ICON_SIZE} height={ICON_SIZE} viewBox="0 0 40 40" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" strokeLinecap="round">
       <path d="M20 13 C17 10.5 12 10 8 10.5 V28.5 C12 28 17 28.5 20 31" />
       <path d="M20 13 C23 10.5 28 10 32 10.5 V28.5 C28 28 23 28.5 20 31" />
       <line x1="20" y1="13" x2="20" y2="31" />
@@ -40,7 +42,7 @@ function StoryIcon() {
 
 function ScoreIcon() {
   return (
-    <svg width="36" height="36" viewBox="0 0 40 40" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round">
+    <svg width={ICON_SIZE} height={ICON_SIZE} viewBox="0 0 40 40" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round">
       <path d="M20 8 L23.5 16 L32 17 L25.5 23 L27.5 32 L20 27 L12.5 32 L14.5 23 L8 17 L16.5 16 Z" />
     </svg>
   );
@@ -48,7 +50,7 @@ function ScoreIcon() {
 
 function GuestbookIcon() {
   return (
-    <svg width="36" height="36" viewBox="0 0 40 40" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" strokeLinecap="round">
+    <svg width={ICON_SIZE} height={ICON_SIZE} viewBox="0 0 40 40" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" strokeLinecap="round">
       <rect x="9" y="9" width="18" height="22" rx="1.5" />
       <line x1="13" y1="15" x2="21" y2="15" />
       <line x1="13" y1="20" x2="19" y2="20" />
@@ -59,7 +61,7 @@ function GuestbookIcon() {
 
 function RecommendIcon() {
   return (
-    <svg width="36" height="36" viewBox="0 0 40 40" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round">
+    <svg width={ICON_SIZE} height={ICON_SIZE} viewBox="0 0 40 40" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round">
       <circle cx="20" cy="20" r="12" />
       <path d="M24.5 15.5 L21.5 21.5 L15.5 24.5 L18.5 18.5 Z" />
     </svg>
@@ -68,7 +70,7 @@ function RecommendIcon() {
 
 function ArchiveIcon() {
   return (
-    <svg width="36" height="36" viewBox="0 0 40 40" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" strokeLinecap="round">
+    <svg width={ICON_SIZE} height={ICON_SIZE} viewBox="0 0 40 40" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" strokeLinecap="round">
       <rect x="8" y="11" width="24" height="6" rx="1" />
       <path d="M10 17 V29 a1.5 1.5 0 0 0 1.5 1.5 h17 a1.5 1.5 0 0 0 1.5-1.5 V17" />
       <line x1="17" y1="22.5" x2="23" y2="22.5" />
@@ -77,13 +79,13 @@ function ArchiveIcon() {
 }
 
 const STEPS = [
-  { Icon: DiscoverIcon, title: "공간 발견", desc: "공간에 놓인 큐브를 찾아요" },
-  { Icon: ScanIcon, title: "QR 스캔", desc: "큐브의 QR을 스캔해요" },
-  { Icon: StoryIcon, title: "공간 이야기 읽기", desc: "이 공간을 만든 사람의 이야기를 만나요" },
-  { Icon: ScoreIcon, title: "취향 점수 선택", desc: "이 공간이 나와 얼마나 맞았는지 점수로 남겨요" },
-  { Icon: GuestbookIcon, title: "방명록 작성", desc: "이 공간에서의 흔적을 방명록에 남겨요" },
-  { Icon: RecommendIcon, title: "나와 맞는 공간 추천", desc: "쌓인 기록을 바탕으로 다음 공간을 추천받아요" },
-  { Icon: ArchiveIcon, title: "공간 아카이브", desc: "방문한 공간들이 나만의 아카이브로 쌓여요" },
+  { Icon: DiscoverIcon, title: "공간 발견" },
+  { Icon: ScanIcon, title: "QR 스캔" },
+  { Icon: StoryIcon, title: "공간 이야기" },
+  { Icon: ScoreIcon, title: "취향 점수" },
+  { Icon: GuestbookIcon, title: "방명록" },
+  { Icon: RecommendIcon, title: "공간 추천" },
+  { Icon: ArchiveIcon, title: "공간 아카이브" },
 ];
 
 export default function AboutPage() {
@@ -189,33 +191,14 @@ export default function AboutPage() {
           </div>
         </div>
 
-        <ol className="space-y-0 pt-2">
-          {STEPS.map((s, i, arr) => (
-            <li key={s.title} className="flex gap-4">
-              <div className="flex flex-col items-center flex-shrink-0">
-                <span
-                  className="w-7 h-7 flex-shrink-0 rounded-full border flex items-center justify-center text-xs"
-                  style={{ borderColor: "var(--border)", color: "var(--dim)" }}
-                >
-                  {i + 1}
-                </span>
-                {i < arr.length - 1 && (
-                  <div className="w-px flex-1 my-2" style={{ background: "var(--border)", minHeight: "2.75rem" }} />
-                )}
-              </div>
-              <div className={`space-y-3 ${i === arr.length - 1 ? "pb-1" : "pb-10"}`}>
-                <div style={{ color: i === arr.length - 1 ? "var(--fg)" : "var(--dim)" }}>
-                  <s.Icon />
-                </div>
-                <div className="space-y-1">
-                  <p className="text-base font-semibold" style={{ color: i === arr.length - 1 ? "var(--fg)" : "var(--dim)" }}>
-                    {s.title}
-                  </p>
-                  <p className="text-sm leading-relaxed" style={{ color: "var(--border)" }}>
-                    {s.desc}
-                  </p>
-                </div>
-              </div>
+        <ol className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-x-2 gap-y-5 pt-1">
+          {STEPS.map((s, i) => (
+            <li key={s.title} className="flex flex-col items-center text-center gap-1">
+              <span className="text-[10px] tabular-nums" style={{ color: "var(--border)" }}>{i + 1}</span>
+              <div style={{ color: "var(--dim)" }}><s.Icon /></div>
+              <p className="text-xs font-medium leading-tight break-keep" style={{ color: "var(--dim)" }}>
+                {s.title}
+              </p>
             </li>
           ))}
         </ol>

@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { ENABLE_NAV_DISCOVER_LINK, ENABLE_NAV_RECOMMENDATION_LINK } from "@/lib/features";
 
 const NAV_ITEMS = [
-  { label: "공간들", href: "/discover", match: (p: string) => p.startsWith("/discover") || p.startsWith("/stories") || p.startsWith("/story") },
-  { label: "공간큐브", href: "/about", match: (p: string) => p.startsWith("/about") },
-  { label: "추천 방식", href: "/recommendation", match: (p: string) => p.startsWith("/recommendation") },
-];
+  { label: "공간들", href: "/discover", match: (p: string) => p.startsWith("/discover") || p.startsWith("/stories") || p.startsWith("/story"), enabled: ENABLE_NAV_DISCOVER_LINK },
+  { label: "공간큐브", href: "/about", match: (p: string) => p.startsWith("/about"), enabled: true },
+  { label: "추천 방식", href: "/recommendation", match: (p: string) => p.startsWith("/recommendation"), enabled: ENABLE_NAV_RECOMMENDATION_LINK },
+].filter((item) => item.enabled);
 
 export default function Navbar() {
   const pathname = usePathname();
