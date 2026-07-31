@@ -5,11 +5,12 @@ export interface InterviewValidationResult {
 
 export const INTERVIEW_TOPIC_TITLE_MAX = 50;
 export const INTERVIEW_QUESTION_MAX = 200;
+/** 인터뷰 메모는 DB에 저장하지 않는 임시 메모라 서버 검증은 없다 — 입력창 maxLength로만 쓰는 클라이언트 전용 상수. */
 export const INTERVIEW_NOTE_MAX = 2000;
 export const EPISODE_SUMMARY_MAX = 120;
 
 /**
- * 인터뷰 주제/질문/메모/에피소드 한 줄 요약 — 관리자 클라이언트(InterviewPrep 등)와
+ * 인터뷰 주제/질문/에피소드 한 줄 요약 — 관리자 클라이언트(InterviewLibrary 등)와
  * 서버(API 라우트)가 이 파일을 공유해 동일한 trim·길이 규칙을 적용한다.
  */
 export function validateTopicTitle(title: string): InterviewValidationResult {
@@ -26,13 +27,6 @@ export function validateQuestionContent(content: string): InterviewValidationRes
   if (!trimmed) return { ok: false, error: "질문을 입력해주세요." };
   if (trimmed.length > INTERVIEW_QUESTION_MAX) {
     return { ok: false, error: `질문은 ${INTERVIEW_QUESTION_MAX}자 이내로 입력해주세요.` };
-  }
-  return { ok: true };
-}
-
-export function validateInterviewNote(note: string): InterviewValidationResult {
-  if (note.length > INTERVIEW_NOTE_MAX) {
-    return { ok: false, error: `인터뷰 메모는 ${INTERVIEW_NOTE_MAX}자 이내로 입력해주세요.` };
   }
   return { ok: true };
 }

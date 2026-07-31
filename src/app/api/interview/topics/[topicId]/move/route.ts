@@ -20,11 +20,10 @@ export async function POST(req: Request, { params }: Props) {
     return NextResponse.json({ error: "direction은 up 또는 down이어야 해요." }, { status: 400 });
   }
 
-  const topic = await prisma.interviewTopic.findUnique({ where: { id: topicId }, select: { episodeId: true } });
-  if (!topic) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  const existing = await prisma.interviewTopic.findUnique({ where: { id: topicId }, select: { id: true } });
+  if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const siblings = await prisma.interviewTopic.findMany({
-    where: { episodeId: topic.episodeId },
     orderBy: { displayOrder: "asc" },
     select: { id: true },
   });

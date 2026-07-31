@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { isAdmin } from "@/lib/admin";
 import { prisma } from "@/lib/prisma";
-import { validateQuestionContent, validateInterviewNote, isDuplicateQuestion } from "@/lib/interviewInput";
+import { validateQuestionContent, isDuplicateQuestion } from "@/lib/interviewInput";
 
 export const dynamic = "force-dynamic";
 
@@ -15,35 +15,26 @@ export async function PATCH(req: Request, { params }: Props) {
   }
 
   const { questionId } = await params;
-  const question = await prisma.interviewQuestion.findUnique({ where: { id: questionId }, select: { topicId: true, content: true } });
+  const question = await prisma.interviewQuestion.findUnique({ where: { id: questionId }, select: { topicId: true } });
   if (!question) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const body = await req.json().catch(() => ({}));
-  const data: Record<string, unknown> = {};
+  if (typeof body.content !== "string") {
+    return NextResponse.json({ error: "content가 필요해요." }, { status: 400 });
+  }
+  const content = body.content.trim();
+  const validation = validateQuestionContent(content);
+  if (!validation.ok) return NextResponse.json({ error: validation.error }, { status: 400 });
 
-  if (typeof body.content === "string") {
-    const content = body.content.trim();
-    const validation = validateQuestionContent(content);
-    if (!validation.ok) return NextResponse.json({ error: validation.error }, { status: 400 });
-
-    const siblings = await prisma.interviewQuestion.findMany({
-      where: { topicId: question.topicId, id: { not: questionId } },
-      select: { content: true },
-    });
-    if (isDuplicateQuestion(content, siblings.map((q) => q.content))) {
-      return NextResponse.json({ error: "이미 같은 질문이 있어요." }, { status: 400 });
-    }
-    data.content = content;
+  const siblings = await prisma.interviewQuestion.findMany({
+    where: { topicId: question.topicId, id: { not: questionId } },
+    select: { content: true },
+  });
+  if (isDuplicateQuestion(content, siblings.map((q) => q.content))) {
+    return NextResponse.json({ error: "이미 같은 질문이 있어요." }, { status: 400 });
   }
 
-  if ("interviewNote" in body) {
-    const note = typeof body.interviewNote === "string" ? body.interviewNote.trim() : "";
-    const validation = validateInterviewNote(note);
-    if (!validation.ok) return NextResponse.json({ error: validation.error }, { status: 400 });
-    data.interviewNote = note || null;
-  }
-
-  const updated = await prisma.interviewQuestion.update({ where: { id: questionId }, data });
+  const updated = await prisma.interviewQuestion.update({ where: { id: questionId }, data: { content } });
   return NextResponse.json(updated);
 }
 

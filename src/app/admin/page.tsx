@@ -67,6 +67,13 @@ export default async function AdminPage() {
         >
           [[ 큐브 관리 ]]
         </Link>
+        <Link
+          href="/admin/interview"
+          className="flex-1 min-w-[8rem] block text-sm py-2 px-4 border transition-colors text-center"
+          style={{ borderColor: "var(--border)", color: "var(--dim)" }}
+        >
+          [[ 인터뷰 질문 관리 ]]
+        </Link>
         {/* MVP: 지역/취향 이야기(ContentStory) 비활성화 — features.ts 플래그를 true로 바꾸면 원상복구 */}
         {(ENABLE_REGION_STORIES || ENABLE_TASTE_STORIES) && (
           <Link

@@ -37,13 +37,12 @@ export async function DELETE(_req: Request, { params }: Props) {
   }
 
   const { topicId } = await params;
-  const topic = await prisma.interviewTopic.findUnique({ where: { id: topicId }, select: { episodeId: true } });
-  if (!topic) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  const existing = await prisma.interviewTopic.findUnique({ where: { id: topicId }, select: { id: true } });
+  if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   await prisma.interviewTopic.delete({ where: { id: topicId } });
 
   const remaining = await prisma.interviewTopic.findMany({
-    where: { episodeId: topic.episodeId },
     orderBy: { displayOrder: "asc" },
     select: { id: true },
   });
