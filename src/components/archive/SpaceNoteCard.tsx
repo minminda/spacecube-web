@@ -75,26 +75,8 @@ export default function SpaceNoteCard({ data }: { data: SpaceNoteCardData }) {
         )}
       </div>
 
-      {data.tasteScore != null && (
-        <div className="flex items-baseline justify-between">
-          <span className="text-xs" style={{ color: "var(--dim)" }}>나와의 취향 점수</span>
-          <span className="text-sm font-medium">{data.tasteScore} / 5</span>
-        </div>
-      )}
-
-      {data.coreTags.length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
-          {data.coreTags.map((tag) => (
-            <span
-              key={tag}
-              className="text-xs px-2 py-0.5 border"
-              style={{ borderColor: "var(--border)", color: "var(--dim)" }}
-            >
-              {tag}
-            </span>
-          ))}
-        </div>
-      )}
+      {/* 취향 점수·태그는 다이어리 첫인상에서는 보여주지 않는다 — "자세히 보기"(/archive/space/[id])에서
+          방문별 점수와 전체 태그를 그대로 확인할 수 있다(데이터는 유지, 첫 화면 노출만 줄임). */}
 
       {data.guestbookNote && (
         <div className="space-y-2">

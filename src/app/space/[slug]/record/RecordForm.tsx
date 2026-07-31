@@ -118,8 +118,10 @@ export default function RecordForm({ space, spaceTags, displayTagGroups, visitCo
     }
   }
 
+  const divider = <div style={{ borderTop: "1px solid var(--border)" }} />;
+
   return (
-    <main className="flex flex-col min-h-screen px-6 py-8 gap-6">
+    <main className="flex flex-col min-h-screen px-6 py-10 gap-8">
       <div className="space-y-1" style={{ color: "var(--dim)" }}>
         <p className="text-xs">공간큐브 / {isUnlock ? "GUESTBOOK" : "RECORD"}</p>
         <p className="text-xs">─────────────────────────────</p>
@@ -159,80 +161,54 @@ export default function RecordForm({ space, spaceTags, displayTagGroups, visitCo
         )
       )}
 
-      <p className="text-xs" style={{ color: "var(--border)" }}>─────────────────────────────</p>
-
-      {/* 공간 취향 태그 — 선택 불가, 공간의 결 설명용 (unlock 화면에서는 생략, 태그 없이 담백하게).
-          관리자가 연결한 활성 태그(displayTagGroups)가 있으면 카테고리별로 묶어 보여주고,
-          없으면 레거시 spaceTags를 한 줄로 폴백 표시한다. */}
-      {!ENABLE_RECORD_TAG_SELECTION && !isUnlock && ((displayTagGroups?.length ?? 0) > 0 || spaceTags.length > 0) && (
-        <div className="space-y-3">
-          <p className="text-xs" style={{ color: "var(--dim)" }}>// 이 공간은 이런 결을 가지고 있어요</p>
-          {displayTagGroups ? (
-            <div className="space-y-2.5">
-              {displayTagGroups.map((group) => (
-                <div key={group.category} className="space-y-1">
-                  <p className="text-xs" style={{ color: "var(--border)" }}>{group.category}</p>
-                  <p className="text-sm" style={{ color: "var(--dim)" }}>{group.names.join(" · ")}</p>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="flex flex-wrap gap-2">
-              {spaceTags.map((t) => (
-                <span
-                  key={t}
-                  className="text-xs px-2.5 py-1 border select-none"
-                  style={{ borderColor: "var(--border)", color: "var(--dim)" }}
-                >
-                  {TAG_LABELS[t]}
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* 취향 적합도 평가 (필수) */}
+      {/* 취향 적합도 평가 (필수) — MVP에서는 점수 선택에만 집중하도록 태그/공간 유형 정보 없이 단순하게 구성 */}
       {!ENABLE_RECORD_TAG_SELECTION && (
-        <div className="space-y-3">
-          <p className="text-xs break-keep" style={{ color: "var(--dim)" }}>
-            {isUnlock ? "// 먼저, 이 공간이 당신과 얼마나 잘 맞았나요?" : "// 이 공간은 당신의 취향과 얼마나 가까웠나요?"}
-          </p>
-          <p className="text-xs leading-relaxed break-keep" style={{ color: "var(--border)" }}>
-            남긴 취향 점수를 바탕으로
-            <br />
-            나와 맞는 다른 공간을 추천해드려요.
-          </p>
-          <div className="flex gap-2">
-            {[1, 2, 3, 4, 5].map((n) => {
-              const active = tasteScore === n;
-              return (
-                <button
-                  key={n}
-                  type="button"
-                  onClick={() => setTasteScore(n)}
-                  className="flex-1 py-3 text-sm border transition-colors"
-                  style={{
-                    borderColor: active ? "var(--fg)" : "var(--border)",
-                    background: active ? "var(--fg)" : "transparent",
-                    color: active ? "var(--bg)" : "var(--dim)",
-                    fontWeight: active ? 600 : 400,
-                  }}
-                >
-                  {n}
-                </button>
-              );
-            })}
-          </div>
-          <div className="flex justify-between text-xs" style={{ color: "var(--border)" }}>
-            <span>전혀 맞지 않음</span>
-            <span>매우 잘 맞음</span>
-          </div>
-          {tasteScore !== null && (
-            <p className="text-xs" style={{ color: "var(--fg)" }}>
-              &gt; {tasteScore}점 — {SCORE_LABELS[tasteScore]}
+        <div className="space-y-6">
+          <div className="space-y-2">
+            <p className="text-sm break-keep" style={{ color: "var(--fg)" }}>
+              {isUnlock ? "먼저, 이 공간이 당신과 얼마나 잘 맞았나요?" : "이 공간은 당신의 취향과 얼마나 가까웠나요?"}
             </p>
-          )}
+            <p className="text-xs leading-relaxed break-keep" style={{ color: "var(--dim)" }}>
+              남긴 취향 점수를 바탕으로
+              <br />
+              나와 맞는 다른 공간을 추천해드려요.
+            </p>
+          </div>
+
+          {divider}
+
+          <div className="space-y-4">
+            <div className="flex gap-2">
+              {[1, 2, 3, 4, 5].map((n) => {
+                const active = tasteScore === n;
+                return (
+                  <button
+                    key={n}
+                    type="button"
+                    onClick={() => setTasteScore(n)}
+                    className="flex-1 py-3 text-sm border transition-colors"
+                    style={{
+                      borderColor: active ? "var(--fg)" : "var(--border)",
+                      background: active ? "var(--fg)" : "transparent",
+                      color: active ? "var(--bg)" : "var(--dim)",
+                      fontWeight: active ? 600 : 400,
+                    }}
+                  >
+                    {n}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="flex justify-between text-xs" style={{ color: "var(--border)" }}>
+              <span>전혀 맞지 않음</span>
+              <span>매우 잘 맞음</span>
+            </div>
+            {tasteScore !== null && (
+              <p className="text-xs" style={{ color: "var(--fg)" }}>
+                &gt; {tasteScore}점 — {SCORE_LABELS[tasteScore]}
+              </p>
+            )}
+          </div>
         </div>
       )}
 
@@ -252,7 +228,7 @@ export default function RecordForm({ space, spaceTags, displayTagGroups, visitCo
         </div>
       )}
 
-      <p className="text-xs" style={{ color: "var(--border)" }}>─────────────────────────────</p>
+      {divider}
 
       <p className="text-xs leading-relaxed break-keep" style={{ color: "var(--dim)" }}>
         {isUnlock ? (
