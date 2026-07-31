@@ -85,8 +85,8 @@ const STEPS = [
   { Icon: StoryIcon, title: "공간 이야기", desc: "공간을 만든 사람의 이야기를 만나요" },
   { Icon: ScoreIcon, title: "취향 점수", desc: "나와 얼마나 맞는지 점수로 남겨요" },
   { Icon: GuestbookIcon, title: "방명록", desc: "이 공간에 흔적을 남겨요" },
-  { Icon: RecommendIcon, title: "공간 추천", desc: "나와 맞는 다음 공간을 추천받아요" },
   { Icon: ArchiveIcon, title: "공간 아카이브", desc: "방문한 공간이 기록으로 쌓여요" },
+  { Icon: RecommendIcon, title: "공간 추천", desc: "나와 맞는 다음 공간을 추천받아요" },
 ];
 
 export default function AboutPage() {
