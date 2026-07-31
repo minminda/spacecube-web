@@ -8,23 +8,6 @@ import QrScanSheet from "./QrScanSheet";
 import HomeLogoutButton from "@/components/HomeLogoutButton";
 import Divider from "@/components/Divider";
 
-const FLOW_STEPS = ["큐브 발견", "QR 스캔", "공간 이야기", "취향 저장", "흔적 남기기", "다음 공간 추천"];
-
-function FlowDiagram() {
-  return (
-    <div className="flex flex-col items-center gap-1.5 py-2">
-      {FLOW_STEPS.map((step, i) => (
-        <div key={step} className="flex flex-col items-center gap-1.5">
-          <p className="text-sm" style={{ color: "var(--fg)" }}>{step}</p>
-          {i < FLOW_STEPS.length - 1 && (
-            <span className="text-xs" style={{ color: "var(--border)" }}>↓</span>
-          )}
-        </div>
-      ))}
-    </div>
-  );
-}
-
 export default async function Home() {
   const session = await auth();
   const admin = isAdmin(session?.user?.email);
@@ -63,29 +46,24 @@ export default async function Home() {
   const hasStories = regionStory || tasteStory;
 
   return (
-    <main className="flex flex-col min-h-screen px-6 pt-16 pb-12 gap-10">
-      {/* Hero — 브랜드명을 가장 먼저 각인시키고, 그 아래 브랜드 철학이 자연스럽게 이어지도록 구성 */}
-      <div className="space-y-6">
-        <h1 className="text-5xl font-bold tracking-tight">공간큐브</h1>
-        <p className="text-2xl font-bold leading-snug">
-          공간의 이해,<br />사람의 연결
-        </p>
-      </div>
+    <main className="flex flex-col min-h-screen px-6 pt-24 pb-16 gap-14">
+      {/* Hero — 브랜드가 숨 쉴 여백을 두고, 실행 방법은 QR 스캔하기를 눌렀을 때 안내한다(QrScanSheet) */}
+      <div className="space-y-10">
+        <div className="space-y-8">
+          <h1 className="text-5xl font-bold tracking-tight leading-none">공간큐브</h1>
+          <p className="text-2xl font-semibold leading-relaxed">
+            공간의 이해,<br />사람의 연결
+          </p>
+        </div>
 
-      <Divider />
-
-      {/* 핵심 경험 플로우 — 어떤 흐름으로 쓰는지 */}
-      <FlowDiagram />
-
-      <Divider />
-
-      {/* 메인 CTA — 지금 무엇을 누르면 되는지 */}
-      <div className="space-y-4">
-        <QrScanSheet />
-        <div className="text-center space-y-1">
-          <p className="text-xs" style={{ color: "var(--dim)" }}>QR이 없나요?</p>
-          <Link href="/discover" className="text-sm" style={{ color: "var(--fg)" }}>
-            공간 둘러보기 →
+        <div className="space-y-3">
+          <QrScanSheet />
+          <Link
+            href="/discover"
+            className="tap-target block w-full text-center text-base font-semibold py-4 border transition-colors hover:bg-[var(--fg)] hover:text-[var(--bg)]"
+            style={{ borderColor: "var(--fg)" }}
+          >
+            공간 둘러보기
           </Link>
         </div>
       </div>
