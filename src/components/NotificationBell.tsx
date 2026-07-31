@@ -15,8 +15,8 @@ interface NotificationItem {
 }
 
 function messageFor(n: NotificationItem): string {
-  if (n.type === "LIKE") return `${n.senderNickname}님이 회원님의 방명록에 공감했습니다.`;
-  return `${n.senderNickname}님이 댓글을 남겼습니다.`;
+  if (n.type === "LIKE") return `${n.senderNickname}님이 회원님의 방명록에 공감했습니다`;
+  return `${n.senderNickname}님이 댓글을 남겼습니다`;
 }
 
 /* 아카이브 상단 알림 벨 — SNS 피드가 아니라 "내 흔적에 새 반응이 생겼다" 정도만 알려주는
@@ -73,7 +73,7 @@ export default function NotificationBell({ initialUnreadCount }: { initialUnread
             {loading ? (
               <p className="text-xs" style={{ color: "var(--dim)" }}>불러오는 중...</p>
             ) : !items || items.length === 0 ? (
-              <p className="text-xs" style={{ color: "var(--dim)" }}>아직 알림이 없습니다.</p>
+              <p className="text-xs" style={{ color: "var(--dim)" }}>아직 알림이 없습니다</p>
             ) : (
               <div className="space-y-3">
                 {items.map((n) => (

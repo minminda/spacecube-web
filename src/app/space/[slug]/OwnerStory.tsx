@@ -12,7 +12,7 @@ export default function OwnerStory({ ownerName, ownerPhotoUrl, ownerBio }: Props
   if (!ownerBio) {
     return (
       <div className="py-6 text-center">
-        <p className="text-sm" style={{ color: "var(--dim)" }}>아직 운영자의 한마디가 준비되지 않았어요.</p>
+        <p className="text-sm" style={{ color: "var(--dim)" }}>아직 운영자의 한마디가 준비되지 않았어요</p>
       </div>
     );
   }

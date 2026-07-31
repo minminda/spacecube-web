@@ -92,7 +92,7 @@ export default function ArchiveSessionView({
                 initialCount={openNote.commentCount}
                 isLoggedIn={isLoggedIn}
                 currentUserId={currentUserId}
-                disabledReason="종료된 방명록이라 답글을 남길 수 없어요."
+                disabledReason="종료된 방명록이라 답글을 남길 수 없어요"
               />
             )}
           </div>

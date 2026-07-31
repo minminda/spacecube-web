@@ -85,15 +85,15 @@ export default async function ArchivePage({ searchParams }: Props) {
         </div>
         <p className="text-sm" style={{ color: "var(--dim)" }}>
           {entries.length > 0
-            ? `지금까지 ${entries.length}개의 공간을 기록했어요.`
-            : "아직 기록된 공간이 없어요."}
+            ? `지금까지 ${entries.length}개의 공간을 기록했어요`
+            : "아직 기록된 공간이 없어요"}
         </p>
       </section>
 
       {entries.length === 0 ? (
         <section className="flex-1 flex flex-col justify-center items-center gap-4 text-center py-16">
           <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>
-            아직 기록된 공간이 없어요.
+            아직 기록된 공간이 없어요
             <br />
             공간에서 큐브 QR을 인식하고 첫 기록을 남겨보세요.
           </p>

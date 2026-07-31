@@ -264,7 +264,7 @@ export default async function SpacePage({ params }: Props) {
                 <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>운영자 한마디</p>
                 {usedOwnerBioFallback && (
                   <p className="text-xs leading-relaxed" style={{ color: "var(--border)" }}>
-                    이 한마디는 아직 선택한 언어로 준비되지 않아 다른 언어로 보여드리고 있어요.
+                    이 한마디는 아직 선택한 언어로 준비되지 않아 다른 언어로 보여드리고 있어요
                   </p>
                 )}
                 <OwnerStory

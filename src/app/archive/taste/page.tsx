@@ -16,10 +16,8 @@ import {
 } from "@/lib/features";
 import RecommendationPlaylist, { type PlaylistCard } from "@/components/RecommendationPlaylist";
 import ArchiveBottomNav from "@/components/archive/ArchiveBottomNav";
+import Divider from "@/components/Divider";
 
-function Divider() {
-  return <div className="my-8" style={{ borderTop: "1px solid var(--border)" }} />;
-}
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return <p className="text-xs uppercase tracking-widest mb-5" style={{ color: "var(--dim)" }}>{children}</p>;
 }
@@ -68,7 +66,7 @@ export default async function ArchiveTastePage() {
       <main className="flex flex-col min-h-screen px-6 pt-8 pb-16">
         {header}
         <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>
-          아직 기록이 없어요. 공간 노트에서 첫 기록을 남기면 취향 분석이 시작됩니다.
+          아직 기록이 없어요. 공간 노트에서 첫 기록을 남기면 취향 분석이 시작됩니다
         </p>
         <div className="flex-1" />
         <ArchiveBottomNav />
@@ -210,21 +208,21 @@ export default async function ArchiveTastePage() {
       {allRecords.length < 3 ? (
         <section className="mb-10 space-y-2 pl-4 border-l" style={{ borderColor: "var(--border)" }}>
           <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>
-            아직 취향을 파악하는 중입니다.<br />
+            아직 취향을 파악하는 중입니다<br />
             공간 3곳을 기록하면<br />
-            당신의 취향과 닮은 공간을 보여드립니다.
+            당신의 취향과 닮은 공간을 보여드립니다
           </p>
           <p className="text-xs" style={{ color: "var(--border)" }}>{allRecords.length} / 3 기록됨</p>
         </section>
       ) : (
         <>
-          <Divider />
+          <Divider className="my-8" />
           <section className="mb-10">
             <SectionLabel>// 내 취향과 닮은 공간</SectionLabel>
             {ENABLE_RECOMMENDATION_PLAYLIST_UI && playlistCards.length > 0 ? (
               <div className="space-y-4">
                 <p className="text-xs -mt-3" style={{ color: "var(--dim)" }}>
-                  높은 점수를 남긴 공간들의 결을 바탕으로 골랐어요.
+                  높은 점수를 남긴 공간들의 결을 바탕으로 골랐어요
                 </p>
                 <RecommendationPlaylist cards={playlistCards} />
               </div>
@@ -248,16 +246,16 @@ export default async function ArchiveTastePage() {
               </div>
             ) : (
               <p className="text-sm" style={{ color: "var(--dim)" }}>
-                아직 추천할 공간이 없습니다.
+                아직 추천할 공간이 없습니다
               </p>
             )}
           </section>
-          <Divider />
+          <Divider className="my-8" />
 
           <section className="mb-10">
             <SectionLabel>// 내 취향과 닮은 사람</SectionLabel>
             <p className="text-xs -mt-3 mb-5" style={{ color: "var(--dim)" }}>
-              비슷한 공간에 머문 사람들의 취향입니다.
+              비슷한 공간에 머문 사람들의 취향입니다
             </p>
             {similar.length > 0 ? (
               <div className="space-y-6">
@@ -275,7 +273,7 @@ export default async function ArchiveTastePage() {
               </div>
             ) : (
               <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>
-                취향 기록이 더 쌓이면<br />비슷한 취향의 사람을 만날 수 있습니다.
+                취향 기록이 더 쌓이면<br />비슷한 취향의 사람을 만날 수 있습니다
               </p>
             )}
           </section>
@@ -284,7 +282,7 @@ export default async function ArchiveTastePage() {
 
       {savedTasteCards.length > 0 && (
         <>
-          <Divider />
+          <Divider className="my-8" />
           <section className="mb-10">
             <SectionLabel>관심 있는 취향</SectionLabel>
             <div className="space-y-6">

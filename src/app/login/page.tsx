@@ -7,9 +7,9 @@ interface Props {
 }
 
 const ERROR_MESSAGES: Record<string, string> = {
-  OAuthAccountNotLinked: "이미 다른 방법으로 가입된 이메일이에요. 처음 가입했던 방법으로 로그인해주세요.",
+  OAuthAccountNotLinked: "이미 다른 방법으로 가입된 이메일이에요. 처음 가입했던 방법으로 로그인해주세요",
 };
-const DEFAULT_ERROR_MESSAGE = "카카오 로그인을 완료하지 못했습니다. 다시 시도해주세요.";
+const DEFAULT_ERROR_MESSAGE = "카카오 로그인을 완료하지 못했습니다. 다시 시도해주세요";
 
 export default async function LoginPage({ searchParams }: Props) {
   const { callbackUrl, error } = await searchParams;
@@ -21,10 +21,10 @@ export default async function LoginPage({ searchParams }: Props) {
       <div className="space-y-4">
         <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>공간큐브</p>
         <h1 className="text-3xl font-bold leading-tight whitespace-pre-line">
-          기록을 이어가려면{"\n"}로그인이 필요해요.
+          기록을 이어가려면{"\n"}로그인이 필요해요
         </h1>
         <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>
-          로그인하면 취향 점수와 방문 기록을 내 아카이브에 저장할 수 있습니다.
+          로그인하면 취향 점수와 방문 기록을 내 아카이브에 저장할 수 있습니다
         </p>
       </div>
 
@@ -55,7 +55,7 @@ export default async function LoginPage({ searchParams }: Props) {
       </div>
 
       <p className="text-xs text-center" style={{ color: "var(--dim)" }}>
-        공간과 이야기는 로그인하지 않아도 볼 수 있습니다.
+        공간과 이야기는 로그인하지 않아도 볼 수 있습니다
       </p>
     </main>
   );

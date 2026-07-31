@@ -114,7 +114,7 @@ export default function SpaceDiscoveryCard({ space, isUnlocked, variant = "defau
           <p className="text-xs leading-relaxed" style={{ color: "var(--border)" }}>
             잠겨 있음
             <br />
-            공간에서 QR을 인식하면 열립니다.
+            공간에서 QR을 인식하면 열립니다
           </p>
         )}
 
@@ -157,9 +157,9 @@ export default function SpaceDiscoveryCard({ space, isUnlocked, variant = "defau
           >
             <div className="space-y-2.5">
               <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>{space.name}</p>
-              <p className="text-lg font-semibold leading-relaxed">이 공간의 이야기는 잠겨 있습니다.</p>
+              <p className="text-lg font-semibold leading-relaxed">이 공간의 이야기는 잠겨 있습니다</p>
               <p className="text-sm leading-relaxed whitespace-pre-line" style={{ color: "var(--dim)" }}>
-                {"공간을 방문해 큐브의 QR을 인식하면\n이야기와 방명록이 열립니다."}
+                {"공간을 방문해 큐브의 QR을 인식하면\n이야기와 방명록이 열립니다"}
               </p>
             </div>
             <div className="flex flex-col gap-2">

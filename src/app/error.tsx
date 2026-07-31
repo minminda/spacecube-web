@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Divider from "@/components/Divider";
 
 export default function Error({
   error,
@@ -13,12 +14,12 @@ export default function Error({
     <main className="flex flex-col justify-center min-h-screen px-6 py-12 gap-6">
       <div className="space-y-1" style={{ color: "var(--dim)" }}>
         <p className="text-xs">공간큐브 / ERROR</p>
-        <p className="text-xs">─────────────────────────────</p>
+        <Divider />
       </div>
 
       <div className="space-y-2">
         <p className="text-sm" style={{ color: "var(--dim)" }}>
-          &gt; 오류가 발생했어.
+          &gt; 오류가 발생했어
         </p>
         <p className="text-xs" style={{ color: "var(--border)" }}>
           {error.message || "알 수 없는 오류"}

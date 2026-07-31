@@ -21,10 +21,10 @@ export default function SpaceLockNotice({ naverMapUrl, backHref, backLabel = "�
   return (
     <div className="space-y-4 p-6 border text-center" style={{ borderColor: "var(--border)" }}>
       <p className="text-base font-medium leading-relaxed whitespace-pre-line">
-        {"이 공간의 이야기는\n공간에서 열립니다."}
+        {"이 공간의 이야기는\n공간에서 열립니다"}
       </p>
       <p className="text-sm leading-relaxed whitespace-pre-line" style={{ color: "var(--dim)" }}>
-        {"공간에 놓인 큐브의 QR을 스캔하면\n이야기와 방명록의 잠금이 해제됩니다."}
+        {"공간에 놓인 큐브의 QR을 스캔하면\n이야기와 방명록의 잠금이 해제됩니다"}
       </p>
       <div className="flex flex-col gap-2 pt-1">
         {naverMapUrl && (

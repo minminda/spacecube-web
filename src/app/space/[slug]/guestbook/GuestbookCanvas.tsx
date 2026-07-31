@@ -31,7 +31,7 @@ import { formatFetchException } from "@/lib/formatFetchError";
 
 const SUBMIT_TIMEOUT_MS = 10_000;
 
-const ALREADY_COMMENTED_MSG = "이번 방문의 답글을 이미 남겼습니다. 다음 방문에서 새로운 답글을 남길 수 있어요.";
+const ALREADY_COMMENTED_MSG = "이번 방문의 답글을 이미 남겼습니다. 다음 방문에서 새로운 답글을 남길 수 있어요";
 
 /* ── 방명록 캔버스 (전체 화면, 진짜 무한 캔버스) ──────────────────
    관리자가 설정한 배경/포스트잇 색/레이아웃을 반영한다. 설정이 없으면
@@ -305,7 +305,7 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
   async function submitNickname() {
     const trimmed = nicknameInput.trim();
     if (trimmed.length < 2 || trimmed.length > 12) {
-      setNicknameError("닉네임은 2~12자로 입력해주세요.");
+      setNicknameError("닉네임은 2~12자로 입력해주세요");
       return;
     }
     setNicknameSaving(true);
@@ -317,7 +317,7 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
     setNicknameSaving(false);
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      setNicknameError(data.error ?? "닉네임 저장에 실패했어요.");
+      setNicknameError(data.error ?? "닉네임 저장에 실패했어요");
       return;
     }
     setMyNickname(trimmed);
@@ -417,12 +417,12 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
       collisionObstacles(),
     );
     if (!found) {
-      showToast("이 주변에는 흔적이 가득합니다. 조금 다른 위치를 선택해주세요.");
+      showToast("이 주변에는 흔적이 가득합니다. 조금 다른 위치를 선택해주세요");
       return;
     }
     const { x, y } = found;
     if (x !== desiredX || y !== desiredY) {
-      showToast("가까운 빈자리에 흔적을 놓았습니다.");
+      showToast("가까운 빈자리에 흔적을 놓았습니다");
     }
 
     // 생성 직후 해당 위치로 부드럽게 이동/확대하고, 취소 시 되돌아갈 이전 위치를 기억해둔다
@@ -491,14 +491,14 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         if (data.code === "POSITION_OCCUPIED" || data.code === "POSTIT_POSITION_OCCUPIED") {
-          showToast("다른 사람이 방금 이 자리에 흔적을 남겼어요. 다른 위치를 골라주세요.");
+          showToast("다른 사람이 방금 이 자리에 흔적을 남겼어요. 다른 위치를 골라주세요");
           cancelCompose();
           return;
         }
         if (data.code === "VISIT_ALREADY_POSTED") {
           // 응답을 못 받은 채 재시도한 경우 등 — 실제로는 이전 시도가 이미 성공한 상태다.
           // 실패로 보이지 않게 성공과 동일하게 캔버스를 정리한다(새로고침하면 내 흔적이 보인다).
-          showToast("이번 방문에 이미 흔적을 남기셨어요.");
+          showToast("이번 방문에 이미 흔적을 남기셨어요");
           setComposer(null);
           setContent("");
           setPhotoPreview(null);
@@ -507,7 +507,7 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
           exitWriteMode();
           return;
         }
-        showToast(data.error ?? "저장에 실패했습니다.");
+        showToast(data.error ?? "저장에 실패했습니다");
         return;
       }
       const noteFields: GuestbookNoteData = await res.json();
@@ -524,7 +524,7 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
       exitWriteMode();
       // 포스트잇 저장만으로 캔버스를 닫거나 추천을 강제로 띄우지 않는다 — 짧은 완료 피드백만 주고
       // 캔버스 탐색을 계속할 수 있게 둔다. 추천은 "다음으로"(handleFinishVisit)를 눌렀을 때만 노출.
-      showToast("흔적이 저장되었습니다.");
+      showToast("흔적이 저장되었습니다");
     } catch (err) {
       showToast(formatFetchException(err));
     } finally {
@@ -590,7 +590,7 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        showToast(data.error ?? "수정에 실패했습니다.");
+        showToast(data.error ?? "수정에 실패했습니다");
         return;
       }
       const updatedContent = editContent.trim();
@@ -598,7 +598,7 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
       setNotes((prev) => prev.map((n) => (n.id === focused.id ? { ...n, content: updatedContent, imageUrl: updatedImage } : n)));
       setFocused((prev) => (prev ? { ...prev, content: updatedContent, imageUrl: updatedImage } : prev));
       closeFocused();
-      showToast("흔적을 수정했습니다.");
+      showToast("흔적을 수정했습니다");
     } finally {
       setBusy(false);
     }
@@ -611,13 +611,13 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
       const res = await fetch(`/api/guestbook/${focused.id}`, { method: "DELETE" });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        showToast(data.error ?? "삭제에 실패했습니다.");
+        showToast(data.error ?? "삭제에 실패했습니다");
         return;
       }
       setNotes((prev) => prev.filter((n) => n.id !== focused.id));
       setMyNoteId(null);
       closeFocused();
-      showToast("흔적을 삭제했습니다. 다시 남길 수 있어요.");
+      showToast("흔적을 삭제했습니다. 다시 남길 수 있어요");
     } finally {
       setBusy(false);
     }
@@ -633,7 +633,7 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
     const res = await fetch(`/api/guestbook/${noteId}/reactions`, { method: "POST" });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      showToast(data.error ?? "공감 처리에 실패했습니다.");
+      showToast(data.error ?? "공감 처리에 실패했습니다");
       return;
     }
     setNotes((prev) => prev.map((n) => (n.id === noteId ? { ...n, reactionCount: data.reactionCount, reactedByMe: data.reacted } : n)));
@@ -674,7 +674,7 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
               style={{ background: "rgba(255,255,255,0.08)", backdropFilter: "blur(4px)" }}
             >
               <p className="text-xs whitespace-nowrap" style={{ color: "#eee" }}>
-                이 공간에 남기고 싶은 위치를 골라주세요.
+                이 공간에 남기고 싶은 위치를 골라주세요
               </p>
               <button type="button" onClick={exitWriteMode} className="text-xs flex-shrink-0 underline underline-offset-2" style={{ color: "#999" }}>
                 취소
@@ -708,10 +708,10 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
             >
               <div className="text-center space-y-2">
                 <p className="text-sm leading-relaxed break-keep" style={{ color: "rgba(255,255,255,0.55)" }}>
-                  아직 첫 번째 흔적을 기다리고 있습니다.
+                  아직 첫 번째 흔적을 기다리고 있습니다
                 </p>
                 <p className="text-sm leading-relaxed break-keep" style={{ color: "rgba(255,255,255,0.55)" }}>
-                  첫 번째 이야기를 남겨보세요.
+                  첫 번째 이야기를 남겨보세요
                 </p>
               </div>
             </motion.div>
@@ -872,7 +872,7 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
                     autoFocus
                     value={content}
                     onChange={(e) => { if (e.target.value.length <= MAX_CONTENT) setContent(e.target.value); }}
-                    placeholder="오늘 이 공간에서 든 생각을 짧게 남겨주세요."
+                    placeholder="오늘 이 공간에서 든 생각을 짧게 남겨주세요"
                     rows={3}
                     className="w-full text-[13px] leading-relaxed p-2 resize-none outline-none"
                     style={{ background: "rgba(255,255,255,0.45)", color: INK }}
@@ -974,9 +974,9 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
             onClick={(e) => { if (e.target === e.currentTarget) setNicknamePrompt(false); }}
           >
             <div className="w-full max-w-xs p-6 space-y-4" style={{ background: "#111", border: "1px solid #333" }}>
-              <p className="text-sm font-medium" style={{ color: "#eee" }}>흔적을 남기기 전에, 닉네임을 정해주세요.</p>
+              <p className="text-sm font-medium" style={{ color: "#eee" }}>흔적을 남기기 전에, 닉네임을 정해주세요</p>
               <p className="text-xs leading-relaxed" style={{ color: "#999" }}>
-                2~12자로 입력해주세요. 이후 포스트잇마다 다시 입력하지 않아요.
+                2~12자로 입력해주세요. 이후 포스트잇마다 다시 입력하지 않아요
               </p>
               <input
                 autoFocus
@@ -1130,7 +1130,7 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
               {overlayMode === "confirmDelete" && (
                 <>
                   <p className="text-sm font-medium" style={{ color: INK }}>정말 삭제하시겠습니까?</p>
-                  <p className="text-xs mt-1.5 leading-relaxed" style={{ color: INK_DIM }}>삭제하면 이 흔적은 사라지고, 이 공간에 다시 남길 수 있어요.</p>
+                  <p className="text-xs mt-1.5 leading-relaxed" style={{ color: INK_DIM }}>삭제하면 이 흔적은 사라지고, 이 공간에 다시 남길 수 있어요</p>
                   <div className="flex gap-2 mt-4">
                     <button type="button" onClick={() => setOverlayMode("read")} disabled={busy} className="flex-1 text-xs py-2 border" style={{ borderColor: INK, color: INK }}>취소</button>
                     <button type="button" onClick={handleDeleteConfirm} disabled={busy} className="flex-1 text-xs py-2 border border-red-700 text-red-700 disabled:opacity-50">
@@ -1175,7 +1175,7 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
             >
               <p className="text-sm leading-relaxed break-keep" style={{ color: "#eee" }}>
                 지난 방문 이후
-                <br />새로운 흔적 {newNotesCount}개가 추가되었습니다.
+                <br />새로운 흔적 {newNotesCount}개가 추가되었습니다
               </p>
               <button
                 type="button"

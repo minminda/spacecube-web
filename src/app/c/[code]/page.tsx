@@ -29,7 +29,7 @@ export default async function CubeEntryPage({ params }: Props) {
     return (
       <main className="flex flex-col items-center justify-center min-h-screen px-6 text-center gap-3">
         <p className="text-sm leading-relaxed whitespace-pre-line" style={{ color: "var(--dim)" }}>
-          {"등록되지 않은 큐브입니다.\n큐브의 QR을 다시 확인해주세요."}
+          {"등록되지 않은 큐브입니다\n큐브의 QR을 다시 확인해주세요"}
         </p>
       </main>
     );
@@ -39,7 +39,7 @@ export default async function CubeEntryPage({ params }: Props) {
     return (
       <main className="flex flex-col items-center justify-center min-h-screen px-6 text-center gap-3">
         <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>
-          현재 사용할 수 없는 큐브입니다.
+          현재 사용할 수 없는 큐브입니다
         </p>
       </main>
     );
@@ -52,7 +52,7 @@ export default async function CubeEntryPage({ params }: Props) {
   return (
     <main className="flex flex-col items-center justify-center min-h-screen px-6 text-center gap-5">
       <p className="text-sm leading-relaxed whitespace-pre-line" style={{ color: "var(--dim)" }}>
-        {"아직 공간과 연결되지 않은 큐브입니다.\n운영자에게 문의해주세요."}
+        {"아직 공간과 연결되지 않은 큐브입니다\n운영자에게 문의해주세요"}
       </p>
       {admin && (
         <Link

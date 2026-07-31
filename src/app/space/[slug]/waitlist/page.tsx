@@ -45,7 +45,7 @@ export default function WaitlistPage() {
       if (!res.ok) throw new Error();
       setDone(true);
     } catch {
-      setError("등록에 실패했습니다. 다시 시도해 주세요.");
+      setError("등록에 실패했습니다. 다시 시도해 주세요");
     } finally {
       setSubmitting(false);
     }
@@ -62,7 +62,7 @@ export default function WaitlistPage() {
   if (!space) {
     return (
       <main className="flex flex-col min-h-screen items-center justify-center px-6">
-        <p className="text-sm" style={{ color: "var(--dim)" }}>공간을 찾을 수 없습니다.</p>
+        <p className="text-sm" style={{ color: "var(--dim)" }}>공간을 찾을 수 없습니다</p>
       </main>
     );
   }
@@ -83,7 +83,7 @@ export default function WaitlistPage() {
 
         <div className="space-y-3">
           <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>
-            자리가 생기면 운영자가 직접 연락드립니다.
+            자리가 생기면 운영자가 직접 연락드립니다
           </p>
           <div className="space-y-1 text-sm">
             <p><span style={{ color: "var(--dim)" }}>이름</span>&nbsp;&nbsp;{name}</p>
@@ -92,7 +92,7 @@ export default function WaitlistPage() {
         </div>
 
         <p className="text-xs" style={{ color: "var(--border)" }}>
-          잠시 주변에 계시다가 연락을 기다려 주세요.
+          잠시 주변에 계시다가 연락을 기다려 주세요
         </p>
       </main>
     );
@@ -111,7 +111,7 @@ export default function WaitlistPage() {
         </h1>
         {space.isFullyBooked && (
           <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>
-            이름과 연락처를 남기시면 자리가 나는 대로 연락드립니다.
+            이름과 연락처를 남기시면 자리가 나는 대로 연락드립니다
           </p>
         )}
       </div>
@@ -168,7 +168,7 @@ export default function WaitlistPage() {
       </form>
 
       <p className="text-xs" style={{ color: "var(--border)" }}>
-        연락처는 이 공간의 운영자에게만 전달되며, 대기 완료 후 삭제됩니다.
+        연락처는 이 공간의 운영자에게만 전달되며, 대기 완료 후 삭제됩니다
       </p>
     </main>
   );

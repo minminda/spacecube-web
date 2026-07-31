@@ -159,7 +159,7 @@ export default async function ArchiveSpaceDetailPage({ params }: Props) {
 
       <section className="space-y-1">
         <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>저장 여부</p>
-        <p className="text-sm" style={{ color: "var(--dim)" }}>{savedSpace ? "찜한 공간이에요." : "찜하지 않았어요."}</p>
+        <p className="text-sm" style={{ color: "var(--dim)" }}>{savedSpace ? "찜한 공간이에요" : "찜하지 않았어요"}</p>
       </section>
 
       <div className="flex-1" />

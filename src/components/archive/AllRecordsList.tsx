@@ -28,7 +28,7 @@ export default function AllRecordsList({ entries }: { entries: SpaceNoteCardData
       />
 
       {filtered.length === 0 ? (
-        <p className="text-sm" style={{ color: "var(--dim)" }}>검색 결과가 없습니다.</p>
+        <p className="text-sm" style={{ color: "var(--dim)" }}>검색 결과가 없습니다</p>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
           {filtered.map((e) => (

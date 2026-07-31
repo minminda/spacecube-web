@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { TagKey } from "@prisma/client";
 import { TAG_LABELS, ALL_TAGS } from "@/lib/tags";
 import TagChip from "@/components/TagChip";
+import Divider from "@/components/Divider";
 import { ENABLE_RECORD_TAG_SELECTION } from "@/lib/features";
 import { formatFetchException } from "@/lib/formatFetchError";
 
@@ -109,7 +110,7 @@ export default function RecordForm({ space, spaceTags, displayTagGroups, visitCo
         return;
       }
       const data = await res.json().catch(() => ({}));
-      setErrorMessage(data.error ?? "저장에 실패했어요. 다시 시도해주세요.");
+      setErrorMessage(data.error ?? "저장에 실패했어요. 다시 시도해주세요");
     } catch (err) {
       setErrorMessage(formatFetchException(err));
     } finally {
@@ -118,13 +119,11 @@ export default function RecordForm({ space, spaceTags, displayTagGroups, visitCo
     }
   }
 
-  const divider = <div style={{ borderTop: "1px solid var(--border)" }} />;
-
   return (
     <main className="flex flex-col min-h-screen px-6 py-10 gap-8">
       <div className="space-y-1" style={{ color: "var(--dim)" }}>
         <p className="text-xs">공간큐브 / {isUnlock ? "GUESTBOOK" : "RECORD"}</p>
-        <p className="text-xs">─────────────────────────────</p>
+        <Divider />
       </div>
 
       <div className="space-y-1">
@@ -135,7 +134,7 @@ export default function RecordForm({ space, spaceTags, displayTagGroups, visitCo
       {isUnlock ? (
         <div className="space-y-2">
           <p className="text-base font-medium leading-relaxed whitespace-pre-line">
-            {"이 공간에는\n다른 사람들의 흔적이 남아 있습니다."}
+            {"이 공간에는\n다른 사람들의 흔적이 남아 있습니다"}
           </p>
           {space.tagline && (
             <p className="text-sm italic leading-relaxed" style={{ color: "var(--dim)" }}>{space.tagline}</p>
@@ -171,11 +170,11 @@ export default function RecordForm({ space, spaceTags, displayTagGroups, visitCo
             <p className="text-xs leading-relaxed break-keep" style={{ color: "var(--dim)" }}>
               남긴 취향 점수를 바탕으로
               <br />
-              나와 맞는 다른 공간을 추천해드려요.
+              나와 맞는 다른 공간을 추천해드려요
             </p>
           </div>
 
-          {divider}
+          <Divider />
 
           <div className="space-y-4">
             <div className="flex gap-2">
@@ -228,20 +227,20 @@ export default function RecordForm({ space, spaceTags, displayTagGroups, visitCo
         </div>
       )}
 
-      {divider}
+      <Divider />
 
       <p className="text-xs leading-relaxed break-keep" style={{ color: "var(--dim)" }}>
         {isUnlock ? (
           <>
             당신의 경험을 먼저 남기면,
             <br />
-            이 공간에 쌓인 다른 사람들의 흔적도 함께 열립니다.
+            이 공간에 쌓인 다른 사람들의 흔적도 함께 열립니다
           </>
         ) : (
           <>
             저장하면 이 공간의 방명록에서
             <br />
-            원하는 위치에 흔적을 남길 수 있어요.
+            원하는 위치에 흔적을 남길 수 있어요
           </>
         )}
       </p>

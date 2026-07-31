@@ -6,6 +6,7 @@ import { auth } from "@/auth";
 import { GuestbookSessionStatus } from "@prisma/client";
 import { formatDotDate as formatDate } from "@/lib/time";
 import { ENABLE_GUESTBOOK_COMMENTS } from "@/lib/pilotFlags";
+import Divider from "@/components/Divider";
 import ArchiveSessionView from "./ArchiveSessionView";
 
 interface Props {
@@ -36,7 +37,7 @@ export default async function GuestbookArchiveSessionPage({ params, searchParams
     return (
       <main className="flex flex-col items-center justify-center min-h-screen px-6 gap-6 text-center">
         <p className="text-sm leading-relaxed whitespace-pre-line" style={{ color: "var(--dim)" }}>
-          {"이 공간에 대한 기록을 남기면\n이전 방명록을 볼 수 있어요."}
+          {"이 공간에 대한 기록을 남기면\n이전 방명록을 볼 수 있어요"}
         </p>
         <Link href={`/space/${slug}`} className="text-xs" style={{ color: "var(--border)" }}>← 공간으로</Link>
       </main>
@@ -63,7 +64,7 @@ export default async function GuestbookArchiveSessionPage({ params, searchParams
           <p className="text-xs">{space.name} / 이전 방명록</p>
           <Link href={`/space/${slug}/guestbook/archive`} className="text-xs" style={{ color: "var(--dim)" }}>← 목록</Link>
         </div>
-        <p className="text-xs">─────────────────────────────</p>
+        <Divider />
       </div>
 
       <div className="space-y-1">
@@ -78,7 +79,7 @@ export default async function GuestbookArchiveSessionPage({ params, searchParams
       </div>
 
       {notes.length === 0 ? (
-        <p className="text-sm" style={{ color: "var(--dim)" }}>아직 남겨진 방명록이 없습니다.</p>
+        <p className="text-sm" style={{ color: "var(--dim)" }}>아직 남겨진 방명록이 없습니다</p>
       ) : (
         <ArchiveSessionView
           isLoggedIn={!!session?.user?.id}

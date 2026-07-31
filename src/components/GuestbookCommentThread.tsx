@@ -135,7 +135,7 @@ export default function GuestbookCommentThread({
       {expanded && (
         <div className="mt-3 space-y-3">
           {comments.length === 0 ? (
-            <p className="text-xs" style={{ color: inkDim }}>아직 댓글이 없습니다.</p>
+            <p className="text-xs" style={{ color: inkDim }}>아직 댓글이 없습니다</p>
           ) : (
             <div className="space-y-2.5">
               {comments.map((c) => (
@@ -183,7 +183,7 @@ export default function GuestbookCommentThread({
               <textarea
                 value={draft}
                 onChange={(e) => { if (e.target.value.length <= MAX_CONTENT) setDraft(e.target.value); }}
-                placeholder={isLoggedIn ? "댓글을 남겨보세요." : "로그인하면 댓글을 남길 수 있어요."}
+                placeholder={isLoggedIn ? "댓글을 남겨보세요" : "로그인하면 댓글을 남길 수 있어요"}
                 rows={2}
                 className="w-full text-xs p-2 resize-none outline-none"
                 style={{ background: "rgba(255,255,255,0.45)", color: ink }}

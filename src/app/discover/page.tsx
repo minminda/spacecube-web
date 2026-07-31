@@ -149,7 +149,7 @@ export default async function DiscoverPage({ searchParams }: Props) {
       {spacesRaw.length === 0 ? (
         <div className="flex-1 flex flex-col justify-center gap-4">
           <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>
-            아직 {district}에 등록된 공간이 없어. 조금 기다려봐.
+            아직 {district}에 등록된 공간이 없어. 조금 기다려봐
           </p>
           <Link href="/" className="text-sm" style={{ color: "var(--dim)" }}>다른 지역 보기 →</Link>
         </div>
@@ -166,8 +166,8 @@ export default async function DiscoverPage({ searchParams }: Props) {
                   </p>
                   <p className="text-xs" style={{ color: "var(--dim)" }}>
                     {ENABLE_TASTE_SCORE_RECOMMENDATION
-                      ? "높은 점수를 남긴 공간들의 결을 바탕으로 골랐어요."
-                      : "최근 기록한 공간의 태그를 바탕으로 골랐습니다."}
+                      ? "높은 점수를 남긴 공간들의 결을 바탕으로 골랐어요"
+                      : "최근 기록한 공간의 태그를 바탕으로 골랐습니다"}
                   </p>
                 </div>
 
@@ -206,12 +206,12 @@ export default async function DiscoverPage({ searchParams }: Props) {
             </p>
             {hasEnoughRecords && (
               <p className="text-xs" style={{ color: "var(--dim)" }}>
-                당신의 취향과 닮은 순으로 정렬되었습니다.
+                당신의 취향과 닮은 순으로 정렬되었습니다
               </p>
             )}
             {session && !hasEnoughRecords && recordCount > 0 && (
               <p className="text-xs" style={{ color: "var(--dim)" }}>
-                공간 {recordCount}/3을 기록하면 취향과 닮은 공간을 먼저 보여드립니다.
+                공간 {recordCount}/3을 기록하면 취향과 닮은 공간을 먼저 보여드립니다
               </p>
             )}
           </div>

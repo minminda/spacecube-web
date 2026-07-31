@@ -116,7 +116,7 @@ export default async function GuestbookPage({ params, searchParams }: Props) {
     return (
       <main className="flex flex-col items-center justify-center min-h-screen px-6 gap-6 text-center">
         <p className="text-sm leading-relaxed break-keep whitespace-pre-line" style={{ color: "var(--dim)" }}>
-          {"이 공간에 대한 기록을 남기면\n다른 방문자들의 이야기를 볼 수 있어요."}
+          {"이 공간에 대한 기록을 남기면\n다른 방문자들의 이야기를 볼 수 있어요"}
         </p>
         <Link
           href={`/space/${slug}/record`}
@@ -139,7 +139,7 @@ export default async function GuestbookPage({ params, searchParams }: Props) {
     return (
       <main className="flex flex-col items-center justify-center min-h-screen px-6 gap-6 text-center">
         <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>
-          지금은 방명록이 준비 중입니다. 곧 다시 열릴 예정이에요.
+          지금은 방명록이 준비 중입니다. 곧 다시 열릴 예정이에요
         </p>
         <Link href={`/space/${slug}`} className="text-xs" style={{ color: "var(--border)" }}>← 공간으로</Link>
       </main>

@@ -54,10 +54,10 @@ export default function EpisodeSection({ spaceSlug, episodes, banner }: Props) {
           className="px-3 py-2.5 text-xs leading-relaxed"
           style={{ background: "var(--tag-bg)", color: "var(--dim)" }}
         >
-          {banner.type === "first" && "이 공간의 첫 번째 이야기가 열렸습니다."}
-          {banner.type === "new" && "새로운 이야기가 열렸습니다."}
-          {banner.type === "locked" && "다음 방문에서 또 다른 이야기가 기다리고 있습니다."}
-          {banner.type === "allUnlocked" && "이 공간의 모든 이야기를 발견했습니다."}
+          {banner.type === "first" && "이 공간의 첫 번째 이야기가 열렸습니다"}
+          {banner.type === "new" && "새로운 이야기가 열렸습니다"}
+          {banner.type === "locked" && "다음 방문에서 또 다른 이야기가 기다리고 있습니다"}
+          {banner.type === "allUnlocked" && "이 공간의 모든 이야기를 발견했습니다"}
         </div>
       )}
 
@@ -145,12 +145,12 @@ export default function EpisodeSection({ spaceSlug, episodes, banner }: Props) {
           >
             <div className="space-y-2.5">
               <p className="text-lg font-semibold leading-relaxed">
-                {dialog === "locked" ? "아직 열리지 않았습니다." : "다음 이야기를 준비하고 있습니다."}
+                {dialog === "locked" ? "아직 열리지 않았습니다" : "다음 이야기를 준비하고 있습니다"}
               </p>
               <p className="text-sm leading-relaxed whitespace-pre-line" style={{ color: "var(--dim)" }}>
                 {dialog === "locked"
-                  ? "이 공간을 다시 방문하면\n다음 이야기가 열립니다."
-                  : "운영자가 새로운 이야기를 준비 중입니다.\n다시 방문해 주세요."}
+                  ? "이 공간을 다시 방문하면\n다음 이야기가 열립니다"
+                  : "운영자가 새로운 이야기를 준비 중입니다.\n다시 방문해 주세요"}
               </p>
             </div>
             <button

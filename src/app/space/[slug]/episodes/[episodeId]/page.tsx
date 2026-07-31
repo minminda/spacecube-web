@@ -132,7 +132,7 @@ export default async function EpisodeDetailPage({ params }: Props) {
     return (
       <main className="flex flex-col items-center justify-center min-h-screen px-6 text-center gap-4">
         <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>
-          {remaining <= 1 ? "이 이야기는 다음 방문에서 열려요." : `이 이야기는 앞으로 ${remaining}번 더 방문하면 열려요.`}
+          {remaining <= 1 ? "이 이야기는 다음 방문에서 열려요" : `이 이야기는 앞으로 ${remaining}번 더 방문하면 열려요`}
         </p>
         <Link href={`/space/${space.slug}`} className="text-xs" style={{ color: "var(--border)" }}>← {space.name}로 돌아가기</Link>
       </main>
@@ -186,7 +186,7 @@ export default async function EpisodeDetailPage({ params }: Props) {
 
       {usedContentFallback && (
         <p className="text-xs leading-relaxed" style={{ color: "var(--border)" }}>
-          이 이야기는 아직 선택한 언어로 준비되지 않아 다른 언어로 보여드리고 있어요.
+          이 이야기는 아직 선택한 언어로 준비되지 않아 다른 언어로 보여드리고 있어요
         </p>
       )}
 
@@ -284,18 +284,18 @@ export default async function EpisodeDetailPage({ params }: Props) {
         ) : nextEpisode ? (
           <div className="space-y-3">
             <p className="text-sm leading-relaxed break-keep" style={{ color: "var(--dim)" }}>
-              다음 방문에는<br />새로운 이야기가 열립니다.
+              다음 방문에는<br />새로운 이야기가 열립니다
             </p>
             <div className="space-y-1 py-2">
               <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>EP.{nextEpisode.episodeNumber}</p>
               <p className="text-lg font-bold leading-snug break-keep">{nextEpisode.title}</p>
             </div>
-            <p className="text-xs" style={{ color: "var(--border)" }}>다음 방문 후 열립니다.</p>
+            <p className="text-xs" style={{ color: "var(--border)" }}>다음 방문 후 열립니다</p>
           </div>
         ) : (
           <div className="space-y-2">
-            <p className="text-sm leading-relaxed break-keep" style={{ color: "var(--dim)" }}>다음 이야기를 준비하고 있습니다.</p>
-            <p className="text-xs leading-relaxed break-keep" style={{ color: "var(--border)" }}>새로운 이야기가 추가되면 다시 찾아와 주세요.</p>
+            <p className="text-sm leading-relaxed break-keep" style={{ color: "var(--dim)" }}>다음 이야기를 준비하고 있습니다</p>
+            <p className="text-xs leading-relaxed break-keep" style={{ color: "var(--border)" }}>새로운 이야기가 추가되면 다시 찾아와 주세요</p>
           </div>
         )}
       </div>

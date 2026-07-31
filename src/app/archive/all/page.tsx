@@ -54,11 +54,11 @@ export default async function ArchiveAllPage() {
       </nav>
 
       <section className="mb-6">
-        <p className="text-sm" style={{ color: "var(--dim)" }}>지금까지 {entries.length}개의 공간을 기록했어요.</p>
+        <p className="text-sm" style={{ color: "var(--dim)" }}>지금까지 {entries.length}개의 공간을 기록했어요</p>
       </section>
 
       {entries.length === 0 ? (
-        <p className="text-sm" style={{ color: "var(--dim)" }}>아직 기록된 공간이 없어요.</p>
+        <p className="text-sm" style={{ color: "var(--dim)" }}>아직 기록된 공간이 없어요</p>
       ) : (
         <AllRecordsList entries={cardData} />
       )}

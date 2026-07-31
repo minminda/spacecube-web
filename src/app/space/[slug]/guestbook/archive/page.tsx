@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 import { GuestbookSessionStatus } from "@prisma/client";
 import { formatDotDate as formatDate } from "@/lib/time";
+import Divider from "@/components/Divider";
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -27,7 +28,7 @@ export default async function GuestbookArchiveListPage({ params }: Props) {
     return (
       <main className="flex flex-col items-center justify-center min-h-screen px-6 gap-6 text-center">
         <p className="text-sm leading-relaxed whitespace-pre-line" style={{ color: "var(--dim)" }}>
-          {"이 공간에 대한 기록을 남기면\n이전 방명록을 볼 수 있어요."}
+          {"이 공간에 대한 기록을 남기면\n이전 방명록을 볼 수 있어요"}
         </p>
         <Link href={`/space/${slug}`} className="text-xs" style={{ color: "var(--border)" }}>← 공간으로</Link>
       </main>
@@ -46,11 +47,11 @@ export default async function GuestbookArchiveListPage({ params }: Props) {
           <p className="text-xs">{space.name} / 이전 방명록</p>
           <Link href={`/space/${slug}/guestbook`} className="text-xs" style={{ color: "var(--dim)" }}>← 방명록</Link>
         </div>
-        <p className="text-xs">─────────────────────────────</p>
+        <Divider />
       </div>
 
       {sessions.length === 0 ? (
-        <p className="text-sm" style={{ color: "var(--dim)" }}>아직 종료된 방명록이 없습니다.</p>
+        <p className="text-sm" style={{ color: "var(--dim)" }}>아직 종료된 방명록이 없습니다</p>
       ) : (
         <div className="space-y-3">
           {sessions.map((s) => (

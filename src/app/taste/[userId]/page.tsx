@@ -46,7 +46,7 @@ export default async function TasteJourneyPage({ params }: Props) {
   if (target.visibility === "PRIVATE") {
     return (
       <main className="flex flex-col items-center justify-center min-h-screen px-6 text-center gap-3">
-        <p className="text-sm" style={{ color: "var(--dim)" }}>이 사용자의 아카이브는 공개되지 않았습니다.</p>
+        <p className="text-sm" style={{ color: "var(--dim)" }}>이 사용자의 아카이브는 공개되지 않았습니다</p>
         <Link href="/" className="text-xs" style={{ color: "var(--border)" }}>← 홈으로</Link>
       </main>
     );
@@ -115,7 +115,7 @@ export default async function TasteJourneyPage({ params }: Props) {
         <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>이 취향이 다녀온 공간</p>
 
         {uniqueRecords.length === 0 ? (
-          <p className="text-sm" style={{ color: "var(--dim)" }}>아직 공개된 기록이 없습니다.</p>
+          <p className="text-sm" style={{ color: "var(--dim)" }}>아직 공개된 기록이 없습니다</p>
         ) : (
           <div className="space-y-6">
             {uniqueRecords.map((r, i) => (
@@ -182,7 +182,7 @@ export default async function TasteJourneyPage({ params }: Props) {
         <>
           <div style={{ borderTop: "1px solid var(--border)" }} />
           <section className="space-y-2">
-            <p className="text-xs" style={{ color: "var(--dim)" }}>사람을 팔로우하지 않고, 취향을 저장합니다.</p>
+            <p className="text-xs" style={{ color: "var(--dim)" }}>사람을 팔로우하지 않고, 취향을 저장합니다</p>
             <SaveTasteButton targetUserId={userId} initialSaved={alreadySaved} isLoggedIn={isLoggedIn} />
           </section>
         </>

@@ -4,6 +4,7 @@ import Image from "next/image";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 import DeleteRecordButton from "@/components/DeleteRecordButton";
+import Divider from "@/components/Divider";
 
 interface Props {
   params: Promise<{ recordId: string }>;
@@ -63,9 +64,7 @@ export default async function RecordDetailPage({ params }: Props) {
         </p>
       </div>
 
-      <p className="text-xs" style={{ color: "var(--border)" }}>
-        ─────────────────────────────
-      </p>
+      <Divider />
 
       {/* 공간 바로가기 */}
       <Link

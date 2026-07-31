@@ -6,12 +6,9 @@ import { ENABLE_REGION_STORIES, ENABLE_TASTE_STORIES } from "@/lib/features";
 import HomeStoryCard from "./HomeStoryCard";
 import QrScanSheet from "./QrScanSheet";
 import HomeLogoutButton from "@/components/HomeLogoutButton";
+import Divider from "@/components/Divider";
 
 const FLOW_STEPS = ["큐브 발견", "QR 스캔", "공간 이야기", "취향 저장", "흔적 남기기", "다음 공간 추천"];
-
-function Divider() {
-  return <div style={{ borderTop: "1px solid var(--border)" }} />;
-}
 
 function FlowDiagram() {
   return (
@@ -71,10 +68,10 @@ export default async function Home() {
       <div className="space-y-4">
         <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>공간큐브</p>
         <h1 className="text-3xl font-bold leading-tight">
-          좋은 공간보다,<br />나와 맞는 공간을 발견하세요.
+          좋은 공간보다,<br />나와 맞는 공간을 발견하세요
         </h1>
         <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>
-          공간의 이야기를 만나고<br />당신만의 흔적을 남겨보세요.
+          공간의 이야기를 만나고<br />당신만의 흔적을 남겨보세요
         </p>
       </div>
 

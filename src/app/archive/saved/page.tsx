@@ -5,12 +5,10 @@ import { auth } from "@/auth";
 import CollectionManager from "@/components/CollectionManager";
 import RecommendationPlaylist, { type PlaylistCard } from "@/components/RecommendationPlaylist";
 import ArchiveBottomNav from "@/components/archive/ArchiveBottomNav";
+import Divider from "@/components/Divider";
 import { resolveSpaceTypeLabel } from "@/lib/spaceType";
 import { visibleTagNames } from "@/lib/recommend";
 
-function Divider() {
-  return <div className="my-8" style={{ borderTop: "1px solid var(--border)" }} />;
-}
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return <p className="text-xs uppercase tracking-widest mb-5" style={{ color: "var(--dim)" }}>{children}</p>;
 }
@@ -85,12 +83,12 @@ export default async function ArchiveSavedPage() {
           <RecommendationPlaylist cards={savedSpaceCards} />
         ) : (
           <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>
-            아직 저장한 공간이 없습니다.<br />마음에 남는 공간을 저장해보세요.
+            아직 저장한 공간이 없습니다<br />마음에 남는 공간을 저장해보세요
           </p>
         )}
       </section>
 
-      <Divider />
+      <Divider className="my-8" />
       <section className="mb-10">
         <SectionLabel>묶어둔 곳들</SectionLabel>
         <CollectionManager collections={collections} visitedSpaces={visitedSpaces} />
@@ -98,7 +96,7 @@ export default async function ArchiveSavedPage() {
 
       {wantAgain.length > 0 && (
         <>
-          <Divider />
+          <Divider className="my-8" />
           <section className="mb-10">
             <SectionLabel>다시 가고 싶었던 곳</SectionLabel>
             <div className="space-y-3">

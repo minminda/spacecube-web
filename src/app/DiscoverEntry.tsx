@@ -60,7 +60,7 @@ export default function DiscoverEntry({ districts }: { districts: DiscoverDistri
   if (districts.length === 0) {
     return (
       <p className="text-sm" style={{ color: "var(--dim)" }}>
-        지금은 둘러볼 수 있는 지역이 없어요. 조금 기다려봐.
+        지금은 둘러볼 수 있는 지역이 없어요. 조금 기다려봐
       </p>
     );
   }
@@ -70,7 +70,7 @@ export default function DiscoverEntry({ districts }: { districts: DiscoverDistri
 
   return (
     <div className="space-y-3">
-      <p className="text-sm" style={{ color: "var(--dim)" }}>지도를 눌러 지역을 선택하세요.</p>
+      <p className="text-sm" style={{ color: "var(--dim)" }}>지도를 눌러 지역을 선택하세요</p>
 
       <p
         className="text-xs"
@@ -81,7 +81,7 @@ export default function DiscoverEntry({ districts }: { districts: DiscoverDistri
           transition: "opacity 0.3s ease-out",
         }}
       >
-        {comingSoon ? "아직 공간을 준비하고 있습니다." : ""}
+        {comingSoon ? "아직 공간을 준비하고 있습니다" : ""}
       </p>
 
       <div style={{ overflow: "hidden" }}>

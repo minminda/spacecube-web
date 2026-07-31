@@ -5,18 +5,18 @@ import { useEffect, useState } from "react";
 const LINES = [
   { text: "공간큐브 v1.0", delay: 0, style: "fg" },
   { text: "─────────────────────────────", delay: 300, style: "border" },
-  { text: "> 처음 오셨군요.", delay: 700, style: "dim" },
+  { text: "> 처음 오셨군요", delay: 700, style: "dim" },
   { text: "", delay: 1000, style: "dim" },
   { text: "// 공간큐브는", delay: 1200, style: "dim" },
   { text: "공간을 기록하고", delay: 1600, style: "fg" },
-  { text: "취향을 발견하는 곳이에요.", delay: 2000, style: "fg" },
+  { text: "취향을 발견하는 곳이에요", delay: 2000, style: "fg" },
   { text: "", delay: 2300, style: "dim" },
   { text: "// 이렇게 시작해요", delay: 2500, style: "dim" },
-  { text: "01. 지역을 선택하고 공간을 찾아가요.", delay: 2900, style: "fg" },
-  { text: "02. 공간 안의 큐브에서 QR을 찾아요.", delay: 3300, style: "fg" },
-  { text: "03. 그 공간이 어땠는지 기록해요.", delay: 3700, style: "fg" },
+  { text: "01. 지역을 선택하고 공간을 찾아가요", delay: 2900, style: "fg" },
+  { text: "02. 공간 안의 큐브에서 QR을 찾아요", delay: 3300, style: "fg" },
+  { text: "03. 그 공간이 어땠는지 기록해요", delay: 3700, style: "fg" },
   { text: "", delay: 4000, style: "dim" },
-  { text: "> 기록이 쌓이면, 나의 취향이 보여요.", delay: 4200, style: "dim" },
+  { text: "> 기록이 쌓이면, 나의 취향이 보여요", delay: 4200, style: "dim" },
 ];
 
 const TOTAL_DELAY = 4800;

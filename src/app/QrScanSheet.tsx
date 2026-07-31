@@ -26,9 +26,9 @@ function CameraLineIcon() {
 }
 
 const STEPS = [
-  "홈 화면 또는 잠금 화면에서 카메라 앱을 열어주세요.",
-  "공간큐브 QR을 비춰주세요.",
-  "화면에 나타나는 링크를 눌러주세요.",
+  "홈 화면 또는 잠금 화면에서 카메라 앱을 열어주세요",
+  "공간큐브 QR을 비춰주세요",
+  "화면에 나타나는 링크를 눌러주세요",
 ];
 
 export default function QrScanSheet() {
@@ -104,7 +104,7 @@ export default function QrScanSheet() {
                   <p className="text-xs text-center leading-relaxed" style={{ color: "var(--border)" }}>
                     iPhone과 Android 모두 기본 카메라에서
                     <br />
-                    QR을 인식할 수 있습니다.
+                    QR을 인식할 수 있습니다
                   </p>
                 </div>
               </div>

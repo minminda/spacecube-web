@@ -7,6 +7,7 @@ import { buildRewardSummary } from "@/lib/guestbookReward";
 import { isOwnedRecord } from "@/lib/guestbookVisit";
 import { requireSpaceUnlock, canBypassSpaceLock } from "@/lib/spaceUnlock";
 import RecommendationCard from "./RecommendationCard";
+import Divider from "@/components/Divider";
 
 /* ── 방문 완료·추천 페이지 ────────────────────────────────────
    방명록 캔버스에서 "이번 경험 마치기"를 눌렀을 때만 도달한다. 포스트잇을
@@ -78,7 +79,7 @@ export default async function VisitCompletePage({ params, searchParams }: Props)
     <main className="flex flex-col min-h-screen px-6 py-8 gap-8">
       <div className="space-y-1" style={{ color: "var(--dim)" }}>
         <p className="text-xs">공간큐브 / COMPLETE</p>
-        <p className="text-xs">─────────────────────────────</p>
+        <Divider />
       </div>
 
       {/* 1. 방문 완료 메시지 — 작성 여부에 따라 문구만 갈린다 */}
@@ -86,30 +87,30 @@ export default async function VisitCompletePage({ params, searchParams }: Props)
         {wroteThisVisit ? (
           <>
             <p className="text-xl font-bold leading-snug break-keep whitespace-pre-line">
-              {"당신의 흔적이\n이 공간에 남았습니다."}
+              {"당신의 흔적이\n이 공간에 남았습니다"}
             </p>
             <p className="text-sm leading-relaxed break-keep" style={{ color: "var(--dim)" }}>
-              이번 기록으로 당신의 취향이 조금 더 선명해졌어요.
+              이번 기록으로 당신의 취향이 조금 더 선명해졌어요
             </p>
           </>
         ) : (
           <>
             <p className="text-xl font-bold leading-snug break-keep whitespace-pre-line">
-              {"이번 공간의 취향을\n저장했습니다."}
+              {"이번 공간의 취향을\n저장했습니다"}
             </p>
             <p className="text-sm leading-relaxed break-keep" style={{ color: "var(--dim)" }}>
-              흔적을 남기지 않아도 당신의 취향에는 반영되었어요.
+              흔적을 남기지 않아도 당신의 취향에는 반영되었어요
             </p>
           </>
         )}
       </div>
 
-      <div style={{ borderTop: "1px solid var(--border)" }} />
+      <Divider />
 
       {/* 2. 취향 업데이트 */}
       <div className="space-y-3">
         <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>취향 업데이트</p>
-        <p className="text-sm leading-relaxed">당신의 취향이 업데이트되었습니다.</p>
+        <p className="text-sm leading-relaxed">당신의 취향이 업데이트되었습니다</p>
         {summary.topTags.length > 0 && (
           <div className="flex flex-wrap gap-2">
             {summary.topTags.map((t) => (
@@ -127,7 +128,7 @@ export default async function VisitCompletePage({ params, searchParams }: Props)
       {/* 3. 추천 공간 — 공간 상세 정보는 최소화하고, 잠금 상태에 따라 상세 이동/위치 안내로 분기 */}
       {summary.recommendations.length > 0 && (
         <>
-          <div style={{ borderTop: "1px solid var(--border)" }} />
+          <Divider />
           <div className="space-y-3">
             <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>당신과 잘 맞을 다음 공간</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -142,22 +143,22 @@ export default async function VisitCompletePage({ params, searchParams }: Props)
       {/* 4. 다음 Episode 예고 */}
       {summary.nextEpisode && (
         <>
-          <div style={{ borderTop: "1px solid var(--border)" }} />
+          <Divider />
           <div className="space-y-2">
             <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>다음 이야기</p>
             {summary.nextEpisode.title ? (
               <>
-                <p className="text-sm leading-relaxed">다음 방문에 새로운 이야기가 열립니다.</p>
+                <p className="text-sm leading-relaxed">다음 방문에 새로운 이야기가 열립니다</p>
                 <p className="text-base font-medium leading-relaxed">&ldquo;{summary.nextEpisode.title}&rdquo;</p>
               </>
             ) : (
-              <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>다음 이야기를 준비하고 있습니다.</p>
+              <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>다음 이야기를 준비하고 있습니다</p>
             )}
           </div>
         </>
       )}
 
-      <div style={{ borderTop: "1px solid var(--border)" }} />
+      <Divider />
 
       {/* 5. 다음 행동 CTA — 너무 많이 강조하지 않는다, 메인 CTA 하나만 */}
       <div className="flex flex-col gap-3">

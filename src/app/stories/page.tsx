@@ -154,7 +154,7 @@ export default async function StoriesPage({ searchParams }: Props) {
       {/* 이야기 목록 */}
       {stories.length === 0 ? (
         <p className="text-sm" style={{ color: "var(--dim)" }}>
-          {q ? `"${q}"에 대한 이야기가 없습니다.` : "아직 발행된 이야기가 없습니다."}
+          {q ? `"${q}"에 대한 이야기가 없습니다` : "아직 발행된 이야기가 없습니다"}
         </p>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-10">

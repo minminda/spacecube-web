@@ -19,11 +19,11 @@ export default function AboutPage() {
 
       <section className="px-6 py-14 space-y-6">
         <p className="text-xl font-bold leading-snug whitespace-pre-line">
-          공간을 만든 사람을 이해하면,{"\n"}같은 공간도 조금 다르게 보입니다.
+          공간을 만든 사람을 이해하면,{"\n"}같은 공간도 조금 다르게 보입니다
         </p>
         <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>
           공간큐브는 검색으로는 알기 어려운 공간과 사람의 이야기를 발견하게 하는 서비스입니다.
-          메뉴, 영업시간, 평점보다 그 공간이 어떤 시간을 지나 지금의 모습이 되었는지를 기록합니다.
+          메뉴, 영업시간, 평점보다 그 공간이 어떤 시간을 지나 지금의 모습이 되었는지를 기록합니다
         </p>
       </section>
 
@@ -32,9 +32,9 @@ export default function AboutPage() {
       <section className="px-6 py-12 space-y-6">
         <p className="text-xs uppercase tracking-widest" style={{ color: "var(--border)" }}>왜 공간큐브를 만들었나요?</p>
         <p className="text-sm leading-loose whitespace-pre-line" style={{ color: "var(--dim)" }}>
-          우리는 많은 공간을 검색하지만, 그 공간을 만든 사람의 시간까지는 알기 어렵습니다.{"\n"}
+          우리는 많은 공간을 검색하지만, 그 공간을 만든 사람의 시간까지는 알기 어렵습니다{"\n"}
           멋진 결과만 보면 공간은 감탄의 대상이 되지만, 그 뒤의 선택과 실패, 반복된 시간을 알게 되면{"\n"}
-          공간은 한 사람의 이야기로 기억됩니다.
+          공간은 한 사람의 이야기로 기억됩니다
         </p>
       </section>
 
@@ -62,8 +62,8 @@ export default function AboutPage() {
       <section className="px-6 py-12 space-y-6">
         <p className="text-xs uppercase tracking-widest" style={{ color: "var(--border)" }}>어떻게 경험하나요?</p>
         <p className="text-sm leading-loose whitespace-pre-line" style={{ color: "var(--dim)" }}>
-          공간에 놓인 큐브를 발견하고 QR을 인식하면, 그 장소에서만 만날 수 있는 이야기가 열립니다.{"\n"}
-          이야기를 읽고 나면 사용자는 사진 속 공간이 아니라 지금 눈앞의 자리와 물건, 사람을 다시 바라보게 됩니다.
+          공간에 놓인 큐브를 발견하고 QR을 인식하면, 그 장소에서만 만날 수 있는 이야기가 열립니다{"\n"}
+          이야기를 읽고 나면 사용자는 사진 속 공간이 아니라 지금 눈앞의 자리와 물건, 사람을 다시 바라보게 됩니다
         </p>
         <ol className="space-y-0 pt-2">
           {["큐브 발견", "QR 인식", "공간을 만든 사람의 이야기", "공간을 다시 바라보기", "취향 점수 저장", "다음 공간 발견"].map((step, i, arr) => (
@@ -88,10 +88,10 @@ export default function AboutPage() {
         <p className="text-xs uppercase tracking-widest" style={{ color: "var(--border)" }}>공간큐브가 하지 않는 것</p>
         <ul className="space-y-1.5">
           {[
-            "검색 가능한 정보를 반복하지 않습니다.",
-            "운영자를 완벽한 사람처럼 포장하지 않습니다.",
-            "억지 감동이나 성공담을 만들지 않습니다.",
-            "별점과 인기순으로 공간의 가치를 정하지 않습니다.",
+            "검색 가능한 정보를 반복하지 않습니다",
+            "운영자를 완벽한 사람처럼 포장하지 않습니다",
+            "억지 감동이나 성공담을 만들지 않습니다",
+            "별점과 인기순으로 공간의 가치를 정하지 않습니다",
           ].map((item, i) => (
             <li key={i} className="text-sm leading-relaxed pl-3" style={{ color: "var(--dim)", borderLeft: "1px solid var(--border)" }}>
               {item}
@@ -105,7 +105,7 @@ export default function AboutPage() {
       <section className="px-6 py-14 space-y-4">
         <p className="text-xs uppercase tracking-widest" style={{ color: "var(--border)" }}>공간큐브는</p>
         <p className="text-lg font-bold leading-snug pl-3" style={{ borderLeft: "2px solid var(--fg)" }}>
-          공간을 완벽하게 설명하는 서비스가 아니라,{"\n"}그 공간을 조금 더 인간적으로 기억하게 만드는 서비스입니다.
+          공간을 완벽하게 설명하는 서비스가 아니라,{"\n"}그 공간을 조금 더 인간적으로 기억하게 만드는 서비스입니다
         </p>
       </section>
 
