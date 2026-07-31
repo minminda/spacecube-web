@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Fragment } from "react";
 import type { Metadata } from "next";
 import Divider from "@/components/Divider";
 import CubeGlyph from "@/components/CubeGlyph";
@@ -79,13 +80,13 @@ function ArchiveIcon() {
 }
 
 const STEPS = [
-  { Icon: DiscoverIcon, title: "공간 발견" },
-  { Icon: ScanIcon, title: "QR 스캔" },
-  { Icon: StoryIcon, title: "공간 이야기" },
-  { Icon: ScoreIcon, title: "취향 점수" },
-  { Icon: GuestbookIcon, title: "방명록" },
-  { Icon: RecommendIcon, title: "공간 추천" },
-  { Icon: ArchiveIcon, title: "공간 아카이브" },
+  { Icon: DiscoverIcon, title: "공간 발견", desc: "공간에 놓인 큐브를 찾아요" },
+  { Icon: ScanIcon, title: "QR 스캔", desc: "큐브의 QR을 스캔해요" },
+  { Icon: StoryIcon, title: "공간 이야기", desc: "공간을 만든 사람의 이야기를 만나요" },
+  { Icon: ScoreIcon, title: "취향 점수", desc: "나와 얼마나 맞는지 점수로 남겨요" },
+  { Icon: GuestbookIcon, title: "방명록", desc: "이 공간에 흔적을 남겨요" },
+  { Icon: RecommendIcon, title: "공간 추천", desc: "나와 맞는 다음 공간을 추천받아요" },
+  { Icon: ArchiveIcon, title: "공간 아카이브", desc: "방문한 공간이 기록으로 쌓여요" },
 ];
 
 export default function AboutPage() {
@@ -191,17 +192,20 @@ export default function AboutPage() {
           </div>
         </div>
 
-        <ol className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-x-2 gap-y-5 pt-1">
-          {STEPS.map((s, i) => (
-            <li key={s.title} className="flex flex-col items-center text-center gap-1">
-              <span className="text-[10px] tabular-nums" style={{ color: "var(--border)" }}>{i + 1}</span>
-              <div style={{ color: "var(--dim)" }}><s.Icon /></div>
-              <p className="text-xs font-medium leading-tight break-keep" style={{ color: "var(--dim)" }}>
-                {s.title}
-              </p>
-            </li>
+        <div className="flex flex-col items-center text-center max-w-[220px] mx-auto pt-1">
+          {STEPS.map((s, i, arr) => (
+            <Fragment key={s.title}>
+              <div className="flex flex-col items-center gap-1 py-1.5">
+                <div style={{ color: "var(--dim)" }}><s.Icon /></div>
+                <p className="text-sm font-semibold" style={{ color: "var(--fg)" }}>{s.title}</p>
+                <p className="text-xs leading-snug break-keep" style={{ color: "var(--dim)" }}>{s.desc}</p>
+              </div>
+              {i < arr.length - 1 && (
+                <span className="text-xs leading-none" style={{ color: "var(--border)" }} aria-hidden>↓</span>
+              )}
+            </Fragment>
           ))}
-        </ol>
+        </div>
       </section>
 
       <Divider />
