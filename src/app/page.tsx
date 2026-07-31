@@ -64,14 +64,11 @@ export default async function Home() {
 
   return (
     <main className="flex flex-col min-h-screen px-6 pt-16 pb-12 gap-10">
-      {/* Hero — 공간큐브가 무엇인지 5초 안에 */}
-      <div className="space-y-4">
-        <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>공간큐브</p>
-        <h1 className="text-3xl font-bold leading-tight">
-          좋은 공간보다,<br />나와 맞는 공간을 발견하세요
-        </h1>
-        <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>
-          공간의 이야기를 만나고<br />당신만의 흔적을 남겨보세요
+      {/* Hero — 브랜드명을 가장 먼저 각인시키고, 그 아래 브랜드 철학이 자연스럽게 이어지도록 구성 */}
+      <div className="space-y-6">
+        <h1 className="text-5xl font-bold tracking-tight">공간큐브</h1>
+        <p className="text-2xl font-bold leading-snug">
+          공간의 이해,<br />사람의 연결
         </p>
       </div>
 
