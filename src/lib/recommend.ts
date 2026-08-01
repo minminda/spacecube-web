@@ -128,6 +128,18 @@ export function getVectorReason(space: { spaceTagLinks?: SpaceTagLinkLike[] }, v
   return `최근 높은 점수를 준 공간들과 ${labels} 결이 닮아 있어요.`;
 }
 
+/**
+ * 예상 취향 적합도(%) — 이 공간과 겹치는 태그 가중치 합이 사용자 취향 벡터 전체에서
+ * 차지하는 비중. 절대적 정확도를 주장하지 않도록 1~99 사이로 클램프한다(0%/100% 단정 금지).
+ */
+export function getMatchPercent(space: { spaceTagLinks?: SpaceTagLinkLike[] }, vector: TasteVector): number {
+  const totalWeight = Object.values(vector).reduce((sum: number, w) => sum + (w ?? 0), 0);
+  if (totalWeight <= 0) return 0;
+  const matchedWeight = getValidSpaceTagLinks(space).reduce((sum, l) => sum + (vector[l.tag.id] ?? 0), 0);
+  const percent = Math.round((matchedWeight / totalWeight) * 100);
+  return Math.min(99, Math.max(1, percent));
+}
+
 /* ── 사용자 간 취향 유사도 (코사인) — '내 취향과 닮은 사람' 추천용 ────────
    두 태그 가중치 벡터(TasteVector)의 방향이 얼마나 비슷한지를 0~1로 나타낸다.
    벡터 크기(방문 횟수·점수 총합)가 달라도 "분포 모양"이 비슷하면 높은 점수가 나온다. */

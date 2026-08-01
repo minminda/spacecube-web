@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 import {
   scoreSpaceWeighted, getRecommendReason,
-  buildWeightedTasteVector, vectorTopTags, getVectorReason,
+  buildWeightedTasteVector, vectorTopTags, getVectorReason, getMatchPercent,
 } from "@/lib/recommend";
 import { isAdmin } from "@/lib/admin";
 import { getUserUnlockSets } from "@/lib/spaceUnlock";
@@ -16,6 +16,13 @@ import SpaceDiscoveryCard from "./SpaceDiscoveryCard";
 interface Props {
   searchParams: Promise<{ district?: string }>;
 }
+
+// ── 소개서/시연용 임시 처리 ──────────────────────────────────────────
+// 망원 지역 TOP3 데모(prisma/seed-mangwon-demo.ts로 만든 isActive:false 공간 3개)를 이
+// 계정으로 로그인했을 때만 추천 후보에 포함시킨다. 다른 계정·비로그인·다른 지역에는 절대
+// 영향을 주지 않는다(공개 목록 spacesRaw는 항상 isActive:true만 조회). 촬영이 끝나면 아래
+// 상수와 이 상수를 참조하는 두 블록, 그리고 `npm run db:cleanup-mangwon-demo`로 정리한다.
+const DEMO_MANGWON_EMAIL = "alsehd0516@gmail.com";
 
 export default async function DiscoverPage({ searchParams }: Props) {
   const { district } = await searchParams;
@@ -104,11 +111,27 @@ export default async function DiscoverPage({ searchParams }: Props) {
     score: hasEnoughRecords ? scoreSpaceWeighted(s, userTagCountMap) : 0,
   }));
 
+  // 망원 TOP3 데모 전용 후보 — 공개 목록(spacesRaw/spacesForCards)에는 절대 섞지 않고
+  // TOP3 추천 계산에만 별도로 합류시킨다. 위 DEMO_MANGWON_EMAIL 계정 + 망원 지역일 때만 조회.
+  const demoCandidates = hasEnoughRecords && district === "망원" && session?.user?.email === DEMO_MANGWON_EMAIL
+    ? await prisma.space.findMany({
+        where: { slug: { startsWith: "demo-mangwon-" }, isActive: false },
+        orderBy: { createdAt: "asc" },
+        select: {
+          id: true, slug: true, name: true, tagline: true,
+          type: true, openingHours: true, imageUrl: true,
+          district: true, spaceTags: true, naverMapUrl: true,
+          spaceTagLinks: { include: { tag: { include: { categoryRef: true } } } },
+        },
+      })
+    : [];
+  const demoCandidatesWithScore = demoCandidates.map((s) => ({ ...s, score: scoreSpaceWeighted(s, userTagCountMap) }));
+
   // ── 추천 섹션: 방문하지 않은 공간, 점수 > 0, 상위 3개 ─────────────
   const visitedSet = new Set(visitedSpaceIds);
   const unlockedSet = new Set(unlockedSpaceIds);
   const recommendedSpaces = hasEnoughRecords
-    ? [...spacesWithScore]
+    ? [...spacesWithScore, ...demoCandidatesWithScore]
         .filter((s) => !visitedSet.has(s.id) && s.score > 0)
         .sort((a, b) => b.score - a.score)
         .slice(0, 3)
@@ -162,30 +185,31 @@ export default async function DiscoverPage({ searchParams }: Props) {
               <section className="space-y-4">
                 <div className="space-y-1">
                   <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>
-                    // 내 취향과 닮은 공간 TOP3
+                    나와 잘 맞는 {district}의 공간
                   </p>
                   <p className="text-xs" style={{ color: "var(--dim)" }}>
-                    {ENABLE_TASTE_SCORE_RECOMMENDATION
-                      ? "높은 점수를 남긴 공간들의 결을 바탕으로 골랐어요"
-                      : "최근 기록한 공간의 태그를 바탕으로 골랐습니다"}
+                    지금까지 남긴 취향 기록을 바탕으로 추천했어요
                   </p>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-                  {recommendedSpaces.map((rec) => (
+                  {recommendedSpaces.map((rec, i) => (
                     <SpaceDiscoveryCard
                       key={rec.id}
+                      rank={i + 1}
                       space={{
                         id: rec.id,
                         slug: rec.slug,
                         name: rec.name,
                         type: resolveSpaceTypeLabel(rec.spaceTagLinks, rec.type),
                         district: rec.district,
+                        tagline: rec.tagline,
                         imageUrl: rec.imageUrl,
                         naverMapUrl: rec.naverMapUrl,
                       }}
                       isUnlocked={unlockedSet.has(rec.id)}
                       variant="recommended"
+                      matchPercent={getMatchPercent(rec, userTagCountMap)}
                       recommendationReason={
                         ENABLE_TASTE_SCORE_RECOMMENDATION
                           ? getVectorReason(rec, userTagCountMap)
@@ -194,6 +218,21 @@ export default async function DiscoverPage({ searchParams }: Props) {
                     />
                   ))}
                 </div>
+              </section>
+              <div style={{ borderTop: "1px solid var(--border)" }} />
+            </>
+          )}
+
+          {/* 취향 기록이 전혀 없는 로그인 사용자 — 임의 추천처럼 보이지 않도록 명확히 안내만 한다. */}
+          {session && recordCount === 0 && (
+            <>
+              <section className="space-y-2">
+                <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>
+                  나와 잘 맞는 {district}의 공간
+                </p>
+                <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>
+                  취향 기록을 남기면 나와 잘 맞는 공간을 추천해드려요
+                </p>
               </section>
               <div style={{ borderTop: "1px solid var(--border)" }} />
             </>

@@ -16,6 +16,8 @@
     "db:migrate-guestbook-visits": "tsx prisma/migrate-guestbook-visits.ts",
     "db:migrate-space-unlock": "tsx prisma/migrate-space-unlock.ts",
     "db:migrate-districts": "tsx prisma/migrate-districts.ts",
+    "db:seed-mangwon-demo": "tsx prisma/seed-mangwon-demo.ts",
+    "db:cleanup-mangwon-demo": "tsx prisma/cleanup-mangwon-demo.ts",
     "db:studio": "prisma studio",
     "test": "vitest run"
   },

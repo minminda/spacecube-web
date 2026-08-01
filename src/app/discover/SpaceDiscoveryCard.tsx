@@ -26,12 +26,16 @@ export interface SpaceDiscoverySpace {
 interface Props {
   space: SpaceDiscoverySpace;
   isUnlocked: boolean;
-  /** "recommended" = 추천 TOP3(정보량 축소: 카테고리·지역·짧은 이유만), "default" = 전체 목록(태그라인·영업시간). */
+  /** "recommended" = 추천 TOP3(카테고리·지역·한줄소개·짧은 이유), "default" = 전체 목록(태그라인·영업시간). */
   variant?: "default" | "recommended";
   recommendationReason?: string;
+  /** 추천 순위(1~3) — "recommended" variant에서만 작고 절제된 배지로 표시. */
+  rank?: number;
+  /** 예상 취향 적합도(%) — "recommended" variant 전용. */
+  matchPercent?: number;
 }
 
-export default function SpaceDiscoveryCard({ space, isUnlocked, variant = "default", recommendationReason }: Props) {
+export default function SpaceDiscoveryCard({ space, isUnlocked, variant = "default", recommendationReason, rank, matchPercent }: Props) {
   const router = useRouter();
   const [dialogOpen, setDialogOpen] = useState(false);
 
@@ -76,6 +80,14 @@ export default function SpaceDiscoveryCard({ space, isUnlocked, variant = "defau
             className="object-cover transition-transform duration-500 group-hover:scale-105"
           />
           {!isUnlocked && <LockedSpaceOverlay />}
+          {variant === "recommended" && rank && (
+            <span
+              className="absolute top-2 left-2 text-xs px-2 py-0.5"
+              style={{ background: "var(--bg)", color: "var(--fg)", border: "1px solid var(--border)" }}
+            >
+              {rank}위
+            </span>
+          )}
         </div>
       )}
 
@@ -86,7 +98,11 @@ export default function SpaceDiscoveryCard({ space, isUnlocked, variant = "defau
           <>
             <p className="text-xs" style={{ color: "var(--dim)" }}>
               {space.type}{space.district ? ` · ${space.district}` : ""}
+              {typeof matchPercent === "number" && ` · 취향 적합도 ${matchPercent}%`}
             </p>
+            {space.tagline && (
+              <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>{space.tagline}</p>
+            )}
             {recommendationReason && (
               <p className="text-xs leading-relaxed" style={{ color: "var(--dim)" }}>{recommendationReason}</p>
             )}
@@ -118,18 +134,30 @@ export default function SpaceDiscoveryCard({ space, isUnlocked, variant = "defau
           </p>
         )}
 
-        {space.naverMapUrl && (
-          <a
-            href={space.naverMapUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={(e) => e.stopPropagation()}
-            className="inline-block text-xs py-1.5 px-3 border mt-1"
-            style={{ borderColor: "var(--border)", color: "var(--dim)" }}
-          >
-            위치 보기
-          </a>
-        )}
+        <div className="flex items-center gap-2 mt-1">
+          {variant === "recommended" && (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); handleClick(); }}
+              className="inline-block text-xs py-1.5 px-3 border"
+              style={{ borderColor: "var(--fg)", color: "var(--fg)" }}
+            >
+              공간 자세히 보기
+            </button>
+          )}
+          {space.naverMapUrl && (
+            <a
+              href={space.naverMapUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="inline-block text-xs py-1.5 px-3 border"
+              style={{ borderColor: "var(--border)", color: "var(--dim)" }}
+            >
+              위치 보기
+            </a>
+          )}
+        </div>
       </div>
 
       {/* ── 잠긴 공간 안내 Bottom Sheet ── */}
