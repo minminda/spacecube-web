@@ -52,7 +52,7 @@ export default async function Home() {
         <div className="space-y-8">
           <h1 className="text-5xl font-bold tracking-tight leading-none">공간큐브</h1>
           <p className="text-2xl font-semibold leading-relaxed">
-            공간의 이해,<br />사람의 연결
+            공간의 이해,<br />사람과의 연결
           </p>
         </div>
 
