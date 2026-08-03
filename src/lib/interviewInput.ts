@@ -3,21 +3,45 @@ export interface InterviewValidationResult {
   error?: string;
 }
 
-export const INTERVIEW_TOPIC_TITLE_MAX = 50;
+export const INTERVIEW_EPISODE_TITLE_MAX = 50;
+export const INTERVIEW_EPISODE_DESCRIPTION_MAX = 500;
+export const INTERVIEW_SCENE_TOPIC_TITLE_MAX = 50;
+export const INTERVIEW_SCENE_TOPIC_DESCRIPTION_MAX = 300;
 export const INTERVIEW_QUESTION_MAX = 200;
-/** 인터뷰 메모는 DB에 저장하지 않는 임시 메모라 서버 검증은 없다 — 입력창 maxLength로만 쓰는 클라이언트 전용 상수. */
-export const INTERVIEW_NOTE_MAX = 2000;
 export const EPISODE_SUMMARY_MAX = 120;
 
 /**
- * 인터뷰 주제/질문/에피소드 한 줄 요약 — 관리자 클라이언트(InterviewLibrary 등)와
+ * 인터뷰 에피소드 템플릿/Scene 소재/질문/에피소드 한 줄 요약 — 관리자 클라이언트(InterviewLibrary 등)와
  * 서버(API 라우트)가 이 파일을 공유해 동일한 trim·길이 규칙을 적용한다.
  */
-export function validateTopicTitle(title: string): InterviewValidationResult {
+export function validateEpisodeTemplateTitle(title: string): InterviewValidationResult {
   const trimmed = title.trim();
-  if (!trimmed) return { ok: false, error: "주제명을 입력해주세요." };
-  if (trimmed.length > INTERVIEW_TOPIC_TITLE_MAX) {
-    return { ok: false, error: `주제명은 ${INTERVIEW_TOPIC_TITLE_MAX}자 이내로 입력해주세요.` };
+  if (!trimmed) return { ok: false, error: "에피소드 제목을 입력해주세요." };
+  if (trimmed.length > INTERVIEW_EPISODE_TITLE_MAX) {
+    return { ok: false, error: `에피소드 제목은 ${INTERVIEW_EPISODE_TITLE_MAX}자 이내로 입력해주세요.` };
+  }
+  return { ok: true };
+}
+
+export function validateEpisodeTemplateDescription(description: string): InterviewValidationResult {
+  if (description.length > INTERVIEW_EPISODE_DESCRIPTION_MAX) {
+    return { ok: false, error: `에피소드 설명은 ${INTERVIEW_EPISODE_DESCRIPTION_MAX}자 이내로 입력해주세요.` };
+  }
+  return { ok: true };
+}
+
+export function validateSceneTopicTitle(title: string): InterviewValidationResult {
+  const trimmed = title.trim();
+  if (!trimmed) return { ok: false, error: "소재명을 입력해주세요." };
+  if (trimmed.length > INTERVIEW_SCENE_TOPIC_TITLE_MAX) {
+    return { ok: false, error: `소재명은 ${INTERVIEW_SCENE_TOPIC_TITLE_MAX}자 이내로 입력해주세요.` };
+  }
+  return { ok: true };
+}
+
+export function validateSceneTopicDescription(description: string): InterviewValidationResult {
+  if (description.length > INTERVIEW_SCENE_TOPIC_DESCRIPTION_MAX) {
+    return { ok: false, error: `소재 설명은 ${INTERVIEW_SCENE_TOPIC_DESCRIPTION_MAX}자 이내로 입력해주세요.` };
   }
   return { ok: true };
 }

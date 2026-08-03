@@ -782,30 +782,56 @@ model Episode {
   @@unique([spaceId, episodeNumber])
 }
 
-// 공간큐브 전용 인터뷰 질문 라이브러리 — 특정 공간·에피소드에 종속되지 않는 공용 주제.
-// "공간 → 인터뷰 → 에피소드 제작" 순서로 쓰이므로 어느 에피소드/공간과도 관계를 맺지 않는다.
-model InterviewTopic {
-  id           String   @id @default(cuid())
-  title        String
-  displayOrder Int      @default(0)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+// 공간큐브 전용 인터뷰 질문 라이브러리 — 실제 방문자 페이지의 Episode/Scene과는 완전히 분리된
+// 제작 보조 도구다(어느 쪽도 서로를 참조하는 FK가 없음). "에피소드 템플릿 → Scene 소재 → 질문"
+// 3단 구조로, 콘텐츠 제작 시 이번 에피소드에 어떤 소재로 인터뷰할지 미리 구성해둔다.
+// 특정 공간에도 종속되지 않는 공용 라이브러리 — 질문지 생성 시 공간을 고르지만 그 선택은
+// 텍스트 치환용일 뿐 어떤 관계 테이블에도 저장되지 않는다.
+model InterviewEpisodeTemplate {
+  id            String   @id @default(cuid())
+  episodeNumber Int      @unique
+  title         String
+  description   String?  @db.Text
+  isActive      Boolean  @default(true)
+  displayOrder  Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
-  questions InterviewQuestion[]
+  sceneTopics InterviewSceneTopic[]
+
+  @@map("interview_episode_templates")
+}
+
+// 에피소드 템플릿을 구성하는 Scene 소재 — 여기서의 title/description은 관리자 내부 분류명일 뿐,
+// 실제 게시되는 Scene.title/content와 자동으로 연결하거나 복사하지 않는다.
+model InterviewSceneTopic {
+  id                String   @id @default(cuid())
+  episodeTemplateId String
+  title             String
+  description       String?  @db.Text
+  isRequired        Boolean  @default(true)
+  displayOrder      Int      @default(0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  episodeTemplate InterviewEpisodeTemplate @relation(fields: [episodeTemplateId], references: [id], onDelete: Cascade)
+  questions       InterviewQuestion[]
 
   @@map("interview_topics")
 }
 
-// 인터뷰 주제 아래 딸린 질문 — /admin/interview 인터뷰 모드의 랜덤 뽑기 대상.
+// Scene 소재 아래 딸린 질문 — 질문지 생성 화면의 무작위/수동 선택 대상.
+// isActive=false는 소프트 비활성화로, 선택 대상에서만 제외되고 삭제되지 않는다.
 model InterviewQuestion {
   id           String   @id @default(cuid())
   topicId      String
   content      String   @db.Text
+  isActive     Boolean  @default(true)
   displayOrder Int      @default(0)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  topic InterviewTopic @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  topic InterviewSceneTopic @relation(fields: [topicId], references: [id], onDelete: Cascade)
 
   @@map("interview_questions")
 }

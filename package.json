@@ -20,6 +20,7 @@
     "db:cleanup-mangwon-demo": "tsx prisma/cleanup-mangwon-demo.ts",
     "db:seed-cafe-guestbook-dummy": "tsx prisma/seed-cafe-guestbook-dummy.ts",
     "db:cleanup-cafe-guestbook-dummy": "tsx prisma/cleanup-cafe-guestbook-dummy.ts",
+    "db:seed-interview-ep1": "tsx prisma/seed-interview-ep1.ts",
     "db:studio": "prisma studio",
     "test": "vitest run"
   },

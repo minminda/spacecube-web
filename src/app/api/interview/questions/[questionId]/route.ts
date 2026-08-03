@@ -19,22 +19,25 @@ export async function PATCH(req: Request, { params }: Props) {
   if (!question) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const body = await req.json().catch(() => ({}));
-  if (typeof body.content !== "string") {
-    return NextResponse.json({ error: "content가 필요해요." }, { status: 400 });
-  }
-  const content = body.content.trim();
-  const validation = validateQuestionContent(content);
-  if (!validation.ok) return NextResponse.json({ error: validation.error }, { status: 400 });
+  const data: Record<string, unknown> = {};
 
-  const siblings = await prisma.interviewQuestion.findMany({
-    where: { topicId: question.topicId, id: { not: questionId } },
-    select: { content: true },
-  });
-  if (isDuplicateQuestion(content, siblings.map((q) => q.content))) {
-    return NextResponse.json({ error: "이미 같은 질문이 있어요." }, { status: 400 });
-  }
+  if (typeof body.content === "string") {
+    const content = body.content.trim();
+    const validation = validateQuestionContent(content);
+    if (!validation.ok) return NextResponse.json({ error: validation.error }, { status: 400 });
 
-  const updated = await prisma.interviewQuestion.update({ where: { id: questionId }, data: { content } });
+    const siblings = await prisma.interviewQuestion.findMany({
+      where: { topicId: question.topicId, id: { not: questionId } },
+      select: { content: true },
+    });
+    if (isDuplicateQuestion(content, siblings.map((q) => q.content))) {
+      return NextResponse.json({ error: "이미 같은 질문이 있어요." }, { status: 400 });
+    }
+    data.content = content;
+  }
+  if (typeof body.isActive === "boolean") data.isActive = body.isActive;
+
+  const updated = await prisma.interviewQuestion.update({ where: { id: questionId }, data });
   return NextResponse.json(updated);
 }
 
