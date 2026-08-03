@@ -55,3 +55,15 @@ export const ENABLE_INITIAL_ONBOARDING = false;
  */
 export const ENABLE_NAV_DISCOVER_LINK = false;
 export const ENABLE_NAV_RECOMMENDATION_LINK = false;
+
+/**
+ * TEMP: Pilot period
+ * Hide public space browsing until official launch.
+ *
+ * 시범 운영 기간 동안 아직 공개 준비가 끝나지 않은 공간 목록이 외부 운영자에게
+ * 노출되지 않도록 "공간 둘러보기"(/discover) 진입 자체를 막는다. 홈의 버튼을
+ * 숨기고, /discover 직접 URL 접근은 홈으로 리다이렉트한다. QR로 들어오는
+ * /space/[slug] 상세 페이지, 추천 결과, 기존 운영 흐름에는 영향을 주지 않는다.
+ * true로 바꾸면 즉시 원상복구 — 컴포넌트/라우팅/데이터는 그대로 유지된다.
+ */
+export const ENABLE_PUBLIC_SPACE_BROWSER = false;

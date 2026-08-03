@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 import {
@@ -7,7 +8,7 @@ import {
 } from "@/lib/recommend";
 import { isAdmin } from "@/lib/admin";
 import { getUserUnlockSets } from "@/lib/spaceUnlock";
-import { ENABLE_TASTE_SCORE_RECOMMENDATION } from "@/lib/features";
+import { ENABLE_TASTE_SCORE_RECOMMENDATION, ENABLE_PUBLIC_SPACE_BROWSER } from "@/lib/features";
 import { resolveSpaceTypeLabel } from "@/lib/spaceType";
 import DiscoverEntry, { type DiscoverDistrict } from "../DiscoverEntry";
 import SpaceCards from "./SpaceCards";
@@ -25,6 +26,11 @@ interface Props {
 const DEMO_MANGWON_EMAIL = "alsehd0516@gmail.com";
 
 export default async function DiscoverPage({ searchParams }: Props) {
+  // TEMP: Pilot period — hide public space browsing until official launch (src/lib/features.ts).
+  // 직접 URL(district 유무 무관)로 접근해도 홈으로 보낸다. QR로 들어오는 /space/[slug]
+  // 상세 페이지, 추천 결과, 기존 운영 흐름에는 영향을 주지 않는다.
+  if (!ENABLE_PUBLIC_SPACE_BROWSER) redirect("/");
+
   const { district } = await searchParams;
 
   // district 미지정 — 지역을 고르는 진입 화면 (홈에서 "공간 둘러보기"로 옴)

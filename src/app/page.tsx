@@ -2,7 +2,7 @@ import Link from "next/link";
 import { auth } from "@/auth";
 import { isAdmin } from "@/lib/admin";
 import { prisma } from "@/lib/prisma";
-import { ENABLE_REGION_STORIES, ENABLE_TASTE_STORIES } from "@/lib/features";
+import { ENABLE_REGION_STORIES, ENABLE_TASTE_STORIES, ENABLE_PUBLIC_SPACE_BROWSER } from "@/lib/features";
 import HomeStoryCard from "./HomeStoryCard";
 import QrScanSheet from "./QrScanSheet";
 import HomeLogoutButton from "@/components/HomeLogoutButton";
@@ -58,13 +58,16 @@ export default async function Home() {
 
         <div className="space-y-3">
           <QrScanSheet />
-          <Link
-            href="/discover"
-            className="tap-target block w-full text-center text-base font-semibold py-4 border transition-colors hover:bg-[var(--fg)] hover:text-[var(--bg)]"
-            style={{ borderColor: "var(--fg)" }}
-          >
-            공간 둘러보기
-          </Link>
+          {/* TEMP: Pilot period — hide public space browsing until official launch (src/lib/features.ts) */}
+          {ENABLE_PUBLIC_SPACE_BROWSER && (
+            <Link
+              href="/discover"
+              className="tap-target block w-full text-center text-base font-semibold py-4 border transition-colors hover:bg-[var(--fg)] hover:text-[var(--bg)]"
+              style={{ borderColor: "var(--fg)" }}
+            >
+              공간 둘러보기
+            </Link>
+          )}
         </div>
       </div>
 
