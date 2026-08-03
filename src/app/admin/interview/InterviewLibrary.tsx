@@ -15,7 +15,7 @@ import {
   validateQuestionContent,
   isDuplicateQuestion,
 } from "@/lib/interviewInput";
-import InterviewQuestionnaireBuilder from "./InterviewQuestionnaireBuilder";
+import InterviewQuestionPicker from "./InterviewQuestionPicker";
 
 export interface QuestionData {
   id: string;
@@ -40,17 +40,11 @@ export interface EpisodeTemplateData {
   sceneTopics: SceneTopicData[];
 }
 
-export interface SpaceOption {
-  id: string;
-  name: string;
-}
-
 interface Props {
   initialEpisodeTemplates: EpisodeTemplateData[];
-  spaces: SpaceOption[];
 }
 
-export default function InterviewLibrary({ initialEpisodeTemplates, spaces }: Props) {
+export default function InterviewLibrary({ initialEpisodeTemplates }: Props) {
   const [templates, setTemplates] = useState<EpisodeTemplateData[]>(initialEpisodeTemplates);
   const [newTemplateTitle, setNewTemplateTitle] = useState("");
   const [creatingTemplate, setCreatingTemplate] = useState(false);
@@ -410,7 +404,7 @@ export default function InterviewLibrary({ initialEpisodeTemplates, spaces }: Pr
         </div>
       )}
 
-      {builderOpen && <InterviewQuestionnaireBuilder templates={templates} spaces={spaces} onClose={() => setBuilderOpen(false)} />}
+      {builderOpen && <InterviewQuestionPicker templates={templates} onClose={() => setBuilderOpen(false)} />}
 
       <Toast message={toast} />
     </section>

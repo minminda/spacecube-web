@@ -10,18 +10,15 @@ export default async function InterviewLibraryPage() {
   if (!session?.user?.email) redirect("/login");
   if (!isAdmin(session.user.email)) redirect("/");
 
-  const [episodeTemplates, spaces] = await Promise.all([
-    prisma.interviewEpisodeTemplate.findMany({
-      orderBy: { displayOrder: "asc" },
-      include: {
-        sceneTopics: {
-          orderBy: { displayOrder: "asc" },
-          include: { questions: { orderBy: { displayOrder: "asc" } } },
-        },
+  const episodeTemplates = await prisma.interviewEpisodeTemplate.findMany({
+    orderBy: { displayOrder: "asc" },
+    include: {
+      sceneTopics: {
+        orderBy: { displayOrder: "asc" },
+        include: { questions: { orderBy: { displayOrder: "asc" } } },
       },
-    }),
-    prisma.space.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
-  ]);
+    },
+  });
 
   return (
     <main className="flex flex-col min-h-screen px-6 py-8 gap-6">
@@ -57,7 +54,6 @@ export default async function InterviewLibraryPage() {
             questions: s.questions.map((q) => ({ id: q.id, content: q.content, isActive: q.isActive })),
           })),
         }))}
-        spaces={spaces}
       />
     </main>
   );

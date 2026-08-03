@@ -1,8 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   pickRandomQuestion,
-  buildQuestionnaireText,
-  QUESTIONNAIRE_CLOSING_NOTE,
+  buildSelectedQuestionsText,
   type QuestionnaireQuestion,
   type QuestionnaireEpisodeTemplate,
 } from "./interviewQuestionnaire";
@@ -43,7 +42,7 @@ describe("pickRandomQuestion", () => {
   });
 });
 
-describe("buildQuestionnaireText", () => {
+describe("buildSelectedQuestionsText", () => {
   const template: QuestionnaireEpisodeTemplate = {
     episodeNumber: 1,
     title: "첫 만남",
@@ -69,38 +68,37 @@ describe("buildQuestionnaireText", () => {
     ],
   };
 
-  it("공간명·에피소드 번호·제목이 첫 줄에 들어간다", () => {
-    const text = buildQuestionnaireText("망원 카페", template, [{ sceneTopicId: "topic-1", questionIds: ["q1"] }]);
-    expect(text.startsWith("[망원 카페] EP.1 '첫 만남' 제작 질문지")).toBe(true);
+  it("첫 줄은 EP.번호와 제목만 담는다(대괄호·따옴표·소개문 없음)", () => {
+    const text = buildSelectedQuestionsText(template, { "topic-1": "q1" });
+    expect(text.split("\n")[0]).toBe("EP.1 첫 만남");
   });
 
   it("선택된 질문이 없는 소재는 출력에서 건너뛴다", () => {
-    const text = buildQuestionnaireText("망원 카페", template, [{ sceneTopicId: "topic-1", questionIds: ["q1"] }]);
+    const text = buildSelectedQuestionsText(template, { "topic-1": "q1" });
     expect(text).not.toContain("공간을 만들며 했던 선택");
   });
 
-  it("선택된 질문과 답변 칸을 포함한다", () => {
-    const text = buildQuestionnaireText("망원 카페", template, [{ sceneTopicId: "topic-1", questionIds: ["q1"] }]);
+  it("선택된 소재명과 질문만 포함하고 답변란은 포함하지 않는다", () => {
+    const text = buildSelectedQuestionsText(template, { "topic-1": "q1" });
     expect(text).toContain("1. 공간이 시작되기 전");
     expect(text).toContain("왜 이 공간을 만들기로 했나요?");
-    expect(text).toContain("답변:");
+    expect(text).not.toContain("답변");
   });
 
-  it("한 소재에서 여러 질문을 선택하면 모두 포함한다", () => {
-    const text = buildQuestionnaireText("망원 카페", template, [{ sceneTopicId: "topic-1", questionIds: ["q1", "q2"] }]);
-    expect(text).toContain("왜 이 공간을 만들기로 했나요?");
-    expect(text).toContain("처음부터 지금과 같은 모습이었나요?");
+  it("공간명·안내문·에피소드 설명을 포함하지 않는다", () => {
+    const text = buildSelectedQuestionsText(template, { "topic-1": "q1", "topic-2": "q3" });
+    expect(text).not.toContain("망원");
+    expect(text).not.toContain("방문자가 처음 읽는 이야기입니다.");
+    expect(text).not.toContain("자유롭게 작성");
   });
 
-  it("건너뛴 소재가 있어도 번호는 실제 출력 순서대로 다시 매겨진다", () => {
-    const text = buildQuestionnaireText("망원 카페", template, [
-      { sceneTopicId: "topic-2", questionIds: ["q3"] },
-    ]);
+  it("여러 소재를 선택하면 번호를 실제 출력 순서대로 다시 매긴다", () => {
+    const text = buildSelectedQuestionsText(template, { "topic-2": "q3" });
     expect(text).toContain("1. 공간을 만들며 했던 선택");
   });
 
-  it("마지막에 고정 안내 문구가 항상 포함된다", () => {
-    const text = buildQuestionnaireText("망원 카페", template, []);
-    expect(text).toContain(QUESTIONNAIRE_CLOSING_NOTE);
+  it("아무 것도 선택하지 않으면 헤더만 남는다", () => {
+    const text = buildSelectedQuestionsText(template, {});
+    expect(text).toBe("EP.1 첫 만남");
   });
 });
