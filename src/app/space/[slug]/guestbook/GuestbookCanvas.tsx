@@ -896,7 +896,7 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
       </div>
 
       {/* ── 하단 액션 영역 — 모바일 safe-area까지 자연스럽게 채우는 고정 액션 바.
-          1행: 내 기록 보기 / 내 아카이브 보기(있을 때), 2행: 이번 경험 마치기(항상, 최우선순위).
+          1행: 내 기록 보기 / 이 공간 더보기(있을 때, 현재 공간 상세 페이지로 이동), 2행: 이번 경험 마치기(항상, 최우선순위).
           fixed/absolute가 아니라 flex 문서 흐름에 둬서 캔버스(flex-1)가 이 높이만큼 자동으로
           줄어든다 — 포스트잇/질문이 버튼 뒤에 가려지지 않고, 드래그·줌 이벤트와도 겹치지 않는다. ── */}
       <div
@@ -939,11 +939,11 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
                     내 기록 보기
                   </button>
                   <Link
-                    href="/archive"
+                    href={`/space/${space.slug}`}
                     className="min-h-[44px] flex items-center justify-center text-xs py-2.5 px-3 border text-center hover:bg-white hover:text-black transition-colors whitespace-nowrap"
                     style={{ borderColor: "#fff", color: "#fff" }}
                   >
-                    내 아카이브 보기
+                    이 공간 더보기
                   </Link>
                 </div>
               )}
