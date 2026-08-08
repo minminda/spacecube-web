@@ -82,12 +82,12 @@ describe("formatPeriodLabel", () => {
 describe("buildHeadline", () => {
   it("방문자가 있으면 방문/재방문 수 문장 + 요약 문장을 이어붙인다", () => {
     const headline = buildHeadline(stats({ qrUsers: 48, returningUsers: 14 }), "조용히 오래 머무는 공간으로 경험되고 있습니다.");
-    expect(headline).toBe("이번 달 48명이 공간을 방문했고, 14명이 다시 찾아왔습니다. 방문자들은 조용히 오래 머무는 공간으로 경험되고 있습니다.");
+    expect(headline).toBe("이번 기간 48명이 공간을 방문했고, 14명이 다시 찾아왔습니다. 방문자들은 조용히 오래 머무는 공간으로 경험되고 있습니다.");
   });
 
   it("방문자가 없으면 데이터 부족 문장으로 시작한다", () => {
     const headline = buildHeadline(stats({ qrUsers: 0 }), "아직 공간을 해석하기 위한 기록이 충분하지 않습니다.");
-    expect(headline.startsWith("이번 달은 아직 방문 기록이 충분하지 않습니다.")).toBe(true);
+    expect(headline.startsWith("이번 기간은 아직 방문 기록이 충분하지 않습니다.")).toBe(true);
   });
 });
 
@@ -95,6 +95,18 @@ describe("buildKpiCards", () => {
   it("이전 기간이 없으면 change가 전부 null", () => {
     const cards = buildKpiCards(stats({ qrUsers: 10 }), null);
     expect(cards.every((c) => c.change === null)).toBe(true);
+  });
+
+  it("6개 카드를 반환한다(QR이용자/재방문자/재방문율/방명록포스트잇/방명록작성률/평균취향적합도)", () => {
+    const cards = buildKpiCards(stats({ qrUsers: 10 }), null);
+    expect(cards.map((c) => c.key)).toEqual([
+      "qrUsers",
+      "returningUsers",
+      "revisitRate",
+      "guestbookPosts",
+      "guestbookRate",
+      "averageTasteScore",
+    ]);
   });
 
   it("QR 이용자 증가를 %로, 재방문율/작성률은 %p로, 취향점수는 점수 차이로 표시한다", () => {
@@ -111,6 +123,12 @@ describe("buildKpiCards", () => {
 
     const taste = cards.find((c) => c.key === "averageTasteScore")!;
     expect(taste.change?.deltaLabel).toContain("점");
+  });
+
+  it("재방문자 수·방명록 포스트잇 수는 절대 값(명/개)으로 표시한다", () => {
+    const cards = buildKpiCards(stats({ qrUsers: 10, returningUsers: 3, guestbookPosts: 7 }), null);
+    expect(cards.find((c) => c.key === "returningUsers")!.value).toBe("3명");
+    expect(cards.find((c) => c.key === "guestbookPosts")!.value).toBe("7개");
   });
 });
 

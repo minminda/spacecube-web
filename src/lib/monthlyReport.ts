@@ -51,12 +51,15 @@ export function getMonthlyUsageSummary(stats: PeriodKpiStats): string {
   return "방문자들이 저마다의 방식으로 이 공간을 경험하고 있습니다.";
 }
 
-/** "① 이번 달 한눈에 보기" 본문 — 방문/재방문 수치 문장 + 공간 사용 방식 요약. */
+/** "① 이번 기간 한눈에 보기" 본문 — 방문/재방문 수치 문장 + 공간 사용 방식 요약.
+ *  "이번 달"로 고정하지 않는다 — 파일럿에서는 관리자가 오늘/최근 7일처럼 임의 기간을 골라
+ *  이 리포트를 만들 수 있어(관리자 KPI 자유 기간 조회와 동일 기간을 그대로 씀), 월 단위가
+ *  아닌 기간에도 사실과 어긋나지 않는 "이번 기간"이라는 중립적 표현을 쓴다. */
 export function buildHeadline(stats: PeriodKpiStats, usageSummary: string): string {
   const visitLine =
     stats.qrUsers > 0
-      ? `이번 달 ${stats.qrUsers}명이 공간을 방문했고, ${stats.returningUsers}명이 다시 찾아왔습니다.`
-      : "이번 달은 아직 방문 기록이 충분하지 않습니다.";
+      ? `이번 기간 ${stats.qrUsers}명이 공간을 방문했고, ${stats.returningUsers}명이 다시 찾아왔습니다.`
+      : "이번 기간은 아직 방문 기록이 충분하지 않습니다.";
   return `${visitLine} 방문자들은 ${usageSummary}`;
 }
 
@@ -101,7 +104,12 @@ export interface ReportKpiCard {
   change: { direction: "up" | "down" | "flat"; deltaLabel: string } | null;
 }
 
-/** "② 핵심 KPI" 카드 4개 — QR 이용자 / 재방문율 / 평균 취향 적합도 / 방명록 작성률, 전월 대비 포함. */
+/** "② 핵심 KPI" 카드 6개 — QR 이용자 / 재방문자 / 재방문율 / 방명록 포스트잇 / 방명록 작성률 /
+ *  평균 취향 적합도, 전월 대비 포함(previous가 없으면 change는 전부 null). 방명록 작성자 수는
+ *  방명록 작성률과 사실상 같은 정보를 다른 각도로 보여줄 뿐이라 카드를 늘리지 않고 뺐다
+ *  (파일럿 리포트 요청의 "중복되거나 의미가 약한 지표는 최소화" 원칙). "방문 Record 수"(총
+ *  방문 건수, distinct 사용자와 별개)는 현재 KPI 구조 어디에도 계산되어 있지 않아 새로 정의를
+ *  만들지 않기 위해 포함하지 않았다 — 필요하면 별도 승인 후 추가할 것. */
 export function buildKpiCards(stats: PeriodKpiStats, previous: PeriodKpiStats | null): ReportKpiCard[] {
   return [
     {
@@ -113,11 +121,35 @@ export function buildKpiCards(stats: PeriodKpiStats, previous: PeriodKpiStats | 
         : null,
     },
     {
+      key: "returningUsers",
+      label: "재방문자",
+      value: `${stats.returningUsers}명`,
+      change: previous
+        ? { direction: direction(previous.returningUsers, stats.returningUsers), deltaLabel: countPercentDelta(previous.returningUsers, stats.returningUsers) }
+        : null,
+    },
+    {
       key: "revisitRate",
       label: "재방문율",
       value: `${Math.round(stats.revisitRate * 100)}%`,
       change: previous
         ? { direction: direction(previous.revisitRate, stats.revisitRate), deltaLabel: pctPointDelta(previous.revisitRate, stats.revisitRate) }
+        : null,
+    },
+    {
+      key: "guestbookPosts",
+      label: "방명록 포스트잇",
+      value: `${stats.guestbookPosts}개`,
+      change: previous
+        ? { direction: direction(previous.guestbookPosts, stats.guestbookPosts), deltaLabel: countPercentDelta(previous.guestbookPosts, stats.guestbookPosts) }
+        : null,
+    },
+    {
+      key: "guestbookRate",
+      label: "방명록 작성률",
+      value: `${Math.round(stats.guestbookRate * 100)}%`,
+      change: previous
+        ? { direction: direction(previous.guestbookRate, stats.guestbookRate), deltaLabel: pctPointDelta(previous.guestbookRate, stats.guestbookRate) }
         : null,
     },
     {
@@ -129,14 +161,6 @@ export function buildKpiCards(stats: PeriodKpiStats, previous: PeriodKpiStats | 
             direction: direction(previous.averageTasteScore ?? 0, stats.averageTasteScore ?? 0),
             deltaLabel: scoreDelta(previous.averageTasteScore, stats.averageTasteScore),
           }
-        : null,
-    },
-    {
-      key: "guestbookRate",
-      label: "방명록 작성률",
-      value: `${Math.round(stats.guestbookRate * 100)}%`,
-      change: previous
-        ? { direction: direction(previous.guestbookRate, stats.guestbookRate), deltaLabel: pctPointDelta(previous.guestbookRate, stats.guestbookRate) }
         : null,
     },
   ];

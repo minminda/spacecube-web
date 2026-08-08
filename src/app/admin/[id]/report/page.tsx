@@ -5,36 +5,36 @@ import { isAdmin } from "@/lib/admin";
 import { prisma } from "@/lib/prisma";
 import { recomputeSpaceKPI, getSpaceMonthlyKpi, getEarliestRecordDate, getDailyVisitTrend } from "@/lib/kpi";
 import { getExtendedPeriodStats } from "@/lib/reportMetrics";
-import { computeMonthlyReportContent, buildReportEmailDataFromStored, formatDurationLabel } from "@/lib/monthlyReport";
-import { resolvePreviewPeriods, inferReportDayPreset } from "@/lib/reportPeriod";
+import { computeMonthlyReportContent, formatDurationLabel } from "@/lib/monthlyReport";
 import { resolveDateRange, detectActivePreset, formatKstDateParam, toDotFormat, type DateRangePreset } from "@/lib/reportDateRange";
 import ReportEmail from "@/components/ReportEmail";
-import ReportSendSettingsForm from "./ReportSendSettingsForm";
-import ReportHistorySelect from "./ReportHistorySelect";
-import GenerateReportButton from "./GenerateReportButton";
 import DateRangeFilter from "./DateRangeFilter";
-import { ENABLE_REPORT_EMAIL, ENABLE_REPORT_AI_ANALYSIS } from "@/lib/pilotFlags";
+import PrintReportButton from "./PrintReportButton";
 
 interface Props {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ reportId?: string; from?: string; to?: string }>;
+  searchParams: Promise<{ from?: string; to?: string }>;
 }
 
 function pct(rate: number) {
   return `${Math.round(rate * 100)}%`;
 }
 
-function formatPeriodOptionLabel(periodStart: Date): string {
-  return `${periodStart.getFullYear()}.${String(periodStart.getMonth() + 1).padStart(2, "0")}`;
-}
-
 const PRESET_LABEL: Record<DateRangePreset, string> = { today: "오늘", "7d": "최근 7일", "30d": "최근 30일", all: "전체" };
 
 /**
- * 관리자 "운영 리포트 관리" 통합 페이지 — 예전 /admin/[id]/kpi(KPI)와
- * /admin/[id]/report-settings(리포트 설정)를 하나로 합쳤다. 같은 페이지 안에서
- * 현재 KPI → 리포트 미리보기(실제 메일과 같은 ReportEmail 컴포넌트) → 메일 발송 설정 →
- * 수동 생성 → 이전 리포트 순서로 배치한다(별도 라우트로 분리하지 않음).
+ * 관리자 "공간 운영 리포트" 페이지 — 파일럿 단순화 구조(2026-08-08).
+ *
+ * 파일럿에서는 운영자 페이지/자동 월간 리포트 시스템을 쓰지 않는다. 대신 관리자가 이 화면에서
+ * 기간을 고르면, 같은 기간으로 ①내부 분석용 KPI 요약(.no-print, 화면 전용)과 ②운영자 전달용
+ * 리포트 미리보기(그대로 PDF로 인쇄)가 동시에 갱신된다. 예전에 있던 "리포트 기준일 설정"·
+ * "수동 리포트 생성"·"이전 리포트" UI는 이 페이지에서 제거했다(SpaceMonthlyReport/생성 API/
+ * cron/컴포넌트 파일은 코드 변경 없이 그대로 남아있다 — 파일럿 이후 자동 월간 리포트로 다시
+ * 쓸 수 있게 보존, [[project_monthly_report_audit_2026-08-08]] 참고).
+ *
+ * "리포트 미리보기"는 SpaceMonthlyReport에 스냅샷을 쓰지 않는다 — computeMonthlyReportContent로
+ * 현재 원본 데이터를 그 자리에서 계산만 해서 보여준다(previousStats/previousStoryStats는 항상
+ * null — "전월 대비"가 성립하지 않는 자유 기간 조회라 비교 문장(③⑦)은 기본 숨김).
  */
 export default async function ReportAdminPage({ params, searchParams }: Props) {
   const session = await auth();
@@ -42,61 +42,40 @@ export default async function ReportAdminPage({ params, searchParams }: Props) {
   if (!isAdmin(session.user.email)) redirect("/");
 
   const { id: spaceId } = await params;
-  const { reportId, from, to } = await searchParams;
+  const { from, to } = await searchParams;
 
   const space = await prisma.space.findUnique({
     where: { id: spaceId },
-    select: {
-      id: true,
-      name: true,
-      slug: true,
-      createdAt: true,
-      reportStartDate: true,
-      reportEnabled: true,
-      owner: { select: { email: true } },
-    },
+    select: { id: true, name: true, slug: true, createdAt: true },
   });
   if (!space) notFound();
 
-  // 이 페이지의 "현재 KPI" 섹션은 이제 아래에서 계산하는 기간별 원본 집계(rangeStats 등)를
-  // 그대로 쓰지만, 다른 화면(향후 KPI 히스토리 등)이 참조할 수 있도록 오늘 날짜(KST) 스냅샷
-  // 행은 계속 최신 상태로 갱신해둔다.
+  // 화면에서 매번 원본 테이블을 다시 계산하지 않지만, 관리자가 최신 값을 보도록
+  // 조회 시점에 한 번만 오늘 날짜(KST) SpaceKPI 스냅샷 행을 갱신한다(이 페이지가 직접
+  // 읽지는 않지만, 다른 화면/향후 KPI 히스토리가 참조할 수 있어 계속 최신으로 유지).
   await recomputeSpaceKPI(spaceId);
 
   const now = new Date();
-  const { current, previous } = resolvePreviewPeriods(space.reportStartDate, now);
-
-  // ── 관리자 기간 조회("현재 KPI") — 리포트 발행 주기(위 current/previous)와는 완전히 별개다.
-  // "전체"의 시작점은 이 공간의 첫 방문일(없으면 공간 생성일)로, 관리자가 원하는 임의의
-  // 기간을 자유롭게 잘라볼 수 있게 한다. 아래 "리포트 미리보기"/"이전 리포트" 섹션은 이
-  // 기간 선택과 무관하게 그대로 report 주기(reportStartDate) 기준으로 계속 동작한다.
   const earliestRecordDate = await getEarliestRecordDate(spaceId);
   const allTimeStart = earliestRecordDate ?? space.createdAt;
   const range = resolveDateRange(from, to, allTimeStart, now);
   const activePreset = detectActivePreset(range.from, range.to, now, allTimeStart);
 
-  const [previousStats, previousExtended, archivedReports, rangeStats, rangeExtended, dailyTrend] = await Promise.all([
-    previous ? getSpaceMonthlyKpi(spaceId, previous.start, previous.end) : Promise.resolve(null),
-    previous ? getExtendedPeriodStats(spaceId, previous.start, previous.end) : Promise.resolve(null),
-    prisma.spaceMonthlyReport.findMany({
-      where: { spaceId },
-      orderBy: { periodStart: "desc" },
-      select: { id: true, periodStart: true, periodEnd: true },
-    }),
+  // 관리자 KPI 요약과 리포트 미리보기가 정확히 같은 [range.start, range.end)를 쓴다 —
+  // 각자 따로 날짜를 계산하지 않는 것이 "기간 일치" 원칙(§21)의 핵심.
+  const [rangeStats, rangeExtended, dailyTrend, previewData] = await Promise.all([
     getSpaceMonthlyKpi(spaceId, range.start, range.end),
     getExtendedPeriodStats(spaceId, range.start, range.end),
     getDailyVisitTrend(spaceId, range.start, range.end),
+    computeMonthlyReportContent(spaceId, range.start, range.end, null, null),
   ]);
 
-  const selectedReport = reportId ? archivedReports.find((r) => r.id === reportId) ?? null : null;
-  const previewData = selectedReport
-    ? await buildReportEmailDataFromStored(selectedReport.id)
-    : await computeMonthlyReportContent(spaceId, current.start, current.end, previousStats, previousExtended);
-  if (!previewData) notFound();
+  const recommendedFileName = `공간큐브_${space.name}_${range.from}_${range.to}.pdf`;
+  const noRangeData = rangeStats.qrUsers === 0 && rangeExtended.qrScans === 0;
 
   return (
     <main className="flex flex-col min-h-screen px-6 py-8 gap-8">
-      <div className="space-y-1" style={{ color: "var(--dim)" }}>
+      <div className="no-print space-y-1" style={{ color: "var(--dim)" }}>
         <div className="flex justify-between">
           <p className="text-xs">공간큐브 / ADMIN / REPORT</p>
           <Link href="/admin" className="text-xs" style={{ color: "var(--dim)" }}>&lt; admin</Link>
@@ -104,17 +83,16 @@ export default async function ReportAdminPage({ params, searchParams }: Props) {
         <p className="text-xs">─────────────────────────────</p>
       </div>
 
-      <div className="space-y-1">
+      <div className="no-print space-y-1">
         <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>운영 리포트</p>
         <h1 className="text-xl font-bold">{space.name}</h1>
       </div>
 
-      {/* ── 현재 KPI(기간 조회) — 아래 "리포트 미리보기"의 발행 주기와는 별개로, 관리자가
-           원하는 임의의 기간을 자유롭게 잘라볼 수 있는 섹션이다. ── */}
-      <div style={{ borderTop: "1px solid var(--border)" }} />
-      <section className="space-y-5">
+      {/* ── 기간 선택 — 이 페이지 전체(KPI 요약 + 리포트 미리보기)가 공유하는 단일 기간 소스 ── */}
+      <div className="no-print" style={{ borderTop: "1px solid var(--border)" }} />
+      <section className="no-print space-y-4">
         <div className="space-y-1">
-          <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>현재 KPI</p>
+          <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>기간</p>
           <p className="text-sm font-medium">
             {activePreset ? PRESET_LABEL[activePreset] : "직접 지정"}
             <span style={{ color: "var(--dim)" }}> ({toDotFormat(range.from)} — {toDotFormat(range.to)})</span>
@@ -123,14 +101,18 @@ export default async function ReportAdminPage({ params, searchParams }: Props) {
             <p className="text-xs" style={{ color: "var(--dim)" }}>요청한 기간이 올바르지 않아 최근 30일로 표시합니다.</p>
           )}
         </div>
-
         <DateRangeFilter from={range.from} to={range.to} activePreset={activePreset} allTimeStart={formatKstDateParam(allTimeStart)} />
+      </section>
 
+      {/* ── KPI 요약(관리자 전용, 화면에서만 보임) ── */}
+      <div className="no-print" style={{ borderTop: "1px solid var(--border)" }} />
+      <section className="no-print space-y-5">
+        <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>KPI 요약 — 관리자 전용</p>
         {!earliestRecordDate ? (
           <p className="text-sm" style={{ color: "var(--dim)" }}>
             아직 이 공간에 대한 기록이 없습니다. 첫 방문 기록이 생기면 KPI가 쌓이기 시작합니다.
           </p>
-        ) : rangeStats.qrUsers === 0 && rangeExtended.qrScans === 0 ? (
+        ) : noRangeData ? (
           <p className="text-sm" style={{ color: "var(--dim)" }}>선택한 기간에 기록된 방문이 없습니다.</p>
         ) : (
           <>
@@ -209,89 +191,36 @@ export default async function ReportAdminPage({ params, searchParams }: Props) {
                 <p className="text-xs" style={{ color: "var(--dim)" }}>선택한 기간이 길어(62일 초과) 일별 추이는 생략합니다.</p>
               )
             )}
-
-            <div className="space-y-2">
-              <p className="text-xs" style={{ color: "var(--dim)" }}>추천</p>
-              <p className="text-xs" style={{ color: "var(--border)" }}>추천 결과 노출 수 · 위치 보기 클릭 수는 아직 수집하지 않습니다 (구조만 준비).</p>
-            </div>
           </>
         )}
       </section>
 
-      {/* ── 리포트 미리보기 ── */}
-      <div style={{ borderTop: "1px solid var(--border)" }} />
+      {/* ── 리포트 미리보기 — 운영자에게 전달할 내용만, 위 KPI 요약과 정확히 같은 기간을 사용한다.
+           PDF로 인쇄할 때 이 섹션만 남고 나머지(.no-print)는 전부 숨는다. ── */}
+      <div className="no-print" style={{ borderTop: "1px solid var(--border)" }} />
       <section className="space-y-4">
-        <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="no-print flex items-center justify-between flex-wrap gap-2">
           <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>리포트 미리보기</p>
-          {archivedReports.length > 0 && (
-            <ReportHistorySelect
-              spaceId={space.id}
-              currentReportId={selectedReport?.id ?? null}
-              options={archivedReports.map((r) => ({ id: r.id, label: formatPeriodOptionLabel(r.periodStart) }))}
-            />
-          )}
+          <PrintReportButton />
         </div>
-        <p className="text-xs leading-relaxed" style={{ color: "var(--dim)" }}>
-          {ENABLE_REPORT_EMAIL
-            ? "운영자가 실제로 받는 메일과 같은 내용입니다."
-            : "관리자 확인용 미리보기입니다. (파일럿 기간에는 자동 이메일 발송이 꺼져 있습니다.)"}
+        <p className="no-print text-xs leading-relaxed" style={{ color: "var(--dim)" }}>
+          운영자에게 전달할 내용만 담았습니다. &quot;PDF로 저장&quot;을 누르면 인쇄 대화상자가 뜨고, 거기서 대상을 &quot;PDF로 저장&quot;으로 바꾸면 파일로 저장할 수 있습니다.
         </p>
         <div className="border" style={{ borderColor: "var(--border)" }}>
-          <ReportEmail data={previewData} showAnalysis={ENABLE_REPORT_AI_ANALYSIS} />
+          <ReportEmail data={previewData} showHeadline />
         </div>
-      </section>
-
-      {/* ── 리포트 기준일 설정 (파일럿 기간엔 이메일 발송 관련 UI를 숨기고 기준일만 노출) ── */}
-      <div style={{ borderTop: "1px solid var(--border)" }} />
-      <section className="space-y-4">
-        <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>
-          {ENABLE_REPORT_EMAIL ? "메일 발송 설정" : "리포트 기준일 설정"}
+        <p className="no-print text-xs" style={{ color: "var(--dim)" }}>
+          권장 파일명 — <code className="font-mono">{recommendedFileName}</code>
         </p>
-        <ReportSendSettingsForm
-          spaceId={space.id}
-          initialEnabled={space.reportEnabled}
-          initialPreset={space.reportStartDate ? inferReportDayPreset(space.reportStartDate) : 1}
-          ownerEmail={space.owner?.email ?? null}
-          emailEnabled={ENABLE_REPORT_EMAIL}
-        />
       </section>
 
-      {/* ── 수동 리포트 생성 ── */}
-      <div style={{ borderTop: "1px solid var(--border)" }} />
-      <section className="space-y-3">
-        <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>수동 리포트 생성</p>
-        <p className="text-xs leading-relaxed" style={{ color: "var(--dim)" }}>
-          공개일이 지났지만 아직 생성되지 않은 구간이 있으면 지금 생성합니다. 이미 생성된 구간은 다시 만들지 않습니다.
-        </p>
-        {space.reportStartDate ? (
-          <GenerateReportButton spaceId={space.id} />
-        ) : (
-          <p className="text-xs" style={{ color: "var(--border)" }}>발송 기준일을 먼저 저장해주세요.</p>
-        )}
-      </section>
-
-      {/* ── 이전 리포트 ── */}
-      <div style={{ borderTop: "1px solid var(--border)" }} />
-      <section className="space-y-3">
-        <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>이전 리포트</p>
-        {archivedReports.length === 0 ? (
-          <p className="text-sm" style={{ color: "var(--dim)" }}>아직 생성된 리포트가 없습니다.</p>
-        ) : (
-          <div className="space-y-2">
-            {archivedReports.map((r) => (
-              <Link
-                key={r.id}
-                href={`/admin/${space.id}/report?reportId=${r.id}`}
-                className="flex items-center justify-between p-3 border transition-colors hover:bg-[var(--tag-bg)]"
-                style={{ borderColor: r.id === selectedReport?.id ? "var(--fg)" : "var(--border)" }}
-              >
-                <span className="text-sm">{formatPeriodOptionLabel(r.periodStart)}</span>
-                <span className="text-xs" style={{ color: "var(--dim)" }}>미리보기 →</span>
-              </Link>
-            ))}
-          </div>
-        )}
-      </section>
+      <style>{`
+        @media print {
+          @page { size: A4; margin: 16mm; }
+          .no-print { display: none !important; }
+          html, body { background: #fff; }
+        }
+      `}</style>
     </main>
   );
 }
@@ -306,7 +235,7 @@ function StatBox({ label, value, unit }: { label: string; value: number | string
   );
 }
 
-/** "일별 방문 추이" — 새 차트 라이브러리 없이 막대 높이(%)만으로 그리는 최소 구현(§10). */
+/** "일별 방문 추이" — 새 차트 라이브러리 없이 막대 높이(%)만으로 그리는 최소 구현, 관리자 전용. */
 function DailyTrendChart({ data }: { data: { date: string; count: number }[] }) {
   const max = Math.max(1, ...data.map((d) => d.count));
   return (
