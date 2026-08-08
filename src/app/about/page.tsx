@@ -80,13 +80,13 @@ function ArchiveIcon() {
 }
 
 const STEPS = [
-  { Icon: DiscoverIcon, title: "공간 발견", desc: "공간에 놓인 큐브를 찾아요" },
-  { Icon: ScanIcon, title: "QR 스캔", desc: "큐브의 QR을 스캔해요" },
+  { Icon: DiscoverIcon, title: "공간 발견", desc: "공간에 놓인 큐브를 발견해요" },
+  { Icon: ScanIcon, title: "QR 스캔", desc: "큐브의 QR을 통해 공간의 이야기를 열어요" },
   { Icon: StoryIcon, title: "공간 이야기", desc: "공간을 만든 사람의 이야기를 만나요" },
-  { Icon: ScoreIcon, title: "취향 점수", desc: "나와 얼마나 맞는지 점수로 남겨요" },
-  { Icon: GuestbookIcon, title: "방명록", desc: "이 공간에 흔적을 남겨요" },
-  { Icon: ArchiveIcon, title: "공간 아카이브", desc: "방문한 공간이 기록으로 쌓여요" },
-  { Icon: RecommendIcon, title: "공간 추천", desc: "나와 맞는 다음 공간을 추천받아요" },
+  { Icon: ScoreIcon, title: "취향 점수", desc: "이 공간이 나와 얼마나 맞는지 점수로 남겨요" },
+  { Icon: GuestbookIcon, title: "방명록", desc: "오늘 이 공간에서 느낀 나의 흔적을 남겨요" },
+  { Icon: ArchiveIcon, title: "공간 아카이브", desc: "내가 만난 공간들이 하나씩 기록돼요" },
+  { Icon: RecommendIcon, title: "공간 추천", desc: "쌓인 기록을 바탕으로 나와 맞는 다음 공간을 발견해요" },
 ];
 
 export default function AboutPage() {
@@ -110,11 +110,21 @@ export default function AboutPage() {
         </p>
         <div className="space-y-4">
           <p className="text-sm leading-loose" style={{ color: "var(--dim)" }}>
-            공간큐브는 검색으로는 알기 어려운
+            대부분의 서비스가
             <br />
-            공간과 사람의 이야기를
+            어떤 공간에 갈지 찾는 일을 돕는다면,
             <br />
-            발견하게 하는 서비스입니다
+            <br />
+            공간큐브는 그 공간에 도착한 뒤
+            <br />
+            조금 더 깊이 바라보는 경험을 돕습니다
+          </p>
+          <p className="text-sm leading-loose" style={{ color: "var(--dim)" }}>
+            공간에 놓인 큐브를 통해
+            <br />
+            검색으로는 알기 어려운
+            <br />
+            공간을 만든 사람의 이야기를 만납니다
           </p>
           <p className="text-sm leading-loose" style={{ color: "var(--dim)" }}>
             메뉴, 영업시간, 평점보다
@@ -139,13 +149,21 @@ export default function AboutPage() {
             알기 어렵습니다
           </p>
           <p className="text-sm leading-loose" style={{ color: "var(--dim)" }}>
-            멋진 결과만 보면
+            멋진 결과만 바라볼 때는
             <br />
-            공간은 감탄의 대상이 되지만,
+            보이지 않던 것들이 있습니다
+          </p>
+          <p className="text-sm leading-loose" style={{ color: "var(--dim)" }}>
+            그 뒤의 선택과 실패,
             <br />
-            그 뒤의 선택과 실패, 반복된 시간을 알게 되면
+            반복된 시간을 알고 나면
+          </p>
+          <p className="text-sm leading-loose" style={{ color: "var(--dim)" }}>
+            지금 눈앞의 자리와 물건,
             <br />
-            공간은 한 사람의 이야기로 기억됩니다
+            공간을 이루는 작은 선택들이
+            <br />
+            조금 다르게 보이기 시작합니다
           </p>
         </div>
       </section>
@@ -156,13 +174,11 @@ export default function AboutPage() {
         <p className="text-xs uppercase tracking-widest" style={{ color: "var(--border)" }}>무엇을 담나요?</p>
         <ul className="space-y-3">
           {[
-            "처음 이 일을 좋아하게 된 순간",
-            "작게 시작했던 시절",
-            "포기하지 못했던 선택",
-            "매일 지키는 작은 습관",
-            "아직 버리지 못한 물건",
-            "오래 기억하는 손님",
-            "그 시간이 현재 공간에 남은 방식",
+            "공간이 시작되기 전의 이야기",
+            "공간을 만들며 했던 선택",
+            "사람 때문에 기억에 남은 순간",
+            "지금도 이어지고 있는 고민",
+            "방문자가 발견했으면 하는 것",
           ].map((s, i) => (
             <li key={i} className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>· {s}</li>
           ))}
@@ -176,9 +192,9 @@ export default function AboutPage() {
           <p className="text-xs uppercase tracking-widest" style={{ color: "var(--border)" }}>어떻게 경험하나요?</p>
           <div className="space-y-4">
             <p className="text-sm leading-loose" style={{ color: "var(--dim)" }}>
-              공간에 놓인 큐브를 발견하고 QR을 인식하면,
+              공간에 놓인 큐브를 발견하고 QR을 스캔하면,
               <br />
-              그 장소에서만 만날 수 있는 이야기가 열립니다
+              그 공간의 이야기가 열립니다
             </p>
             <p className="text-sm leading-loose" style={{ color: "var(--dim)" }}>
               이야기를 읽고 나면
