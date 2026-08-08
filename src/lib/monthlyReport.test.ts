@@ -148,6 +148,8 @@ function extended(overrides: Partial<ExtendedPeriodStats>): ExtendedPeriodStats 
   return {
     qrScans: 0,
     episodeViews: 0,
+    episodeCompletions: 0,
+    avgReadDurationMs: null,
     newlyUnlockedEpisodes: 0,
     reactionsTotal: 0,
     tasteScoreDistribution: [],

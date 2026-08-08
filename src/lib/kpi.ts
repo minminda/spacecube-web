@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { buildDailyVisitTrend, type DailyCount } from "@/lib/reportDateRange";
 
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
 
@@ -157,4 +158,25 @@ export async function getSpaceMonthlyKpi(spaceId: string, periodStart: Date, per
     prisma.guestbookNote.findMany({ where: { spaceId }, select: { userId: true, createdAt: true } }),
   ]);
   return computePeriodStats(records, guestbookNotes, periodStart, periodEnd);
+}
+
+/** 공간의 가장 오래된 Record 방문일을 반환한다 — 관리자 기간 조회의 "전체" 프리셋 시작점(§4)에 쓰인다.
+ *  방문 기록이 아직 없으면 null(호출부가 Space.createdAt 등으로 대체). */
+export async function getEarliestRecordDate(spaceId: string): Promise<Date | null> {
+  const earliest = await prisma.record.findFirst({
+    where: { spaceId },
+    orderBy: { visitedAt: "asc" },
+    select: { visitedAt: true },
+  });
+  return earliest?.visitedAt ?? null;
+}
+
+/** 관리자 기간 조회 화면의 "일별 방문 추이"(§10) — Record.visitedAt을 KST 달력일 단위로 집계한다.
+ *  집계 정의를 새로 만들지 않는다: computePeriodStats의 "QR 이용자"와 동일하게 Record 기준. */
+export async function getDailyVisitTrend(spaceId: string, start: Date, end: Date): Promise<DailyCount[]> {
+  const records = await prisma.record.findMany({
+    where: { spaceId, visitedAt: { gte: start, lt: end } },
+    select: { visitedAt: true },
+  });
+  return buildDailyVisitTrend(records.map((r) => r.visitedAt), start, end);
 }
