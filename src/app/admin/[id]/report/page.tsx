@@ -118,7 +118,8 @@ export default async function ReportAdminPage({ params, searchParams }: Props) {
           <>
             <div className="space-y-2">
               <p className="text-xs" style={{ color: "var(--dim)" }}>방문</p>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-3 gap-3">
+                <StatBox label="방문 Record 수" value={rangeStats.totalRecords} unit="건" />
                 <StatBox label="QR 이용자" value={rangeStats.qrUsers} unit="명" />
                 <StatBox label="QR 스캔 수" value={rangeExtended.qrScans} unit="회" />
               </div>

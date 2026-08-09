@@ -104,14 +104,20 @@ export interface ReportKpiCard {
   change: { direction: "up" | "down" | "flat"; deltaLabel: string } | null;
 }
 
-/** "② 핵심 KPI" 카드 6개 — QR 이용자 / 재방문자 / 재방문율 / 방명록 포스트잇 / 방명록 작성률 /
- *  평균 취향 적합도, 전월 대비 포함(previous가 없으면 change는 전부 null). 방명록 작성자 수는
- *  방명록 작성률과 사실상 같은 정보를 다른 각도로 보여줄 뿐이라 카드를 늘리지 않고 뺐다
- *  (파일럿 리포트 요청의 "중복되거나 의미가 약한 지표는 최소화" 원칙). "방문 Record 수"(총
- *  방문 건수, distinct 사용자와 별개)는 현재 KPI 구조 어디에도 계산되어 있지 않아 새로 정의를
- *  만들지 않기 위해 포함하지 않았다 — 필요하면 별도 승인 후 추가할 것. */
+/** "② 핵심 KPI" 카드 7개 — 방문 Record 수 / QR 이용자 / 재방문자 / 재방문율 / 방명록 포스트잇 /
+ *  방명록 작성률 / 평균 취향 적합도, 전월 대비 포함(previous가 없으면 change는 전부 null). 방명록
+ *  작성자 수는 방명록 작성률과 사실상 같은 정보를 다른 각도로 보여줄 뿐이라 카드를 늘리지 않고 뺐다
+ *  (파일럿 리포트 요청의 "중복되거나 의미가 약한 지표는 최소화" 원칙). */
 export function buildKpiCards(stats: PeriodKpiStats, previous: PeriodKpiStats | null): ReportKpiCard[] {
   return [
+    {
+      key: "totalRecords",
+      label: "방문 Record 수",
+      value: `${stats.totalRecords}건`,
+      change: previous
+        ? { direction: direction(previous.totalRecords, stats.totalRecords), deltaLabel: countPercentDelta(previous.totalRecords, stats.totalRecords) }
+        : null,
+    },
     {
       key: "qrUsers",
       label: "QR 이용자",
@@ -441,6 +447,11 @@ function toPeriodKpiStats(row: {
   averageTasteScore: number | null;
 }): PeriodKpiStats {
   return {
+    // SpaceMonthlyReport 스냅샷에는 totalRecords 컬럼이 없다(이 함수는 이전 달 스냅샷을
+    // 비교용으로 되돌리는 용도라 과거 값을 알 수 없음) — 0으로 두면 "방문 Record 수" 카드의
+    // 전월 대비 변화만 표시되지 않는 것과 동일한 효과라 실제 사용 중인 화면(파일럿 관리자
+    // 리포트, previousStats=null로 호출)에는 영향 없다.
+    totalRecords: 0,
     qrUsers: row.qrUsers,
     returningUsers: row.returningUsers,
     revisitRate: row.revisitRate,

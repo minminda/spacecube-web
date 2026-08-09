@@ -102,6 +102,7 @@ export async function getLatestSpaceKPI(spaceId: string) {
 }
 
 export interface PeriodKpiStats {
+  totalRecords: number;
   qrUsers: number;
   returningUsers: number;
   revisitRate: number;
@@ -148,7 +149,16 @@ export function computePeriodStats(
   const guestbookPosts = periodNotes.length;
   const guestbookRate = qrUsers > 0 ? guestbookWriters / qrUsers : 0;
 
-  return { qrUsers, returningUsers, revisitRate, guestbookWriters, guestbookPosts, guestbookRate, averageTasteScore };
+  return {
+    totalRecords: periodRecords.length,
+    qrUsers,
+    returningUsers,
+    revisitRate,
+    guestbookWriters,
+    guestbookPosts,
+    guestbookRate,
+    averageTasteScore,
+  };
 }
 
 /** 공간의 원본 Record/GuestbookNote를 가져와 기간 한정 KPI를 계산한다. */

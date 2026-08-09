@@ -14,6 +14,7 @@ import type { ReportQuestionParticipation } from "./monthlyReport";
 
 function stats(overrides: Partial<PeriodKpiStats>): PeriodKpiStats {
   return {
+    totalRecords: 20,
     qrUsers: 20,
     returningUsers: 0,
     revisitRate: 0,
@@ -97,9 +98,10 @@ describe("buildKpiCards", () => {
     expect(cards.every((c) => c.change === null)).toBe(true);
   });
 
-  it("6개 카드를 반환한다(QR이용자/재방문자/재방문율/방명록포스트잇/방명록작성률/평균취향적합도)", () => {
+  it("7개 카드를 반환한다(방문Record수/QR이용자/재방문자/재방문율/방명록포스트잇/방명록작성률/평균취향적합도)", () => {
     const cards = buildKpiCards(stats({ qrUsers: 10 }), null);
     expect(cards.map((c) => c.key)).toEqual([
+      "totalRecords",
       "qrUsers",
       "returningUsers",
       "revisitRate",
