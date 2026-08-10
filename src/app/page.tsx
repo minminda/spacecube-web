@@ -7,10 +7,20 @@ import HomeStoryCard from "./HomeStoryCard";
 import QrScanSheet from "./QrScanSheet";
 import HomeLogoutButton from "@/components/HomeLogoutButton";
 import Divider from "@/components/Divider";
+import SettingsPanel from "@/components/SettingsPanel";
 
 export default async function Home() {
   const session = await auth();
   const admin = isAdmin(session?.user?.email);
+
+  // 로그인 상태에서만 홈 우측 상단에 작은 설정 진입점을 보여준다 — 비로그인 사용자에게는
+  // 설정할 것 자체가 없으므로 아이콘을 노출하지 않는다(기존 "로그인하기" 링크 흐름과 충돌 없음).
+  const user = session?.user?.id
+    ? await prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: { nickname: true, visibility: true },
+      })
+    : null;
 
   const now = new Date();
 
@@ -46,7 +56,14 @@ export default async function Home() {
   const hasStories = regionStory || tasteStory;
 
   return (
-    <main className="flex flex-col min-h-screen px-6 pt-24 pb-16 gap-14">
+    <main className="relative flex flex-col min-h-screen px-6 pt-24 pb-16 gap-14">
+      {/* 설정 진입점 — 콘텐츠보다 먼저 눈에 띄지 않도록 작게, 로고/헤더와 겹치지 않는 상단 여백에 배치 */}
+      {user && (
+        <div className="absolute top-6 right-6">
+          <SettingsPanel nickname={user.nickname} visibility={user.visibility} />
+        </div>
+      )}
+
       {/* Hero — 브랜드가 숨 쉴 여백을 두고, 실행 방법은 QR 스캔하기를 눌렀을 때 안내한다(QrScanSheet) */}
       <div className="space-y-10">
         <div className="space-y-8">

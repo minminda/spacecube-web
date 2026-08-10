@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 import SettingsPanel from "@/components/SettingsPanel";
 import NotificationBell from "@/components/NotificationBell";
+import ShareArchiveButton from "@/components/archive/ShareArchiveButton";
 import { ENABLE_NOTIFICATIONS } from "@/lib/pilotFlags";
 import {
   buildSpaceNoteEntries, resolveInitialIndex,
@@ -70,18 +71,21 @@ export default async function ArchivePage({ searchParams }: Props) {
         <Link href="/" className="text-xs" style={{ color: "var(--dim)" }}>← </Link>
         <div className="flex items-center gap-4">
           {ENABLE_NOTIFICATIONS && <NotificationBell initialUnreadCount={unreadNotificationCount} />}
-          <SettingsPanel nickname={user.nickname} visibility={user.visibility} userId={user.id} />
+          <SettingsPanel nickname={user.nickname} visibility={user.visibility} />
         </div>
       </nav>
 
       <section className="mb-6 space-y-1.5">
         <div className="flex items-center justify-between">
           <h1 className="text-xl font-bold">내 아카이브</h1>
-          {entries.length > 0 && (
-            <Link href="/archive/all" className="text-xs" style={{ color: "var(--dim)" }}>
-              전체 기록 →
-            </Link>
-          )}
+          <div className="flex items-center gap-3">
+            {user.visibility !== "PRIVATE" && <ShareArchiveButton userId={user.id} />}
+            {entries.length > 0 && (
+              <Link href="/archive/all" className="text-xs" style={{ color: "var(--dim)" }}>
+                전체 기록 →
+              </Link>
+            )}
+          </div>
         </div>
         <p className="text-sm" style={{ color: "var(--dim)" }}>
           {entries.length > 0
