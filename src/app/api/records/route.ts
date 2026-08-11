@@ -5,7 +5,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { TagKey } from "@prisma/client";
 import { ENABLE_RECORD_TAG_SELECTION, ENABLE_TASTE_SCORE_RECOMMENDATION } from "@/lib/features";
-import { isNewVisit } from "@/lib/visit";
+import { isNewVisitForRecord } from "@/lib/visit";
 import { recomputeSpaceKPI } from "@/lib/kpi";
 import { requireSpaceUnlock, canBypassSpaceLock } from "@/lib/spaceUnlock";
 
@@ -75,7 +75,7 @@ export async function POST(req: NextRequest) {
       orderBy: { visitedAt: "desc" },
     });
 
-    if (lastRecord && !isNewVisit(lastRecord.visitedAt)) {
+    if (lastRecord && !isNewVisitForRecord(lastRecord.visitedAt)) {
       const updated = await tx.record.update({
         where: { id: lastRecord.id },
         data: {

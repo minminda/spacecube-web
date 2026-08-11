@@ -8,7 +8,7 @@ import { auth } from "@/auth";
 import { TAG_LABELS } from "@/lib/tags";
 import type { Metadata } from "next";
 import { resolveSpaceAccess, canBypassSpaceLock } from "@/lib/spaceUnlock";
-import { isNewVisit } from "@/lib/visit";
+import { isNewVisitForRecord } from "@/lib/visit";
 import { computeEpisodeState } from "@/lib/episodeState";
 import SpaceLockNotice from "@/components/SpaceLockNotice";
 import OwnerStory from "./OwnerStory";
@@ -120,7 +120,7 @@ export default async function SpacePage({ params }: Props) {
     // 아직 제출하지 않은 진짜 첫 방문(visitCount=0)과, 방금 제출해 visitCount가 1이 된
     // 경우를 동일하게 "첫 방문"으로 취급한다.
     const latestVisitedAt = records[0]?.visitedAt ?? null;
-    const isThisVisitRecord = !!latestVisitedAt && !isNewVisit(latestVisitedAt);
+    const isThisVisitRecord = !!latestVisitedAt && !isNewVisitForRecord(latestVisitedAt);
     const priorVisitCount = isThisVisitRecord ? visitCount - 1 : visitCount;
     isFirstVisit = priorVisitCount === 0;
 
