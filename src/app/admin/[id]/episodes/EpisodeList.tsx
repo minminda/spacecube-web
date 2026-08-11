@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/useToast";
 import Toast from "@/components/Toast";
+import { resolveEntryEpisodeId } from "@/lib/episodeEntry";
 
 interface EpisodeRow {
   id: string;
@@ -29,6 +30,9 @@ export default function EpisodeList({ spaceId, initialEpisodes }: Props) {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const { toast, showToast } = useToast();
+
+  /** QR 스캔 시 첫 방문자가 바로 도착하는 에피소드(대표 지정 우선, 없으면 표시순 1번). */
+  const entryEpisodeId = useMemo(() => resolveEntryEpisodeId(episodes), [episodes]);
 
   async function createEpisode() {
     const title = newTitle.trim();
@@ -166,9 +170,10 @@ export default function EpisodeList({ spaceId, initialEpisodes }: Props) {
                   {ep.published ? "공개" : "비공개"}
                 </span>
               </div>
-              {ep.isFeatured && ep.unlockVisitCount > 0 && (
+              {ep.id === entryEpisodeId && ep.unlockVisitCount > 0 && (
                 <p className="text-xs" style={{ color: "var(--border)" }}>
                   ⚠ QR 스캔 시 첫 방문자도 바로 이 이야기로 들어옵니다 — 해금 방문 횟수를 0으로 두는 것을 권장해요.
+                  {!ep.isFeatured && " (대표로 지정된 이야기가 없어 표시순 1번인 이 에피소드가 진입 지점이에요.)"}
                 </p>
               )}
               <div className="flex gap-2 text-xs flex-wrap items-center">

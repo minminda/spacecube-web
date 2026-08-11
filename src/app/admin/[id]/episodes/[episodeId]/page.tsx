@@ -3,6 +3,7 @@ import Link from "next/link";
 import { auth } from "@/auth";
 import { isAdmin } from "@/lib/admin";
 import { prisma } from "@/lib/prisma";
+import { resolveEntryEpisodeId } from "@/lib/episodeEntry";
 import EpisodeEditor from "./EpisodeEditor";
 import SceneManager from "./SceneManager";
 
@@ -14,14 +15,21 @@ export default async function EpisodeDetailPage({ params }: Props) {
   if (!isAdmin(session.user.email)) redirect("/");
 
   const { id: spaceId, episodeId } = await params;
-  const [space, episode] = await Promise.all([
+  const [space, episode, siblings] = await Promise.all([
     prisma.space.findUnique({ where: { id: spaceId }, select: { id: true, name: true } }),
     prisma.episode.findUnique({
       where: { id: episodeId },
       include: { scenes: { orderBy: { displayOrder: "asc" } } },
     }),
+    prisma.episode.findMany({
+      where: { spaceId },
+      orderBy: { displayOrder: "asc" },
+      select: { id: true, published: true, isFeatured: true },
+    }),
   ]);
   if (!space || !episode || episode.spaceId !== spaceId) notFound();
+
+  const isEntryEpisode = resolveEntryEpisodeId(siblings) === episode.id;
 
   return (
     <main className="flex flex-col min-h-screen px-6 py-8 gap-8">
@@ -39,6 +47,7 @@ export default async function EpisodeDetailPage({ params }: Props) {
       </div>
 
       <EpisodeEditor
+        isEntryEpisode={isEntryEpisode}
         episode={{
           id: episode.id,
           title: episode.title,

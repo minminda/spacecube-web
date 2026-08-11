@@ -27,3 +27,18 @@ export async function resolveEntryDestination(spaceId: string): Promise<EntryDes
 
   return { type: "space" };
 }
+
+/**
+ * resolveEntryDestination과 동일한 규칙(대표 지정 우선, 없으면 표시순 1번)을
+ * 이미 불러온 Episode 목록(displayOrder asc로 정렬된)에 대해 순수 계산한다.
+ * 관리자 화면에서 "이 에피소드가 QR 진입 지점인가"를 판단할 때 쓴다.
+ */
+export function resolveEntryEpisodeId<
+  T extends { id: string; published: boolean; isFeatured: boolean }
+>(episodesByDisplayOrder: T[]): string | null {
+  const featured = episodesByDisplayOrder.find((e) => e.published && e.isFeatured);
+  if (featured) return featured.id;
+
+  const first = episodesByDisplayOrder.find((e) => e.published);
+  return first?.id ?? null;
+}

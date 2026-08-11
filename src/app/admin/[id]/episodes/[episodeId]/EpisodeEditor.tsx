@@ -19,7 +19,7 @@ interface EpisodeData {
   imagePositionY: number;
 }
 
-export default function EpisodeEditor({ episode }: { episode: EpisodeData }) {
+export default function EpisodeEditor({ episode, isEntryEpisode }: { episode: EpisodeData; isEntryEpisode: boolean }) {
   const router = useRouter();
   const [title, setTitle] = useState(episode.title);
   const [description, setDescription] = useState(episode.description);
@@ -121,6 +121,12 @@ export default function EpisodeEditor({ episode }: { episode: EpisodeData }) {
             {unlockVisitCount === 0 ? "0 = 방문 없이 항상 공개" : `이 공간을 ${unlockVisitCount}번째 방문할 때부터 열람 가능`}
           </p>
         </div>
+        {isEntryEpisode && unlockVisitCount > 0 && (
+          <p className="text-xs" style={{ color: "var(--border)" }}>
+            ⚠ QR 스캔 시 첫 방문자도 바로 이 이야기로 들어옵니다 — Record가 아직 없는 상태라 해금 조건을 만족할 수 없어요.
+            해금 방문 횟수를 0으로 두는 것을 권장해요.
+          </p>
+        )}
       </div>
 
       <ImagePositionEditor
