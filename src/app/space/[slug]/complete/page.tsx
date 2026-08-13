@@ -6,6 +6,7 @@ import { auth } from "@/auth";
 import { buildRewardSummary } from "@/lib/guestbookReward";
 import { isOwnedRecord } from "@/lib/guestbookVisit";
 import { requireSpaceUnlock, canBypassSpaceLock } from "@/lib/spaceUnlock";
+import { ENABLE_PUBLIC_SPACE_BROWSER } from "@/lib/features";
 import RecommendationCard from "./RecommendationCard";
 import Divider from "@/components/Divider";
 
@@ -162,7 +163,7 @@ export default async function VisitCompletePage({ params, searchParams }: Props)
 
       {/* 5. 다음 행동 CTA — 너무 많이 강조하지 않는다, 메인 CTA 하나만 */}
       <div className="flex flex-col gap-3">
-        {summary.recommendations.length > 0 ? (
+        {summary.recommendations.length > 0 && ENABLE_PUBLIC_SPACE_BROWSER ? (
           <Link
             href="/discover"
             className="tap-target flex items-center justify-center w-full text-center text-sm font-medium py-3 border hover:bg-[var(--fg)] hover:text-[var(--bg)] transition-colors"
@@ -180,7 +181,7 @@ export default async function VisitCompletePage({ params, searchParams }: Props)
           </Link>
         )}
         <div className="flex items-center justify-center gap-4">
-          {summary.recommendations.length > 0 && (
+          {summary.recommendations.length > 0 && ENABLE_PUBLIC_SPACE_BROWSER && (
             <Link href="/archive" className="text-xs" style={{ color: "var(--dim)" }}>내 아카이브 보기</Link>
           )}
           <Link href={`/space/${space.slug}`} className="text-xs" style={{ color: "var(--dim)" }}>이 공간으로 돌아가기</Link>

@@ -3,6 +3,7 @@ import { Fragment } from "react";
 import type { Metadata } from "next";
 import Divider from "@/components/Divider";
 import CubeGlyph from "@/components/CubeGlyph";
+import { ENABLE_PUBLIC_SPACE_BROWSER } from "@/lib/features";
 
 export const metadata: Metadata = {
   title: "공간큐브 소개",
@@ -266,11 +267,11 @@ export default function AboutPage() {
 
       <div className="px-6 py-10">
         <Link
-          href="/discover"
+          href={ENABLE_PUBLIC_SPACE_BROWSER ? "/discover" : "/"}
           className="tap-target flex items-center justify-center w-full text-center text-sm font-medium py-3 border hover:bg-[var(--fg)] hover:text-[var(--bg)] transition-colors"
           style={{ borderColor: "var(--fg)" }}
         >
-          공간 둘러보기 →
+          {ENABLE_PUBLIC_SPACE_BROWSER ? "공간 둘러보기 →" : "홈으로 →"}
         </Link>
       </div>
     </main>

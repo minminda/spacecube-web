@@ -6,6 +6,7 @@ import SettingsPanel from "@/components/SettingsPanel";
 import NotificationBell from "@/components/NotificationBell";
 import ShareArchiveButton from "@/components/archive/ShareArchiveButton";
 import { ENABLE_NOTIFICATIONS } from "@/lib/pilotFlags";
+import { ENABLE_PUBLIC_SPACE_BROWSER } from "@/lib/features";
 import {
   buildSpaceNoteEntries, resolveInitialIndex,
   type ArchiveRecordInput, type ArchiveGuestbookNoteInput,
@@ -101,9 +102,11 @@ export default async function ArchivePage({ searchParams }: Props) {
             <br />
             공간에서 큐브 QR을 인식하고 첫 기록을 남겨보세요.
           </p>
-          <Link href="/discover" className="text-sm" style={{ color: "var(--fg)" }}>
-            공간 둘러보기 →
-          </Link>
+          {ENABLE_PUBLIC_SPACE_BROWSER && (
+            <Link href="/discover" className="text-sm" style={{ color: "var(--fg)" }}>
+              공간 둘러보기 →
+            </Link>
+          )}
         </section>
       ) : (
         <SpaceNotePager key={initialIndex} entries={cardData} initialIndex={initialIndex} />
