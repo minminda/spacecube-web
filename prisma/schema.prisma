@@ -15,9 +15,12 @@ model User {
   email         String?    @unique
   emailVerified DateTime?
   image         String?
-  nickname      String?
-  visibility    Visibility @default(PRIVATE)
-  createdAt     DateTime   @default(now())
+  nickname          String?   @unique
+  // 마지막으로 닉네임을 변경한 시각 — 30일에 1회만 변경 가능한 정책의 서버측 기준.
+  // null이면 아직 한 번도 변경(최초 설정 포함)한 적 없다는 뜻으로, 쿨다운 없이 즉시 설정 가능하다.
+  nicknameUpdatedAt DateTime?
+  visibility        Visibility @default(PRIVATE)
+  createdAt         DateTime   @default(now())
 
   accounts              Account[]
   sessions              Session[]

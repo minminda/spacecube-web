@@ -18,7 +18,7 @@ export default async function Home() {
   const user = session?.user?.id
     ? await prisma.user.findUnique({
         where: { id: session.user.id },
-        select: { nickname: true, visibility: true },
+        select: { nickname: true, nicknameUpdatedAt: true },
       })
     : null;
 
@@ -60,7 +60,7 @@ export default async function Home() {
       {/* 설정 진입점 — 콘텐츠보다 먼저 눈에 띄지 않도록 작게, 로고/헤더와 겹치지 않는 상단 여백에 배치 */}
       {user && (
         <div className="absolute top-6 right-6">
-          <SettingsPanel nickname={user.nickname} visibility={user.visibility} />
+          <SettingsPanel nickname={user.nickname} nicknameUpdatedAt={user.nicknameUpdatedAt?.toISOString() ?? null} />
         </div>
       )}
 

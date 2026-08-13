@@ -1,14 +1,22 @@
-import { notFound } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 import { TAG_LABELS } from "@/lib/tags";
 import { aggregateTags, getTastePhrase, getLatestRecordPerSpace } from "@/lib/taste";
-import { formatDotDate as formatDate } from "@/lib/time";
 import { resolveSpaceTypeLabel } from "@/lib/spaceType";
+import { getUserUnlockSets } from "@/lib/spaceUnlock";
 import SaveTasteButton from "@/components/SaveTasteButton";
 
 interface Props { params: Promise<{ userId: string }> }
+
+function NoticeScreen({ message }: { message: string }) {
+  return (
+    <main className="flex flex-col items-center justify-center min-h-screen px-6 text-center gap-3">
+      <p className="text-sm" style={{ color: "var(--dim)" }}>{message}</p>
+      <Link href="/" className="text-xs" style={{ color: "var(--border)" }}>← 홈으로</Link>
+    </main>
+  );
+}
 
 export default async function TasteJourneyPage({ params }: Props) {
   const { userId } = await params;
@@ -32,9 +40,8 @@ export default async function TasteJourneyPage({ params }: Props) {
     },
   });
 
-  // 존재하지 않는 사용자는 404, 비공개 사용자는 안내 문구를 보여준다 (구분 노출은 하지 않는다는 원칙과 무관하게
-  // "존재 자체를 숨겨야 하는" 요구사항은 없으므로 자연스러운 안내로 처리)
-  if (!target) notFound();
+  // 탈퇴/존재하지 않는 사용자 — notFound()의 기본 404 화면 대신 이 서비스 톤에 맞는 안내로 처리한다.
+  if (!target) return <NoticeScreen message="이 사용자를 찾을 수 없습니다" />;
 
   if (session?.user?.id === target.id) {
     const { redirect } = await import("next/navigation");
@@ -43,15 +50,6 @@ export default async function TasteJourneyPage({ params }: Props) {
 
   const displayName = target.nickname || "이 사용자";
 
-  if (target.visibility === "PRIVATE") {
-    return (
-      <main className="flex flex-col items-center justify-center min-h-screen px-6 text-center gap-3">
-        <p className="text-sm" style={{ color: "var(--dim)" }}>이 사용자의 아카이브는 공개되지 않았습니다</p>
-        <Link href="/" className="text-xs" style={{ color: "var(--border)" }}>← 홈으로</Link>
-      </main>
-    );
-  }
-
   const topTags = aggregateTags(target.records).slice(0, 5);
   const tastePhrase = getTastePhrase(topTags.map(([t, count]) => ({ name: TAG_LABELS[t], weight: count })));
 
@@ -59,30 +57,52 @@ export default async function TasteJourneyPage({ params }: Props) {
   // 공통 함수(getLatestRecordPerSpace)를 재사용해 "최신 기록만 반영" 기준을 하나로 통일한다.
   const uniqueRecords = getLatestRecordPerSpace(target.records);
 
-  // 이 사용자가 남긴 방명록 포스트잇 — 공개 아카이브에 노출 가능한 정보만 선택
-  // (이메일/정확한 방문 시각/로그인 정보/관리자 여부/비공개 기록은 노출하지 않음)
-  const guestbookNotes = await prisma.guestbookNote.findMany({
-    where: { userId: target.id },
-    orderBy: { createdAt: "desc" },
-    select: { id: true, content: true, imageUrl: true, createdAt: true, space: { select: { name: true, slug: true } } },
-  });
-
   let isLoggedIn = false;
   let alreadySaved = false;
   let isSelf = false;
+  let viewerUnlockedSpaceIds = new Set<string>();
   if (session?.user?.id) {
     isLoggedIn = true;
     const me = await prisma.user.findUnique({ where: { id: session.user.id } });
     if (me) {
       isSelf = me.id === userId;
       if (!isSelf) {
-        const existing = await prisma.savedTaste.findUnique({
-          where: { userId_targetUserId: { userId: me.id, targetUserId: userId } },
-        });
+        const [existing, unlockSets] = await Promise.all([
+          prisma.savedTaste.findUnique({
+            where: { userId_targetUserId: { userId: me.id, targetUserId: userId } },
+          }),
+          // 다른 사용자의 방명록 흔적을 볼 수 있는 범위 — 새 판정 체계를 만들지 않고, 공간 "읽기"
+          // 보호 페이지(공간 상세/Episode/방명록)가 이미 공유하는 SpaceUnlock 기준을 그대로 재사용한다.
+          // everUnlocked(만료 여부 무관, 실제로 QR로 열어본 적 있는 공간 전체)를 쓴다 — "지금 당장
+          // 12시간 내"가 아니라 "내가 실제로 방문해서 경험한 공간"이 이 화면의 기준이기 때문이다.
+          getUserUnlockSets(me.id),
+        ]);
         alreadySaved = !!existing;
+        viewerUnlockedSpaceIds = unlockSets.everUnlocked;
       }
     }
   }
+
+  // 이 사용자가 남긴 방명록 포스트잇 — 공간이 존재한다는 사실(카드 자체)은 항상 보여주되,
+  // 내용(content/imageUrl)은 "지금 보고 있는 내"가 그 공간을 실제로 방문해 잠금을 해제한
+  // 경우에만 채운다. 잠긴 공간의 흔적은 서버에서부터 아예 content를 내려보내지 않는다 —
+  // 클라이언트에서 숨기는 게 아니라 애초에 응답(HTML)에 담기지 않아야 하기 때문.
+  const targetNotesRaw = await prisma.guestbookNote.findMany({
+    where: { userId: target.id, isHidden: false, deletedAt: null },
+    orderBy: { createdAt: "desc" },
+    select: { id: true, content: true, imageUrl: true, spaceId: true, space: { select: { name: true, slug: true } } },
+  });
+  const guestbookNotes = targetNotesRaw.map((n) => {
+    const unlocked = viewerUnlockedSpaceIds.has(n.spaceId);
+    return {
+      id: n.id,
+      spaceName: n.space.name,
+      spaceSlug: n.space.slug,
+      unlocked,
+      content: unlocked ? n.content : null,
+      imageUrl: unlocked ? n.imageUrl : null,
+    };
+  });
 
   return (
     <main className="flex flex-col min-h-screen px-6 pt-10 pb-16 gap-8">
@@ -153,26 +173,37 @@ export default async function TasteJourneyPage({ params }: Props) {
           <section className="space-y-4">
             <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>공간마다 남긴 방명록</p>
             <div className="flex gap-3 overflow-x-auto snap-x pb-3 -mx-6 px-6" style={{ scrollbarWidth: "none" }}>
-              {guestbookNotes.map((note, i) => (
-                <Link
-                  key={note.id}
-                  href={`/space/${note.space.slug}/guestbook?focus=${note.id}`}
-                  className="flex-shrink-0 w-40 snap-start p-3.5 relative"
-                  style={{ background: "#F6E7A8", transform: `rotate(${i % 2 === 0 ? -1.4 : 1.2}deg)`, boxShadow: "0 2px 8px rgba(0,0,0,0.12)" }}
-                >
-                  {note.imageUrl && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={note.imageUrl} alt="" className="w-full h-20 object-cover mb-2" />
-                  )}
-                  <p className="text-[13px] leading-relaxed break-keep line-clamp-4" style={{ color: "#3d3524" }}>
-                    {note.content}
-                  </p>
-                  <div className="mt-3 space-y-0.5">
-                    <p className="text-[11px] font-medium" style={{ color: "#3d3524" }}>{note.space.name}</p>
-                    <p className="text-[10px]" style={{ color: "#8a7d5c" }}>{formatDate(note.createdAt)}</p>
+              {guestbookNotes.map((note, i) =>
+                note.unlocked ? (
+                  <Link
+                    key={note.id}
+                    href={`/space/${note.spaceSlug}/guestbook?focus=${note.id}`}
+                    className="flex-shrink-0 w-40 snap-start p-3.5 relative"
+                    style={{ background: "#F6E7A8", transform: `rotate(${i % 2 === 0 ? -1.4 : 1.2}deg)`, boxShadow: "0 2px 8px rgba(0,0,0,0.12)" }}
+                  >
+                    {note.imageUrl && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={note.imageUrl} alt="" className="w-full h-20 object-cover mb-2" />
+                    )}
+                    <p className="text-[13px] leading-relaxed break-keep line-clamp-4" style={{ color: "#3d3524" }}>
+                      {note.content}
+                    </p>
+                    <p className="mt-3 text-[11px] font-medium" style={{ color: "#3d3524" }}>{note.spaceName}</p>
+                  </Link>
+                ) : (
+                  <div
+                    key={note.id}
+                    className="flex-shrink-0 w-40 snap-start p-3.5 relative"
+                    style={{ background: "#e5e5e5", transform: `rotate(${i % 2 === 0 ? -1.4 : 1.2}deg)`, boxShadow: "0 2px 8px rgba(0,0,0,0.12)" }}
+                  >
+                    <p className="text-[13px] leading-relaxed break-keep" style={{ color: "#8a8a8a" }}>
+                      이 공간을 직접 방문하면
+                      <br />이 흔적을 볼 수 있어요
+                    </p>
+                    <p className="mt-3 text-[11px] font-medium" style={{ color: "#8a8a8a" }}>{note.spaceName}</p>
                   </div>
-                </Link>
-              ))}
+                ),
+              )}
             </div>
           </section>
         </>

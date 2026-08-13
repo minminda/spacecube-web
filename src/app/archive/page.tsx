@@ -72,7 +72,7 @@ export default async function ArchivePage({ searchParams }: Props) {
         <Link href="/" className="text-xs" style={{ color: "var(--dim)" }}>← </Link>
         <div className="flex items-center gap-4">
           {ENABLE_NOTIFICATIONS && <NotificationBell initialUnreadCount={unreadNotificationCount} />}
-          <SettingsPanel nickname={user.nickname} visibility={user.visibility} />
+          <SettingsPanel nickname={user.nickname} nicknameUpdatedAt={user.nicknameUpdatedAt?.toISOString() ?? null} />
         </div>
       </nav>
 
@@ -80,7 +80,7 @@ export default async function ArchivePage({ searchParams }: Props) {
         <div className="flex items-center justify-between">
           <h1 className="text-xl font-bold">내 아카이브</h1>
           <div className="flex items-center gap-3">
-            {user.visibility !== "PRIVATE" && <ShareArchiveButton userId={user.id} />}
+            <ShareArchiveButton userId={user.id} />
             {entries.length > 0 && (
               <Link href="/archive/all" className="text-xs" style={{ color: "var(--dim)" }}>
                 전체 기록 →

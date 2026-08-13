@@ -3,29 +3,18 @@ import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
 import SettingsIcon from "@/components/SettingsIcon";
+import { canChangeNickname, nextNicknameChangeAt } from "@/lib/nickname";
+import { formatDotDate } from "@/lib/time";
 
-type Visibility = "PRIVATE" | "PARTIAL" | "LINK_ONLY";
+interface Props {
+  nickname: string | null;
+  /** 마지막 닉네임 변경 시각(ISO) — 30일 쿨다운 판정·표시에 쓴다. 없으면 즉시 변경 가능. */
+  nicknameUpdatedAt: string | null;
+}
 
-const VISIBILITY_LABELS: Record<Visibility, string> = {
-  PRIVATE: "나만 보기",
-  LINK_ONLY: "링크로만 공개",
-  PARTIAL: "일부 공개",
-};
-
-// 공개 범위 설명 — PARTIAL(일부 공개)이 실제로 하는 일은 archive/taste 페이지의
-// "비슷한 취향" 추천 후보 조회(visibility: "PARTIAL")뿐이므로, 그 동작과 정확히 일치하는 문구만 쓴다.
-const VIS_HINT: Record<Visibility, string> = {
-  PRIVATE: "나만 볼 수 있어요.",
-  LINK_ONLY: "링크를 아는 사람만 볼 수 있어요.",
-  PARTIAL: "일부 공개 시 비슷한 취향의 사용자에게 발견될 수 있어요.",
-};
-
-interface Props { nickname: string | null; visibility: Visibility; }
-
-export default function SettingsPanel({ nickname, visibility }: Props) {
+export default function SettingsPanel({ nickname, nicknameUpdatedAt }: Props) {
   const [open, setOpen] = useState(false);
   const [nickValue, setNickValue] = useState(nickname ?? "");
-  const [vis, setVis] = useState<Visibility>(visibility);
   const [saving, setSaving] = useState(false);
   const [savedFlash, setSavedFlash] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -34,13 +23,17 @@ export default function SettingsPanel({ nickname, visibility }: Props) {
 
   useEffect(() => { if (open) inputRef.current?.focus(); }, [open]);
 
-  const dirty = nickValue.trim() !== (nickname ?? "") || vis !== visibility;
+  const lastChangedAt = nicknameUpdatedAt ? new Date(nicknameUpdatedAt) : null;
+  const cooldownActive = !canChangeNickname(lastChangedAt);
+  const nextChangeAt = cooldownActive ? nextNicknameChangeAt(lastChangedAt) : null;
+  const dirty = nickValue.trim() !== (nickname ?? "");
+  const changeAllowed = !dirty || !cooldownActive;
 
   async function handleSave() {
-    if (!dirty || saving) return;
+    if (!dirty || saving || !changeAllowed) return;
     setSaving(true);
     setError(null);
-    const res = await fetch("/api/users/me", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ nickname: nickValue, visibility: vis }) });
+    const res = await fetch("/api/users/me", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ nickname: nickValue }) });
     setSaving(false);
     if (!res.ok) {
       const data = await res.json().catch(() => null);
@@ -90,30 +83,18 @@ export default function SettingsPanel({ nickname, visibility }: Props) {
                   style={{ borderColor: "var(--border)", color: "var(--fg)" }}
                   onKeyDown={(e) => { if (e.key === "Enter") handleSave(); }}
                 />
-              </div>
-
-              <div className="space-y-2">
-                <p className="text-xs" style={{ color: "var(--dim)" }}>공개 범위</p>
-                <div className="space-y-1">
-                  {(["PRIVATE", "LINK_ONLY", "PARTIAL"] as Visibility[]).map((v) => (
-                    <button
-                      key={v}
-                      onClick={() => setVis(v)}
-                      className="w-full text-left text-sm py-2 px-3 border transition-colors"
-                      style={{ borderColor: vis === v ? "var(--fg)" : "var(--border)", color: vis === v ? "var(--fg)" : "var(--dim)" }}
-                    >
-                      {VISIBILITY_LABELS[v]}
-                    </button>
-                  ))}
-                </div>
-                <p className="text-xs" style={{ color: "var(--dim)" }}>{VIS_HINT[vis]}</p>
+                {nextChangeAt && (
+                  <p className="text-xs" style={{ color: "var(--dim)" }}>
+                    다음 변경 가능일: {formatDotDate(nextChangeAt)}
+                  </p>
+                )}
               </div>
             </div>
 
             <div className="space-y-2">
               <button
                 onClick={handleSave}
-                disabled={!dirty || saving}
+                disabled={!dirty || saving || !changeAllowed}
                 className="w-full text-sm font-medium py-3 border transition-colors disabled:opacity-40 hover:enabled:bg-[var(--fg)] hover:enabled:text-[var(--bg)]"
                 style={{ borderColor: "var(--fg)", color: "var(--fg)" }}
               >

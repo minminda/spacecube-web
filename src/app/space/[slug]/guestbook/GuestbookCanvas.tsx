@@ -1070,7 +1070,7 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
                         className="inline-block text-xs py-1.5 px-2.5 border transition-colors"
                         style={{ borderColor: INK, color: INK }}
                       >
-                        이 사용자의 공간 아카이브 보기 →
+                        아카이브 둘러보기 →
                       </Link>
                     </div>
                   )}
