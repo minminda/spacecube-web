@@ -28,6 +28,16 @@
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# handwriting PoC (EXPERIMENTAL, local-only) — vendored third-party source, venv,
+# pretrained weights, and scratch output are not app code and shouldn't be committed.
+# See handwriting-service/README.md for how to regenerate them locally.
+/handwriting-service/dmfont-src/
+/handwriting-service/venv/
+/handwriting-service/checkpoints/
+/handwriting-service/smoke_out/
+/handwriting-service/uvicorn.log
+/handwriting-service/**/__pycache__/
 .pnpm-debug.log*
 
 # env files (can opt-in for committing if needed)

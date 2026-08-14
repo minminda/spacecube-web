@@ -1,0 +1,15 @@
+# EXPERIMENTAL ONLY — handwriting PoC inference service.
+# Install with: pip install -r requirements.txt --index-url https://download.pytorch.org/whl/cpu
+# (the --index-url is needed for the torch/torchvision CPU-only wheels; other packages
+# come from PyPI as usual — pip will fall back automatically for those.)
+torch==2.13.0
+torchvision==0.28.0
+numpy==2.4.6
+pillow==12.3.0
+h5py==3.16.0
+sconf==0.2.5
+fastapi==0.141.1
+uvicorn[standard]==0.52.3
+opencv-python-headless==5.0.0.93
+python-multipart==0.0.32
+requests==2.34.2

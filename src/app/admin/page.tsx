@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { isAdmin } from "@/lib/admin";
 import { ENABLE_REGION_STORIES, ENABLE_TASTE_STORIES } from "@/lib/features";
 import { ENABLE_MULTILINGUAL } from "@/lib/pilotFlags";
+import { ENABLE_HANDWRITING_POC } from "@/lib/handwriting/features";
 import { resolveSpaceTypeLabel } from "@/lib/spaceType";
 import DeleteSpaceButton from "./DeleteSpaceButton";
 
@@ -82,6 +83,16 @@ export default async function AdminPage() {
             style={{ borderColor: "var(--border)", color: "var(--dim)" }}
           >
             [[ 지역/취향 이야기 ]]
+          </Link>
+        )}
+        {/* EXPERIMENTAL ONLY — 손글씨 PoC, 기본 비활성. src/lib/handwriting/features.ts 참고 */}
+        {ENABLE_HANDWRITING_POC && (
+          <Link
+            href="/admin/handwriting-test"
+            className="flex-1 min-w-[8rem] block text-sm py-2 px-4 border transition-colors text-center"
+            style={{ borderColor: "#c0392b", color: "#c0392b" }}
+          >
+            [[ 손글씨 실험 ]]
           </Link>
         )}
       </div>
