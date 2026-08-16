@@ -1,86 +1,93 @@
 """
 EXPERIMENTAL ONLY — handwriting PoC.
-Detects the 4 solid-black corner markers printed on the sample sheet and warps the
-photo to the canonical sheet size (sheet_layout.CANVAS_W x CANVAS_H) via a 4-point
-perspective transform. This is deliberately simple (marker-based, not general
-document-boundary detection) — good enough for a controlled single-sheet PoC photo.
+Finds the printed sample sheet in a photo and warps it to the canonical sheet size
+(sheet_layout.CANVAS_W x CANVAS_H) via a 4-point perspective transform.
+
+Originally detected the 4 printed corner markers individually, but that was too
+fragile against real handwriting photos — ink strokes, printed cell borders, and
+shadows all produce dark blobs similar in size to the markers, so the detector
+would latch onto the wrong ones. Detecting the page's own white/bright rectangular
+boundary against the (darker) background is the standard, much more robust
+"document scanner" approach and doesn't require the markers at all. The markers
+stay printed on the sheet as a visual guide for the photographer, but the algorithm
+no longer depends on finding them.
 """
 import cv2
 import numpy as np
 
-from .sheet_layout import CANVAS_W, CANVAS_H, MARKERS
+from .sheet_layout import CANVAS_W, CANVAS_H
 
 
 class SheetNotFoundError(Exception):
-    """Raised when the 4 corner markers can't be reliably located."""
+    """Raised when the printed sheet's boundary can't be reliably located."""
 
 
-def _find_marker_candidates(gray: np.ndarray) -> list[tuple[float, float, float]]:
-    """Returns (cx, cy, area) for dark, roughly-square blobs — marker candidates."""
-    # Otsu threshold — markers are solid black on white paper, robust to lighting.
-    _, binary = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
-    contours, _ = cv2.findContours(binary, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
-
-    candidates = []
-    img_area = gray.shape[0] * gray.shape[1]
-    for c in contours:
-        area = cv2.contourArea(c)
-        # markers should be small relative to the whole sheet but not noise-sized
-        if area < img_area * 0.0005 or area > img_area * 0.02:
-            continue
-        x, y, w, h = cv2.boundingRect(c)
-        aspect = w / h if h else 0
-        if not (0.6 < aspect < 1.6):
-            continue
-        # squareness: contour area vs bounding box area
-        if area / (w * h) < 0.6:
-            continue
-        cx, cy = x + w / 2, y + h / 2
-        candidates.append((cx, cy, area))
-    return candidates
+def _order_points(pts: np.ndarray) -> np.ndarray:
+    """Sorts 4 arbitrary points into [top-left, top-right, bottom-right, bottom-left]."""
+    rect = np.zeros((4, 2), dtype=np.float32)
+    s = pts.sum(axis=1)
+    rect[0] = pts[np.argmin(s)]
+    rect[2] = pts[np.argmax(s)]
+    diff = pts[:, 1] - pts[:, 0]
+    rect[1] = pts[np.argmin(diff)]
+    rect[3] = pts[np.argmax(diff)]
+    return rect
 
 
-def find_corners(image_bgr: np.ndarray) -> dict[str, tuple[float, float]]:
-    """Locates the 4 corner markers by splitting the image into quadrants and picking
-    the best square-blob candidate nearest each quadrant's outer corner."""
+def _find_paper_quad(image_bgr: np.ndarray) -> np.ndarray:
+    """Locates the largest bright/white quadrilateral in the photo (the printed sheet)."""
     gray = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2GRAY)
-    h, w = gray.shape
-    candidates = _find_marker_candidates(gray)
-    if len(candidates) < 4:
-        raise SheetNotFoundError("코너 마커를 충분히 찾지 못했습니다.")
+    blurred = cv2.GaussianBlur(gray, (7, 7), 0)
+    # White paper vs. (typically darker) background separates cleanly with Otsu here —
+    # unlike the old marker-only threshold, we're segmenting a large uniform region,
+    # not trying to isolate small ink-sized blobs.
+    _, thresh = cv2.threshold(blurred, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    closed = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, np.ones((15, 15), np.uint8))
 
-    quadrant_targets = {
-        "tl": (0, 0),
-        "tr": (w, 0),
-        "bl": (0, h),
-        "br": (w, h),
-    }
-    found = {}
-    for name, (tx, ty) in quadrant_targets.items():
-        best, best_dist = None, float("inf")
-        for cx, cy, _area in candidates:
-            # candidate must be in the correct quadrant half
-            if name[0] == "t" and cy > h / 2:
-                continue
-            if name[0] == "b" and cy < h / 2:
-                continue
-            if name[1] == "l" and cx > w / 2:
-                continue
-            if name[1] == "r" and cx < w / 2:
-                continue
-            dist = (cx - tx) ** 2 + (cy - ty) ** 2
-            if dist < best_dist:
-                best, best_dist = (cx, cy), dist
-        if best is None:
-            raise SheetNotFoundError(f"{name} 코너 마커를 찾지 못했습니다.")
-        found[name] = best
-    return found
+    contours, _ = cv2.findContours(closed, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    if not contours:
+        raise SheetNotFoundError("작성 영역을 찾지 못했습니다.")
+
+    largest = max(contours, key=cv2.contourArea)
+    img_area = gray.shape[0] * gray.shape[1]
+    if cv2.contourArea(largest) < img_area * 0.1:
+        raise SheetNotFoundError("작성 영역을 찾지 못했습니다.")
+
+    peri = cv2.arcLength(largest, True)
+    approx = cv2.approxPolyDP(largest, 0.02 * peri, True)
+    if len(approx) == 4:
+        pts = approx.reshape(4, 2).astype(np.float32)
+    else:
+        # Not a clean quad (rounded corners, slight occlusion, etc.) — fall back to
+        # the rotated bounding rectangle of the largest blob, which is more forgiving.
+        rect = cv2.minAreaRect(largest)
+        pts = cv2.boxPoints(rect).astype(np.float32)
+
+    return _order_points(pts)
+
+
+def _looks_upside_down(canonical_bgr: np.ndarray) -> bool:
+    """Heuristic: the header text band (near the top of the sheet) should have more
+    ink than the blank margin mirrored near the bottom. If the reverse is true, the
+    sheet was likely photographed upside-down. Bands are sampled away from the
+    corner markers (x margins) so the markers themselves don't skew the comparison."""
+    gray = cv2.cvtColor(canonical_bgr, cv2.COLOR_BGR2GRAY)
+    x0, x1 = 240, 960
+    top_band = gray[120:190, x0:x1]
+    bottom_band = gray[1630:1690, x0:x1]
+    top_ink = 255 - top_band.mean()
+    bottom_ink = 255 - bottom_band.mean()
+    return bottom_ink > top_ink * 1.5
 
 
 def warp_to_canonical(image_bgr: np.ndarray) -> np.ndarray:
-    """Full pipeline: find markers → perspective-correct to the canonical sheet size."""
-    corners = find_corners(image_bgr)
-    src = np.float32([corners["tl"], corners["tr"], corners["bl"], corners["br"]])
-    dst = np.float32([MARKERS["tl"], MARKERS["tr"], MARKERS["bl"], MARKERS["br"]])
-    matrix = cv2.getPerspectiveTransform(src, dst)
-    return cv2.warpPerspective(image_bgr, matrix, (CANVAS_W, CANVAS_H))
+    """Full pipeline: find the sheet's boundary -> perspective-correct -> fix orientation."""
+    quad = _find_paper_quad(image_bgr)
+    dst = np.float32([[0, 0], [CANVAS_W, 0], [CANVAS_W, CANVAS_H], [0, CANVAS_H]])
+    matrix = cv2.getPerspectiveTransform(quad, dst)
+    canonical = cv2.warpPerspective(image_bgr, matrix, (CANVAS_W, CANVAS_H))
+
+    if _looks_upside_down(canonical):
+        canonical = cv2.rotate(canonical, cv2.ROTATE_180)
+
+    return canonical
