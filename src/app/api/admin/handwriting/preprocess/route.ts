@@ -4,6 +4,8 @@ import { requireHandwritingAdmin } from "@/lib/handwriting/requireAdmin";
 import { callHandwritingService } from "@/lib/handwriting/callInferenceService";
 
 export const dynamic = "force-dynamic";
+// Cloud Run 콜드 스타트(torch/opencv import) 재시도까지 감안 — 기본 함수 제한 시간보다 넉넉히.
+export const maxDuration = 120;
 
 export async function POST(req: NextRequest) {
   const denied = await requireHandwritingAdmin(req);

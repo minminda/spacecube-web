@@ -64,17 +64,28 @@ export default function HandwritingWizard() {
 
   const [showPostit, setShowPostit] = useState(false);
 
+  async function postPreprocess(file: File, corners?: [number, number][]) {
+    const formData = new FormData();
+    formData.append("file", file);
+    if (corners) formData.append("corners", JSON.stringify(corners));
+    const res = await fetch("/api/admin/handwriting/preprocess", { method: "POST", body: formData });
+    const data = await res.json();
+    return { res, data };
+  }
+
   async function submitPreprocess(file: File, corners?: [number, number][]) {
     setUploading(true);
     setUploadError(null);
     setSessionExpired(false);
     setCells(null);
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-      if (corners) formData.append("corners", JSON.stringify(corners));
-      const res = await fetch("/api/admin/handwriting/preprocess", { method: "POST", body: formData });
-      const data = await res.json();
+      let { res, data } = await postPreprocess(file, corners);
+      // 세션 조회가 서버리스 DB 연결 문제로 간헐적으로 실패하는 것으로 보여, 401만
+      // 한 번 조용히 재시도한다(진짜 로그인 만료라면 재시도해도 다시 401이 뜬다).
+      if (!res.ok && res.status === 401 && data.code === "SESSION_EXPIRED") {
+        await new Promise((r) => setTimeout(r, 1500));
+        ({ res, data } = await postPreprocess(file, corners));
+      }
       if (!res.ok) {
         if (res.status === 401 && data.code === "SESSION_EXPIRED") {
           setSessionExpired(true);
