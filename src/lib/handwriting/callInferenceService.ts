@@ -6,8 +6,10 @@
  */
 import { HANDWRITING_SERVICE_URL, HANDWRITING_SERVICE_SECRET } from "@/lib/handwriting/features";
 
-const FIRST_TIMEOUT_MS = 15_000; // 콜드 스타트가 없을 때 기준
-const RETRY_TIMEOUT_MS = 90_000; // 콜드 스타트(torch/opencv import + 컨테이너 기동)를 감안한 재시도 타임아웃
+// /encode 자체 연산이 48자 기준 실측 ~22초(모델을 이미 메모리에 올려둔 상태에서도) —
+// 콜드 스타트 유무와 무관하게 이 값보다 짧으면 항상 재시도로 넘어가 버리므로 여유 있게 잡는다.
+const FIRST_TIMEOUT_MS = 35_000;
+const RETRY_TIMEOUT_MS = 90_000; // 드물게 남아있을 수 있는 콜드 스타트를 감안한 재시도 타임아웃
 
 async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: number): Promise<Response> {
   const controller = new AbortController();

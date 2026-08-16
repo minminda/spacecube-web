@@ -14,7 +14,10 @@ Local run: uvicorn app:app --port 8000 --reload
 Cloud Run: see Dockerfile (CMD binds $PORT, defaults to 8080).
 """
 import json
+import logging
 import os
+import time
+from contextlib import asynccontextmanager
 from pathlib import Path
 import base64
 import io
@@ -29,6 +32,9 @@ from model.generator import UncoveredComponentError, get_generator
 from preprocessing.cellcrop import EmptyCellError, crop_cell, is_blurry, normalize_glyph
 from preprocessing.perspective import SheetNotFoundError, warp_to_canonical, warp_with_corners
 from preprocessing.sheet_layout import GRID_COLS, GRID_ROWS
+
+logger = logging.getLogger("handwriting-poc")
+logging.basicConfig(level=logging.INFO)
 
 REFERENCE_CHARS: list[str] = json.loads(
     (Path(__file__).parent / "reference_chars.json").read_text(encoding="utf-8")
@@ -46,7 +52,23 @@ def require_secret(x_handwriting_secret: str | None = Header(default=None)):
         raise HTTPException(401, "Unauthorized")
 
 
-app = FastAPI(title="handwriting-poc (EXPERIMENTAL)")
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    # Load the checkpoint into memory *before* accepting traffic — Cloud Run won't
+    # route requests to this instance until startup finishes, so this slow part
+    # (torch/opencv import + 192MB checkpoint load, ~20-35s cold) is absorbed into
+    # "container becoming ready" instead of "first /encode request", which is what
+    # was timing out through the Next.js proxy's retry budget.
+    t0 = time.time()
+    try:
+        get_generator()
+        logger.info(f"model preloaded in {time.time() - t0:.1f}s")
+    except Exception:
+        logger.exception("model preload failed — will retry lazily on first /encode call")
+    yield
+
+
+app = FastAPI(title="handwriting-poc (EXPERIMENTAL)", lifespan=lifespan)
 
 
 def _decode_upload(raw: bytes) -> np.ndarray:
