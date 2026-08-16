@@ -1,22 +1,27 @@
 """
 EXPERIMENTAL ONLY — handwriting-to-digital-handwriting PoC for 공간큐브.
 
-Local-only FastAPI service. Not deployed, not part of the Vercel app, not connected
-to the real guestbook. Wraps a pretrained DM-Font (clovaai/dmfont, MIT) checkpoint to
+FastAPI service wrapping a pretrained DM-Font (clovaai/dmfont, MIT) checkpoint to
 validate a single question: can a few photographed handwriting samples be used to
 generate *unseen* Korean sentences in the same style? See README.md.
 
-Run: uvicorn app:app --port 8000 --reload
-(from within handwriting-service/, with venv active)
+Not part of the main app's DB/deploy pipeline, not connected to the real guestbook.
+Only ever called server-to-server from Next.js's /api/admin/handwriting/* routes
+(never directly by a browser) — see the HANDWRITING_SERVICE_SECRET check below,
+which is the actual access boundary (CORS doesn't apply to server-to-server calls).
+
+Local run: uvicorn app:app --port 8000 --reload
+Cloud Run: see Dockerfile (CMD binds $PORT, defaults to 8080).
 """
+import json
+import os
+from pathlib import Path
 import base64
 import io
-from pathlib import Path
 
 import cv2
 import numpy as np
-from fastapi import FastAPI, File, HTTPException, UploadFile
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi import Depends, FastAPI, File, Header, HTTPException, UploadFile
 from PIL import Image
 from pydantic import BaseModel
 
@@ -25,18 +30,23 @@ from preprocessing.cellcrop import EmptyCellError, crop_cell, is_blurry, normali
 from preprocessing.perspective import SheetNotFoundError, warp_to_canonical
 from preprocessing.sheet_layout import GRID_COLS, GRID_ROWS
 
-REFERENCE_CHARS: list[str] = __import__("json").loads(
-    (Path(__file__).parent.parent / "src" / "lib" / "handwriting" / "referenceChars.json").read_text(encoding="utf-8")
+REFERENCE_CHARS: list[str] = json.loads(
+    (Path(__file__).parent / "reference_chars.json").read_text(encoding="utf-8")
 )
 
+# Shared secret between the Next.js proxy and this service — set as an env var on
+# whichever platform hosts this (Cloud Run: --set-env-vars / --set-secrets). If unset
+# (local dev default), auth is skipped entirely so `uvicorn app:app --reload` keeps
+# working without extra setup. NEVER log this value.
+SERVICE_SECRET = os.environ.get("HANDWRITING_SERVICE_SECRET")
+
+
+def require_secret(x_handwriting_secret: str | None = Header(default=None)):
+    if SERVICE_SECRET and x_handwriting_secret != SERVICE_SECRET:
+        raise HTTPException(401, "Unauthorized")
+
+
 app = FastAPI(title="handwriting-poc (EXPERIMENTAL)")
-# Local-only dev tool: Next.js (localhost:3000) calls this directly from a server route.
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 
 def _decode_upload(raw: bytes) -> np.ndarray:
@@ -67,15 +77,17 @@ def _data_url_to_gray(data_url: str) -> np.ndarray:
 
 @app.get("/health")
 def health():
-    return {"ok": True}
+    # No secret required — lets the hosting platform's own health checks pass freely.
+    # Doesn't leak anything sensitive (no glyph data, no auth state).
+    return {"status": "ok", "model": "dm-font", "device": "cpu"}
 
 
-@app.get("/reference-chars")
+@app.get("/reference-chars", dependencies=[Depends(require_secret)])
 def reference_chars():
     return {"chars": REFERENCE_CHARS, "cols": GRID_COLS, "rows": GRID_ROWS}
 
 
-@app.post("/preprocess")
+@app.post("/preprocess", dependencies=[Depends(require_secret)])
 async def preprocess(file: UploadFile = File(...)):
     raw = await file.read()
     if len(raw) < 1024:
@@ -121,7 +133,7 @@ class EncodeRequest(BaseModel):
     cells: list[EncodeCell]
 
 
-@app.post("/encode")
+@app.post("/encode", dependencies=[Depends(require_secret)])
 def encode(req: EncodeRequest):
     if len(req.cells) == 0:
         raise HTTPException(400, "인코딩할 글자가 없습니다.")
@@ -138,7 +150,7 @@ class GenerateRequest(BaseModel):
     text: str
 
 
-@app.post("/generate")
+@app.post("/generate", dependencies=[Depends(require_secret)])
 def generate(req: GenerateRequest):
     gen = get_generator()
     unique_chars = list(dict.fromkeys(req.text))  # de-dup, preserve order

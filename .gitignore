@@ -36,7 +36,7 @@ yarn-error.log*
 /handwriting-service/venv/
 /handwriting-service/checkpoints/
 /handwriting-service/smoke_out/
-/handwriting-service/uvicorn.log
+/handwriting-service/uvicorn*.log
 /handwriting-service/**/__pycache__/
 .pnpm-debug.log*
 

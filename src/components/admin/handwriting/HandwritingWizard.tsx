@@ -8,6 +8,10 @@ import { useState } from "react";
 import SampleSheet from "./SampleSheet";
 import SentenceRenderer, { type CharResult } from "./SentenceRenderer";
 import PostitPreview from "./PostitPreview";
+import { compressImage } from "@/lib/imageCompress";
+
+// 48칸 글자 디테일이 살아있어야 셀 분리 품질이 나오므로, 방명록 사진(1280)보다 넉넉하게 잡는다.
+const UPLOAD_MAX_DIM = 1800;
 
 interface PreprocessCell {
   char: string;
@@ -41,6 +45,7 @@ function StepLabel({ n, title }: { n: number; title: string }) {
 export default function HandwritingWizard() {
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
   const [cells, setCells] = useState<PreprocessCell[] | null>(null);
 
   const [encoding, setEncoding] = useState(false);
@@ -63,9 +68,23 @@ export default function HandwritingWizard() {
     setCells(null);
     setCoverage(null);
     setGenResults(null);
+    setPreview(null);
+
+    let uploadFile: File;
+    try {
+      uploadFile = await compressImage(file, UPLOAD_MAX_DIM);
+    } catch {
+      setUploadError(
+        "이 사진 형식을 읽을 수 없습니다. HEIC 사진이라면 JPG 또는 PNG로 다시 촬영/저장해서 올려주세요.",
+      );
+      setUploading(false);
+      return;
+    }
+    setPreview(URL.createObjectURL(uploadFile));
+
     try {
       const formData = new FormData();
-      formData.append("file", file);
+      formData.append("file", uploadFile);
       const res = await fetch("/api/admin/handwriting/preprocess", { method: "POST", body: formData });
       const data = await res.json();
       if (!res.ok) {
@@ -148,23 +167,58 @@ export default function HandwritingWizard() {
       {/* STEP 2 */}
       <section className="space-y-3">
         <StepLabel n={2} title="작성한 종이 촬영 또는 업로드" />
-        <label
-          className="inline-flex items-center justify-center text-sm px-4 py-2.5 border cursor-pointer hover:bg-[var(--fg)] hover:text-[var(--bg)] transition-colors"
-          style={{ borderColor: "var(--fg)" }}
-        >
-          {uploading ? "처리 중..." : "사진 촬영 / 업로드"}
-          <input
-            type="file"
-            accept="image/jpeg,image/png,image/jpg"
-            capture="environment"
-            onChange={handleUpload}
-            className="hidden"
-            disabled={uploading}
-          />
-        </label>
-        <p className="text-xs" style={{ color: "var(--dim)" }}>
-          JPG, PNG 지원. HEIC는 이번 PoC에서 지원하지 않습니다 — 촬영 시 카메라 설정을 JPEG로 바꿔주세요.
-        </p>
+
+        <div className="p-3 border space-y-1" style={{ borderColor: "var(--border)" }}>
+          <p className="text-xs font-medium" style={{ color: "var(--fg)" }}>촬영할 때</p>
+          <ul className="text-xs space-y-0.5" style={{ color: "var(--dim)" }}>
+            <li>· 종이 전체가 화면 안에 들어오게 해주세요</li>
+            <li>· 네 모서리 검은 표시가 모두 보여야 합니다</li>
+            <li>· 종이를 가능한 평평하게 놓아주세요</li>
+            <li>· 그림자가 글자를 가리지 않게 해주세요</li>
+            <li>· 검은색 펜 사용을 권장합니다</li>
+          </ul>
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          <label
+            className="inline-flex items-center justify-center text-sm px-4 py-2.5 border cursor-pointer hover:bg-[var(--fg)] hover:text-[var(--bg)] transition-colors"
+            style={{ borderColor: "var(--fg)" }}
+          >
+            {uploading ? "처리 중..." : "손글씨 촬영하기"}
+            <input
+              type="file"
+              accept="image/*"
+              capture="environment"
+              onChange={handleUpload}
+              className="hidden"
+              disabled={uploading}
+            />
+          </label>
+          <label
+            className="inline-flex items-center justify-center text-sm px-4 py-2.5 border cursor-pointer transition-colors"
+            style={{ borderColor: "var(--border)", color: "var(--dim)" }}
+          >
+            사진에서 선택
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleUpload}
+              className="hidden"
+              disabled={uploading}
+            />
+          </label>
+        </div>
+
+        {preview && (
+          <div className="max-w-[240px]">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={preview} alt="촬영한 원본 미리보기" className="w-full border" style={{ borderColor: "var(--border)" }} />
+          </div>
+        )}
+
+        {uploading && (
+          <p className="text-xs" style={{ color: "var(--dim)" }}>손글씨 영역을 찾고 있습니다...</p>
+        )}
         {uploadError && <p className="text-xs" style={{ color: "#c0392b" }}>{uploadError}</p>}
       </section>
 
@@ -215,6 +269,9 @@ export default function HandwritingWizard() {
             >
               {encoding ? "생성 중..." : coverage ? "다시 생성" : "필체 생성"}
             </button>
+            {encoding && (
+              <p className="text-xs" style={{ color: "var(--dim)" }}>손글씨 특징을 읽고 있습니다... (몇 초 정도 걸려요)</p>
+            )}
             {encodeError && <p className="text-xs" style={{ color: "#c0392b" }}>{encodeError}</p>}
             {coverage && (
               <p className="text-xs" style={{ color: "var(--dim)" }}>
@@ -262,6 +319,9 @@ export default function HandwritingWizard() {
                 {genLoading ? "생성 중..." : "필체로 보기"}
               </button>
             </div>
+            {genLoading && (
+              <p className="text-xs" style={{ color: "var(--dim)" }}>새로운 글씨를 만들고 있습니다...</p>
+            )}
             {genError && <p className="text-xs" style={{ color: "#c0392b" }}>{genError}</p>}
           </section>
         </>
