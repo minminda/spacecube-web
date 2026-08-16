@@ -6,7 +6,7 @@ import { callHandwritingService } from "@/lib/handwriting/callInferenceService";
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
-  const denied = await requireHandwritingAdmin();
+  const denied = await requireHandwritingAdmin(req);
   if (denied) return denied;
 
   const formData = await req.formData();

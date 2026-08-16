@@ -5,6 +5,7 @@
    화면 미리보기 용도로만 쓰이고 어디에도 영구 저장되지 않는다. */
 
 import { useRef, useState } from "react";
+import Link from "next/link";
 import SampleSheet from "./SampleSheet";
 import SentenceRenderer, { type CharResult } from "./SentenceRenderer";
 import PostitPreview from "./PostitPreview";
@@ -49,6 +50,7 @@ export default function HandwritingWizard() {
   const [preview, setPreview] = useState<string | null>(null);
   const [cells, setCells] = useState<PreprocessCell[] | null>(null);
   const [manualCorners, setManualCorners] = useState<{ image: string; width: number; height: number } | null>(null);
+  const [sessionExpired, setSessionExpired] = useState(false);
   const pendingFileRef = useRef<File | null>(null);
 
   const [encoding, setEncoding] = useState(false);
@@ -65,6 +67,7 @@ export default function HandwritingWizard() {
   async function submitPreprocess(file: File, corners?: [number, number][]) {
     setUploading(true);
     setUploadError(null);
+    setSessionExpired(false);
     setCells(null);
     try {
       const formData = new FormData();
@@ -73,6 +76,10 @@ export default function HandwritingWizard() {
       const res = await fetch("/api/admin/handwriting/preprocess", { method: "POST", body: formData });
       const data = await res.json();
       if (!res.ok) {
+        if (res.status === 401 && data.code === "SESSION_EXPIRED") {
+          setSessionExpired(true);
+          return;
+        }
         setUploadError(data.error ?? "이미지를 처리하지 못했습니다.");
         return;
       }
@@ -246,6 +253,20 @@ export default function HandwritingWizard() {
           <p className="text-xs" style={{ color: "var(--dim)" }}>손글씨 영역을 찾고 있습니다...</p>
         )}
         {uploadError && <p className="text-xs" style={{ color: "#c0392b" }}>{uploadError}</p>}
+        {sessionExpired && (
+          <div className="p-3 border space-y-2" style={{ borderColor: "#c0392b" }}>
+            <p className="text-xs" style={{ color: "#c0392b" }}>
+              로그인이 만료됐거나 관리자 권한이 확인되지 않았습니다. 다시 로그인한 뒤 이 화면으로 돌아와서 같은 사진으로 다시 시도해주세요.
+            </p>
+            <Link
+              href={`/login?callbackUrl=${encodeURIComponent("/admin/handwriting-test")}`}
+              className="inline-block text-xs px-3 py-2 border font-medium"
+              style={{ borderColor: "#c0392b", color: "#c0392b" }}
+            >
+              다시 로그인하기 →
+            </Link>
+          </div>
+        )}
       </section>
 
       {/* STEP 3 */}
