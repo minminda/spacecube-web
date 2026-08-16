@@ -21,13 +21,13 @@ import io
 
 import cv2
 import numpy as np
-from fastapi import Depends, FastAPI, File, Header, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, UploadFile
 from PIL import Image
 from pydantic import BaseModel
 
 from model.generator import UncoveredComponentError, get_generator
 from preprocessing.cellcrop import EmptyCellError, crop_cell, is_blurry, normalize_glyph
-from preprocessing.perspective import SheetNotFoundError, warp_to_canonical
+from preprocessing.perspective import SheetNotFoundError, warp_to_canonical, warp_with_corners
 from preprocessing.sheet_layout import GRID_COLS, GRID_ROWS
 
 REFERENCE_CHARS: list[str] = json.loads(
@@ -62,6 +62,11 @@ def _gray_to_data_url(gray: np.ndarray) -> str:
     return "data:image/png;base64," + base64.b64encode(buf.tobytes()).decode()
 
 
+def _bgr_to_data_url(bgr: np.ndarray) -> str:
+    ok, buf = cv2.imencode(".jpg", bgr, [cv2.IMWRITE_JPEG_QUALITY, 85])
+    return "data:image/jpeg;base64," + base64.b64encode(buf.tobytes()).decode()
+
+
 def _pil_to_data_url(img: Image.Image) -> str:
     buf = io.BytesIO()
     img.save(buf, format="PNG")
@@ -88,7 +93,7 @@ def reference_chars():
 
 
 @app.post("/preprocess", dependencies=[Depends(require_secret)])
-async def preprocess(file: UploadFile = File(...)):
+async def preprocess(file: UploadFile = File(...), corners: str | None = Form(default=None)):
     raw = await file.read()
     if len(raw) < 1024:
         raise HTTPException(400, "이미지 파일이 너무 작습니다.")
@@ -99,13 +104,31 @@ async def preprocess(file: UploadFile = File(...)):
             "일부 글자가 선명하지 않습니다. 종이 전체가 화면에 크게 들어오도록 다시 촬영해주세요.",
         )
 
-    try:
-        canonical = warp_to_canonical(image)
-    except SheetNotFoundError:
-        raise HTTPException(
-            422,
-            "작성 영역을 찾지 못했습니다. 네 모서리의 검은 사각형 마커가 전부 보이도록 종이 전체를 다시 촬영해주세요.",
-        )
+    if corners:
+        # A human already marked the 4 corners on this exact photo (manual fallback
+        # UI) — use them directly, skip auto-detection entirely.
+        try:
+            pts = json.loads(corners)
+            corner_arr = np.array([[float(x), float(y)] for x, y in pts], dtype=np.float32)
+            if corner_arr.shape != (4, 2):
+                raise ValueError
+        except Exception:
+            raise HTTPException(400, "모서리 좌표 형식이 올바르지 않습니다.")
+        canonical = warp_with_corners(image, corner_arr)
+    else:
+        try:
+            canonical = warp_to_canonical(image)
+        except SheetNotFoundError:
+            # Automatic detection failed (lighting/background made the sheet's edge
+            # too ambiguous) — hand the original photo back so the admin can mark
+            # the 4 corners by hand instead of just failing outright.
+            h, w = image.shape[:2]
+            return {
+                "needsManualCorners": True,
+                "image": _bgr_to_data_url(image),
+                "imageWidth": w,
+                "imageHeight": h,
+            }
 
     cells = []
     for i, char in enumerate(REFERENCE_CHARS):

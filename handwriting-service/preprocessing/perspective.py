@@ -80,12 +80,21 @@ def _looks_upside_down(canonical_bgr: np.ndarray) -> bool:
     return bottom_ink > top_ink * 1.5
 
 
-def warp_to_canonical(image_bgr: np.ndarray) -> np.ndarray:
-    """Full pipeline: find the sheet's boundary -> perspective-correct -> fix orientation."""
-    quad = _find_paper_quad(image_bgr)
+def warp_with_corners(image_bgr: np.ndarray, corners: np.ndarray) -> np.ndarray:
+    """Perspective-warp using 4 explicitly given points (any order — sorted internally).
+    Used when a human has manually marked the sheet's corners in the photo."""
+    ordered = _order_points(np.asarray(corners, dtype=np.float32))
     dst = np.float32([[0, 0], [CANVAS_W, 0], [CANVAS_W, CANVAS_H], [0, CANVAS_H]])
-    matrix = cv2.getPerspectiveTransform(quad, dst)
-    canonical = cv2.warpPerspective(image_bgr, matrix, (CANVAS_W, CANVAS_H))
+    matrix = cv2.getPerspectiveTransform(ordered, dst)
+    return cv2.warpPerspective(image_bgr, matrix, (CANVAS_W, CANVAS_H))
+
+
+def warp_to_canonical(image_bgr: np.ndarray) -> np.ndarray:
+    """Full automatic pipeline: find the sheet's boundary -> perspective-correct -> fix
+    orientation. Raises SheetNotFoundError if the boundary can't be found — callers
+    should fall back to asking a human to mark the 4 corners (warp_with_corners)."""
+    quad = _find_paper_quad(image_bgr)
+    canonical = warp_with_corners(image_bgr, quad)
 
     if _looks_upside_down(canonical):
         canonical = cv2.rotate(canonical, cv2.ROTATE_180)

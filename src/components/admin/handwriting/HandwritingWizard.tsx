@@ -4,10 +4,11 @@
    실제 방명록/Record/추천/QR/로그인 로직과 완전히 분리된 화면이며, 여기서 생성한 결과는
    화면 미리보기 용도로만 쓰이고 어디에도 영구 저장되지 않는다. */
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import SampleSheet from "./SampleSheet";
 import SentenceRenderer, { type CharResult } from "./SentenceRenderer";
 import PostitPreview from "./PostitPreview";
+import ManualCornerPicker from "./ManualCornerPicker";
 import { compressImage } from "@/lib/imageCompress";
 
 // 48칸 글자 디테일이 살아있어야 셀 분리 품질이 나오므로, 방명록 사진(1280)보다 넉넉하게 잡는다.
@@ -47,6 +48,8 @@ export default function HandwritingWizard() {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [cells, setCells] = useState<PreprocessCell[] | null>(null);
+  const [manualCorners, setManualCorners] = useState<{ image: string; width: number; height: number } | null>(null);
+  const pendingFileRef = useRef<File | null>(null);
 
   const [encoding, setEncoding] = useState(false);
   const [encodeError, setEncodeError] = useState<string | null>(null);
@@ -59,36 +62,24 @@ export default function HandwritingWizard() {
 
   const [showPostit, setShowPostit] = useState(false);
 
-  async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    e.target.value = "";
+  async function submitPreprocess(file: File, corners?: [number, number][]) {
     setUploading(true);
     setUploadError(null);
     setCells(null);
-    setCoverage(null);
-    setGenResults(null);
-    setPreview(null);
-
-    let uploadFile: File;
-    try {
-      uploadFile = await compressImage(file, UPLOAD_MAX_DIM);
-    } catch {
-      setUploadError(
-        "이 사진 형식을 읽을 수 없습니다. HEIC 사진이라면 JPG 또는 PNG로 다시 촬영/저장해서 올려주세요.",
-      );
-      setUploading(false);
-      return;
-    }
-    setPreview(URL.createObjectURL(uploadFile));
-
     try {
       const formData = new FormData();
-      formData.append("file", uploadFile);
+      formData.append("file", file);
+      if (corners) formData.append("corners", JSON.stringify(corners));
       const res = await fetch("/api/admin/handwriting/preprocess", { method: "POST", body: formData });
       const data = await res.json();
       if (!res.ok) {
         setUploadError(data.error ?? "이미지를 처리하지 못했습니다.");
+        return;
+      }
+      if (data.needsManualCorners) {
+        // 자동 종이 경계 감지 실패 — 수동으로 네 모서리를 지정하는 화면으로 전환.
+        pendingFileRef.current = file;
+        setManualCorners({ image: data.image, width: data.imageWidth, height: data.imageHeight });
         return;
       }
       setCells(data.cells);
@@ -97,6 +88,41 @@ export default function HandwritingWizard() {
     } finally {
       setUploading(false);
     }
+  }
+
+  async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+    setCoverage(null);
+    setGenResults(null);
+    setPreview(null);
+    setManualCorners(null);
+
+    let uploadFile: File;
+    try {
+      uploadFile = await compressImage(file, UPLOAD_MAX_DIM);
+    } catch {
+      setUploadError(
+        "이 사진 형식을 읽을 수 없습니다. HEIC 사진이라면 JPG 또는 PNG로 다시 촬영/저장해서 올려주세요.",
+      );
+      return;
+    }
+    setPreview(URL.createObjectURL(uploadFile));
+    await submitPreprocess(uploadFile);
+  }
+
+  async function handleManualCornersConfirm(corners: [number, number][]) {
+    const file = pendingFileRef.current;
+    setManualCorners(null);
+    if (!file) return;
+    await submitPreprocess(file, corners);
+  }
+
+  function handleManualCornersCancel() {
+    setManualCorners(null);
+    pendingFileRef.current = null;
+    setUploading(false);
   }
 
   async function handleEncode() {
@@ -375,6 +401,16 @@ export default function HandwritingWizard() {
         >
           <PostitPreview text={sentence} results={genResults} nickname="관리자 테스트" />
         </div>
+      )}
+
+      {manualCorners && (
+        <ManualCornerPicker
+          imageDataUrl={manualCorners.image}
+          imageWidth={manualCorners.width}
+          imageHeight={manualCorners.height}
+          onConfirm={handleManualCornersConfirm}
+          onCancel={handleManualCornersCancel}
+        />
       )}
     </div>
   );
