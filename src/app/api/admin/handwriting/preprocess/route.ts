@@ -14,6 +14,11 @@ export async function POST(req: NextRequest) {
   try {
     const upstream = await callHandwritingService("/preprocess", { method: "POST", body: formData });
     const data = await upstream.json();
+    // FastAPI의 HTTPException은 {"detail": "..."}로 내려온다 — 프론트가 기대하는
+    // {"error": "..."} 형태로 맞춰줘야 구체적인 실패 사유(마커 인식 실패 등)가 그대로 보인다.
+    if (!upstream.ok && typeof data.error === "undefined" && typeof data.detail === "string") {
+      data.error = data.detail;
+    }
     return NextResponse.json(data, { status: upstream.status });
   } catch {
     return NextResponse.json(
