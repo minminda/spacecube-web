@@ -26,6 +26,14 @@ RUN mkdir -p checkpoints && \
         echo "$CHECKPOINT_SHA256  checkpoints/korean-handwriting.pth" | sha256sum -c - ; \
     fi
 
+# Base handwriting font for the Hybrid comparison PoC (Gaegu, Google Fonts, SIL OFL
+# 1.1 — full Hangul, free incl. commercial use). Downloaded at build time, same
+# pattern as the checkpoint above — never committed to git.
+ARG BASE_FONT_URL=https://raw.githubusercontent.com/google/fonts/main/ofl/gaegu/Gaegu-Regular.ttf
+RUN mkdir -p fonts && \
+    curl -fL -o fonts/Gaegu-Regular.ttf "$BASE_FONT_URL" && \
+    ls -la fonts/Gaegu-Regular.ttf
+
 COPY app.py .
 COPY model/ model/
 COPY preprocessing/ preprocessing/

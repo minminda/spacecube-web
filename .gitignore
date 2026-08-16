@@ -35,6 +35,7 @@ yarn-error.log*
 /handwriting-service/dmfont-src/
 /handwriting-service/venv/
 /handwriting-service/checkpoints/
+/handwriting-service/fonts/
 /handwriting-service/smoke_out/
 /handwriting-service/uvicorn*.log
 /handwriting-service/**/__pycache__/

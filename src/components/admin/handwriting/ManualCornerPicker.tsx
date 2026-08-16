@@ -49,10 +49,24 @@ export default function ManualCornerPicker({ imageDataUrl, imageWidth, imageHeig
   });
   const draggingRef = useRef<PointKey | null>(null);
   const [loupe, setLoupe] = useState<{ key: PointKey; x: number; y: number } | null>(null);
+  // containerRef.current.getBoundingClientRect()를 렌더 중에 직접 읽으면 안 되므로(React
+  // refs는 렌더링에 쓰지 말 것 — react-hooks/refs 규칙), 드래그 중 측정한 컨테이너 크기를
+  // state로 들고 있다가 확대경 위치 계산(렌더 시점)에는 이 state만 사용한다.
+  const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
+
+  function handleResetPoints() {
+    setPoints({
+      tl: { x: INSET, y: INSET },
+      tr: { x: 1 - INSET, y: INSET },
+      bl: { x: INSET, y: 1 - INSET },
+      br: { x: 1 - INSET, y: 1 - INSET },
+    });
+  }
 
   function updateFromClientPos(key: PointKey, clientX: number, clientY: number) {
     const rect = containerRef.current?.getBoundingClientRect();
     if (!rect) return;
+    setContainerSize({ width: rect.width, height: rect.height });
     const x = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
     const y = Math.min(1, Math.max(0, (clientY - rect.top) / rect.height));
     setPoints((prev) => ({ ...prev, [key]: { x, y } }));
@@ -186,8 +200,8 @@ export default function ManualCornerPicker({ imageDataUrl, imageWidth, imageHeig
                 border: "3px solid #7dd3fc",
                 boxShadow: "0 4px 16px rgba(0,0,0,0.6)",
                 backgroundImage: `url(${imageDataUrl})`,
-                backgroundSize: `${(containerRef.current?.getBoundingClientRect().width ?? 0) * LOUPE_ZOOM}px ${(containerRef.current?.getBoundingClientRect().height ?? 0) * LOUPE_ZOOM}px`,
-                backgroundPosition: `${LOUPE_SIZE / 2 - loupe.x * (containerRef.current?.getBoundingClientRect().width ?? 0) * LOUPE_ZOOM}px ${LOUPE_SIZE / 2 - loupe.y * (containerRef.current?.getBoundingClientRect().height ?? 0) * LOUPE_ZOOM}px`,
+                backgroundSize: `${containerSize.width * LOUPE_ZOOM}px ${containerSize.height * LOUPE_ZOOM}px`,
+                backgroundPosition: `${LOUPE_SIZE / 2 - loupe.x * containerSize.width * LOUPE_ZOOM}px ${LOUPE_SIZE / 2 - loupe.y * containerSize.height * LOUPE_ZOOM}px`,
               }}
             >
               {/* 십자선 — 정확히 이 지점에 점이 찍힌다 */}
@@ -205,15 +219,23 @@ export default function ManualCornerPicker({ imageDataUrl, imageWidth, imageHeig
           className="flex-1 min-h-[44px] text-sm py-2.5 border"
           style={{ borderColor: "#444", color: "#ccc" }}
         >
-          취소
+          다시 촬영하기
+        </button>
+        <button
+          type="button"
+          onClick={handleResetPoints}
+          className="flex-1 min-h-[44px] text-sm py-2.5 border"
+          style={{ borderColor: "#444", color: "#ccc" }}
+        >
+          다시 맞추기
         </button>
         <button
           type="button"
           onClick={handleConfirm}
-          className="flex-1 min-h-[44px] text-sm py-2.5 border font-medium"
+          className="flex-[1.4] min-h-[44px] text-sm py-2.5 border font-medium"
           style={{ borderColor: "#7dd3fc", color: "#7dd3fc" }}
         >
-          이 위치로 확인
+          이 위치로 사용
         </button>
       </div>
     </div>

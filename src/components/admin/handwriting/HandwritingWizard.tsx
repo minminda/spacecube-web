@@ -7,9 +7,10 @@
 import { useRef, useState } from "react";
 import Link from "next/link";
 import SampleSheet from "./SampleSheet";
-import SentenceRenderer, { type CharResult } from "./SentenceRenderer";
-import PostitPreview from "./PostitPreview";
+import { type CharResult } from "./SentenceRenderer";
+import HybridCompare from "./HybridCompare";
 import ManualCornerPicker from "./ManualCornerPicker";
+import CameraCapture from "./CameraCapture";
 import { compressImage } from "@/lib/imageCompress";
 
 // 48칸 글자 디테일이 살아있어야 셀 분리 품질이 나오므로, 방명록 사진(1280)보다 넉넉하게 잡는다.
@@ -32,8 +33,8 @@ const PRESET_SENTENCES = [
   "오늘 이 공간에서 오래 머물렀어요",
   "다음에 다시 오고 싶은 곳이에요",
   "책을 읽다가 시간이 멈춘 것 같았어요",
-  "좋은 하루였습니다",
-  "생각보다 조용해서 좋았어요",
+  "조용한 시간이 오래 기억에 남아요",
+  "생각보다 편안한 공간이었어요",
 ];
 
 function StepLabel({ n, title }: { n: number; title: string }) {
@@ -52,6 +53,8 @@ export default function HandwritingWizard() {
   const [manualCorners, setManualCorners] = useState<{ image: string; width: number; height: number } | null>(null);
   const [sessionExpired, setSessionExpired] = useState(false);
   const pendingFileRef = useRef<File | null>(null);
+  const [showCamera, setShowCamera] = useState(false);
+  const [cameraUnavailable, setCameraUnavailable] = useState(false);
 
   const [encoding, setEncoding] = useState(false);
   const [encodeError, setEncodeError] = useState<string | null>(null);
@@ -61,8 +64,6 @@ export default function HandwritingWizard() {
   const [genLoading, setGenLoading] = useState(false);
   const [genError, setGenError] = useState<string | null>(null);
   const [genResults, setGenResults] = useState<Record<string, CharResult> | null>(null);
-
-  const [showPostit, setShowPostit] = useState(false);
 
   async function postPreprocess(file: File, corners?: [number, number][]) {
     const formData = new FormData();
@@ -108,10 +109,7 @@ export default function HandwritingWizard() {
     }
   }
 
-  async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    e.target.value = "";
+  async function processFile(file: File) {
     setCoverage(null);
     setGenResults(null);
     setPreview(null);
@@ -128,6 +126,18 @@ export default function HandwritingWizard() {
     }
     setPreview(URL.createObjectURL(uploadFile));
     await submitPreprocess(uploadFile);
+  }
+
+  async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+    await processFile(file);
+  }
+
+  async function handleCameraCapture(file: File) {
+    setShowCamera(false);
+    await processFile(file);
   }
 
   async function handleManualCornersConfirm(corners: [number, number][]) {
@@ -224,11 +234,20 @@ export default function HandwritingWizard() {
         </div>
 
         <div className="flex flex-wrap gap-2">
-          <label
-            className="inline-flex items-center justify-center text-sm px-4 py-2.5 border cursor-pointer hover:bg-[var(--fg)] hover:text-[var(--bg)] transition-colors"
+          <button
+            type="button"
+            onClick={() => setShowCamera(true)}
+            disabled={uploading}
+            className="inline-flex items-center justify-center text-sm px-4 py-2.5 border hover:bg-[var(--fg)] hover:text-[var(--bg)] transition-colors disabled:opacity-40"
             style={{ borderColor: "var(--fg)" }}
           >
-            {uploading ? "처리 중..." : "손글씨 촬영하기"}
+            {uploading ? "처리 중..." : "가이드 프레임으로 촬영"}
+          </button>
+          <label
+            className="inline-flex items-center justify-center text-sm px-4 py-2.5 border cursor-pointer hover:bg-[var(--fg)] hover:text-[var(--bg)] transition-colors"
+            style={{ borderColor: "var(--border)", color: "var(--dim)" }}
+          >
+            기본 카메라로 촬영
             <input
               type="file"
               accept="image/*"
@@ -252,6 +271,11 @@ export default function HandwritingWizard() {
             />
           </label>
         </div>
+        {cameraUnavailable && (
+          <p className="text-xs" style={{ color: "var(--dim)" }}>
+            이 기기/브라우저에서는 가이드 프레임 촬영을 사용할 수 없어요 — &ldquo;기본 카메라로 촬영&rdquo; 또는 &ldquo;사진에서 선택&rdquo;을 이용해주세요.
+          </p>
+        )}
 
         {preview && (
           <div className="max-w-[240px]">
@@ -308,6 +332,21 @@ export default function HandwritingWizard() {
                 </div>
               ))}
             </div>
+            {(emptyCount > 0 || blurryCount > 0) && (
+              <button
+                type="button"
+                onClick={() => {
+                  setCells(null);
+                  setPreview(null);
+                  setCoverage(null);
+                  setGenResults(null);
+                }}
+                className="text-xs px-3 py-1.5 border transition-colors"
+                style={{ borderColor: "#c0392b", color: "#c0392b" }}
+              >
+                전체 다시 촬영
+              </button>
+            )}
           </section>
         </>
       )}
@@ -390,49 +429,26 @@ export default function HandwritingWizard() {
         <>
           <div style={{ borderTop: "1px solid var(--border)" }} />
           <section className="space-y-4">
-            <StepLabel n={6} title="기본 폰트 vs 생성된 필체 비교" />
-            <div className="space-y-1.5">
-              <p className="text-xs" style={{ color: "var(--dim)" }}>기본 폰트</p>
-              <p className="text-lg break-keep">{sentence}</p>
-            </div>
-            <div className="space-y-1.5">
-              <p className="text-xs" style={{ color: "var(--dim)" }}>생성된 필체</p>
-              <div className="p-3 border" style={{ borderColor: "var(--border)" }}>
-                <SentenceRenderer text={sentence} results={genResults} />
-              </div>
-            </div>
-          </section>
-        </>
-      )}
-
-      {/* STEP 7 */}
-      {genResults && (
-        <>
-          <div style={{ borderTop: "1px solid var(--border)" }} />
-          <section className="space-y-3">
-            <StepLabel n={7} title="공간큐브 포스트잇 스타일 미리보기" />
-            <button
-              type="button"
-              onClick={() => setShowPostit(true)}
-              className="text-sm px-4 py-2.5 border hover:bg-[var(--fg)] hover:text-[var(--bg)] transition-colors"
-              style={{ borderColor: "var(--fg)" }}
-            >
-              방명록에서 보기
-            </button>
+            <StepLabel n={6} title="Hybrid 필체 비교 (Original / Hybrid 30 / Hybrid 50 / Base)" />
             <p className="text-xs" style={{ color: "var(--dim)" }}>
-              실제 GuestbookNote에는 저장되지 않습니다 — 화면 미리보기 전용입니다.
+              완벽한 필체 복제가 목표가 아니라, 기본 손글씨에 내 필체 특징을 일부 섞었을 때
+              더 자연스럽고 &ldquo;내 글씨 같다&rdquo;는 느낌이 나는지 비교하는 테스트입니다.
+              실제 방명록에는 적용되지 않습니다.
             </p>
+            <HybridCompare sentence={sentence} originalResults={genResults} nickname="관리자 테스트" />
           </section>
         </>
       )}
 
-      {showPostit && genResults && (
-        <div
-          className="fixed inset-0 z-50"
-          onClick={(e) => { if (e.target === e.currentTarget) setShowPostit(false); }}
-        >
-          <PostitPreview text={sentence} results={genResults} nickname="관리자 테스트" />
-        </div>
+      {showCamera && (
+        <CameraCapture
+          onCapture={handleCameraCapture}
+          onCancel={() => setShowCamera(false)}
+          onUnavailable={() => {
+            setShowCamera(false);
+            setCameraUnavailable(true);
+          }}
+        />
       )}
 
       {manualCorners && (

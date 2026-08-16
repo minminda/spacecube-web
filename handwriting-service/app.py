@@ -28,6 +28,7 @@ from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, UploadF
 from PIL import Image
 from pydantic import BaseModel
 
+from model.basefont import BaseFontUnavailableError
 from model.generator import UncoveredComponentError, get_generator
 from preprocessing.cellcrop import EmptyCellError, crop_cell, is_blurry, normalize_glyph
 from preprocessing.perspective import SheetNotFoundError, warp_to_canonical, warp_with_corners
@@ -61,10 +62,24 @@ async def lifespan(_app: FastAPI):
     # was timing out through the Next.js proxy's retry budget.
     t0 = time.time()
     try:
-        get_generator()
+        gen = get_generator()
         logger.info(f"model preloaded in {time.time() - t0:.1f}s")
     except Exception:
         logger.exception("model preload failed — will retry lazily on first /encode call")
+        yield
+        return
+
+    # Also preload the base-handwriting-font component features (Hybrid comparison
+    # PoC) — same reasoning: this is a one-time ~10-15s cost, better paid at startup
+    # than on the first /generate call with a hybrid ratio. If the font wasn't baked
+    # into the image (e.g. local dev without running the Dockerfile step), hybrid
+    # ratios just report unavailable — Original mode is unaffected either way.
+    t0 = time.time()
+    try:
+        gen.preload_base_font()
+        logger.info(f"base font preloaded in {time.time() - t0:.1f}s")
+    except Exception:
+        logger.exception("base font preload failed — hybrid ratios will be unavailable")
     yield
 
 
@@ -106,7 +121,12 @@ def _data_url_to_gray(data_url: str) -> np.ndarray:
 def health():
     # No secret required — lets the hosting platform's own health checks pass freely.
     # Doesn't leak anything sensitive (no glyph data, no auth state).
-    return {"status": "ok", "model": "dm-font", "device": "cpu"}
+    base_font_ready = False
+    try:
+        base_font_ready = get_generator().base_font_ready
+    except Exception:
+        pass
+    return {"status": "ok", "model": "dm-font", "device": "cpu", "hybridReady": base_font_ready}
 
 
 @app.get("/reference-chars", dependencies=[Depends(require_secret)])
@@ -193,11 +213,23 @@ def encode(req: EncodeRequest):
 
 class GenerateRequest(BaseModel):
     text: str
+    # 1.0 = "Original" (100% user photo, DM-Font's normal output) — default, unchanged
+    # from before this field existed. Lower values blend in the base handwriting font
+    # at the DM-Font component-feature level (see generator.py set_hybrid_ratio) —
+    # 0.0 isn't sent by the frontend for actual generation (mode D "Base" renders the
+    # font directly, no model call), but is accepted here for completeness/testing.
+    user_ratio: float = 1.0
 
 
 @app.post("/generate", dependencies=[Depends(require_secret)])
 def generate(req: GenerateRequest):
     gen = get_generator()
+    try:
+        gen.set_hybrid_ratio(req.user_ratio)
+    except BaseFontUnavailableError:
+        raise HTTPException(503, "기본 폰트 특징이 아직 준비되지 않았습니다. 잠시 후 다시 시도해주세요.")
+    except RuntimeError:
+        raise HTTPException(400, "먼저 필체를 생성해주세요 (/encode).")
     unique_chars = list(dict.fromkeys(req.text))  # de-dup, preserve order
 
     results = {}
