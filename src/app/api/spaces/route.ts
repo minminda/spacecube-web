@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
   const normalizedLinks = await enforceSingleSelectCategories(rawTagLinks);
   const resolvedType = await resolveSpaceTypeName(normalizedLinks);
 
-  if (!name || !slug || !resolvedType || !district || !location || !description) {
+  if (!name || !slug || !resolvedType || !district || !location) {
     return NextResponse.json({ error: "필수 항목이 빠졌어요." }, { status: 400 });
   }
 
@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
       tagline: tagline || null,
       openingHours: openingHours || null,
       naverMapUrl: naverMapUrl || null,
-      description, philosophy: philosophy || "",
+      description: description || "", philosophy: philosophy || "",
       ownerMessage: ownerMessage || null,
       experienceGuide: experienceGuide || null,
       spacePoints: spacePoints || null,

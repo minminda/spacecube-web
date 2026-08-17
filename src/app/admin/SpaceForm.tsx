@@ -232,6 +232,13 @@ export default function SpaceForm({ mode, space, categories, existingTagLinks }:
 
   const inputStyle = { background: "var(--bg)", color: "var(--fg)", borderColor: "var(--border)", outline: "none" };
 
+  // 파일럿 콘텐츠 제작 단순화 — 실제 파일럿 제작에 쓰지 않는 입력을 관리자 화면에서 숨긴다.
+  // 상태(form.tagline/description, ownerForm)는 그대로 두고 기존 값을 그대로 재저장하므로
+  // DB 필드·기존 데이터는 전혀 손대지 않는다. true로 바꾸면 즉시 원상복구.
+  const SHOW_TAGLINE_INPUT = false;
+  const SHOW_DESCRIPTION_INPUT = false;
+  const SHOW_OWNER_NOTE_INPUTS = false;
+
   return (
     <main className="flex flex-col min-h-screen px-6 py-8 gap-6">
       <div className="flex justify-between items-center">
@@ -313,20 +320,26 @@ export default function SpaceForm({ mode, space, categories, existingTagLinks }:
             className="w-full text-sm px-3 py-2.5 border" style={inputStyle} />
         </Field>
 
-        <Field label="핵심 한 줄 (선택)">
-          <input name="tagline" value={form.tagline} onChange={handleChange} placeholder="생각이 많아지는 날, 글을 쓰는 공간"
-            className="w-full text-sm px-3 py-2.5 border" style={inputStyle} />
-        </Field>
+        {SHOW_TAGLINE_INPUT && (
+          <Field label="핵심 한 줄 (선택)">
+            <input name="tagline" value={form.tagline} onChange={handleChange} placeholder="생각이 많아지는 날, 글을 쓰는 공간"
+              className="w-full text-sm px-3 py-2.5 border" style={inputStyle} />
+          </Field>
+        )}
 
-        {/* 기본 소개 */}
-        <div style={{ borderTop: "1px solid var(--border)" }} />
-        <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>기본 소개</p>
+        {SHOW_DESCRIPTION_INPUT && (
+          <>
+            {/* 기본 소개 */}
+            <div style={{ borderTop: "1px solid var(--border)" }} />
+            <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>기본 소개</p>
 
-        <Field label="간단 소개 * (검색 결과·공유 링크에 노출됩니다)">
-          <textarea name="description" value={form.description} onChange={handleChange} required
-            placeholder="이 공간을 한두 문장으로 짧게 소개해줘."
-            rows={3} className="w-full text-sm px-3 py-2.5 border resize-none" style={inputStyle} />
-        </Field>
+            <Field label="간단 소개 (검색 결과·공유 링크에 노출됩니다)">
+              <textarea name="description" value={form.description} onChange={handleChange}
+                placeholder="이 공간을 한두 문장으로 짧게 소개해줘."
+                rows={3} className="w-full text-sm px-3 py-2.5 border resize-none" style={inputStyle} />
+            </Field>
+          </>
+        )}
 
         {mode === "edit" && space && (
           <a
@@ -338,39 +351,43 @@ export default function SpaceForm({ mode, space, categories, existingTagLinks }:
           </a>
         )}
 
-        {/* 운영자 한마디 */}
-        <div style={{ borderTop: "1px solid var(--border)" }} />
-        <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>운영자 한마디</p>
+        {SHOW_OWNER_NOTE_INPUTS && (
+          <>
+            {/* 운영자 한마디 */}
+            <div style={{ borderTop: "1px solid var(--border)" }} />
+            <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>운영자 한마디</p>
 
-        <Field label="운영자 이름/닉네임 (선택)">
-          <input name="ownerName" value={ownerForm.ownerName} onChange={handleOwnerChange}
-            placeholder="김책방" className="w-full text-sm px-3 py-2.5 border" style={inputStyle} />
-        </Field>
+            <Field label="운영자 이름/닉네임 (선택)">
+              <input name="ownerName" value={ownerForm.ownerName} onChange={handleOwnerChange}
+                placeholder="김책방" className="w-full text-sm px-3 py-2.5 border" style={inputStyle} />
+            </Field>
 
-        <Field label="운영자 사진 (선택)">
-          <label className="block cursor-pointer">
-            <div className="w-20 h-20 rounded-full border flex items-center justify-center overflow-hidden relative" style={{ borderColor: "var(--border)" }}>
-              {ownerPhotoPreview ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={ownerPhotoPreview} alt="owner" className="w-full h-full object-cover" />
-              ) : (
-                <span className="text-xs text-center" style={{ color: "var(--dim)" }}>사진</span>
-              )}
-              {ownerPhotoUploading && (
-                <div className="absolute inset-0 flex items-center justify-center rounded-full" style={{ background: "rgba(0,0,0,0.5)" }}>
-                  <span className="text-xs" style={{ color: "var(--fg)" }}>...</span>
+            <Field label="운영자 사진 (선택)">
+              <label className="block cursor-pointer">
+                <div className="w-20 h-20 rounded-full border flex items-center justify-center overflow-hidden relative" style={{ borderColor: "var(--border)" }}>
+                  {ownerPhotoPreview ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={ownerPhotoPreview} alt="owner" className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-xs text-center" style={{ color: "var(--dim)" }}>사진</span>
+                  )}
+                  {ownerPhotoUploading && (
+                    <div className="absolute inset-0 flex items-center justify-center rounded-full" style={{ background: "rgba(0,0,0,0.5)" }}>
+                      <span className="text-xs" style={{ color: "var(--fg)" }}>...</span>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-            <input type="file" accept="image/*" onChange={handleOwnerPhotoChange} className="hidden" />
-          </label>
-        </Field>
+                <input type="file" accept="image/*" onChange={handleOwnerPhotoChange} className="hidden" />
+              </label>
+            </Field>
 
-        <Field label="운영자 한마디 (선택)">
-          <textarea name="ownerBio" value={ownerForm.ownerBio} onChange={handleOwnerChange}
-            placeholder="방문객에게 남기고 싶은 짧은 한마디 (예: 오늘도 편하게 머물다 가셨으면 좋겠습니다.)"
-            rows={2} className="w-full text-sm px-3 py-2.5 border resize-none" style={inputStyle} />
-        </Field>
+            <Field label="운영자 한마디 (선택)">
+              <textarea name="ownerBio" value={ownerForm.ownerBio} onChange={handleOwnerChange}
+                placeholder="방문객에게 남기고 싶은 짧은 한마디 (예: 오늘도 편하게 머물다 가셨으면 좋겠습니다.)"
+                rows={2} className="w-full text-sm px-3 py-2.5 border resize-none" style={inputStyle} />
+            </Field>
+          </>
+        )}
 
         {/* 운영 접근 설정 */}
         {mode === "edit" && space && (

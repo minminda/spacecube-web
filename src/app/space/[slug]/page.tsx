@@ -187,10 +187,14 @@ export default async function SpacePage({ params }: Props) {
   const spaceTopTags = aggregateSpaceTags(allTagRecords);
   const usageSummary = getSpaceUsageSummary(spaceTopTags);
   const SHOW_REACTION_BOARD = false;
+  // 파일럿 콘텐츠 제작 단순화 — 공간 페이지를 이름/대표사진/Episode 중심으로 최소화한다.
+  // DB 필드(tagline/ownerBio 등)는 그대로 유지, true로 바꾸면 즉시 원상복구.
+  const SHOW_TAGLINE = false;
+  const SHOW_OWNER_NOTE = false;
 
   const recordHref = `/space/${slug}/record`;
   const ctaHref = session ? recordHref : `/login?callbackUrl=${encodeURIComponent(recordHref)}`;
-  const hasOwnerNote = !!localizedOwnerBio;
+  const hasOwnerNote = SHOW_OWNER_NOTE && !!localizedOwnerBio;
 
   return (
     <main className="flex flex-col min-h-screen md:flex-row">
@@ -238,7 +242,7 @@ export default async function SpacePage({ params }: Props) {
               <h1 className="text-2xl font-bold leading-tight">{space.name}</h1>
               <SaveSpaceButton spaceId={space.id} initialSaved={isSaved} isLoggedIn={!!session} />
             </div>
-            {localizedTagline && (
+            {SHOW_TAGLINE && localizedTagline && (
               <p className="text-sm leading-relaxed italic" style={{ color: "var(--dim)" }}>{localizedTagline}</p>
             )}
           </div>

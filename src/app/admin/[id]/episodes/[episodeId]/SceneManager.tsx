@@ -232,29 +232,13 @@ function SceneCard({
       </div>
 
       <div className="space-y-2">
-        <div className="flex gap-2">
-          {(["3/2", "16/9"] as const).map((ratio) => (
-            <button
-              key={ratio}
-              type="button"
-              onClick={() => setAspectRatio(ratio)}
-              className="text-xs px-2 py-1 border transition-colors"
-              style={{
-                borderColor: aspectRatio === ratio ? "var(--fg)" : "var(--border)",
-                background: aspectRatio === ratio ? "var(--fg)" : "transparent",
-                color: aspectRatio === ratio ? "var(--bg)" : "var(--dim)",
-              }}
-            >
-              {ratio === "3/2" ? "3:2" : "16:9"}
-            </button>
-          ))}
-        </div>
-
+        {/* 사진 표현 방식 — 원본 비율(프레임 없이 사진 자체 크기·비율 그대로) vs 직접 Crop(비율을
+            골라 위치/확대를 조절). Episode Scene 사진은 모두 같은 가로 카드로 강제하지 않는다. */}
         {image.imageUrl && (
           <div className="flex gap-2">
             {([
-              { key: "cover", text: "화면 채우기" },
-              { key: "contain", text: "원본 전체 보기" },
+              { key: "contain", text: "원본 비율 사용" },
+              { key: "cover", text: "직접 Crop" },
             ] as const).map((opt) => (
               <button
                 key={opt.key}
@@ -268,6 +252,26 @@ function SceneCard({
                 }}
               >
                 {opt.text}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {imageFit === "cover" && (
+          <div className="flex gap-2">
+            {(["3/2", "16/9"] as const).map((ratio) => (
+              <button
+                key={ratio}
+                type="button"
+                onClick={() => setAspectRatio(ratio)}
+                className="text-xs px-2 py-1 border transition-colors"
+                style={{
+                  borderColor: aspectRatio === ratio ? "var(--fg)" : "var(--border)",
+                  background: aspectRatio === ratio ? "var(--fg)" : "transparent",
+                  color: aspectRatio === ratio ? "var(--bg)" : "var(--dim)",
+                }}
+              >
+                {ratio === "3/2" ? "3:2" : "16:9"}
               </button>
             ))}
           </div>

@@ -203,7 +203,8 @@ export default async function EpisodeDetailPage({ params }: Props) {
         )}
       </div>
 
-      <div className="flex flex-col">
+      {/* Episode 제목과 첫 Scene 사이 — 구분선 없이 여백만 살짝 더 준다(main의 gap-8 위에 얹음). */}
+      <div className="flex flex-col mt-4">
         {(() => {
           let sceneNumber = 0;
           return episode.scenes.map((scene, i) => {
@@ -216,36 +217,44 @@ export default async function EpisodeDetailPage({ params }: Props) {
             const bodyText = localized.content;
             const highlight = localized.summary && localized.summary.trim() ? localized.summary.trim() : null;
 
-            // "원본 전체 보기"(contain)는 세로 사진처럼 어떻게 잘라도 의미가 훼손되는 경우를 위한
-            // 선택지 — crop metadata가 없는 기존 Scene은 imageFit이 null이라 기존과 동일하게 "cover"로 취급된다.
+            // "원본 비율 사용"(contain)은 세로/정사각형 사진처럼 가로 프레임에 넣으면 의미가
+            // 훼손되는 경우를 위한 선택지 — 고정 비율 박스에 넣지 않고 사진 자체의 크기·비율
+            // 그대로, 왼쪽 정렬로 보여준다(회색 여백 없음, 잡지 에디토리얼처럼 사진이 하나의
+            // 오브젝트로 놓이는 느낌). crop metadata가 없는 기존 Scene은 imageFit이 null이라
+            // 기존과 동일하게 "직접 Crop"으로 취급된다.
             const isContain = scene.imageFit === "contain";
             const sceneImage = scene.imageUrl && (
-              <div
-                className="relative w-full overflow-hidden"
-                style={{ aspectRatio: scene.imageAspectRatio ?? "3/2", background: isContain ? "var(--tag-bg)" : undefined }}
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
+              isContain ? (
+                // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={scene.imageUrl}
                   alt={localized.title ?? ""}
-                  className={isContain ? "w-full h-full object-contain" : "w-full h-full object-cover"}
-                  style={
-                    isContain
-                      ? undefined
-                      : {
-                          objectPosition: `${(scene.imagePositionX ?? 0.5) * 100}% ${(scene.imagePositionY ?? 0.5) * 100}%`,
-                          transform: `scale(${scene.imageZoom ?? 1})`,
-                          transformOrigin: "center center",
-                        }
-                  }
+                  className="block"
+                  style={{ maxWidth: "100%", maxHeight: "70vh", width: "auto", height: "auto" }}
                 />
-              </div>
+              ) : (
+                <div className="relative w-full overflow-hidden" style={{ aspectRatio: scene.imageAspectRatio ?? "3/2" }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={scene.imageUrl}
+                    alt={localized.title ?? ""}
+                    className="w-full h-full object-cover"
+                    style={{
+                      objectPosition: `${(scene.imagePositionX ?? 0.5) * 100}% ${(scene.imagePositionY ?? 0.5) * 100}%`,
+                      transform: `scale(${scene.imageZoom ?? 1})`,
+                      transformOrigin: "center center",
+                    }}
+                  />
+                </div>
+              )
             );
 
             return (
               <div
                 key={scene.id}
-                className="py-12 first:pt-0"
+                // 마지막 Scene은 아래쪽 여백(py-12의 하단)을 없애 바로 다음 "다음 이야기" 구분선과
+                // 너무 멀어지지 않게 한다 — main의 gap-8만 남아 적당히 좁아진다(다른 Scene 간격은 그대로).
+                className="py-12 first:pt-0 last:pb-0"
                 style={i > 0 ? { borderTop: "1px solid var(--border)" } : undefined}
               >
                 {hasContent ? (
@@ -258,7 +267,13 @@ export default async function EpisodeDetailPage({ params }: Props) {
                       <h2 className="text-xl font-bold leading-snug break-keep">{localized.title}</h2>
                     )}
                     {bodyText && (
-                      <p className="story-copy break-keep whitespace-pre-line">{bodyText}</p>
+                      // 제목이 있을 때만 space-y-5의 기본 간격(1.25rem) 위에 살짝 더 얹어 위계를 분명히 한다.
+                      <p
+                        className="story-copy break-keep whitespace-pre-line"
+                        style={localized.title ? { marginTop: "1.75rem" } : undefined}
+                      >
+                        {bodyText}
+                      </p>
                     )}
                     {sceneImage}
                     {highlight && (

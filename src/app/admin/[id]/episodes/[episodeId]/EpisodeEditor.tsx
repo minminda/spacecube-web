@@ -37,6 +37,13 @@ export default function EpisodeEditor({ episode }: { episode: EpisodeData }) {
 
   const summaryValidation = validateEpisodeSummary(summary);
 
+  // 파일럿 콘텐츠 제작 단순화 — 실제 제작에 쓰지 않는 입력을 숨긴다. summary/image state는 그대로
+  // 두고 기존 값을 그대로 재저장하므로(변경 없음) DB 필드·기존 데이터는 전혀 손대지 않는다.
+  // Scene 본문 끝의 따옴표 강조 문구(Scene.summary)와는 다른 필드다 — 그건 그대로 유지됨.
+  // true로 바꾸면 즉시 원상복구.
+  const SHOW_SUMMARY_INPUT = false;
+  const SHOW_IMAGE_INPUT = false;
+
   async function save() {
     if (!summaryValidation.ok) return;
     setSaving(true);
@@ -88,23 +95,25 @@ export default function EpisodeEditor({ episode }: { episode: EpisodeData }) {
         />
       </div>
 
-      <div className="space-y-1.5">
-        <p className={labelClass} style={labelStyle}>한 줄 요약 (선택)</p>
-        <input
-          value={summary}
-          onChange={(e) => setSummary(e.target.value)}
-          placeholder="완성된 공간처럼 보이지만, 사실은 아직도 매일 조금씩 배우고 있습니다."
-          maxLength={EPISODE_SUMMARY_MAX}
-          className={inputClass}
-          style={inputStyle}
-        />
-        <p className="text-xs leading-relaxed" style={{ color: "var(--border)" }}>
-          이야기의 핵심이나 계속 읽고 싶게 만드는 문장을 입력해주세요.
-        </p>
-        {!summaryValidation.ok && (
-          <p className="text-xs" style={{ color: "#c0392b" }}>{summaryValidation.error}</p>
-        )}
-      </div>
+      {SHOW_SUMMARY_INPUT && (
+        <div className="space-y-1.5">
+          <p className={labelClass} style={labelStyle}>한 줄 요약 (선택)</p>
+          <input
+            value={summary}
+            onChange={(e) => setSummary(e.target.value)}
+            placeholder="완성된 공간처럼 보이지만, 사실은 아직도 매일 조금씩 배우고 있습니다."
+            maxLength={EPISODE_SUMMARY_MAX}
+            className={inputClass}
+            style={inputStyle}
+          />
+          <p className="text-xs leading-relaxed" style={{ color: "var(--border)" }}>
+            이야기의 핵심이나 계속 읽고 싶게 만드는 문장을 입력해주세요.
+          </p>
+          {!summaryValidation.ok && (
+            <p className="text-xs" style={{ color: "#c0392b" }}>{summaryValidation.error}</p>
+          )}
+        </div>
+      )}
 
       <div className="space-y-2">
         <p className={labelClass} style={labelStyle}>해금 방문 횟수</p>
@@ -123,12 +132,14 @@ export default function EpisodeEditor({ episode }: { episode: EpisodeData }) {
         </div>
       </div>
 
-      <ImagePositionEditor
-        label="Episode 대표 이미지 (4:3, 선택)"
-        value={image}
-        onChange={setImage}
-        aspectRatio="4/3"
-      />
+      {SHOW_IMAGE_INPUT && (
+        <ImagePositionEditor
+          label="Episode 대표 이미지 (4:3, 선택)"
+          value={image}
+          onChange={setImage}
+          aspectRatio="4/3"
+        />
+      )}
 
       <ToggleSwitch label={published ? "공개됨" : "비공개"} checked={published} onChange={setPublished} />
 

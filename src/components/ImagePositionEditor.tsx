@@ -38,8 +38,9 @@ interface Props {
   minZoom?: number;
   maxZoom?: number;
   label?: string;
-  /** "cover"(기본, 기존 동작과 완전히 동일) | "contain"(원본 전체를 보여줌 — 드래그/확대가 의미 없으므로
-   *  그 컨트롤을 숨기고 정적 미리보기만 보여준다). 생략하면 기존 호출부(공간 대표사진 등)는 전혀 영향받지 않는다. */
+  /** "cover"(기본, 기존 동작과 완전히 동일 — 직접 Crop) | "contain"(원본 비율 그대로 — 고정 프레임 없이
+   *  이미지 자체 크기만큼만 영역을 차지, 드래그/확대가 의미 없으므로 그 컨트롤을 숨기고 정적 미리보기만
+   *  보여준다). 생략하면 기존 호출부(공간 대표사진 등)는 전혀 영향받지 않는다. */
   fit?: "cover" | "contain";
 }
 
@@ -111,13 +112,17 @@ export default function ImagePositionEditor({
       {value.imageUrl ? (
         <div className="space-y-3">
           {fit === "contain" ? (
-            // 원본 전체 보기 — 자르지 않고 그대로 보여주므로 드래그/확대는 의미가 없어 정적 미리보기만 노출한다.
-            <div
-              className="relative w-full overflow-hidden border"
-              style={{ borderColor: "var(--border)", aspectRatio, background: "var(--tag-bg)" }}
-            >
+            // 원본 비율 사용 — 자르지 않고 원본 그대로 보여주므로 드래그/확대는 의미가 없어 정적
+            // 미리보기만 노출한다. 고정 비율 박스에 억지로 넣지 않는다 — 회색 여백이 생기지 않도록
+            // 이미지 자체의 크기(원본 비율)만큼만 영역을 차지하게 한다(실제 방문자 화면과 동일한 원칙).
+            <div className="relative inline-block max-w-full" style={{ borderColor: "var(--border)" }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={value.imageUrl} alt="미리보기" className="w-full h-full object-contain" />
+              <img
+                src={value.imageUrl}
+                alt="미리보기"
+                className="block border"
+                style={{ borderColor: "var(--border)", maxWidth: "100%", maxHeight: "420px", width: "auto", height: "auto" }}
+              />
               {uploading && (
                 <div className="absolute inset-0 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.5)" }}>
                   <span className="text-xs" style={{ color: "#fff" }}>업로드 중...</span>
