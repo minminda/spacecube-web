@@ -196,7 +196,7 @@ export default async function SpacePage({ params }: Props) {
     <main className="flex flex-col min-h-screen md:flex-row">
       {space.imageUrl && (
         <div
-          className="relative w-full flex-shrink-0 md:w-1/2 md:sticky md:top-0 md:self-start md:h-screen"
+          className="full-bleed relative w-full flex-shrink-0 md:w-1/2 md:sticky md:top-0 md:self-start md:h-screen"
           style={{ aspectRatio: "16 / 11" }}
         >
           <Image

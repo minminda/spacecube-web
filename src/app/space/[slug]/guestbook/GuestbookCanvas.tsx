@@ -25,7 +25,7 @@ import {
   POST_IT_HEIGHT,
   type Rect,
 } from "@/lib/postitCollision";
-import { computeInitialViewport } from "@/lib/guestbookViewport";
+import { computeFitToContentViewport, pickHeroPoint } from "@/lib/guestbookViewport";
 import { useToast } from "@/hooks/useToast";
 import { formatFetchException } from "@/lib/formatFetchError";
 
@@ -46,9 +46,10 @@ const DEFAULT_SCALE = 0.35; // 콘텐츠가 없을 때 쓰는 안정적인 기�
 const MIN_INITIAL_SCALE = 0.16; // 최종(줌아웃 후) 배율 하한 — 질문/포스트잇이 너무 작아 안 보이는 걸 방지
 const MAX_INITIAL_SCALE = 0.9; // 최종(줌아웃 후) 배율 상한 — 콘텐츠가 아주 좁게 몰려 있어도 과하게 확대되지 않도록
 const MAX_SCALE = 2.2; // 캔버스 전체 최대 줌 — TransformWrapper와 진입 연출 시작 배율 계산이 공유하는 상한
-const INTRO_HOLD_MS = 150; // 확대된 시작 지점에서 잠깐 머무는 시간
-const INTRO_DURATION_MS = 700; // 목표 배율까지 줌아웃하는 시간 — 전체 진입 연출(hold+줌아웃)이 약 700~1000ms 범위에 들어오도록
-const INTRO_START_SCALE_MULTIPLIER = 1.6; // 시작 배율 = 목표 배율의 약 1.4~1.8배
+const INTRO_HOLD_MS = 650; // 히어로 포스트잇이 화면 가득 보이는 상태로 잠깐 머무는 시간(스펙: 500~800ms)
+const INTRO_DURATION_MS = 2100; // 히어로 → 전체 fit-to-content로 줌아웃하는 시간(스펙: 1.8~2.5초, hold와 합쳐 총 3초 전후)
+const SINGLE_NOTE_INTRO_MS = 600; // 포스트잇이 정확히 1개일 때 과장된 연출 없이 자연스럽게 자리 잡는 시간
+const HERO_SPAN_MULTIPLIER = 1.3; // 히어로 포스트잇이 화면을 거의 채우되 잘리지 않도록 하는 여유 배수
 const GRID_CELL_W = 220;
 const GRID_CELL_H = 260;
 const COMPOSE_SCALE = 1.15; // 작성 중 편하게 볼 수 있는 확대 비율
@@ -195,10 +196,15 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
     setIntroPlaying(false);
   }, []);
 
-  // ── 진입 연출: 콘텐츠 중심부를 가깝게 보여주다 잠시 후 목표 배율까지 부드럽게 줌아웃한다.
-  // "특정 좌표로 강제 이동"이 아니라 이번 세션의 질문 군집 + 포스트잇 좌표로 계산한 중심을
+  // ── 진입 연출: 흔적 하나 → 잠깐 머무름 → 천천히 줌아웃 → 전체 방명록.
+  // "특정 좌표로 강제 이동"이 아니라 이번 세션의 질문 군집 + 포스트잇 좌표로 계산한 값을
   // 기준으로 하며, 페이지 진입 시 한 번만 실행되고(포스트잇 작성/공감/내 기록 이동 등으로
   // 다시 실행되지 않음) 사용자 조작이 시작되면 cancelIntro()가 즉시 중단시킨다.
+  // 포스트잇 개수에 따라 세 가지로 분기한다:
+  //  0개 — 애니메이션 없음(불필요한 줌아웃 금지), 기존 빈 상태 안내가 즉시 보인다.
+  //  1개 — 과장 없이 그 포스트잇 중심으로 짧게 정착한다.
+  //  2개 이상 — 무게중심에 가장 가까운 포스트잇 하나를 화면 가득(히어로) 보여주다 잠시 후
+  //             전체(질문 군집+포스트잇 전부, fit-to-content)로 부드럽게 줌아웃한다.
   //
   // TransformWrapper의 onInit에서 트리거한다 — react-zoom-pan-pinch는 자신의 wrapper/content DOM을
   // useEffect(패시브 이펙트)에서 연결하므로, 여기서 useLayoutEffect로 setTransform을 먼저 호출하면
@@ -213,33 +219,57 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
     introRanRef.current = true;
 
     const { clientWidth, clientHeight } = viewport;
-    const points = [
-      ...clusters.map((c) => ({ x: c.x, y: c.y })),
-      ...initialNotes.map((n) => ({ x: n.x + NOTE_W / 2, y: n.y + POST_IT_HEIGHT / 2 })),
-    ];
-    const { cx, cy, span } = computeInitialViewport(points, { x: WORLD_W / 2, y: WORLD_H / 2 });
+    const notePoints = initialNotes.map((n) => ({ x: n.x + NOTE_W / 2, y: n.y + POST_IT_HEIGHT / 2 }));
+    const allPoints = [...clusters.map((c) => ({ x: c.x, y: c.y })), ...notePoints];
 
-    const targetScale = points.length === 0
+    const { cx, cy, span } = computeFitToContentViewport(allPoints, { x: WORLD_W / 2, y: WORLD_H / 2 });
+    const targetScale = allPoints.length === 0
       ? DEFAULT_SCALE
       : Math.min(Math.max((Math.min(clientWidth, clientHeight) / span) * settings.initialZoom, MIN_INITIAL_SCALE), MAX_INITIAL_SCALE);
     const endX = clientWidth / 2 - cx * targetScale;
     const endY = clientHeight / 2 - cy * targetScale;
 
-    // 모션 감소 환경 — 확대→줌아웃 연출 없이 최종 fit-to-view 상태로 바로 진입
     const reduceMotion = typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-    if (reduceMotion) {
+
+    // 흔적이 아직 없거나(빈 상태 안내를 바로 보여줘야 함) 모션 감소 환경이면 연출 없이 최종 상태로 바로 진입
+    if (initialNotes.length === 0 || reduceMotion) {
       ctrl.setTransform(endX, endY, targetScale, 0);
       setScalePct(Math.round(targetScale * 100));
       setIntroPlaying(false);
       return;
     }
 
-    const startScale = Math.min(targetScale * INTRO_START_SCALE_MULTIPLIER, MAX_SCALE);
-    const startX = clientWidth / 2 - cx * startScale;
-    const startY = clientHeight / 2 - cy * startScale;
+    // 흔적이 정확히 하나뿐이면 히어로 연출 없이, 과장되지 않게 짧게 정착한다
+    if (initialNotes.length === 1) {
+      const startScale = Math.min(targetScale * 1.3, MAX_SCALE);
+      const startX = clientWidth / 2 - cx * startScale;
+      const startY = clientHeight / 2 - cy * startScale;
+      ctrl.setTransform(startX, startY, startScale, 0);
+      setScalePct(Math.round(startScale * 100));
 
-    ctrl.setTransform(startX, startY, startScale, 0);
-    setScalePct(Math.round(startScale * 100));
+      // 시작 배율이 실제로 한 프레임 렌더된 뒤에 애니메이션을 걸어야 한다(동기 호출로 이어서
+      // setTransform하면 라이브러리가 중간 상태를 건너뛰고 곧장 최종값으로 처리하는 경우가 있음).
+      const settleTimer = setTimeout(() => {
+        ctrl.setTransform(endX, endY, targetScale, SINGLE_NOTE_INTRO_MS, "easeOut");
+        const endTimer = setTimeout(() => {
+          introTimersRef.current = [];
+          setIntroPlaying(false);
+        }, SINGLE_NOTE_INTRO_MS);
+        introTimersRef.current.push(endTimer);
+      }, 60);
+      introTimersRef.current.push(settleTimer);
+      return;
+    }
+
+    // 흔적이 여럿이면 무게중심에 가장 가까운 하나를 히어로로 골라 화면 가득 보여준다
+    const hero = pickHeroPoint(notePoints)!;
+    const heroSpan = Math.max(NOTE_W, POST_IT_HEIGHT) * HERO_SPAN_MULTIPLIER;
+    const heroScale = Math.min(Math.min(clientWidth, clientHeight) / heroSpan, MAX_SCALE);
+    const heroX = clientWidth / 2 - hero.x * heroScale;
+    const heroY = clientHeight / 2 - hero.y * heroScale;
+
+    ctrl.setTransform(heroX, heroY, heroScale, 0);
+    setScalePct(Math.round(heroScale * 100));
 
     const holdTimer = setTimeout(() => {
       ctrl.setTransform(endX, endY, targetScale, INTRO_DURATION_MS, "easeOut");

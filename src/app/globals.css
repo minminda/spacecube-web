@@ -42,6 +42,22 @@ body {
      overflow-wrap은 keep-all이 못 끊는 긴 영단어/URL이 컨테이너를 넘칠 때의 최후 안전장치. */
   word-break: keep-all;
   overflow-wrap: break-word;
+  /* .full-bleed(아래)가 뷰포트 폭 기준으로 확장되는 동안 실수로 가로 스크롤이 생기지 않도록
+     하는 안전장치 — 이 규칙 하나로 화면에 보이는 레이아웃은 바뀌지 않는다. */
+  overflow-x: hidden;
+}
+
+/* ── 모바일 전용 Full Bleed 이미지 — 공용 레이아웃(layout.tsx)의 max-w-sm 중앙 정렬 wrapper를
+   뚫고 나가 뷰포트 폭 전체를 채운다. margin-left:50%+translateX(-50%) 조합은 부모가 어떤
+   max-width/padding을 갖고 있어도 항상 정확히 뷰포트 중앙에 재정렬되므로, wrapper 구조가
+   바뀌어도(다른 페이지에 재사용해도) 그대로 안전하게 동작한다. 768px 이상에서는 비활성화되어
+   각 페이지가 원래 갖고 있던 레이아웃(sticky/half-width 등)을 그대로 쓴다. */
+@media (max-width: 767px) {
+  .full-bleed {
+    width: 100vw;
+    margin-left: 50%;
+    transform: translateX(-50%);
+  }
 }
 
 ::selection {
