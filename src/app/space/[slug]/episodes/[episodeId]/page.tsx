@@ -203,7 +203,10 @@ export default async function EpisodeDetailPage({ params }: Props) {
         )}
       </div>
 
-      {/* Episode 제목과 첫 Scene 사이 — 구분선 없이 여백만 살짝 더 준다(main의 gap-8 위에 얹음). */}
+      {/* Episode 제목과 SCENE 1 사이도 Scene 간 구분선과 동일한 리듬으로 시작한다(아래에서
+          모든 Scene에 borderTop을 통일 적용) — 이 mt-4는 main의 gap-8과 합쳐져 "이전 Scene의
+          pb-12(48px)"에 해당하는 여백 역할을 한다, 그래야 첫 구분선 앞뒤 간격이 Scene 간
+          구분선 앞뒤 간격(pb-12 + pt-12)과 동일하게 느껴진다. */}
       <div className="flex flex-col mt-4">
         {(() => {
           let sceneNumber = 0;
@@ -222,6 +225,12 @@ export default async function EpisodeDetailPage({ params }: Props) {
             // 그대로, 왼쪽 정렬로 보여준다(회색 여백 없음, 잡지 에디토리얼처럼 사진이 하나의
             // 오브젝트로 놓이는 느낌). crop metadata가 없는 기존 Scene은 imageFit이 null이라
             // 기존과 동일하게 "직접 Crop"으로 취급된다.
+            //
+            // 높이를 기존 가로 사진의 폭(모바일 콘텐츠 폭, 대략 300~340px)과 비슷한 수준으로
+            // 제한한다 — width/height 모두 auto라 이 max-height만으로 원본 비율이 유지된 채
+            // 크기가 정해진다: 가로로 넓은 사진은 max-width(100%)에 먼저 걸려 기존처럼 폭을
+            // 꽉 채우고, 세로로 긴 사진은 이 max-height에 먼저 걸려 자연스럽게 좁아진다(별도
+            // orientation 판정 로직 없이 CSS만으로 두 경우를 구분).
             const isContain = scene.imageFit === "contain";
             const sceneImage = scene.imageUrl && (
               isContain ? (
@@ -230,7 +239,7 @@ export default async function EpisodeDetailPage({ params }: Props) {
                   src={scene.imageUrl}
                   alt={localized.title ?? ""}
                   className="block"
-                  style={{ maxWidth: "100%", maxHeight: "70vh", width: "auto", height: "auto" }}
+                  style={{ maxWidth: "100%", maxHeight: "340px", width: "auto", height: "auto" }}
                 />
               ) : (
                 <div className="relative w-full overflow-hidden" style={{ aspectRatio: scene.imageAspectRatio ?? "3/2" }}>
@@ -252,10 +261,12 @@ export default async function EpisodeDetailPage({ params }: Props) {
             return (
               <div
                 key={scene.id}
-                // 마지막 Scene은 아래쪽 여백(py-12의 하단)을 없애 바로 다음 "다음 이야기" 구분선과
-                // 너무 멀어지지 않게 한다 — main의 gap-8만 남아 적당히 좁아진다(다른 Scene 간격은 그대로).
-                className="py-12 first:pt-0 last:pb-0"
-                style={i > 0 ? { borderTop: "1px solid var(--border)" } : undefined}
+                // 모든 Scene(첫 Scene 포함)이 동일한 구분선 규칙으로 시작한다 — Episode 제목
+                // 바로 다음에도 Scene 간 구분선과 완전히 같은 선(색상/두께/길이)이 온다.
+                // 마지막 Scene만 아래쪽 여백(py-12의 하단)을 없애 바로 다음 "다음 이야기"
+                // 구분선과 너무 멀어지지 않게 한다 — main의 gap-8만 남아 적당히 좁아진다.
+                className="py-12 last:pb-0"
+                style={{ borderTop: "1px solid var(--border)" }}
               >
                 {hasContent ? (
                   // 글을 읽고(제목→본문) → 사진으로 보완하고(선택) → 대표 문장으로 여운을 남기는 순서.
