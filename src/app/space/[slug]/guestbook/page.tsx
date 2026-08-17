@@ -9,6 +9,7 @@ import { getVisibleClusters } from "@/lib/guestbookSession";
 import { resolveCurrentVisitRecordId } from "@/lib/guestbookVisit";
 import { formatDotDate as formatDate } from "@/lib/time";
 import { requireSpaceUnlock, canBypassSpaceLock } from "@/lib/spaceUnlock";
+import { isAdmin } from "@/lib/admin";
 import { ENABLE_GUESTBOOK_IMAGE, ENABLE_GUESTBOOK_COMMENTS } from "@/lib/pilotFlags";
 import SpaceLockNotice from "@/components/SpaceLockNotice";
 import GuestbookCanvas from "./GuestbookCanvas";
@@ -165,8 +166,8 @@ export default async function GuestbookPage({ params, searchParams }: Props) {
       : Promise.resolve(0),
     // 파일럿 최소 계측(guestbook_view) — 이번 방문이 실제로 방명록 캔버스에 도달했음을
     // 1회만 기록한다(where에 IS NULL 조건이 있어 이미 값이 있으면 자연스럽게 no-op).
-    // 실패해도 화면 렌더에는 영향 없도록 조용히 무시한다.
-    currentRecordId
+    // 실패해도 화면 렌더에는 영향 없도록 조용히 무시한다. 관리자 세션은 검수 목적 열람이라 기록하지 않는다.
+    currentRecordId && !isAdmin(session?.user?.email)
       ? prisma.record.updateMany({
           where: { id: currentRecordId, guestbookViewedAt: null },
           data: { guestbookViewedAt: new Date() },

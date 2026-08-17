@@ -6,6 +6,7 @@ import { cookies, headers } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 import { resolveSpaceAccess, canBypassSpaceLock } from "@/lib/spaceUnlock";
+import { isAdmin } from "@/lib/admin";
 import SpaceLockNotice from "@/components/SpaceLockNotice";
 import StoryReadTracker from "@/components/StoryReadTracker";
 import SpaceUnlockScreen from "@/app/space/[slug]/SpaceUnlockScreen";
@@ -141,7 +142,10 @@ export default async function EpisodeDetailPage({ params }: Props) {
 
   // 열람 가능한 상태에서 페이지를 열었으므로 조회로 기록한다(완독 여부는 StoryReadTracker가
   // 실제 스크롤 신호를 보고 별도로 기록 — 여기서 completedAt을 같이 세팅하지 않는다).
-  if (userId) {
+  // 관리자 계정은 콘텐츠 검수 목적으로 반복 열람하므로 EpisodeRead 자체를 남기지 않는다 —
+  // 이 행은 스토리 조회/완독/체류시간 KPI의 유일한 원본이라(다른 어떤 기능도 이 존재 여부에
+  // 의존하지 않음), 아예 기록을 생성하지 않는 쪽이 집계 단계마다 별도 필터를 두는 것보다 안전하다.
+  if (userId && !isAdmin(session?.user?.email)) {
     await prisma.episodeRead.upsert({
       where: { userId_episodeId: { userId, episodeId: episode.id } },
       create: { userId, episodeId: episode.id },

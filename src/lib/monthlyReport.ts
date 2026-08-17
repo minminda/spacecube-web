@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { Prisma, MonthlyReportStatus, type ClusterType } from "@prisma/client";
 import { getSpaceMonthlyKpi, type PeriodKpiStats } from "@/lib/kpi";
 import { getExtendedPeriodStats, type ExtendedPeriodStats } from "@/lib/reportMetrics";
+import { getAdminUserIds } from "@/lib/kpiEligibility";
 
 /* ── 월간 리포트 콘텐츠 조립 ────────────────────────────────────────────
    ReportEmail.tsx(관리자 Preview + 메일 렌더링 공용 컴포넌트)이 그대로 소비하는
@@ -281,8 +282,10 @@ export interface ReportQuestionParticipation {
  * "⑤ 질문별 참여" — 기간과 겹치는 GuestbookSession(가장 최근 것)의 질문 텍스트에, 같은 기간
  * 작성된 포스트잇을 clusterType별로 집계한 응답 수/비율을 짝짓는다. 질문 내용이 없는 군집은
  * 방문자 캔버스에도 안 나타나므로 여기서도 제외한다(getVisibleClusters와 동일한 원칙).
+ * 관리자가 콘텐츠 검수 중 세 군집을 전부 눌러보며 남긴 흔적은 참여율을 왜곡하므로 제외한다.
  */
 async function getQuestionParticipation(spaceId: string, periodStart: Date, periodEnd: Date): Promise<ReportQuestionParticipation[]> {
+  const adminUserIds = await getAdminUserIds();
   const [session, noteCounts] = await Promise.all([
     prisma.guestbookSession.findFirst({
       where: { spaceId, startsAt: { lt: periodEnd }, OR: [{ endsAt: null }, { endsAt: { gt: periodStart } }] },
@@ -291,7 +294,7 @@ async function getQuestionParticipation(spaceId: string, periodStart: Date, peri
     }),
     prisma.guestbookNote.groupBy({
       by: ["clusterType"],
-      where: { spaceId, createdAt: { gte: periodStart, lt: periodEnd } },
+      where: { spaceId, createdAt: { gte: periodStart, lt: periodEnd }, userId: { notIn: [...adminUserIds] } },
       _count: { _all: true },
     }),
   ]);
@@ -401,18 +404,22 @@ export async function computeMonthlyReportContent(
   previousStoryStats: StoryReadStats | null = null,
 ): Promise<ReportEmailData> {
   const space = await prisma.space.findUnique({ where: { id: spaceId }, select: { name: true } });
+  const adminUserIds = await getAdminUserIds();
+  const notAdmin = { notIn: [...adminUserIds] };
 
   const [stats, extended, questionParticipation, noteRows] = await Promise.all([
     getSpaceMonthlyKpi(spaceId, periodStart, periodEnd),
     getExtendedPeriodStats(spaceId, periodStart, periodEnd),
     getQuestionParticipation(spaceId, periodStart, periodEnd),
+    // 관리자가 검수 중 남긴 글은 "공감 TOP3" 후보에서 제외하고, 실제 글에 달린 공감이라도
+    // 관리자가 누른 공감은 집계하지 않는다(reportMetrics.ts의 reactionsTotal과 동일 기준).
     prisma.guestbookNote.findMany({
-      where: { spaceId, createdAt: { gte: periodStart, lt: periodEnd } },
-      select: { id: true, content: true, clusterType: true, createdAt: true, _count: { select: { reactions: true } } },
+      where: { spaceId, createdAt: { gte: periodStart, lt: periodEnd }, userId: notAdmin },
+      select: { id: true, content: true, clusterType: true, createdAt: true, reactions: { where: { userId: notAdmin }, select: { id: true } } },
     }),
   ]);
 
-  const top = selectTopFeaturedPosts(noteRows.map((n) => ({ id: n.id, createdAt: n.createdAt, reactionCount: n._count.reactions })));
+  const top = selectTopFeaturedPosts(noteRows.map((n) => ({ id: n.id, createdAt: n.createdAt, reactionCount: n.reactions.length })));
   const featuredPosts: ReportFeaturedPost[] = top.map((t) => {
     const note = noteRows.find((n) => n.id === t.id)!;
     return { content: note.content, reactionCount: t.reactionCount, clusterType: note.clusterType };
@@ -475,6 +482,9 @@ export async function generateOrGetMonthlyReport(spaceId: string, periodStart: D
   });
   if (existing) return existing;
 
+  const adminUserIds = await getAdminUserIds();
+  const notAdmin = { notIn: [...adminUserIds] };
+
   const [stats, extended, questionParticipation, previousReport] = await Promise.all([
     getSpaceMonthlyKpi(spaceId, periodStart, periodEnd),
     getExtendedPeriodStats(spaceId, periodStart, periodEnd),
@@ -488,13 +498,13 @@ export async function generateOrGetMonthlyReport(spaceId: string, periodStart: D
   const suggestions = buildSuggestions(stats, extended, questionParticipation);
 
   const notes = await prisma.guestbookNote.findMany({
-    where: { spaceId, createdAt: { gte: periodStart, lt: periodEnd } },
-    select: { id: true, createdAt: true, _count: { select: { reactions: true } } },
+    where: { spaceId, createdAt: { gte: periodStart, lt: periodEnd }, userId: notAdmin },
+    select: { id: true, createdAt: true, reactions: { where: { userId: notAdmin }, select: { id: true } } },
   });
   const candidates: FeaturedPostCandidate[] = notes.map((n) => ({
     id: n.id,
     createdAt: n.createdAt,
-    reactionCount: n._count.reactions,
+    reactionCount: n.reactions.length,
   }));
   const top = selectTopFeaturedPosts(candidates);
 

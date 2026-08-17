@@ -6,6 +6,7 @@ import { auth } from "@/auth";
 import { buildRewardSummary } from "@/lib/guestbookReward";
 import { isOwnedRecord } from "@/lib/guestbookVisit";
 import { requireSpaceUnlock, canBypassSpaceLock } from "@/lib/spaceUnlock";
+import { isAdmin } from "@/lib/admin";
 import { ENABLE_PUBLIC_SPACE_BROWSER } from "@/lib/features";
 import RecommendationCard from "./RecommendationCard";
 import Divider from "@/components/Divider";
@@ -65,10 +66,13 @@ export default async function VisitCompletePage({ params, searchParams }: Props)
     }),
     // 파일럿 최소 계측(recommendation_view) — 이번 방문이 실제로 완료·추천 화면에 도달했음을
     // 1회만 기록한다(추천 후보 유무와 무관, "완료 화면을 확인한 시점" 자체를 기록).
-    prisma.record.updateMany({
-      where: { id: record.id, recommendationViewedAt: null },
-      data: { recommendationViewedAt: new Date() },
-    }).catch(() => {}),
+    // 관리자 세션은 검수 목적 열람이라 기록하지 않는다.
+    isAdmin(session.user.email)
+      ? Promise.resolve()
+      : prisma.record.updateMany({
+          where: { id: record.id, recommendationViewedAt: null },
+          data: { recommendationViewedAt: new Date() },
+        }).catch(() => {}),
   ]);
   const wroteThisVisit = !!noteThisVisit;
 

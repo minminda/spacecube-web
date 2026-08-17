@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { getAdminUserIds } from "@/lib/kpiEligibility";
 
 /* ── 리포트 확장 지표 ────────────────────────────────────────────────
    태그 기반 KPI(방문자 취향 TOP3/공간 사용 방식)를 대체하는 새 리포트 구조가 필요로 하는
@@ -70,12 +71,20 @@ export function buildTasteScoreDistribution(records: { tasteScore: number | null
   return [1, 2, 3, 4, 5].map((score) => ({ score: score as 1 | 2 | 3 | 4 | 5, count: counts.get(score) ?? 0 }));
 }
 
-/** 공간 하나의 확장 지표를 원본 테이블(SpaceScan/EpisodeRead/Record/GuestbookReaction)에서 계산한다. */
+/**
+ * 공간 하나의 확장 지표를 원본 테이블(SpaceScan/EpisodeRead/Record/GuestbookReaction)에서 계산한다.
+ * 관리자 계정의 방문/공감은 제외한다. EpisodeRead(스토리 조회/완독/체류시간)는 애초에 관리자
+ * 세션이면 기록 자체가 안 생기므로(episodes/[episodeId]/page.tsx, episode-reads/finish route
+ * 참고) 여기서 별도로 걸러낼 필요가 없다. qrScans(SpaceScan, 원시 QR 스캔)만 예외 — 이 테이블은
+ * userId가 없어(로그인 전에도 스캔이 발생) 관리자 스캔을 구분할 방법이 현재 없다.
+ */
 export async function getExtendedPeriodStats(
   spaceId: string,
   periodStart: Date,
   periodEnd: Date,
 ): Promise<ExtendedPeriodStats> {
+  const adminUserIds = await getAdminUserIds();
+  const notAdmin = { notIn: [...adminUserIds] };
   const [qrScans, episodeViews, episodeCompletions, durationAgg, episodes, allRecords, periodRecords, reactionsTotal] = await Promise.all([
     prisma.spaceScan.count({ where: { spaceId, scannedAt: { gte: periodStart, lt: periodEnd } } }),
     prisma.episodeRead.count({ where: { episode: { spaceId }, openedAt: { gte: periodStart, lt: periodEnd } } }),
@@ -87,13 +96,13 @@ export async function getExtendedPeriodStats(
       _avg: { durationMs: true },
     }),
     prisma.episode.findMany({ where: { spaceId, published: true }, select: { unlockVisitCount: true } }),
-    prisma.record.findMany({ where: { spaceId }, select: { userId: true, visitedAt: true } }),
+    prisma.record.findMany({ where: { spaceId, userId: notAdmin }, select: { userId: true, visitedAt: true } }),
     prisma.record.findMany({
-      where: { spaceId, visitedAt: { gte: periodStart, lt: periodEnd } },
+      where: { spaceId, visitedAt: { gte: periodStart, lt: periodEnd }, userId: notAdmin },
       select: { tasteScore: true },
     }),
     prisma.guestbookReaction.count({
-      where: { post: { spaceId, createdAt: { gte: periodStart, lt: periodEnd } } },
+      where: { post: { spaceId, createdAt: { gte: periodStart, lt: periodEnd } }, userId: notAdmin },
     }),
   ]);
 

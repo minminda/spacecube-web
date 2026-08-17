@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 export const dynamic = "force-dynamic";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { isAdmin } from "@/lib/admin";
 
 // 비정상적으로 긴 체류시간(탭을 열어둔 채 방치 등)이 평균을 왜곡하지 않도록 상한을 둔다.
 const MAX_DURATION_MS = 30 * 60 * 1000;
@@ -15,6 +16,12 @@ interface Props {
 export async function POST(req: NextRequest, { params }: Props) {
   const session = await auth();
   if (!session?.user?.id) {
+    return new NextResponse(null, { status: 204 });
+  }
+  // 관리자 세션이면 애초에 EpisodeRead 행 자체가 생성되지 않으므로(episodes/[episodeId]/page.tsx
+  // 참고) 아래 updateMany는 자연히 0건에 그친다 — 그래도 요청 자체를 조용히 무시해 불필요한
+  // 쓰기 시도를 만들지 않는다.
+  if (isAdmin(session.user.email)) {
     return new NextResponse(null, { status: 204 });
   }
 
