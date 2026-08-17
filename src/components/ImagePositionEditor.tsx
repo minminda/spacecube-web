@@ -121,7 +121,9 @@ export default function ImagePositionEditor({
                 src={value.imageUrl}
                 alt="미리보기"
                 className="block border"
-                style={{ borderColor: "var(--border)", maxWidth: "100%", maxHeight: "420px", width: "auto", height: "auto" }}
+                // 방문자 화면(episodes/[episodeId]/page.tsx)과 동일한 기준 높이(220px, 직접 Crop
+                // 3:2 기준 가로 사진의 실제 렌더 높이) — 미리보기와 실제 결과가 최대한 같아 보이게.
+                style={{ borderColor: "var(--border)", maxWidth: "100%", maxHeight: "220px", width: "auto", height: "auto" }}
               />
               {uploading && (
                 <div className="absolute inset-0 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.5)" }}>

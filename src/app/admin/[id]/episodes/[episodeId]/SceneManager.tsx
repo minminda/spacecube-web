@@ -6,6 +6,7 @@ import ImagePositionEditor, { type ImageTransform } from "@/components/ImagePosi
 import { useToast } from "@/hooks/useToast";
 import Toast from "@/components/Toast";
 import { validateSceneFields } from "@/lib/sceneInput";
+import { finalizeImageCrop } from "@/lib/imageCrop";
 
 interface SceneData {
   id: string;
@@ -162,6 +163,14 @@ function SceneCard({
   async function save() {
     if (!validation.ok) return;
     setSaving(true);
+
+    // "직접 Crop"이면 드래그/확대로 고른 영역을 실제로 잘라 Cloudinary에 새 이미지로 올리고
+    // 그 결과를 저장한다(원본은 CSS로 가려서 보여주는 대신, 잘린 결과 이미지 자체를 저장) —
+    // "원본 비율 사용"(contain)은 애초에 자르지 않으므로 그대로 둔다. 조정한 적이 없으면
+    // (기본 위치/배율 그대로) 내부적으로 다시 자르지 않고 넘어간다.
+    const finalImage = imageFit === "cover" ? await finalizeImageCrop(image, aspectRatio) : image;
+    if (finalImage.imageUrl !== image.imageUrl) setImage(finalImage);
+
     const res = await fetch(`/api/scenes/${scene.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -170,10 +179,10 @@ function SceneCard({
         content,
         summary: summary || null,
         isActive,
-        imageUrl: image.imageUrl || null,
-        imageZoom: image.zoom,
-        imagePositionX: image.positionX,
-        imagePositionY: image.positionY,
+        imageUrl: finalImage.imageUrl || null,
+        imageZoom: finalImage.zoom,
+        imagePositionX: finalImage.positionX,
+        imagePositionY: finalImage.positionY,
         imageAspectRatio: aspectRatio,
         imageFit,
       }),

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import ImagePositionEditor from "@/components/ImagePositionEditor";
+import { finalizeImageCrop } from "@/lib/imageCrop";
 
 interface SpaceData {
   id: string;
@@ -60,6 +61,8 @@ function isWeakPin(pin: string): boolean {
 }
 
 const DISTRICTS = ["서촌", "성수", "망원", "북촌", "가로수길", "이태원", "홍대", "연남동", "한남동", "익선동"];
+// 공간 상세 페이지 Hero 이미지 비율(space/[slug]/page.tsx와 동일) — 대표사진 crop의 목표 비율.
+const HERO_ASPECT_RATIO = "16/11";
 const CLOUDINARY_URL = `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload`;
 const UPLOAD_PRESET = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET!;
 
@@ -203,6 +206,12 @@ export default function SpaceForm({ mode, space, categories, existingTagLinks }:
 
     setLoading(true);
     setError("");
+
+    // 세로 원본이어도 관리자가 드래그/확대로 고른 가로 Hero 영역을 실제로 잘라 저장한다
+    // (원본은 Cloudinary에 그대로 남고, 잘린 결과만 새로 업로드됨) — 자동 중앙 crop 대신
+    // 관리자가 직접 지정한 영역이 최종 대표사진이 된다. 조정한 적이 없으면 그대로 둔다.
+    const finalHeroImage = await finalizeImageCrop(heroImage, HERO_ASPECT_RATIO);
+
     const url = mode === "new" ? "/api/spaces" : `/api/spaces/${space!.id}`;
     const method = mode === "new" ? "POST" : "PATCH";
     const res = await fetch(url, {
@@ -210,10 +219,10 @@ export default function SpaceForm({ mode, space, categories, existingTagLinks }:
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         ...form,
-        imageUrl: heroImage.imageUrl || null,
-        imageZoom: heroImage.zoom,
-        imagePositionX: heroImage.positionX,
-        imagePositionY: heroImage.positionY,
+        imageUrl: finalHeroImage.imageUrl || null,
+        imageZoom: finalHeroImage.zoom,
+        imagePositionX: finalHeroImage.positionX,
+        imagePositionY: finalHeroImage.positionY,
         tagLinks: buildTagLinks(),
         ...ownerForm,
         ownerPhotoUrl: ownerPhotoUrl || null,
@@ -257,7 +266,7 @@ export default function SpaceForm({ mode, space, categories, existingTagLinks }:
           label="대표 이미지 (선택)"
           value={heroImage}
           onChange={setHeroImage}
-          aspectRatio="16/11"
+          aspectRatio={HERO_ASPECT_RATIO}
         />
 
         {/* 기본 정보 */}

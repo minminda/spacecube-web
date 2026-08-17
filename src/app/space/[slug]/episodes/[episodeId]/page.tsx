@@ -135,7 +135,7 @@ export default async function EpisodeDetailPage({ params }: Props) {
         <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>
           {remaining <= 1 ? "이 이야기는 다음 방문에서 열려요" : `이 이야기는 앞으로 ${remaining}번 더 방문하면 열려요`}
         </p>
-        <Link href={`/space/${space.slug}`} className="text-xs" style={{ color: "var(--border)" }}>← {space.name}로 돌아가기</Link>
+        <Link href={`/space/${space.slug}`} className="text-xs" style={{ color: "var(--border)" }}>← {space.name} 돌아가기</Link>
       </main>
     );
   }
@@ -195,18 +195,21 @@ export default async function EpisodeDetailPage({ params }: Props) {
       )}
 
       {/* 대표 사진은 공간 페이지에서 이미 보여줬으므로 여기서는 반복하지 않는다 —
-          "이제부터 이야기가 시작된다"는 느낌으로 제목만 간결하게 연다. */}
+          "이제부터 이야기가 시작된다"는 느낌으로 제목만 간결하게 연다.
+          밑줄은 Episode 헤더 블록(제목+부제)에 밀착된 전용 구분선이다 — Scene 간 구분선과
+          같은 선 스타일(색상·두께)을 재사용하지만 간격은 완전히 다르다: space-y-2가 그대로
+          적용돼 부제 바로 아래 8px만 떨어져 붙는다(Scene 간 구분선의 pb-12+pt-12=96px와는
+          별개 규칙 — 헤더의 일부처럼 보이는 게 목적, Scene 구분선을 복사한 게 아니다). */}
       <div className="space-y-2">
         <h1 className="text-2xl font-bold leading-tight break-keep">{localizedTitle}</h1>
         {localizedSubtitle && (
           <p className="text-sm leading-relaxed break-keep" style={{ color: "var(--dim)" }}>{localizedSubtitle}</p>
         )}
+        <div style={{ borderTop: "1px solid var(--border)" }} />
       </div>
 
-      {/* Episode 제목과 SCENE 1 사이도 Scene 간 구분선과 동일한 리듬으로 시작한다(아래에서
-          모든 Scene에 borderTop을 통일 적용) — 이 mt-4는 main의 gap-8과 합쳐져 "이전 Scene의
-          pb-12(48px)"에 해당하는 여백 역할을 한다, 그래야 첫 구분선 앞뒤 간격이 Scene 간
-          구분선 앞뒤 간격(pb-12 + pt-12)과 동일하게 느껴진다. */}
+      {/* 헤더 구분선과 SCENE 1 사이의 여백 — main의 gap-8 위에 살짝만 더 얹는다(Scene 간
+          구분선 리듬을 그대로 복사하지 않고 적당한 정도로). */}
       <div className="flex flex-col mt-4">
         {(() => {
           let sceneNumber = 0;
@@ -226,11 +229,13 @@ export default async function EpisodeDetailPage({ params }: Props) {
             // 오브젝트로 놓이는 느낌). crop metadata가 없는 기존 Scene은 imageFit이 null이라
             // 기존과 동일하게 "직접 Crop"으로 취급된다.
             //
-            // 높이를 기존 가로 사진의 폭(모바일 콘텐츠 폭, 대략 300~340px)과 비슷한 수준으로
-            // 제한한다 — width/height 모두 auto라 이 max-height만으로 원본 비율이 유지된 채
-            // 크기가 정해진다: 가로로 넓은 사진은 max-width(100%)에 먼저 걸려 기존처럼 폭을
-            // 꽉 채우고, 세로로 긴 사진은 이 max-height에 먼저 걸려 자연스럽게 좁아진다(별도
-            // orientation 판정 로직 없이 CSS만으로 두 경우를 구분).
+            // 높이를 "기존 가로 사진"(직접 Crop, 3:2 기준)이 모바일 콘텐츠 폭에서 실제로
+            // 차지하는 세로 높이(콘텐츠 폭 × 2/3 ≈ 220px, 330~336px 콘텐츠 폭 기준)와 맞춘다 —
+            // width/height 모두 auto라 이 max-height만으로 원본 비율이 유지된 채 크기가
+            // 정해진다: 가로로 넓은 사진은 max-width(100%)에 먼저 걸려 기존처럼 폭을 꽉 채우고
+            // (전형적인 가로 비율에서는 이 폭 기준 높이가 이미 220px 안팎이라 자연스럽게 맞음),
+            // 세로/정사각형처럼 좁은 사진은 이 max-height에 먼저 걸려 자연스럽게 좁아진다
+            // (별도 orientation 판정 로직 없이 CSS만으로 두 경우를 구분).
             const isContain = scene.imageFit === "contain";
             const sceneImage = scene.imageUrl && (
               isContain ? (
@@ -239,7 +244,7 @@ export default async function EpisodeDetailPage({ params }: Props) {
                   src={scene.imageUrl}
                   alt={localized.title ?? ""}
                   className="block"
-                  style={{ maxWidth: "100%", maxHeight: "340px", width: "auto", height: "auto" }}
+                  style={{ maxWidth: "100%", maxHeight: "220px", width: "auto", height: "auto" }}
                 />
               ) : (
                 <div className="relative w-full overflow-hidden" style={{ aspectRatio: scene.imageAspectRatio ?? "3/2" }}>
@@ -261,12 +266,12 @@ export default async function EpisodeDetailPage({ params }: Props) {
             return (
               <div
                 key={scene.id}
-                // 모든 Scene(첫 Scene 포함)이 동일한 구분선 규칙으로 시작한다 — Episode 제목
-                // 바로 다음에도 Scene 간 구분선과 완전히 같은 선(색상/두께/길이)이 온다.
-                // 마지막 Scene만 아래쪽 여백(py-12의 하단)을 없애 바로 다음 "다음 이야기"
+                // 첫 Scene 앞에는 이미 Episode 헤더 구분선이 있으므로 여기서 또 선을 긋지
+                // 않는다(first:pt-0으로 자기 몫의 위쪽 여백도 없앰 — 헤더 쪽 mt-4만 남는다).
+                // 마지막 Scene은 아래쪽 여백(py-12의 하단)을 없애 바로 다음 "다음 이야기"
                 // 구분선과 너무 멀어지지 않게 한다 — main의 gap-8만 남아 적당히 좁아진다.
-                className="py-12 last:pb-0"
-                style={{ borderTop: "1px solid var(--border)" }}
+                className="py-12 first:pt-0 last:pb-0"
+                style={i > 0 ? { borderTop: "1px solid var(--border)" } : undefined}
               >
                 {hasContent ? (
                   // 글을 읽고(제목→본문) → 사진으로 보완하고(선택) → 대표 문장으로 여운을 남기는 순서.
