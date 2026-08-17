@@ -5,7 +5,6 @@ import { prisma } from "@/lib/prisma";
 import { isAdmin } from "@/lib/admin";
 import { ENABLE_REGION_STORIES, ENABLE_TASTE_STORIES } from "@/lib/features";
 import { ENABLE_MULTILINGUAL } from "@/lib/pilotFlags";
-import { ENABLE_HANDWRITING_POC } from "@/lib/handwriting/features";
 import { resolveSpaceTypeLabel } from "@/lib/spaceType";
 import DeleteSpaceButton from "./DeleteSpaceButton";
 
@@ -85,7 +84,10 @@ export default async function AdminPage() {
             [[ 지역/취향 이야기 ]]
           </Link>
         )}
-        {/* EXPERIMENTAL ONLY — 손글씨 PoC, 기본 비활성. src/lib/handwriting/features.ts 참고 */}
+        {/* 손글씨 PoC 메뉴는 관리자 화면에서만 숨김 — 코드/페이지/API는 전부 그대로 보존되어 있고,
+            /admin/handwriting-test로 직접 접근하면 여전히 동작한다(ENABLE_HANDWRITING_POC 플래그 로직도
+            불변). 다시 노출하려면 아래 주석을 해제하고 파일 상단에
+            `import { ENABLE_HANDWRITING_POC } from "@/lib/handwriting/features";`를 다시 추가하면 된다.
         {ENABLE_HANDWRITING_POC && (
           <Link
             href="/admin/handwriting-test"
@@ -95,6 +97,7 @@ export default async function AdminPage() {
             [[ 손글씨 실험 ]]
           </Link>
         )}
+        */}
       </div>
 
       {spaces.length === 0 ? (
