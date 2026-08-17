@@ -68,6 +68,7 @@ export default async function EpisodeDetailPage({ params }: Props) {
           imagePositionX: s.imagePositionX ?? 0.5,
           imagePositionY: s.imagePositionY ?? 0.5,
           imageAspectRatio: (s.imageAspectRatio as "3/2" | "16/9") ?? "3/2",
+          imageFit: (s.imageFit as "cover" | "contain") ?? "cover",
         }))}
       />
     </main>

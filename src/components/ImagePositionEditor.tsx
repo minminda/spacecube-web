@@ -38,6 +38,9 @@ interface Props {
   minZoom?: number;
   maxZoom?: number;
   label?: string;
+  /** "cover"(기본, 기존 동작과 완전히 동일) | "contain"(원본 전체를 보여줌 — 드래그/확대가 의미 없으므로
+   *  그 컨트롤을 숨기고 정적 미리보기만 보여준다). 생략하면 기존 호출부(공간 대표사진 등)는 전혀 영향받지 않는다. */
+  fit?: "cover" | "contain";
 }
 
 export default function ImagePositionEditor({
@@ -47,6 +50,7 @@ export default function ImagePositionEditor({
   minZoom = 1,
   maxZoom = 3,
   label = "이미지",
+  fit = "cover",
 }: Props) {
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
@@ -106,55 +110,73 @@ export default function ImagePositionEditor({
 
       {value.imageUrl ? (
         <div className="space-y-3">
-          <div
-            ref={containerRef}
-            className="relative w-full overflow-hidden border select-none touch-none"
-            style={{ borderColor: "var(--border)", aspectRatio, cursor: "grab" }}
-            onPointerDown={handlePointerDown}
-            onPointerMove={handlePointerMove}
-            onPointerUp={handlePointerUp}
-            onPointerLeave={handlePointerUp}
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={value.imageUrl}
-              alt="미리보기"
-              draggable={false}
-              className="w-full h-full object-cover pointer-events-none"
-              style={{
-                objectPosition: `${value.positionX * 100}% ${value.positionY * 100}%`,
-                transform: `scale(${value.zoom})`,
-                transformOrigin: "center center",
-              }}
-            />
-            {uploading && (
-              <div className="absolute inset-0 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.5)" }}>
-                <span className="text-xs" style={{ color: "#fff" }}>업로드 중...</span>
-              </div>
-            )}
+          {fit === "contain" ? (
+            // 원본 전체 보기 — 자르지 않고 그대로 보여주므로 드래그/확대는 의미가 없어 정적 미리보기만 노출한다.
             <div
-              className="absolute bottom-1 right-1 text-[10px] px-1.5 py-0.5"
-              style={{ background: "rgba(0,0,0,0.55)", color: "#fff" }}
+              className="relative w-full overflow-hidden border"
+              style={{ borderColor: "var(--border)", aspectRatio, background: "var(--tag-bg)" }}
             >
-              드래그해서 위치 조절
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={value.imageUrl} alt="미리보기" className="w-full h-full object-contain" />
+              {uploading && (
+                <div className="absolute inset-0 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.5)" }}>
+                  <span className="text-xs" style={{ color: "#fff" }}>업로드 중...</span>
+                </div>
+              )}
             </div>
-          </div>
+          ) : (
+            <div
+              ref={containerRef}
+              className="relative w-full overflow-hidden border select-none touch-none"
+              style={{ borderColor: "var(--border)", aspectRatio, cursor: "grab" }}
+              onPointerDown={handlePointerDown}
+              onPointerMove={handlePointerMove}
+              onPointerUp={handlePointerUp}
+              onPointerLeave={handlePointerUp}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={value.imageUrl}
+                alt="미리보기"
+                draggable={false}
+                className="w-full h-full object-cover pointer-events-none"
+                style={{
+                  objectPosition: `${value.positionX * 100}% ${value.positionY * 100}%`,
+                  transform: `scale(${value.zoom})`,
+                  transformOrigin: "center center",
+                }}
+              />
+              {uploading && (
+                <div className="absolute inset-0 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.5)" }}>
+                  <span className="text-xs" style={{ color: "#fff" }}>업로드 중...</span>
+                </div>
+              )}
+              <div
+                className="absolute bottom-1 right-1 text-[10px] px-1.5 py-0.5"
+                style={{ background: "rgba(0,0,0,0.55)", color: "#fff" }}
+              >
+                드래그해서 위치 조절
+              </div>
+            </div>
+          )}
 
-          <div className="flex items-center gap-3">
-            <span className="text-xs w-10 flex-shrink-0" style={{ color: "var(--dim)" }}>확대</span>
-            <input
-              type="range"
-              min={minZoom}
-              max={maxZoom}
-              step={0.05}
-              value={value.zoom}
-              onChange={(e) => onChange({ ...value, zoom: Number(e.target.value) })}
-              className="flex-1"
-            />
-            <span className="text-xs w-10 text-right flex-shrink-0" style={{ color: "var(--dim)" }}>
-              {Math.round(value.zoom * 100)}%
-            </span>
-          </div>
+          {fit === "cover" && (
+            <div className="flex items-center gap-3">
+              <span className="text-xs w-10 flex-shrink-0" style={{ color: "var(--dim)" }}>확대</span>
+              <input
+                type="range"
+                min={minZoom}
+                max={maxZoom}
+                step={0.05}
+                value={value.zoom}
+                onChange={(e) => onChange({ ...value, zoom: Number(e.target.value) })}
+                className="flex-1"
+              />
+              <span className="text-xs w-10 text-right flex-shrink-0" style={{ color: "var(--dim)" }}>
+                {Math.round(value.zoom * 100)}%
+              </span>
+            </div>
+          )}
 
           <div className="flex gap-3">
             <label className="flex-1 text-xs text-center py-2 border cursor-pointer transition-colors hover:bg-[var(--fg)] hover:text-[var(--bg)]" style={{ borderColor: "var(--border)", color: "var(--dim)" }}>

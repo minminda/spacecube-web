@@ -871,6 +871,9 @@ model Scene {
   imagePositionX   Float?   @default(0.5)
   imagePositionY   Float?   @default(0.5)
   imageAspectRatio String?  @default("3/2")
+  // "cover"(기본, 비율에 맞춰 채우고 자름) | "contain"(원본 전체를 보여주고 남는 영역은 배경색으로 채움).
+  // 세로 사진처럼 어떻게 잘라도 의미가 훼손되는 경우를 위한 선택지 — null인 기존 행은 "cover"와 동일하게 취급한다.
+  imageFit         String?  @default("cover")
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 

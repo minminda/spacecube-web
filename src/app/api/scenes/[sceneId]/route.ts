@@ -39,6 +39,9 @@ export async function PATCH(req: Request, { params }: Props) {
   if (body.imageAspectRatio === "3/2" || body.imageAspectRatio === "16/9") {
     data.imageAspectRatio = body.imageAspectRatio;
   }
+  if (body.imageFit === "cover" || body.imageFit === "contain") {
+    data.imageFit = body.imageFit;
+  }
 
   const scene = await prisma.scene.update({ where: { id: sceneId }, data });
   return NextResponse.json(scene);

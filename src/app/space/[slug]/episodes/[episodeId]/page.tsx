@@ -216,18 +216,28 @@ export default async function EpisodeDetailPage({ params }: Props) {
             const bodyText = localized.content;
             const highlight = localized.summary && localized.summary.trim() ? localized.summary.trim() : null;
 
+            // "원본 전체 보기"(contain)는 세로 사진처럼 어떻게 잘라도 의미가 훼손되는 경우를 위한
+            // 선택지 — crop metadata가 없는 기존 Scene은 imageFit이 null이라 기존과 동일하게 "cover"로 취급된다.
+            const isContain = scene.imageFit === "contain";
             const sceneImage = scene.imageUrl && (
-              <div className="relative w-full overflow-hidden" style={{ aspectRatio: scene.imageAspectRatio ?? "3/2" }}>
+              <div
+                className="relative w-full overflow-hidden"
+                style={{ aspectRatio: scene.imageAspectRatio ?? "3/2", background: isContain ? "var(--tag-bg)" : undefined }}
+              >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={scene.imageUrl}
                   alt={localized.title ?? ""}
-                  className="w-full h-full object-cover"
-                  style={{
-                    objectPosition: `${(scene.imagePositionX ?? 0.5) * 100}% ${(scene.imagePositionY ?? 0.5) * 100}%`,
-                    transform: `scale(${scene.imageZoom ?? 1})`,
-                    transformOrigin: "center center",
-                  }}
+                  className={isContain ? "w-full h-full object-contain" : "w-full h-full object-cover"}
+                  style={
+                    isContain
+                      ? undefined
+                      : {
+                          objectPosition: `${(scene.imagePositionX ?? 0.5) * 100}% ${(scene.imagePositionY ?? 0.5) * 100}%`,
+                          transform: `scale(${scene.imageZoom ?? 1})`,
+                          transformOrigin: "center center",
+                        }
+                  }
                 />
               </div>
             );

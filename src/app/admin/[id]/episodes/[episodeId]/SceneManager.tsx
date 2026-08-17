@@ -18,6 +18,7 @@ interface SceneData {
   imagePositionX: number;
   imagePositionY: number;
   imageAspectRatio: "3/2" | "16/9";
+  imageFit: "cover" | "contain";
 }
 
 export default function SceneManager({ episodeId, initialScenes }: { episodeId: string; initialScenes: SceneData[] }) {
@@ -52,6 +53,7 @@ export default function SceneManager({ episodeId, initialScenes }: { episodeId: 
         imagePositionX: 0.5,
         imagePositionY: 0.5,
         imageAspectRatio: "3/2",
+        imageFit: "cover",
       },
     ]);
   }
@@ -144,8 +146,16 @@ function SceneCard({
     imageUrl: scene.imageUrl, zoom: scene.imageZoom, positionX: scene.imagePositionX, positionY: scene.imagePositionY,
   });
   const [aspectRatio, setAspectRatio] = useState<"3/2" | "16/9">(scene.imageAspectRatio);
+  const [imageFit, setImageFit] = useState<"cover" | "contain">(scene.imageFit);
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+
+  // 사진을 새로 선택/교체/삭제하면(위치·확대 조절이 아니라 이미지 자체가 바뀌면) 이전 사진에 맞춰
+  // 골랐던 "원본 전체 보기" 설정이 새 사진에 잘못 이어붙지 않도록 기본값(화면 채우기)으로 되돌린다.
+  function handleImageChange(next: ImageTransform) {
+    if (next.imageUrl !== image.imageUrl) setImageFit("cover");
+    setImage(next);
+  }
 
   const validation = validateSceneFields(title, content);
 
@@ -165,6 +175,7 @@ function SceneCard({
         imagePositionX: image.positionX,
         imagePositionY: image.positionY,
         imageAspectRatio: aspectRatio,
+        imageFit,
       }),
     });
     setSaving(false);
@@ -238,7 +249,31 @@ function SceneCard({
             </button>
           ))}
         </div>
-        <ImagePositionEditor value={image} onChange={setImage} aspectRatio={aspectRatio} label="" />
+
+        {image.imageUrl && (
+          <div className="flex gap-2">
+            {([
+              { key: "cover", text: "화면 채우기" },
+              { key: "contain", text: "원본 전체 보기" },
+            ] as const).map((opt) => (
+              <button
+                key={opt.key}
+                type="button"
+                onClick={() => setImageFit(opt.key)}
+                className="text-xs px-2 py-1 border transition-colors"
+                style={{
+                  borderColor: imageFit === opt.key ? "var(--fg)" : "var(--border)",
+                  background: imageFit === opt.key ? "var(--fg)" : "transparent",
+                  color: imageFit === opt.key ? "var(--bg)" : "var(--dim)",
+                }}
+              >
+                {opt.text}
+              </button>
+            ))}
+          </div>
+        )}
+
+        <ImagePositionEditor value={image} onChange={handleImageChange} aspectRatio={aspectRatio} fit={imageFit} label="" />
       </div>
 
       <div className="flex items-center justify-between">
