@@ -32,7 +32,9 @@ interface Props {
   aspectOptions?: AspectOption[];
   /** aspectOptions 없이 비율 하나로 고정하려면(Space 대표사진: 기존 Hero 비율) */
   fixedAspect?: number;
-  onConfirm: (croppedFile: File) => void;
+  /** width/height는 실제로 잘린 결과의 원본 픽셀 크기 — 호출부가 이미지를 다시 로드하지
+   *  않고도 바로 저장할 수 있도록 함께 넘긴다(방문자 화면의 레이아웃 계산에 쓰임). */
+  onConfirm: (croppedFile: File, width: number, height: number) => void;
   onCancel: () => void;
 }
 
@@ -57,6 +59,7 @@ export default function ImageCropDialog({ file, aspectOptions, fixedAspect, onCo
   const [box, setBox] = useState<PixelRect | null>(null);
   const [stage, setStage] = useState<"edit" | "preview">("edit");
   const [croppedFile, setCroppedFile] = useState<File | null>(null);
+  const [croppedDims, setCroppedDims] = useState<{ w: number; h: number } | null>(null);
   const [croppedPreviewUrl, setCroppedPreviewUrl] = useState<string | null>(null);
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState("");
@@ -114,6 +117,7 @@ export default function ImageCropDialog({ file, aspectOptions, fixedAspect, onCo
       );
       const result = await cropImageToFile(img, naturalRect, file.name.replace(/\.\w+$/, "") + "-cropped.jpg");
       setCroppedFile(result);
+      setCroppedDims({ w: Math.max(1, Math.round(naturalRect.width)), h: Math.max(1, Math.round(naturalRect.height)) });
       setCroppedPreviewUrl(URL.createObjectURL(result));
       setStage("preview");
     } catch {
@@ -127,11 +131,12 @@ export default function ImageCropDialog({ file, aspectOptions, fixedAspect, onCo
     if (croppedPreviewUrl) URL.revokeObjectURL(croppedPreviewUrl);
     setCroppedPreviewUrl(null);
     setCroppedFile(null);
+    setCroppedDims(null);
     setStage("edit");
   }
 
   function confirmFinal() {
-    if (croppedFile) onConfirm(croppedFile);
+    if (croppedFile && croppedDims) onConfirm(croppedFile, croppedDims.w, croppedDims.h);
   }
 
   const btnBase = "flex-1 min-h-[44px] text-sm py-2.5 px-3 border transition-colors";

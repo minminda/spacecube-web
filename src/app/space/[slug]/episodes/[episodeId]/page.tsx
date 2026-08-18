@@ -15,6 +15,7 @@ import { LOCALE_COOKIE_NAME, resolveInitialLocale, availableLocalesForSpace } fr
 import { resolveLocalizedField } from "@/lib/i18nContent";
 import { DEFAULT_LOCALE, type LocaleCode } from "@/lib/locales";
 import { ENABLE_MULTILINGUAL } from "@/lib/pilotFlags";
+import { layoutSceneImages, ROW_GAP, ROW_MARGIN_TOP } from "@/lib/sceneImageLayout";
 
 interface Props {
   params: Promise<{ slug: string; episodeId: string }>;
@@ -47,7 +48,13 @@ export default async function EpisodeDetailPage({ params }: Props) {
 
   const episode = await prisma.episode.findUnique({
     where: { id: episodeId },
-    include: { scenes: { where: { isActive: true }, orderBy: { displayOrder: "asc" } } },
+    include: {
+      scenes: {
+        where: { isActive: true },
+        orderBy: { displayOrder: "asc" },
+        include: { images: { orderBy: { displayOrder: "asc" } } },
+      },
+    },
   });
   if (!episode || episode.spaceId !== space.id || !episode.published) notFound();
 
@@ -237,7 +244,36 @@ export default async function EpisodeDetailPage({ params }: Props) {
             // 세로/정사각형처럼 좁은 사진은 이 max-height에 먼저 걸려 자연스럽게 좁아진다
             // (별도 orientation 판정 로직 없이 CSS만으로 두 경우를 구분).
             const isContain = scene.imageFit === "contain";
-            const sceneImage = scene.imageUrl && (
+            // Scene당 여러 장(최대 3장) — 관리자가 새 다중 이미지 UI로 실제 편집한 Scene만
+            // scene.images 행이 있다. 있으면 이걸로 에디토리얼 배치(landscape 단독 행 +
+            // narrow 2장씩 나란히, 각자 원본 crop 비율 그대로 유지)를 렌더한다. 없으면(기존
+            // 단일 이미지 Scene, 아직 손 안 댄 경우) 아래 기존 렌더 경로를 그대로 쓴다 — 두
+            // 경로가 섞이지 않으므로 기존 이미지가 깨질 일이 없다.
+            const layoutRows = scene.images.length > 0
+              ? layoutSceneImages(scene.images.map((img) => ({ imageUrl: img.imageUrl, width: img.width, height: img.height })))
+              : [];
+
+            const sceneImage = layoutRows.length > 0 ? (
+              <div>
+                {layoutRows.map((row, ri) => (
+                  <div key={ri} className="flex" style={{ gap: ROW_GAP, marginTop: ri > 0 ? ROW_MARGIN_TOP : undefined }}>
+                    {row.images.map((img, ii) => (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        key={ii}
+                        src={img.imageUrl}
+                        alt={localized.title ?? ""}
+                        loading="lazy"
+                        className="block flex-shrink-0"
+                        width={img.renderWidth}
+                        height={img.renderHeight}
+                        style={{ width: img.renderWidth, height: img.renderHeight }}
+                      />
+                    ))}
+                  </div>
+                ))}
+              </div>
+            ) : scene.imageUrl ? (
               isContain ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
@@ -261,7 +297,7 @@ export default async function EpisodeDetailPage({ params }: Props) {
                   />
                 </div>
               )
-            );
+            ) : null;
 
             return (
               <div

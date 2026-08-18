@@ -18,7 +18,12 @@ export default async function EpisodeDetailPage({ params }: Props) {
     prisma.space.findUnique({ where: { id: spaceId }, select: { id: true, name: true } }),
     prisma.episode.findUnique({
       where: { id: episodeId },
-      include: { scenes: { orderBy: { displayOrder: "asc" } } },
+      include: {
+        scenes: {
+          orderBy: { displayOrder: "asc" },
+          include: { images: { orderBy: { displayOrder: "asc" } } },
+        },
+      },
     }),
   ]);
   if (!space || !episode || episode.spaceId !== spaceId) notFound();
@@ -69,6 +74,7 @@ export default async function EpisodeDetailPage({ params }: Props) {
           imagePositionY: s.imagePositionY ?? 0.5,
           imageAspectRatio: (s.imageAspectRatio as "3/2" | "16/9") ?? "3/2",
           imageFit: (s.imageFit as "cover" | "contain") ?? "cover",
+          images: s.images.map((img) => ({ imageUrl: img.imageUrl, width: img.width, height: img.height })),
         }))}
       />
     </main>

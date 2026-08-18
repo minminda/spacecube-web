@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import ImageCropDialog, { type AspectOption } from "@/components/ImageCropDialog";
+import { loadImage } from "@/lib/imageCrop";
 import { useToast } from "@/hooks/useToast";
 import Toast from "@/components/Toast";
 import { validateSceneFields } from "@/lib/sceneInput";
@@ -10,13 +11,16 @@ import { validateSceneFields } from "@/lib/sceneInput";
 /* Scene 사진은 파일을 고른 직후(업로드 전) ImageCropDialog로 실제 잘라낼 영역을 정하고,
    잘린 결과만 업로드한다 — 예전의 "업로드 후 프레임 안에서 드래그/확대" 방식은 더 이상
    쓰지 않는다(중복 편집 UX 방지). 자유/3:2/16:9 중 무엇으로 잘랐든 결과는 항상 그 사진
-   자체의 비율로 자연스럽게 표시된다(imageFit="contain", 기존 렌더링 경로 그대로 재사용) —
-   3:2/16:9는 crop box의 비율을 고정할 뿐 표시 방식을 바꾸지 않는다. */
+   자체의 비율로 자연스럽게 표시된다 — 3:2/16:9는 crop box의 비율을 고정할 뿐 표시
+   방식을 바꾸지 않는다. Scene당 최대 3장까지 등록 가능(에디토리얼 배치는 방문자
+   화면의 src/lib/sceneImageLayout.ts가 담당). */
 const SCENE_ASPECT_OPTIONS: AspectOption[] = [
   { label: "자유", value: null },
   { label: "3:2", value: 3 / 2 },
   { label: "16:9", value: 16 / 9 },
 ];
+
+const MAX_IMAGES = 3;
 
 const CLOUDINARY_URL = `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload`;
 const UPLOAD_PRESET = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET!;
@@ -34,6 +38,12 @@ async function uploadToCloudinary(file: File): Promise<string | null> {
   }
 }
 
+interface SceneImageData {
+  imageUrl: string;
+  width: number;
+  height: number;
+}
+
 interface SceneData {
   id: string;
   title: string;
@@ -46,6 +56,7 @@ interface SceneData {
   imagePositionY: number;
   imageAspectRatio: "3/2" | "16/9";
   imageFit: "cover" | "contain";
+  images: SceneImageData[];
 }
 
 export default function SceneManager({ episodeId, initialScenes }: { episodeId: string; initialScenes: SceneData[] }) {
@@ -81,6 +92,7 @@ export default function SceneManager({ episodeId, initialScenes }: { episodeId: 
         imagePositionY: 0.5,
         imageAspectRatio: "3/2",
         imageFit: "cover",
+        images: [],
       },
     ]);
   }
@@ -155,16 +167,6 @@ export default function SceneManager({ episodeId, initialScenes }: { episodeId: 
   );
 }
 
-interface SceneImageState {
-  imageUrl: string;
-  imageZoom: number;
-  imagePositionX: number;
-  imagePositionY: number;
-  imageFit: "cover" | "contain";
-}
-
-const EMPTY_IMAGE: SceneImageState = { imageUrl: "", imageZoom: 1, imagePositionX: 0.5, imagePositionY: 0.5, imageFit: "cover" };
-
 function SceneCard({
   scene, index, total, onMove, onDelete, onToast,
 }: {
@@ -179,23 +181,35 @@ function SceneCard({
   const [content, setContent] = useState(scene.content);
   const [summary, setSummary] = useState(scene.summary);
   const [isActive, setIsActive] = useState(scene.isActive);
-  const [image, setImage] = useState<SceneImageState>({
-    imageUrl: scene.imageUrl, imageZoom: scene.imageZoom, imagePositionX: scene.imagePositionX, imagePositionY: scene.imagePositionY, imageFit: scene.imageFit,
+  // 다중 이미지 목록 — scene.images(신규 구조)가 있으면 그대로, 없고 레거시 단일 이미지만
+  // 있으면 그 사진을 "이미지 1"로 취급한다(width/height=0은 "아직 크기 미확인" 표시 —
+  // 저장 시점에 로드해서 확보한다). 기존 데이터를 삭제/재등록하게 만들지 않기 위함.
+  const [images, setImages] = useState<SceneImageData[]>(() => {
+    if (scene.images.length > 0) return scene.images;
+    if (scene.imageUrl) return [{ imageUrl: scene.imageUrl, width: 0, height: 0 }];
+    return [];
   });
   const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [replaceIndex, setReplaceIndex] = useState<number | null>(null); // null=추가, 숫자=그 인덱스 교체
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   const validation = validateSceneFields(title, content);
 
-  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+  function handleAddFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
-    if (file) setPendingFile(file);
+    if (file) { setReplaceIndex(null); setPendingFile(file); }
     e.target.value = "";
   }
 
-  async function handleCropConfirm(croppedFile: File) {
+  function handleReplaceFileChange(idx: number, e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (file) { setReplaceIndex(idx); setPendingFile(file); }
+    e.target.value = "";
+  }
+
+  async function handleCropConfirm(croppedFile: File, width: number, height: number) {
     setPendingFile(null);
     setUploading(true);
     const url = await uploadToCloudinary(croppedFile);
@@ -204,18 +218,53 @@ function SceneCard({
       onToast("이미지 업로드에 실패했어요. 다시 시도해주세요.");
       return;
     }
-    // 잘린 결과 자체가 최종 이미지라 위치/확대는 더 이상 의미가 없다 — 기본값으로 두고
-    // "원본 비율 사용"(contain, 프레임 없이 사진 자체 크기로 표시)으로 저장한다.
-    setImage({ imageUrl: url, imageZoom: 1, imagePositionX: 0.5, imagePositionY: 0.5, imageFit: "contain" });
+    setImages((prev) => {
+      if (replaceIndex !== null) {
+        const next = [...prev];
+        next[replaceIndex] = { imageUrl: url, width, height };
+        return next;
+      }
+      return prev.length < MAX_IMAGES ? [...prev, { imageUrl: url, width, height }] : prev;
+    });
+    setReplaceIndex(null);
   }
 
-  function handleRemoveImage() {
-    setImage(EMPTY_IMAGE);
+  function removeImage(idx: number) {
+    setImages((prev) => prev.filter((_, i) => i !== idx));
+  }
+
+  function moveImage(idx: number, direction: "up" | "down") {
+    setImages((prev) => {
+      const j = direction === "up" ? idx - 1 : idx + 1;
+      if (j < 0 || j >= prev.length) return prev;
+      const next = [...prev];
+      [next[idx], next[j]] = [next[j], next[idx]];
+      return next;
+    });
   }
 
   async function save() {
     if (!validation.ok) return;
     setSaving(true);
+
+    // 레거시 단일 이미지를 승격했지만 아직 크기를 모르는 항목(width/height=0)이 있으면
+    // 저장 직전에 로드해서 확보한다 — 실패하면 저장을 중단해 데이터가 조용히 유실되지
+    // 않게 한다(기존 사진은 레거시 필드에 그대로 남아있으니 재시도해도 안전).
+    let resolvedImages: SceneImageData[];
+    try {
+      resolvedImages = await Promise.all(
+        images.map(async (img) => {
+          if (img.width > 0 && img.height > 0) return img;
+          const el = await loadImage(img.imageUrl);
+          return { imageUrl: img.imageUrl, width: el.naturalWidth, height: el.naturalHeight };
+        }),
+      );
+    } catch {
+      setSaving(false);
+      onToast("이미지 정보를 확인하지 못했어요. 다시 시도해주세요.");
+      return;
+    }
+
     const res = await fetch(`/api/scenes/${scene.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -224,11 +273,7 @@ function SceneCard({
         content,
         summary: summary || null,
         isActive,
-        imageUrl: image.imageUrl || null,
-        imageZoom: image.imageZoom,
-        imagePositionX: image.imagePositionX,
-        imagePositionY: image.imagePositionY,
-        imageFit: image.imageFit,
+        images: resolvedImages,
       }),
     });
     setSaving(false);
@@ -284,35 +329,49 @@ function SceneCard({
         </p>
       </div>
 
-      <div className="space-y-2">
-        <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>사진</p>
-        {image.imageUrl && (
-          // 방문자 화면과 동일한 기준(자연 크기, 최대 220px 높이)으로 미리보기 — 실제 잘린
-          // 결과를 그대로 보여준다(별도 프레임/배경 없음).
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={image.imageUrl}
-            alt=""
-            className="block border"
-            style={{ borderColor: "var(--border)", maxWidth: "100%", maxHeight: "220px", width: "auto", height: "auto" }}
-          />
-        )}
-        <div className="flex gap-3">
-          <label className="text-xs py-2 px-3 text-center border cursor-pointer transition-colors hover:bg-[var(--fg)] hover:text-[var(--bg)]" style={{ borderColor: "var(--border)", color: "var(--dim)" }}>
-            {uploading ? "업로드 중..." : image.imageUrl ? "이미지 교체" : "사진 선택"}
-            <input type="file" accept="image/*" onChange={handleFileChange} disabled={uploading} className="hidden" />
+      <div className="space-y-3">
+        <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>
+          사진{images.length > 0 && ` (${images.length}/${MAX_IMAGES})`}
+        </p>
+
+        {images.map((img, i) => (
+          <div key={i} className="flex items-start gap-3">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={img.imageUrl}
+              alt=""
+              className="block border flex-shrink-0"
+              style={{ borderColor: "var(--border)", maxWidth: "45%", maxHeight: "140px", width: "auto", height: "auto" }}
+            />
+            <div className="flex flex-col gap-1.5">
+              <div className="flex gap-1">
+                <button onClick={() => moveImage(i, "up")} disabled={i === 0} className="text-xs border px-2 py-1 disabled:opacity-30" style={{ borderColor: "var(--border)", color: "var(--dim)" }}>▲</button>
+                <button onClick={() => moveImage(i, "down")} disabled={i === images.length - 1} className="text-xs border px-2 py-1 disabled:opacity-30" style={{ borderColor: "var(--border)", color: "var(--dim)" }}>▼</button>
+              </div>
+              <label className="text-xs py-1.5 px-2.5 text-center border cursor-pointer transition-colors hover:bg-[var(--fg)] hover:text-[var(--bg)]" style={{ borderColor: "var(--border)", color: "var(--dim)" }}>
+                교체
+                <input type="file" accept="image/*" onChange={(e) => handleReplaceFileChange(i, e)} disabled={uploading} className="hidden" />
+              </label>
+              <button
+                type="button"
+                onClick={() => removeImage(i)}
+                className="text-xs py-1.5 px-2.5 border transition-colors hover:border-red-500 hover:text-red-500"
+                style={{ borderColor: "var(--border)", color: "var(--dim)" }}
+              >
+                삭제
+              </button>
+            </div>
+          </div>
+        ))}
+
+        {images.length < MAX_IMAGES ? (
+          <label className="inline-block text-xs py-2 px-3 text-center border cursor-pointer transition-colors hover:bg-[var(--fg)] hover:text-[var(--bg)]" style={{ borderColor: "var(--border)", color: "var(--dim)" }}>
+            {uploading ? "업로드 중..." : "+ 사진 추가"}
+            <input type="file" accept="image/*" onChange={handleAddFileChange} disabled={uploading} className="hidden" />
           </label>
-          {image.imageUrl && (
-            <button
-              type="button"
-              onClick={handleRemoveImage}
-              className="text-xs px-3 py-2 border transition-colors hover:border-red-500 hover:text-red-500"
-              style={{ borderColor: "var(--border)", color: "var(--dim)" }}
-            >
-              삭제
-            </button>
-          )}
-        </div>
+        ) : (
+          <p className="text-xs" style={{ color: "var(--border)" }}>최대 {MAX_IMAGES}장까지 등록할 수 있어요.</p>
+        )}
       </div>
 
       {pendingFile && (
@@ -320,7 +379,7 @@ function SceneCard({
           file={pendingFile}
           aspectOptions={SCENE_ASPECT_OPTIONS}
           onConfirm={handleCropConfirm}
-          onCancel={() => setPendingFile(null)}
+          onCancel={() => { setPendingFile(null); setReplaceIndex(null); }}
         />
       )}
 

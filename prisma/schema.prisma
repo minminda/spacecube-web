@@ -879,6 +879,28 @@ model Scene {
 
   episode      Episode            @relation(fields: [episodeId], references: [id], onDelete: Cascade)
   translations SceneTranslation[]
+  images       SceneImage[]
+}
+
+// Scene당 여러 장(최대 3장, UI에서 제한) 지원 — imageUrl/imageZoom/imagePositionX/Y/imageAspectRatio/
+// imageFit(위)은 이 모델 도입 이전의 단일 이미지 레거시 필드로 그대로 남겨둔다: 어떤 Scene도 이
+// 테이블에 행이 없으면 방문자 화면이 자동으로 그 레거시 필드 기준(기존 cover/contain 렌더링)으로
+// 표시한다 — 기존 데이터는 손대지 않고, 관리자가 이 Scene에 새 다중 이미지 UI로 실제로 편집할
+// 때만(예: 두 번째 사진 추가) 이 테이블에 행이 생긴다. width/height는 ImageCropDialog가 잘라낸
+// 결과의 실제 픽셀 크기를 그대로 저장한 것 — 방문자 화면에서 이미지 로드 전에도 서버에서 바로
+// 정확한 비율/크기로 레이아웃을 계산할 수 있게 한다(레이아웃 시프트 방지, 재크롭 없이 원본 비율 유지).
+model SceneImage {
+  id           String   @id @default(cuid())
+  sceneId      String
+  imageUrl     String
+  width        Int
+  height       Int
+  displayOrder Int      @default(0)
+  createdAt    DateTime @default(now())
+
+  scene Scene @relation(fields: [sceneId], references: [id], onDelete: Cascade)
+
+  @@index([sceneId])
 }
 
 // Scene 제목/본문(content)의 언어별 번역본 — "에피소드 본문"의 실제 저장 단위

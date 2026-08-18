@@ -43,7 +43,35 @@ export async function PATCH(req: Request, { params }: Props) {
     data.imageFit = body.imageFit;
   }
 
-  const scene = await prisma.scene.update({ where: { id: sceneId }, data });
+  // 다중 이미지(최대 3장, 서버에서도 안전하게 재확인) — 보내오면 이 Scene의 기존 SceneImage
+  // 행을 통째로 새 목록으로 교체한다(개별 id 추적 없이 순서대로 재생성, displayOrder=배열 인덱스).
+  // 레거시 단일 이미지 필드(imageUrl 등, 위)는 그대로 둔다 — images가 있으면 방문자 화면이
+  // 그쪽을 우선 사용하므로 굳이 지울 필요가 없다.
+  const images: { imageUrl: string; width: number; height: number }[] | null = Array.isArray(body.images)
+    ? body.images
+        .filter((img: unknown): img is { imageUrl: unknown; width: unknown; height: unknown } => typeof img === "object" && img !== null)
+        .map((img: { imageUrl: unknown; width: unknown; height: unknown }) => ({
+          imageUrl: typeof img.imageUrl === "string" ? img.imageUrl : "",
+          width: typeof img.width === "number" && img.width > 0 ? Math.round(img.width) : 0,
+          height: typeof img.height === "number" && img.height > 0 ? Math.round(img.height) : 0,
+        }))
+        .filter((img: { imageUrl: string; width: number; height: number }) => img.imageUrl && img.width > 0 && img.height > 0)
+        .slice(0, 3)
+    : null;
+
+  const scene = await prisma.$transaction(async (tx) => {
+    const updated = await tx.scene.update({ where: { id: sceneId }, data });
+    if (images) {
+      await tx.sceneImage.deleteMany({ where: { sceneId } });
+      if (images.length > 0) {
+        await tx.sceneImage.createMany({
+          data: images.map((img, i) => ({ sceneId, imageUrl: img.imageUrl, width: img.width, height: img.height, displayOrder: i })),
+        });
+      }
+    }
+    return updated;
+  });
+
   return NextResponse.json(scene);
 }
 
