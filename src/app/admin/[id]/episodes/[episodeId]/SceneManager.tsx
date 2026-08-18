@@ -2,11 +2,37 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import ImagePositionEditor, { type ImageTransform } from "@/components/ImagePositionEditor";
+import ImageCropDialog, { type AspectOption } from "@/components/ImageCropDialog";
 import { useToast } from "@/hooks/useToast";
 import Toast from "@/components/Toast";
 import { validateSceneFields } from "@/lib/sceneInput";
-import { finalizeImageCrop } from "@/lib/imageCrop";
+
+/* Scene 사진은 파일을 고른 직후(업로드 전) ImageCropDialog로 실제 잘라낼 영역을 정하고,
+   잘린 결과만 업로드한다 — 예전의 "업로드 후 프레임 안에서 드래그/확대" 방식은 더 이상
+   쓰지 않는다(중복 편집 UX 방지). 자유/3:2/16:9 중 무엇으로 잘랐든 결과는 항상 그 사진
+   자체의 비율로 자연스럽게 표시된다(imageFit="contain", 기존 렌더링 경로 그대로 재사용) —
+   3:2/16:9는 crop box의 비율을 고정할 뿐 표시 방식을 바꾸지 않는다. */
+const SCENE_ASPECT_OPTIONS: AspectOption[] = [
+  { label: "자유", value: null },
+  { label: "3:2", value: 3 / 2 },
+  { label: "16:9", value: 16 / 9 },
+];
+
+const CLOUDINARY_URL = `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload`;
+const UPLOAD_PRESET = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET!;
+
+async function uploadToCloudinary(file: File): Promise<string | null> {
+  const data = new FormData();
+  data.append("file", file);
+  data.append("upload_preset", UPLOAD_PRESET);
+  try {
+    const res = await fetch(CLOUDINARY_URL, { method: "POST", body: data });
+    const result = await res.json();
+    return result.secure_url ?? null;
+  } catch {
+    return null;
+  }
+}
 
 interface SceneData {
   id: string;
@@ -129,6 +155,16 @@ export default function SceneManager({ episodeId, initialScenes }: { episodeId: 
   );
 }
 
+interface SceneImageState {
+  imageUrl: string;
+  imageZoom: number;
+  imagePositionX: number;
+  imagePositionY: number;
+  imageFit: "cover" | "contain";
+}
+
+const EMPTY_IMAGE: SceneImageState = { imageUrl: "", imageZoom: 1, imagePositionX: 0.5, imagePositionY: 0.5, imageFit: "cover" };
+
 function SceneCard({
   scene, index, total, onMove, onDelete, onToast,
 }: {
@@ -143,34 +179,43 @@ function SceneCard({
   const [content, setContent] = useState(scene.content);
   const [summary, setSummary] = useState(scene.summary);
   const [isActive, setIsActive] = useState(scene.isActive);
-  const [image, setImage] = useState<ImageTransform>({
-    imageUrl: scene.imageUrl, zoom: scene.imageZoom, positionX: scene.imagePositionX, positionY: scene.imagePositionY,
+  const [image, setImage] = useState<SceneImageState>({
+    imageUrl: scene.imageUrl, imageZoom: scene.imageZoom, imagePositionX: scene.imagePositionX, imagePositionY: scene.imagePositionY, imageFit: scene.imageFit,
   });
-  const [aspectRatio, setAspectRatio] = useState<"3/2" | "16/9">(scene.imageAspectRatio);
-  const [imageFit, setImageFit] = useState<"cover" | "contain">(scene.imageFit);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
-  // 사진을 새로 선택/교체/삭제하면(위치·확대 조절이 아니라 이미지 자체가 바뀌면) 이전 사진에 맞춰
-  // 골랐던 "원본 전체 보기" 설정이 새 사진에 잘못 이어붙지 않도록 기본값(화면 채우기)으로 되돌린다.
-  function handleImageChange(next: ImageTransform) {
-    if (next.imageUrl !== image.imageUrl) setImageFit("cover");
-    setImage(next);
+  const validation = validateSceneFields(title, content);
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (file) setPendingFile(file);
+    e.target.value = "";
   }
 
-  const validation = validateSceneFields(title, content);
+  async function handleCropConfirm(croppedFile: File) {
+    setPendingFile(null);
+    setUploading(true);
+    const url = await uploadToCloudinary(croppedFile);
+    setUploading(false);
+    if (!url) {
+      onToast("이미지 업로드에 실패했어요. 다시 시도해주세요.");
+      return;
+    }
+    // 잘린 결과 자체가 최종 이미지라 위치/확대는 더 이상 의미가 없다 — 기본값으로 두고
+    // "원본 비율 사용"(contain, 프레임 없이 사진 자체 크기로 표시)으로 저장한다.
+    setImage({ imageUrl: url, imageZoom: 1, imagePositionX: 0.5, imagePositionY: 0.5, imageFit: "contain" });
+  }
+
+  function handleRemoveImage() {
+    setImage(EMPTY_IMAGE);
+  }
 
   async function save() {
     if (!validation.ok) return;
     setSaving(true);
-
-    // "직접 Crop"이면 드래그/확대로 고른 영역을 실제로 잘라 Cloudinary에 새 이미지로 올리고
-    // 그 결과를 저장한다(원본은 CSS로 가려서 보여주는 대신, 잘린 결과 이미지 자체를 저장) —
-    // "원본 비율 사용"(contain)은 애초에 자르지 않으므로 그대로 둔다. 조정한 적이 없으면
-    // (기본 위치/배율 그대로) 내부적으로 다시 자르지 않고 넘어간다.
-    const finalImage = imageFit === "cover" ? await finalizeImageCrop(image, aspectRatio) : image;
-    if (finalImage.imageUrl !== image.imageUrl) setImage(finalImage);
-
     const res = await fetch(`/api/scenes/${scene.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -179,12 +224,11 @@ function SceneCard({
         content,
         summary: summary || null,
         isActive,
-        imageUrl: finalImage.imageUrl || null,
-        imageZoom: finalImage.zoom,
-        imagePositionX: finalImage.positionX,
-        imagePositionY: finalImage.positionY,
-        imageAspectRatio: aspectRatio,
-        imageFit,
+        imageUrl: image.imageUrl || null,
+        imageZoom: image.imageZoom,
+        imagePositionX: image.imagePositionX,
+        imagePositionY: image.imagePositionY,
+        imageFit: image.imageFit,
       }),
     });
     setSaving(false);
@@ -241,53 +285,44 @@ function SceneCard({
       </div>
 
       <div className="space-y-2">
-        {/* 사진 표현 방식 — 원본 비율(프레임 없이 사진 자체 크기·비율 그대로) vs 직접 Crop(비율을
-            골라 위치/확대를 조절). Episode Scene 사진은 모두 같은 가로 카드로 강제하지 않는다. */}
+        <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>사진</p>
         {image.imageUrl && (
-          <div className="flex gap-2">
-            {([
-              { key: "contain", text: "원본 비율 사용" },
-              { key: "cover", text: "직접 Crop" },
-            ] as const).map((opt) => (
-              <button
-                key={opt.key}
-                type="button"
-                onClick={() => setImageFit(opt.key)}
-                className="text-xs px-2 py-1 border transition-colors"
-                style={{
-                  borderColor: imageFit === opt.key ? "var(--fg)" : "var(--border)",
-                  background: imageFit === opt.key ? "var(--fg)" : "transparent",
-                  color: imageFit === opt.key ? "var(--bg)" : "var(--dim)",
-                }}
-              >
-                {opt.text}
-              </button>
-            ))}
-          </div>
+          // 방문자 화면과 동일한 기준(자연 크기, 최대 220px 높이)으로 미리보기 — 실제 잘린
+          // 결과를 그대로 보여준다(별도 프레임/배경 없음).
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={image.imageUrl}
+            alt=""
+            className="block border"
+            style={{ borderColor: "var(--border)", maxWidth: "100%", maxHeight: "220px", width: "auto", height: "auto" }}
+          />
         )}
-
-        {imageFit === "cover" && (
-          <div className="flex gap-2">
-            {(["3/2", "16/9"] as const).map((ratio) => (
-              <button
-                key={ratio}
-                type="button"
-                onClick={() => setAspectRatio(ratio)}
-                className="text-xs px-2 py-1 border transition-colors"
-                style={{
-                  borderColor: aspectRatio === ratio ? "var(--fg)" : "var(--border)",
-                  background: aspectRatio === ratio ? "var(--fg)" : "transparent",
-                  color: aspectRatio === ratio ? "var(--bg)" : "var(--dim)",
-                }}
-              >
-                {ratio === "3/2" ? "3:2" : "16:9"}
-              </button>
-            ))}
-          </div>
-        )}
-
-        <ImagePositionEditor value={image} onChange={handleImageChange} aspectRatio={aspectRatio} fit={imageFit} label="" />
+        <div className="flex gap-3">
+          <label className="text-xs py-2 px-3 text-center border cursor-pointer transition-colors hover:bg-[var(--fg)] hover:text-[var(--bg)]" style={{ borderColor: "var(--border)", color: "var(--dim)" }}>
+            {uploading ? "업로드 중..." : image.imageUrl ? "이미지 교체" : "사진 선택"}
+            <input type="file" accept="image/*" onChange={handleFileChange} disabled={uploading} className="hidden" />
+          </label>
+          {image.imageUrl && (
+            <button
+              type="button"
+              onClick={handleRemoveImage}
+              className="text-xs px-3 py-2 border transition-colors hover:border-red-500 hover:text-red-500"
+              style={{ borderColor: "var(--border)", color: "var(--dim)" }}
+            >
+              삭제
+            </button>
+          )}
+        </div>
       </div>
+
+      {pendingFile && (
+        <ImageCropDialog
+          file={pendingFile}
+          aspectOptions={SCENE_ASPECT_OPTIONS}
+          onConfirm={handleCropConfirm}
+          onCancel={() => setPendingFile(null)}
+        />
+      )}
 
       <div className="flex items-center justify-between">
         <label className="flex items-center gap-2 text-xs cursor-pointer" style={{ color: "var(--dim)" }}>

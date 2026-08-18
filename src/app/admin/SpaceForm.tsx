@@ -3,8 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import ImagePositionEditor from "@/components/ImagePositionEditor";
-import { finalizeImageCrop } from "@/lib/imageCrop";
+import ImageCropDialog from "@/components/ImageCropDialog";
 
 interface SpaceData {
   id: string;
@@ -61,8 +60,8 @@ function isWeakPin(pin: string): boolean {
 }
 
 const DISTRICTS = ["서촌", "성수", "망원", "북촌", "가로수길", "이태원", "홍대", "연남동", "한남동", "익선동"];
-// 공간 상세 페이지 Hero 이미지 비율(space/[slug]/page.tsx와 동일) — 대표사진 crop의 목표 비율.
-const HERO_ASPECT_RATIO = "16/11";
+// 공간 상세 페이지 Hero 이미지 비율(space/[slug]/page.tsx와 동일) — 대표사진 crop box의 고정 비율.
+const HERO_ASPECT_RATIO = 16 / 11;
 const CLOUDINARY_URL = `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload`;
 const UPLOAD_PRESET = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET!;
 
@@ -93,13 +92,20 @@ export default function SpaceForm({ mode, space, categories, existingTagLinks }:
     ownerBio: space?.ownerBio ?? "",
   });
 
-  // 대표 이미지 — 위치/확대 조절 포함
-  const [heroImage, setHeroImage] = useState({
-    imageUrl: space?.imageUrl ?? "",
-    zoom: space?.imageZoom ?? 1,
-    positionX: space?.imagePositionX ?? 0.5,
-    positionY: space?.imagePositionY ?? 0.5,
-  });
+  // 대표 이미지 — 파일 선택 직후 ImageCropDialog로 가로 Hero 영역을 실제로 잘라내고,
+  // 잘린 결과만 업로드한다(예전의 "업로드 후 프레임 안에서 드래그/확대" 방식은 더 이상 안 씀).
+  const [heroImageUrl, setHeroImageUrl] = useState(space?.imageUrl ?? "");
+  const [pendingHeroFile, setPendingHeroFile] = useState<File | null>(null);
+  const [heroUploading, setHeroUploading] = useState(false);
+
+  async function handleHeroCropConfirm(croppedFile: File) {
+    setPendingHeroFile(null);
+    setHeroUploading(true);
+    const url = await uploadToCloudinary(croppedFile);
+    setHeroUploading(false);
+    if (url) setHeroImageUrl(url);
+    else setError("대표 이미지 업로드에 실패했어요. 다시 시도해주세요.");
+  }
 
   const [selectedTagIds, setSelectedTagIds] = useState<Set<string>>(
     new Set((existingTagLinks ?? []).map((l) => l.tagId))
@@ -207,11 +213,6 @@ export default function SpaceForm({ mode, space, categories, existingTagLinks }:
     setLoading(true);
     setError("");
 
-    // 세로 원본이어도 관리자가 드래그/확대로 고른 가로 Hero 영역을 실제로 잘라 저장한다
-    // (원본은 Cloudinary에 그대로 남고, 잘린 결과만 새로 업로드됨) — 자동 중앙 crop 대신
-    // 관리자가 직접 지정한 영역이 최종 대표사진이 된다. 조정한 적이 없으면 그대로 둔다.
-    const finalHeroImage = await finalizeImageCrop(heroImage, HERO_ASPECT_RATIO);
-
     const url = mode === "new" ? "/api/spaces" : `/api/spaces/${space!.id}`;
     const method = mode === "new" ? "POST" : "PATCH";
     const res = await fetch(url, {
@@ -219,10 +220,12 @@ export default function SpaceForm({ mode, space, categories, existingTagLinks }:
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         ...form,
-        imageUrl: finalHeroImage.imageUrl || null,
-        imageZoom: finalHeroImage.zoom,
-        imagePositionX: finalHeroImage.positionX,
-        imagePositionY: finalHeroImage.positionY,
+        // 대표 이미지는 이미 ImageCropDialog에서 가로 Hero 비율로 실제로 잘려 업로드된
+        // 결과이므로(자동 중앙 crop 아님) 위치/확대는 기본값으로 저장한다.
+        imageUrl: heroImageUrl || null,
+        imageZoom: 1,
+        imagePositionX: 0.5,
+        imagePositionY: 0.5,
         tagLinks: buildTagLinks(),
         ...ownerForm,
         ownerPhotoUrl: ownerPhotoUrl || null,
@@ -261,13 +264,51 @@ export default function SpaceForm({ mode, space, categories, existingTagLinks }:
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-6">
 
-        {/* 대표 이미지 — 공간 상세 페이지 비율(16:11) 고정, 위치/확대 조절 가능 */}
-        <ImagePositionEditor
-          label="대표 이미지 (선택)"
-          value={heroImage}
-          onChange={setHeroImage}
-          aspectRatio={HERO_ASPECT_RATIO}
-        />
+        {/* 대표 이미지 — 파일 선택 직후 가로 Hero 비율(16:11) crop box로 실제 잘라내기 */}
+        <div className="space-y-2">
+          <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>대표 이미지 (선택)</p>
+          {heroImageUrl && (
+            <div className="relative w-full overflow-hidden border" style={{ borderColor: "var(--border)", aspectRatio: "16 / 11" }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={heroImageUrl} alt="" className="w-full h-full object-cover" />
+            </div>
+          )}
+          <div className="flex gap-3">
+            <label className="text-xs py-2 px-3 text-center border cursor-pointer transition-colors hover:bg-[var(--fg)] hover:text-[var(--bg)]" style={{ borderColor: "var(--border)", color: "var(--dim)" }}>
+              {heroUploading ? "업로드 중..." : heroImageUrl ? "이미지 교체" : "사진 선택"}
+              <input
+                type="file"
+                accept="image/*"
+                disabled={heroUploading}
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) setPendingHeroFile(file);
+                  e.target.value = "";
+                }}
+              />
+            </label>
+            {heroImageUrl && (
+              <button
+                type="button"
+                onClick={() => setHeroImageUrl("")}
+                className="text-xs px-3 py-2 border transition-colors hover:border-red-500 hover:text-red-500"
+                style={{ borderColor: "var(--border)", color: "var(--dim)" }}
+              >
+                삭제
+              </button>
+            )}
+          </div>
+        </div>
+
+        {pendingHeroFile && (
+          <ImageCropDialog
+            file={pendingHeroFile}
+            fixedAspect={HERO_ASPECT_RATIO}
+            onConfirm={handleHeroCropConfirm}
+            onCancel={() => setPendingHeroFile(null)}
+          />
+        )}
 
         {/* 기본 정보 */}
         <div style={{ borderTop: "1px solid var(--border)" }} />

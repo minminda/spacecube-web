@@ -1,123 +1,160 @@
-/* ── 관리자 사진 "실제 잘라내기" ──────────────────────────────────────
-   블로그/SNS 업로드 수준의 crop: 관리자가 드래그/확대로 고른 영역을 캔버스로 실제로 잘라
-   Cloudinary에 새 이미지로 올리고, 그 결과 URL을 저장한다. Cloudinary의 원본 파일은 그대로
-   남아있고(삭제/치환 없음), 새로 잘린 결과만 별도 이미지로 추가된다 — 기존 uploadToCloudinary
-   업로드 흐름을 그대로 재사용, 새 이미지 파이프라인을 만들지 않는다.
-
-   방문자 화면은 최종적으로 이 결과 이미지를 그대로 보여줄 뿐이라 CSS crop(object-fit/
-   object-position/transform)에 더 이상 의존하지 않는다 — 다만 이 함수를 거치지 않은 예전
-   Scene/Space(원본 + 위치·확대 메타데이터만 있는 경우)는 기존 CSS crop 렌더링 경로가 그대로
-   남아있어 계속 정상 표시된다(하위 호환, 렌더 코드 변경 없음).
+/* ── 실제 이미지 잘라내기(진짜 crop) ──────────────────────────────────
+   블로그/SNS 업로드 수준의 crop: 관리자가 로컬 파일을 고르면 업로드 전에 crop box(이동/
+   리사이즈 가능, 자유 또는 고정 비율)로 원하는 영역을 직접 지정하고, 그 영역만 실제로
+   잘라낸 새 File을 만든다 — CSS(object-fit/object-position/transform)로 위치만 가리는
+   방식이 아니다. 이 파일은 순수 좌표 계산(유닛 테스트 가능)과 캔버스 처리(브라우저 전용)만
+   담당한다 — 업로드(Cloudinary 등 storage)는 호출부가 기존 업로드 함수로 처리한다.
 ──────────────────────────────────────────────────────────────────── */
 
-const CLOUDINARY_URL = `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload`;
-const UPLOAD_PRESET = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET!;
-
-async function uploadToCloudinary(file: File): Promise<string | null> {
-  const data = new FormData();
-  data.append("file", file);
-  data.append("upload_preset", UPLOAD_PRESET);
-  try {
-    const res = await fetch(CLOUDINARY_URL, { method: "POST", body: data });
-    const result = await res.json();
-    return result.secure_url ?? null;
-  } catch {
-    return null;
-  }
-}
-
-function loadImage(src: string): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.onload = () => resolve(img);
-    img.onerror = () => reject(new Error("이미지를 불러올 수 없어요."));
-    img.src = src;
-  });
-}
-
-export interface CropRect {
+export interface PixelRect {
   x: number;
   y: number;
   width: number;
   height: number;
 }
 
-/**
- * object-fit: cover + object-position + transform: scale 조합으로 화면에 보이던 영역과
- * 동일한 영역을, 원본 이미지의 실제 픽셀 좌표계에서 계산한다 — 순수 함수, DOM/캔버스와
- * 무관해 유닛 테스트로 검증 가능하다.
- *
- * 1) aspectRatio에 맞춰 원본 안에 들어가는 가장 큰 영역(zoom=1 기준)을 구하고
- * 2) zoom만큼 그 영역을 좁히고(확대할수록 실제로 잘라내는 영역은 작아진다)
- * 3) positionX/Y(0~1)를 중심으로 삼되, 원본 경계를 벗어나지 않게 clamp한다.
- */
-export function computeCropRect(
-  naturalWidth: number,
-  naturalHeight: number,
-  aspectRatio: number,
-  positionX: number,
-  positionY: number,
-  zoom: number,
-): CropRect {
-  const imageAspect = naturalWidth / naturalHeight;
-  const baseW = imageAspect > aspectRatio ? naturalHeight * aspectRatio : naturalWidth;
-  const baseH = imageAspect > aspectRatio ? naturalHeight : naturalWidth / aspectRatio;
-
-  const safeZoom = Math.max(zoom, 1);
-  const width = Math.min(naturalWidth, baseW / safeZoom);
-  const height = Math.min(naturalHeight, baseH / safeZoom);
-
-  const x = Math.max(0, Math.min(positionX * naturalWidth - width / 2, naturalWidth - width));
-  const y = Math.max(0, Math.min(positionY * naturalHeight - height / 2, naturalHeight - height));
-
+export function clampRect(rect: PixelRect, boundsW: number, boundsH: number, minSize = 20): PixelRect {
+  const width = Math.min(Math.max(rect.width, minSize), boundsW);
+  const height = Math.min(Math.max(rect.height, minSize), boundsH);
+  const x = Math.min(Math.max(rect.x, 0), boundsW - width);
+  const y = Math.min(Math.max(rect.y, 0), boundsH - height);
   return { x, y, width, height };
 }
 
-const DEFAULT_ZOOM = 1;
-const DEFAULT_POSITION = 0.5;
-
-export interface ImageCropInput {
-  imageUrl: string;
-  zoom: number;
-  positionX: number;
-  positionY: number;
+/** crop box 몸체를 드래그해 이동 — 항상 경계 안에 머무른다. */
+export function moveRect(rect: PixelRect, dx: number, dy: number, boundsW: number, boundsH: number): PixelRect {
+  return clampRect({ ...rect, x: rect.x + dx, y: rect.y + dy }, boundsW, boundsH, Math.min(rect.width, rect.height));
 }
 
+export type Corner = "nw" | "ne" | "sw" | "se";
+
 /**
- * 관리자가 위치/확대를 조정한 적이 있으면(기본값에서 벗어났으면) 실제로 캔버스에 잘라
- * Cloudinary에 새 이미지로 올리고, 그 결과 URL + 초기화된 zoom/position을 반환한다.
- * 조정한 적이 없으면(zoom=1, 중앙 그대로) 원본을 그대로 반환한다 — 저장할 때마다
- * 불필요하게 다시 자르지 않는다. 이미지 로드 실패·CORS 문제·업로드 실패 등 어떤 이유로든
- * 실제 crop이 안 되면 예외를 던지지 않고 원본 값을 그대로 반환한다(기존 CSS crop 렌더
- * 경로가 안전망 역할을 한다 — 저장 자체가 막히지 않는다).
+ * 모서리 핸들을 드래그해 크기를 바꾼다 — 반대쪽 모서리는 고정된 채, 잡은 모서리만 포인터를
+ * 따라간다. aspect가 주어지면(자유가 아니면) 그 비율을 유지하도록 폭을 기준으로 높이를 다시
+ * 계산한다. 항상 경계 안, 최소 크기 이상을 유지한다 — 순수 함수라 유닛 테스트로 모든 모서리·
+ * 비율 조합을 검증할 수 있다.
  */
-export async function finalizeImageCrop(image: ImageCropInput, aspectRatioStr: string): Promise<ImageCropInput> {
-  const untouched = image.zoom === DEFAULT_ZOOM && image.positionX === DEFAULT_POSITION && image.positionY === DEFAULT_POSITION;
-  if (!image.imageUrl || untouched) return image;
+export function resizeRectFromCorner(
+  rect: PixelRect,
+  corner: Corner,
+  dx: number,
+  dy: number,
+  aspect: number | null,
+  boundsW: number,
+  boundsH: number,
+  minSize = 40,
+): PixelRect {
+  const left = rect.x;
+  const top = rect.y;
+  const right = rect.x + rect.width;
+  const bottom = rect.y + rect.height;
 
-  try {
-    const [w, h] = aspectRatioStr.split("/").map(Number);
-    const aspectRatio = w / h;
+  let newLeft = left;
+  let newTop = top;
+  let newRight = right;
+  let newBottom = bottom;
 
-    const img = await loadImage(image.imageUrl);
-    const rect = computeCropRect(img.naturalWidth, img.naturalHeight, aspectRatio, image.positionX, image.positionY, image.zoom);
+  if (corner === "nw") { newLeft += dx; newTop += dy; }
+  else if (corner === "ne") { newRight += dx; newTop += dy; }
+  else if (corner === "sw") { newLeft += dx; newBottom += dy; }
+  else { newRight += dx; newBottom += dy; }
 
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.max(1, Math.round(rect.width));
-    canvas.height = Math.max(1, Math.round(rect.height));
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return image;
-    ctx.drawImage(img, rect.x, rect.y, rect.width, rect.height, 0, 0, canvas.width, canvas.height);
+  // 반대쪽 모서리를 넘어가지 않게(뒤집히지 않게) 최소 크기로 방어
+  newLeft = Math.min(newLeft, newRight - minSize);
+  newTop = Math.min(newTop, newBottom - minSize);
+  newRight = Math.max(newRight, newLeft + minSize);
+  newBottom = Math.max(newBottom, newTop + minSize);
 
-    const blob: Blob | null = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.9));
-    if (!blob) return image;
+  let width = newRight - newLeft;
+  let height = newBottom - newTop;
 
-    const uploadedUrl = await uploadToCloudinary(new File([blob], "cropped.jpg", { type: "image/jpeg" }));
-    if (!uploadedUrl) return image;
+  if (aspect) {
+    // 폭을 기준으로 높이를 비율에 맞춰 다시 계산하되, 고정된 모서리(반대쪽)를 기준으로 늘어난다.
+    // clampRect는 width/height를 각각 독립적으로 줄이기 때문에(비율이 깨질 수 있음), 여기서
+    // 미리 "고정된 모서리 기준으로 경계를 넘지 않는 최대 폭"을 구해 비율을 유지한 채로만
+    // 자라게 한다 — 경계에 닿아도 3:2/16:9가 뒤틀리지 않는다.
+    const anchorRight = corner === "nw" || corner === "sw"; // 오른쪽 변이 고정
+    const anchorBottom = corner === "nw" || corner === "ne"; // 아래쪽 변이 고정
+    const fixedX = anchorRight ? newRight : newLeft;
+    const fixedY = anchorBottom ? newBottom : newTop;
+    const maxWidthByBoundsX = anchorRight ? fixedX : boundsW - fixedX;
+    const maxWidthByBoundsY = (anchorBottom ? fixedY : boundsH - fixedY) * aspect;
+    const maxWidth = Math.max(minSize, Math.min(maxWidthByBoundsX, maxWidthByBoundsY));
 
-    return { imageUrl: uploadedUrl, zoom: DEFAULT_ZOOM, positionX: DEFAULT_POSITION, positionY: DEFAULT_POSITION };
-  } catch {
-    return image;
+    width = Math.min(Math.max(width, minSize), maxWidth);
+    height = width / aspect;
+    newLeft = anchorRight ? fixedX - width : fixedX;
+    newTop = anchorBottom ? fixedY - height : fixedY;
   }
+
+  const rawRect = { x: newLeft, y: newTop, width, height };
+  return clampRect(rawRect, boundsW, boundsH, minSize);
+}
+
+/** 주어진 비율(없으면 여유 있는 기본 비율)로 화면 중앙에 놓이는 초기 crop box를 만든다. */
+export function centeredRect(displayW: number, displayH: number, aspect: number | null): PixelRect {
+  const targetAspect = aspect ?? displayW / displayH;
+  let width = displayW * 0.9;
+  let height = width / targetAspect;
+  if (height > displayH * 0.9) {
+    height = displayH * 0.9;
+    width = height * targetAspect;
+  }
+  return clampRect(
+    { x: (displayW - width) / 2, y: (displayH - height) / 2, width, height },
+    displayW,
+    displayH,
+  );
+}
+
+/** 화면에 표시된 crop box(px) 좌표를 원본 이미지의 실제 픽셀 좌표로 변환한다 — 순수 함수.
+ *  Preview가 350×470처럼 작게 보여도 naturalWidth/naturalHeight 기준 원본 해상도로 잘라내기
+ *  위한 스케일 변환이다. */
+export function scaleRectToNatural(
+  rect: PixelRect,
+  displayedW: number,
+  displayedH: number,
+  naturalW: number,
+  naturalH: number,
+): PixelRect {
+  const scaleX = naturalW / displayedW;
+  const scaleY = naturalH / displayedH;
+  return {
+    x: rect.x * scaleX,
+    y: rect.y * scaleY,
+    width: rect.width * scaleX,
+    height: rect.height * scaleY,
+  };
+}
+
+export function loadImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error("이미지를 불러올 수 없어요."));
+    img.src = src;
+  });
+}
+
+/** 원본 이미지에서 naturalRect(원본 픽셀 좌표) 영역만 실제로 잘라 새 File을 만든다. */
+export async function cropImageToFile(
+  img: HTMLImageElement,
+  naturalRect: PixelRect,
+  fileName = "cropped.jpg",
+  quality = 0.92,
+): Promise<File> {
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(naturalRect.width));
+  canvas.height = Math.max(1, Math.round(naturalRect.height));
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("캔버스를 사용할 수 없어요.");
+  ctx.drawImage(
+    img,
+    naturalRect.x, naturalRect.y, naturalRect.width, naturalRect.height,
+    0, 0, canvas.width, canvas.height,
+  );
+  const blob: Blob = await new Promise((resolve, reject) => {
+    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("이미지를 만들 수 없어요."))), "image/jpeg", quality);
+  });
+  return new File([blob], fileName, { type: "image/jpeg" });
 }
