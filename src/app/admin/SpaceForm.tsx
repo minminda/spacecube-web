@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import ImageCropDialog from "@/components/ImageCropDialog";
+import { normalizeSlug, isValidSlug } from "@/lib/slug";
 
 interface SpaceData {
   id: string;
@@ -199,6 +200,12 @@ export default function SpaceForm({ mode, space, categories, existingTagLinks }:
       }
     }
 
+    const normalizedSlug = normalizeSlug(form.slug);
+    if (!isValidSlug(normalizedSlug)) {
+      setError("공간 주소는 영문 소문자, 숫자, 하이픈만 사용할 수 있어요.");
+      return;
+    }
+
     if (newPin || confirmPin) {
       if (!/^\d{4}$/.test(newPin)) {
         setPinError("비밀번호는 숫자 4자리로 입력해주세요.");
@@ -220,6 +227,7 @@ export default function SpaceForm({ mode, space, categories, existingTagLinks }:
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         ...form,
+        slug: normalizedSlug,
         // 대표 이미지는 이미 ImageCropDialog에서 가로 Hero 비율로 실제로 잘려 업로드된
         // 결과이므로(자동 중앙 crop 아님) 위치/확대는 기본값으로 저장한다.
         imageUrl: heroImageUrl || null,

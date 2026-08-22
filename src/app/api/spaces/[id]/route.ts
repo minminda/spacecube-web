@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { isAdmin } from "@/lib/admin";
 import { hashOperatorPin, isValidPinFormat } from "@/lib/operatorPin";
 import { enforceSingleSelectCategories, resolveSpaceTypeName, type TagLinkInput } from "@/lib/tagLinks";
+import { normalizeSlug, isValidSlug } from "@/lib/slug";
 
 export const dynamic = "force-dynamic";
 
@@ -23,7 +24,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   }
 
   const {
-    name, district, location,
+    name, slug, district, location,
     tagline, openingHours, naverMapUrl,
     description, philosophy, ownerMessage,
     experienceGuide, spacePoints,
@@ -44,6 +45,21 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const normalizedLinks = await enforceSingleSelectCategories(rawTagLinks);
   const resolvedType = await resolveSpaceTypeName(normalizedLinks);
 
+  // slug는 값이 온 경우에만 검증/변경한다 — 보내지 않으면(undefined) 기존 값을 그대로 둔다.
+  let normalizedSlug: string | null = null;
+  if (slug !== undefined) {
+    normalizedSlug = normalizeSlug(String(slug));
+    if (!isValidSlug(normalizedSlug)) {
+      return NextResponse.json({ error: "공간 주소는 영문 소문자, 숫자, 하이픈만 사용할 수 있어요." }, { status: 400 });
+    }
+    if (normalizedSlug !== space.slug) {
+      const duplicate = await prisma.space.findUnique({ where: { slug: normalizedSlug } });
+      if (duplicate && duplicate.id !== id) {
+        return NextResponse.json({ error: "이미 사용 중인 공간 주소예요." }, { status: 409 });
+      }
+    }
+  }
+
   let pinUpdateData: { operatorPinHash: string; operatorPinUpdatedAt: Date; operatorAccessVersion: { increment: number } } | null = null;
   if (newOperatorPin !== undefined && newOperatorPin !== "") {
     if (typeof newOperatorPin !== "string" || !isValidPinFormat(newOperatorPin)) {
@@ -61,6 +77,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     where: { id },
     data: {
       name, district, location,
+      ...(normalizedSlug !== null ? { slug: normalizedSlug } : {}),
       ...(resolvedType ? { type: resolvedType } : {}),
       tagline: tagline || null,
       openingHours: openingHours || null,

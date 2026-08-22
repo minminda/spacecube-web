@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { isAdmin } from "@/lib/admin";
 import { enforceSingleSelectCategories, resolveSpaceTypeName, type TagLinkInput } from "@/lib/tagLinks";
+import { normalizeSlug, isValidSlug } from "@/lib/slug";
 
 export const dynamic = "force-dynamic";
 
@@ -44,15 +45,20 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "필수 항목이 빠졌어요." }, { status: 400 });
   }
 
-  const exists = await prisma.space.findUnique({ where: { slug } });
+  const normalizedSlug = normalizeSlug(slug);
+  if (!isValidSlug(normalizedSlug)) {
+    return NextResponse.json({ error: "공간 주소는 영문 소문자, 숫자, 하이픈만 사용할 수 있어요." }, { status: 400 });
+  }
+
+  const exists = await prisma.space.findUnique({ where: { slug: normalizedSlug } });
   if (exists) {
-    return NextResponse.json({ error: "이미 사용 중인 주소예요." }, { status: 409 });
+    return NextResponse.json({ error: "이미 사용 중인 공간 주소예요." }, { status: 409 });
   }
 
   const space = await prisma.space.create({
     data: {
       ownerId: user.id,
-      name, slug, type: resolvedType, district, location,
+      name, slug: normalizedSlug, type: resolvedType, district, location,
       tagline: tagline || null,
       openingHours: openingHours || null,
       naverMapUrl: naverMapUrl || null,
