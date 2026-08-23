@@ -60,7 +60,6 @@ function isWeakPin(pin: string): boolean {
   return WEAK_PIN_PATTERN.test(pin) || isSequentialPin(pin);
 }
 
-const DISTRICTS = ["서촌", "성수", "망원", "북촌", "가로수길", "이태원", "홍대", "연남동", "한남동", "익선동"];
 // 공간 상세 페이지 Hero 이미지 비율(space/[slug]/page.tsx와 동일) — 대표사진 crop box의 고정 비율.
 const HERO_ASPECT_RATIO = 16 / 11;
 const CLOUDINARY_URL = `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload`;
@@ -356,11 +355,8 @@ export default function SpaceForm({ mode, space, categories, existingTagLinks }:
         ))}
 
         <Field label="지역 *">
-          <select name="district" value={form.district} onChange={handleChange} required
-            className="w-full text-sm px-3 py-2.5 border" style={inputStyle}>
-            <option value="">선택</option>
-            {DISTRICTS.map((d) => <option key={d} value={d}>{d}</option>)}
-          </select>
+          <input name="district" value={form.district} onChange={handleChange} required placeholder="예: 망원동"
+            className="w-full text-sm px-3 py-2.5 border" style={inputStyle} />
         </Field>
 
         <Field label="상세 위치 *">
