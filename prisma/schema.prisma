@@ -997,6 +997,20 @@ enum WaitlistStatus {
   CALLED
 }
 
+// ─── 관리자 자료 (PDF) ────────────────────────────────────────
+// 설치 안내서/소개 자료 등 PDF를 관리자가 올리면 운영자에게 바로 전달할 공개 링크가 생긴다.
+// Space/Cube/Episode 등 기존 도메인과 무관한 독립 모델.
+model Material {
+  id               String   @id @default(cuid())
+  title            String
+  fileUrl          String
+  storageKey       String   @unique
+  originalFileName String
+  fileSize         Int
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
 enum StoryType {
   REGION
   TASTE
