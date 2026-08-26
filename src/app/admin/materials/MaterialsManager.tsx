@@ -37,7 +37,9 @@ export default function MaterialsManager({ initialMaterials }: Props) {
 
   function pickFile(f: File | undefined | null): boolean {
     if (!f) return false;
-    if (f.type !== "application/pdf") {
+    // 일부 Windows 환경은 .pdf의 File.type을 빈 문자열로 보고하는 경우가 있어(레지스트리 MIME 연결
+    // 문제), MIME 대신 확장자로 1차 체크한다 — 진짜 내용물 검증은 서버가 매직 바이트로 한다.
+    if (!f.name.toLowerCase().endsWith(".pdf")) {
       showToast("PDF 파일만 올릴 수 있어요.");
       return false;
     }
@@ -142,7 +144,7 @@ export default function MaterialsManager({ initialMaterials }: Props) {
         <input
           ref={fileInputRef}
           type="file"
-          accept="application/pdf"
+          accept="application/pdf,.pdf"
           onChange={(e) => {
             const f = e.target.files?.[0] ?? null;
             if (f && !pickFile(f)) {
@@ -208,7 +210,7 @@ export default function MaterialsManager({ initialMaterials }: Props) {
                 <input
                   ref={replaceInputRef}
                   type="file"
-                  accept="application/pdf"
+                  accept="application/pdf,.pdf"
                   className="hidden"
                   onChange={(e) => {
                     const f = e.target.files?.[0];

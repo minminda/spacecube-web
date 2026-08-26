@@ -22,9 +22,6 @@ export async function POST(req: Request) {
 
   if (!title) return NextResponse.json({ error: "제목은 필수예요." }, { status: 400 });
   if (!(file instanceof File)) return NextResponse.json({ error: "파일이 없어요." }, { status: 400 });
-  if (file.type !== "application/pdf") {
-    return NextResponse.json({ error: "PDF 파일만 업로드할 수 있어요." }, { status: 400 });
-  }
   if (file.size > MAX_MATERIAL_FILE_SIZE) {
     return NextResponse.json(
       { error: `파일이 너무 커요. 최대 ${MAX_MATERIAL_FILE_SIZE / 1024 / 1024}MB까지 가능해요.` },
@@ -32,6 +29,8 @@ export async function POST(req: Request) {
     );
   }
 
+  // file.type(브라우저가 보고하는 MIME)은 OS/브라우저에 따라 PDF인데도 빈 문자열로 오는 경우가
+  // 있어 신뢰하지 않는다 — 실제 파일 시작 바이트로만 판단한다.
   const buffer = Buffer.from(await file.arrayBuffer());
   if (!looksLikePdf(buffer)) {
     return NextResponse.json({ error: "올바른 PDF 파일이 아니에요." }, { status: 400 });
