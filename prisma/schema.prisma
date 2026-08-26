@@ -1003,6 +1003,9 @@ enum WaitlistStatus {
 model Material {
   id               String   @id @default(cuid())
   title            String
+  // 공개 링크 경로(/materials/{slug}.pdf)에 쓰는 영문 slug — Cloudinary 도메인이 아니라
+  // 우리 도메인으로 보이는 링크를 운영자에게 전달하기 위해 별도로 둔다.
+  slug             String   @unique
   fileUrl          String
   storageKey       String   @unique
   originalFileName String

@@ -4,6 +4,7 @@ import { isAdmin } from "@/lib/admin";
 import { prisma } from "@/lib/prisma";
 import { uploadMaterialPdf } from "@/lib/materials/cloudinary";
 import { looksLikePdf, MAX_MATERIAL_FILE_SIZE } from "@/lib/materials/validation";
+import { isValidSlug, normalizeSlug } from "@/lib/slug";
 
 export const dynamic = "force-dynamic";
 
@@ -18,9 +19,14 @@ export async function POST(req: Request) {
 
   const titleRaw = form.get("title");
   const title = typeof titleRaw === "string" ? titleRaw.trim() : "";
+  const slugRaw = form.get("slug");
+  const slug = typeof slugRaw === "string" ? normalizeSlug(slugRaw) : "";
   const file = form.get("file");
 
   if (!title) return NextResponse.json({ error: "제목은 필수예요." }, { status: 400 });
+  if (!slug || !isValidSlug(slug)) {
+    return NextResponse.json({ error: "링크 이름은 영문 소문자/숫자/하이픈만 가능해요." }, { status: 400 });
+  }
   if (!(file instanceof File)) return NextResponse.json({ error: "파일이 없어요." }, { status: 400 });
   if (file.size > MAX_MATERIAL_FILE_SIZE) {
     return NextResponse.json(
@@ -43,15 +49,21 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "업로드에 실패했어요." }, { status: 502 });
   }
 
-  const material = await prisma.material.create({
-    data: {
-      title,
-      fileUrl: uploaded.secureUrl,
-      storageKey: uploaded.publicId,
-      originalFileName: file.name,
-      fileSize: uploaded.bytes,
-    },
-  });
+  let material;
+  try {
+    material = await prisma.material.create({
+      data: {
+        title,
+        slug,
+        fileUrl: uploaded.secureUrl,
+        storageKey: uploaded.publicId,
+        originalFileName: file.name,
+        fileSize: uploaded.bytes,
+      },
+    });
+  } catch {
+    return NextResponse.json({ error: "이미 사용 중인 링크 이름이에요." }, { status: 409 });
+  }
 
   return NextResponse.json(material, { status: 201 });
 }
