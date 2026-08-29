@@ -167,3 +167,46 @@ export async function getHourlyPeriodStats(spaceId: string, dayStart: Date, dayE
     guestbookPosts: guestbookBuckets[hour]?.count ?? 0,
   }));
 }
+
+export interface GuestbookFunnelStats {
+  entryAttempts: number; // 방명록 진입(방향 이동 시도) — 로그인/비로그인 공통
+  writeAttempts: number; // 작성 시도(캔버스 안 "작성" 버튼) — 구조상 로그인 사용자만
+  loginRequired: number; // 비로그인으로 이 흐름을 타다 실제로 로그인 요구를 본 방문자
+  loginSuccess: number; // 위 로그인 요구를 받았다가 실제로 로그인을 완료한 방문자
+}
+
+/**
+ * 방명록 퍼널(GuestbookFunnelEvent) 기간 집계 — createdAt 기준, 스텝별로 "방문자당 최초
+ * 1회"만 기록돼 있으므로(guestbookFunnel.ts) 그대로 count하면 곧 "몇 명"이 된다.
+ *
+ * 관리자 제외 시 주의: userId는 nullable(익명 행은 null)이라 `userId: { notIn: [...] }`만
+ * 쓰면 SQL에서 `NULL NOT IN (...)`이 NULL(=거짓 취급)로 평가돼 익명 행까지 통째로 걸러진다
+ * (Prisma도 이 SQL 동작을 그대로 따름). 그래서 반드시 "userId가 null이거나, admin이
+ * 아니거나"를 OR로 명시한다 — anonId 쪽은 애초에 로그인 계정이 없어 관리자 여부를 알 수
+ * 없으므로(Story View의 qrScans와 같은 구조적 한계) 그대로 둔다.
+ */
+export async function getGuestbookFunnelStats(
+  spaceId: string,
+  periodStart: Date,
+  periodEnd: Date,
+): Promise<GuestbookFunnelStats> {
+  const adminUserIds = await getAdminUserIds();
+  const notAdminOrAnonymous = { OR: [{ userId: null }, { userId: { notIn: [...adminUserIds] } }] };
+
+  const [entryAttempts, writeAttempts, loginRequired, loginSuccess] = await Promise.all([
+    prisma.guestbookFunnelEvent.count({
+      where: { spaceId, step: "ENTRY_ATTEMPT", createdAt: { gte: periodStart, lt: periodEnd }, ...notAdminOrAnonymous },
+    }),
+    prisma.guestbookFunnelEvent.count({
+      where: { spaceId, step: "WRITE_ATTEMPT", createdAt: { gte: periodStart, lt: periodEnd }, ...notAdminOrAnonymous },
+    }),
+    prisma.guestbookFunnelEvent.count({
+      where: { spaceId, step: "LOGIN_REQUIRED", createdAt: { gte: periodStart, lt: periodEnd } },
+    }),
+    prisma.guestbookFunnelEvent.count({
+      where: { spaceId, step: "LOGIN_SUCCESS", createdAt: { gte: periodStart, lt: periodEnd }, ...notAdminOrAnonymous },
+    }),
+  ]);
+
+  return { entryAttempts, writeAttempts, loginRequired, loginSuccess };
+}

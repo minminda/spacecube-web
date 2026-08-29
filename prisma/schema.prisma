@@ -38,6 +38,7 @@ model User {
   guestbookComments     GuestbookComment[]
   notificationsReceived Notification[]      @relation("NotificationReceiver")
   notificationsSent     Notification[]      @relation("NotificationSender")
+  guestbookFunnelEvents GuestbookFunnelEvent[]
 }
 
 model Account {
@@ -161,6 +162,7 @@ model Space {
   monthlyReports       SpaceMonthlyReport[]
   operatorMonthlyNotes OperatorMonthlyNote[]
   unlocks              SpaceUnlock[]
+  guestbookFunnelEvents GuestbookFunnelEvent[]
 }
 
 // 공간/에피소드/씬 번역 공통 상태값 — NOT_CREATED는 행이 아예 없는 상태로 표현(별도 값 불필요)
@@ -941,6 +943,32 @@ model EpisodeRead {
 
   @@unique([userId, episodeId])
   @@unique([anonId, episodeId])
+}
+
+// 방명록 퍼널(Story → Guestbook → Login → Post-it) 이탈 지점 계측 — 사용자/익명 방문자당
+// 스텝별 최초 1회만 기록한다(EpisodeRead와 동일한 근사: "몇 번" 대신 "몇 명"을 센다). 실제
+// Post-it 작성은 이 테이블에 넣지 않고 기존 GuestbookNote를 그대로 KPI에 쓴다.
+enum GuestbookFunnelStep {
+  ENTRY_ATTEMPT // 방명록/기록 페이지 방향으로 이동을 시도함(로그인/비로그인 공통, 최초로 관측 가능한 지점)
+  WRITE_ATTEMPT // 방명록 캔버스 안에서 "작성" 버튼을 눌러 작성모드에 진입함(로그인 사용자만 도달 가능)
+  LOGIN_REQUIRED // 비로그인 상태로 방명록/기록 흐름을 타다 로그인 요구 화면을 실제로 봄
+  LOGIN_SUCCESS // 위 로그인 요구를 받았던 익명 방문자가 실제로 로그인을 완료함
+}
+
+model GuestbookFunnelEvent {
+  id        String              @id @default(cuid())
+  spaceId   String
+  userId    String?
+  anonId    String? // 비로그인 방문자 식별자(sc_anon_id 쿠키, EpisodeRead와 동일한 값 재사용)
+  step      GuestbookFunnelStep
+  createdAt DateTime            @default(now())
+
+  space Space @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  user  User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, spaceId, step])
+  @@unique([anonId, spaceId, step])
+  @@index([spaceId, step, createdAt])
 }
 
 // ─── 콘텐츠 레이어 ────────────────────────────────────────────

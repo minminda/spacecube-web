@@ -4,7 +4,7 @@ import { auth } from "@/auth";
 import { isAdmin } from "@/lib/admin";
 import { prisma } from "@/lib/prisma";
 import { recomputeSpaceKPI, getSpaceMonthlyKpi, getEarliestRecordDate, getDailyVisitTrend } from "@/lib/kpi";
-import { getExtendedPeriodStats, getHourlyPeriodStats, type HourlyCountSet } from "@/lib/reportMetrics";
+import { getExtendedPeriodStats, getHourlyPeriodStats, getGuestbookFunnelStats, type HourlyCountSet } from "@/lib/reportMetrics";
 import { computeMonthlyReportContent, formatDurationLabel } from "@/lib/monthlyReport";
 import { resolveDateRange, detectActivePreset, formatKstDateParam, toDotFormat, type DateRangePreset } from "@/lib/reportDateRange";
 import ReportEmail from "@/components/ReportEmail";
@@ -65,12 +65,13 @@ export default async function ReportAdminPage({ params, searchParams }: Props) {
   // 각자 따로 날짜를 계산하지 않는 것이 "기간 일치" 원칙(§21)의 핵심.
   // 시간별 조회는 하루(from===to)를 선택했을 때만 의미가 있으므로 그때만 쿼리한다.
   const isSingleDay = range.from === range.to;
-  const [rangeStats, rangeExtended, dailyTrend, previewData, hourlyStats] = await Promise.all([
+  const [rangeStats, rangeExtended, dailyTrend, previewData, hourlyStats, funnelStats] = await Promise.all([
     getSpaceMonthlyKpi(spaceId, range.start, range.end),
     getExtendedPeriodStats(spaceId, range.start, range.end),
     getDailyVisitTrend(spaceId, range.start, range.end),
     computeMonthlyReportContent(spaceId, range.start, range.end, null, null),
     isSingleDay ? getHourlyPeriodStats(spaceId, range.start, range.end) : Promise.resolve(null),
+    getGuestbookFunnelStats(spaceId, range.start, range.end),
   ]);
 
   const recommendedFileName = `공간큐브_${space.name}_${range.from}_${range.to}.pdf`;
@@ -180,12 +181,31 @@ export default async function ReportAdminPage({ params, searchParams }: Props) {
                 <StatBox label="작성자 수" value={rangeStats.guestbookWriters} unit="명" />
                 <StatBox label="작성률" value={pct(rangeStats.guestbookRate)} unit="" />
               </div>
+              <div className="grid grid-cols-3 gap-3">
+                <StatBox label="방명록 진입" value={funnelStats.entryAttempts} unit="명" />
+                <StatBox label="작성 시도" value={funnelStats.writeAttempts} unit="명" />
+                <StatBox label="로그인 요구" value={funnelStats.loginRequired} unit="명" />
+              </div>
               <div className="grid grid-cols-2 gap-3">
+                <StatBox label="로그인 성공" value={funnelStats.loginSuccess} unit="명" />
                 <StatBox label="공감 수" value={rangeExtended.reactionsTotal} unit="회" />
-                <div className="flex flex-col justify-center gap-1 p-4 border" style={{ borderColor: "var(--border)" }}>
-                  <p className="text-xs" style={{ color: "var(--dim)" }}>방명록 진입</p>
-                  <p className="text-xs" style={{ color: "var(--border)" }}>아직 별도로 추적하지 않습니다 (구조만 준비)</p>
-                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <StatBox
+                  label="스토리→방명록 진입률"
+                  value={rangeExtended.episodeViews > 0 ? pct(funnelStats.entryAttempts / rangeExtended.episodeViews) : "—"}
+                  unit=""
+                />
+                <StatBox
+                  label="작성 시도율"
+                  value={funnelStats.entryAttempts > 0 ? pct(funnelStats.writeAttempts / funnelStats.entryAttempts) : "—"}
+                  unit=""
+                />
+                <StatBox
+                  label="작성 완료율"
+                  value={funnelStats.writeAttempts > 0 ? pct(rangeStats.guestbookPosts / funnelStats.writeAttempts) : "—"}
+                  unit=""
+                />
               </div>
             </div>
 

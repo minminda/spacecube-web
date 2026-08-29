@@ -1,8 +1,13 @@
 import { notFound, redirect } from "next/navigation";
+import { cookies } from "next/headers";
+import { GuestbookFunnelStep } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
+import { isAdmin } from "@/lib/admin";
 import { resolveCurrentVisitRecord } from "@/lib/visit";
 import { requireSpaceUnlock, canBypassSpaceLock } from "@/lib/spaceUnlock";
+import { ANON_VISITOR_COOKIE } from "@/lib/anonVisitor";
+import { recordGuestbookFunnelStep, recordGuestbookLoginSuccessIfPending } from "@/lib/guestbookFunnel";
 import SpaceLockNotice from "@/components/SpaceLockNotice";
 import RecordForm from "./RecordForm";
 
@@ -70,6 +75,18 @@ export default async function RecordPage({ params, searchParams }: Props) {
         <SpaceLockNotice naverMapUrl={space.naverMapUrl} backHref={`/space/${slug}`} backLabel="공간으로 돌아가기" />
       </main>
     );
+  }
+
+  // 방명록 퍼널 계측 — "방명록 열기" CTA는 로그인 여부와 무관하게 항상 이 페이지(또는
+  // 비로그인이면 이 페이지로 가는 /login)를 거치므로, 여기 도달하는 것 자체가 로그인
+  // 사용자 쪽에서 관측 가능한 "방명록 방향으로 이동 시도"의 유일한 지점이다. 관리자 세션은
+  // 검수 목적 열람이라 기록하지 않는다(Story View와 동일한 정책). anonId 쿠키가 남아있고
+  // 그 방문자가 이 공간에서 로그인 요구를 겪은 적이 있으면(§로그인 페이지에서 기록) 지금이
+  // 그 로그인이 성공한 시점이라고 보고 LOGIN_SUCCESS를 함께 기록한다.
+  if (!isAdmin(session.user.email)) {
+    await recordGuestbookFunnelStep({ spaceId: space.id, step: GuestbookFunnelStep.ENTRY_ATTEMPT, userId: user.id });
+    const anonId = (await cookies()).get(ANON_VISITOR_COOKIE)?.value ?? null;
+    await recordGuestbookLoginSuccessIfPending(space.id, user.id, anonId);
   }
 
   const previousRecords = await prisma.record.findMany({

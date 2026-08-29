@@ -362,6 +362,14 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
       return;
     }
     if (!canWriteThisVisit) return;
+    // 방명록 퍼널 계측 — "작성" 버튼을 눌러 실제로 작성모드에 들어가는 순간을 Write Attempt로
+    // 본다(닉네임 설정 여부와 무관, 그건 그 다음 단계). 실패해도 작성 흐름 자체는 막지 않는다.
+    fetch("/api/guestbook/write-attempt", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ spaceId: space.id }),
+      keepalive: true,
+    }).catch(() => {});
     requireNickname(() => setWriteMode(true));
   }
 

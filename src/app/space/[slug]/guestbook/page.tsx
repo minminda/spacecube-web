@@ -2,14 +2,17 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import Link from "next/link";
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
-import { GuestbookSessionStatus } from "@prisma/client";
+import { GuestbookSessionStatus, GuestbookFunnelStep } from "@prisma/client";
 import { getVisibleClusters } from "@/lib/guestbookSession";
 import { resolveCurrentVisitRecordId } from "@/lib/guestbookVisit";
 import { formatDotDate as formatDate } from "@/lib/time";
 import { requireSpaceUnlock, canBypassSpaceLock } from "@/lib/spaceUnlock";
 import { isAdmin } from "@/lib/admin";
+import { ANON_VISITOR_COOKIE } from "@/lib/anonVisitor";
+import { recordGuestbookFunnelStep, recordGuestbookLoginSuccessIfPending } from "@/lib/guestbookFunnel";
 import { ENABLE_GUESTBOOK_IMAGE, ENABLE_GUESTBOOK_COMMENTS } from "@/lib/pilotFlags";
 import SpaceLockNotice from "@/components/SpaceLockNotice";
 import GuestbookCanvas from "./GuestbookCanvas";
@@ -110,6 +113,15 @@ export default async function GuestbookPage({ params, searchParams }: Props) {
         )}
       </main>
     );
+  }
+
+  // 방명록 퍼널 계측(record/page.tsx와 동일한 정책) — unlocked가 true인 시점엔 항상
+  // user가 존재한다(비로그인은 unlocked가 절대 true가 될 수 없음, 위 로직 참고). 이 공간의
+  // 로그인 요구를 겪었던 anonId 방문자가 지금 로그인 상태로 도달했다면 LOGIN_SUCCESS도 함께.
+  if (!isAdmin(session?.user?.email)) {
+    await recordGuestbookFunnelStep({ spaceId: space.id, step: GuestbookFunnelStep.ENTRY_ATTEMPT, userId: user!.id });
+    const anonId = (await cookies()).get(ANON_VISITOR_COOKIE)?.value ?? null;
+    await recordGuestbookLoginSuccessIfPending(space.id, user!.id, anonId);
   }
 
   // 잠금은 풀렸지만 아직 이번 방문의 취향 점수(Record)를 저장하지 않았다면 방명록 열람 전에 유도한다.
