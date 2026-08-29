@@ -180,9 +180,11 @@ export interface StoryReadStats {
 }
 
 /**
- * "공간 이야기" 카드 3개 — 스토리 조회 / 완독률 / 평균 체류시간. 나머지 KPI 카드와 같은
- * ReportKpiCard 형태라 ReportEmail.tsx에서 동일한 표(KpiCardGrid)로 렌더된다. 체류시간은
- * 표본이 작을 때 전월 대비 등락이 노이즈에 가까워 델타를 만들지 않는다(최소 계측 원칙).
+ * "공간 이야기" 카드 4개 — 스토리 조회 / 스토리 완료 / 완독률 / 평균 체류시간. 나머지 KPI
+ * 카드와 같은 ReportKpiCard 형태라 ReportEmail.tsx에서 동일한 표(KpiCardGrid)로 렌더된다.
+ * 완독률은 분모(조회 수)가 0이면 NaN 대신 "—"로 표시한다(episodeViews === 0일 때 division
+ * 자체를 하지 않음). 체류시간은 표본이 작을 때 전월 대비 등락이 노이즈에 가까워 델타를
+ * 만들지 않는다(최소 계측 원칙).
  */
 export function buildStoryCards(current: StoryReadStats, previous: StoryReadStats | null): ReportKpiCard[] {
   const completionRate = current.episodeViews > 0 ? current.episodeCompletions / current.episodeViews : null;
@@ -196,6 +198,14 @@ export function buildStoryCards(current: StoryReadStats, previous: StoryReadStat
       value: `${current.episodeViews}회`,
       change: previous
         ? { direction: direction(previous.episodeViews, current.episodeViews), deltaLabel: countPercentDelta(previous.episodeViews, current.episodeViews) }
+        : null,
+    },
+    {
+      key: "storyCompletions",
+      label: "스토리 완료",
+      value: `${current.episodeCompletions}회`,
+      change: previous
+        ? { direction: direction(previous.episodeCompletions, current.episodeCompletions), deltaLabel: countPercentDelta(previous.episodeCompletions, current.episodeCompletions) }
         : null,
     },
     {

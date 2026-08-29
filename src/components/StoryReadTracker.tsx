@@ -4,23 +4,30 @@ import { useEffect, useRef } from "react";
 
 interface Props {
   episodeId: string;
-  enabled: boolean;
+  loggedIn: boolean;
 }
 
 /**
- * 스토리 완독/체류시간 계측 — 화면엔 보이지 않는 1px 감시 지점만 렌더한다.
+ * 스토리 조회/완독/체류시간 계측 — 화면엔 보이지 않는 1px 감시 지점만 렌더한다.
+ * 로그인 사용자의 "조회"는 episodes/[episodeId]/page.tsx가 렌더 시점에 서버에서 이미
+ * 기록하므로, 여기서는 마운트 시 비로그인 방문자에 한해서만 별도 조회 신호를
+ * `/api/episode-reads/[id]/view`로 보낸다(로그인 사용자는 중복 기록하지 않음).
  * 완독 판정은 이 컴포넌트가 스토리 본문의 맨 아래(마지막 Scene 다음)에 렌더된다는 전제로,
- * 감시 지점이 뷰포트에 한 번이라도 들어오면 "마지막 섹션까지 스크롤"로 본다.
- * 체류시간은 페이지를 벗어나는 시점(tab 전환/닫기/이동)에 한 번만 sendBeacon으로 보고한다.
+ * 감시 지점이 뷰포트에 한 번이라도 들어오면 "마지막 섹션까지 스크롤"로 본다(로그인/비로그인
+ * 공통). 체류시간은 페이지를 벗어나는 시점(탭 전환/닫기/이동)에 한 번만 sendBeacon으로 보고한다.
  */
-export default function StoryReadTracker({ episodeId, enabled }: Props) {
+export default function StoryReadTracker({ episodeId, loggedIn }: Props) {
   const sentinelRef = useRef<HTMLDivElement>(null);
   const reachedEndRef = useRef(false);
   const startedAtRef = useRef(Date.now());
   const sentRef = useRef(false);
 
   useEffect(() => {
-    if (!enabled) return;
+    if (loggedIn) return;
+    fetch(`/api/episode-reads/${episodeId}/view`, { method: "POST", keepalive: true });
+  }, [episodeId, loggedIn]);
+
+  useEffect(() => {
     const el = sentinelRef.current;
     if (!el) return;
     const observer = new IntersectionObserver((entries) => {
@@ -28,11 +35,9 @@ export default function StoryReadTracker({ episodeId, enabled }: Props) {
     });
     observer.observe(el);
     return () => observer.disconnect();
-  }, [enabled]);
+  }, []);
 
   useEffect(() => {
-    if (!enabled) return;
-
     const send = () => {
       if (sentRef.current) return;
       sentRef.current = true;
@@ -55,7 +60,7 @@ export default function StoryReadTracker({ episodeId, enabled }: Props) {
       document.removeEventListener("visibilitychange", onVisibilityChange);
       window.removeEventListener("pagehide", send);
     };
-  }, [enabled, episodeId]);
+  }, [episodeId]);
 
   return <div ref={sentinelRef} aria-hidden style={{ height: 1 }} />;
 }

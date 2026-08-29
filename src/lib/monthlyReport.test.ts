@@ -4,13 +4,14 @@ import {
   selectTopFeaturedPosts,
   buildHeadline,
   buildKpiCards,
+  buildStoryCards,
   buildChangeInsights,
   buildSuggestions,
   formatPeriodLabel,
 } from "./monthlyReport";
 import type { PeriodKpiStats } from "./kpi";
 import type { ExtendedPeriodStats } from "./reportMetrics";
-import type { ReportQuestionParticipation } from "./monthlyReport";
+import type { ReportQuestionParticipation, StoryReadStats } from "./monthlyReport";
 
 function stats(overrides: Partial<PeriodKpiStats>): PeriodKpiStats {
   return {
@@ -131,6 +132,44 @@ describe("buildKpiCards", () => {
     const cards = buildKpiCards(stats({ qrUsers: 10, returningUsers: 3, guestbookPosts: 7 }), null);
     expect(cards.find((c) => c.key === "returningUsers")!.value).toBe("3명");
     expect(cards.find((c) => c.key === "guestbookPosts")!.value).toBe("7개");
+  });
+});
+
+function storyStats(overrides: Partial<StoryReadStats>): StoryReadStats {
+  return { episodeViews: 0, episodeCompletions: 0, avgReadDurationMs: null, ...overrides };
+}
+
+describe("buildStoryCards", () => {
+  it("4개 카드를 반환한다(스토리조회/스토리완료/완독률/평균체류시간)", () => {
+    const cards = buildStoryCards(storyStats({ episodeViews: 10 }), null);
+    expect(cards.map((c) => c.key)).toEqual(["storyViews", "storyCompletions", "storyCompletionRate", "avgReadDuration"]);
+  });
+
+  it("조회 수가 0이면 완독률이 NaN이 아니라 안전한 표시(—)로 나온다", () => {
+    const cards = buildStoryCards(storyStats({ episodeViews: 0, episodeCompletions: 0 }), null);
+    const rate = cards.find((c) => c.key === "storyCompletionRate")!;
+    expect(rate.value).toBe("—");
+    expect(rate.value).not.toContain("NaN");
+  });
+
+  it("조회/완료 수와 완독률을 정상 계산한다", () => {
+    const cards = buildStoryCards(storyStats({ episodeViews: 20, episodeCompletions: 5 }), null);
+    expect(cards.find((c) => c.key === "storyViews")!.value).toBe("20회");
+    expect(cards.find((c) => c.key === "storyCompletions")!.value).toBe("5회");
+    expect(cards.find((c) => c.key === "storyCompletionRate")!.value).toBe("25%");
+  });
+
+  it("평균 체류시간 표본이 없으면 —로 표시하고 change는 항상 null(노이즈 방지)", () => {
+    const cards = buildStoryCards(storyStats({ avgReadDurationMs: null }), storyStats({ avgReadDurationMs: 5000 }));
+    const duration = cards.find((c) => c.key === "avgReadDuration")!;
+    expect(duration.value).toBe("—");
+    expect(duration.change).toBeNull();
+  });
+
+  it("이전 기간 대비 조회/완료 수 변화 방향을 계산한다", () => {
+    const cards = buildStoryCards(storyStats({ episodeViews: 30, episodeCompletions: 15 }), storyStats({ episodeViews: 10, episodeCompletions: 5 }));
+    expect(cards.find((c) => c.key === "storyViews")!.change?.direction).toBe("up");
+    expect(cards.find((c) => c.key === "storyCompletions")!.change?.direction).toBe("up");
   });
 });
 

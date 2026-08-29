@@ -13,7 +13,7 @@ export interface TasteScoreBucket {
 
 export interface ExtendedPeriodStats {
   qrScans: number; // 원시 QR 스캔 수(SpaceScan, 로그인 여부 무관)
-  episodeViews: number; // 기간 내 최초 열람된 Episode 수(EpisodeRead.openedAt 기준)
+  episodeViews: number; // 기간 내 최초 열람된 Episode 수(EpisodeRead.openedAt 기준, 로그인/비로그인 방문자 모두 포함)
   episodeCompletions: number; // 위 조회 중 마지막 섹션까지 스크롤해 완독으로 기록된 수(EpisodeRead.completedAt not null)
   avgReadDurationMs: number | null; // 기간 내 스토리 페이지 평균 체류시간(ms), 표본 없으면 null
   newlyUnlockedEpisodes: number; // 기간 내 방문으로 새로 해제된 Episode 수
@@ -73,10 +73,11 @@ export function buildTasteScoreDistribution(records: { tasteScore: number | null
 
 /**
  * 공간 하나의 확장 지표를 원본 테이블(SpaceScan/EpisodeRead/Record/GuestbookReaction)에서 계산한다.
- * 관리자 계정의 방문/공감은 제외한다. EpisodeRead(스토리 조회/완독/체류시간)는 애초에 관리자
- * 세션이면 기록 자체가 안 생기므로(episodes/[episodeId]/page.tsx, episode-reads/finish route
- * 참고) 여기서 별도로 걸러낼 필요가 없다. qrScans(SpaceScan, 원시 QR 스캔)만 예외 — 이 테이블은
- * userId가 없어(로그인 전에도 스캔이 발생) 관리자 스캔을 구분할 방법이 현재 없다.
+ * 관리자 계정의 방문/공감은 제외한다. EpisodeRead(스토리 조회/완독/체류시간)는 애초에 로그인한
+ * 관리자 세션이면 기록 자체가 안 생기므로(episodes/[episodeId]/page.tsx, episode-reads/view,
+ * episode-reads/finish route 참고) 여기서 별도로 걸러낼 필요가 없다. 단, 관리자가 로그아웃한
+ * 채로 QR을 스캔해 비로그인 방문자로 잡히는 경우는 이메일로 식별할 방법이 없어 제외하지
+ * 못한다(fingerprinting 없이는 해결 불가능한 구조적 한계, qrScans와 같은 종류의 제약).
  */
 export async function getExtendedPeriodStats(
   spaceId: string,

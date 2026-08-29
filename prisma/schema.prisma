@@ -923,19 +923,24 @@ model SceneTranslation {
   @@map("scene_translations")
 }
 
-// 사용자별 Episode 열람 상태
+// 사용자별/익명 방문자별 Episode 열람 상태 — userId(로그인) 또는 anonId(비로그인, sc_anon_id
+// 쿠키)로 대상을 구분한다. 정확히 하나만 채워지며, Postgres 유니크 인덱스는 NULL을 서로
+// 다른 값으로 취급하므로 두 @@unique가 서로 간섭하지 않는다(로그인 행은 anonId=null이 여러 개
+// 있어도, 비로그인 행은 userId=null이 여러 개 있어도 각각 정상).
 model EpisodeRead {
   id          String    @id @default(cuid())
-  userId      String
+  userId      String?
+  anonId      String? // 비로그인 방문자 식별자(src/lib/anonVisitor.ts의 sc_anon_id 쿠키 값)
   episodeId   String
   openedAt    DateTime  @default(now())
   completedAt DateTime?
   durationMs  Int? // 클라이언트가 페이지를 벗어날 때 sendBeacon으로 보고하는 체류시간(ms)
 
-  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user    User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
   episode Episode @relation(fields: [episodeId], references: [id], onDelete: Cascade)
 
   @@unique([userId, episodeId])
+  @@unique([anonId, episodeId])
 }
 
 // ─── 콘텐츠 레이어 ────────────────────────────────────────────

@@ -135,8 +135,9 @@ export default async function ReportAdminPage({ params, searchParams }: Props) {
 
             <div className="space-y-2">
               <p className="text-xs" style={{ color: "var(--dim)" }}>공간 이야기</p>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-3 gap-3">
                 <StatBox label="스토리 조회" value={rangeExtended.episodeViews} unit="회" />
+                <StatBox label="스토리 완료" value={rangeExtended.episodeCompletions} unit="회" />
                 <StatBox
                   label="스토리 완독률"
                   value={rangeExtended.episodeViews > 0 ? pct(rangeExtended.episodeCompletions / rangeExtended.episodeViews) : "—"}

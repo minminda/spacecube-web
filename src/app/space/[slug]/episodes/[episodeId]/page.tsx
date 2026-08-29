@@ -347,7 +347,7 @@ export default async function EpisodeDetailPage({ params }: Props) {
         })()}
       </div>
 
-      <StoryReadTracker episodeId={episode.id} enabled={!!userId} />
+      <StoryReadTracker episodeId={episode.id} loggedIn={!!userId} />
 
       {prevEpisode && (
         <Link href={`/space/${space.slug}/episodes/${prevEpisode.id}`} className="text-xs" style={{ color: "var(--dim)" }}>
