@@ -52,4 +52,14 @@ describe("resolveEntryDestination — QR 진입 목적지는 방문 횟수/로�
     expect(first).toEqual(second);
     expect(second).toEqual(third);
   });
+
+  it("두 조회 모두 unlockVisitCount: 0인 Episode만 후보로 삼는다(첫 방문자가 잠긴 Episode로 들어가지 않도록)", async () => {
+    findFirstMock.mockResolvedValueOnce(null).mockResolvedValueOnce(null);
+    const { resolveEntryDestination } = await import("./episodeEntry");
+
+    await resolveEntryDestination("space-1");
+
+    expect(findFirstMock).toHaveBeenNthCalledWith(1, expect.objectContaining({ where: expect.objectContaining({ isFeatured: true, unlockVisitCount: 0 }) }));
+    expect(findFirstMock).toHaveBeenNthCalledWith(2, expect.objectContaining({ where: expect.objectContaining({ unlockVisitCount: 0 }) }));
+  });
 });
