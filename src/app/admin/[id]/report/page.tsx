@@ -4,7 +4,7 @@ import { auth } from "@/auth";
 import { isAdmin } from "@/lib/admin";
 import { prisma } from "@/lib/prisma";
 import { recomputeSpaceKPI, getSpaceMonthlyKpi, getEarliestRecordDate, getDailyVisitTrend } from "@/lib/kpi";
-import { getExtendedPeriodStats } from "@/lib/reportMetrics";
+import { getExtendedPeriodStats, getHourlyPeriodStats, type HourlyCountSet } from "@/lib/reportMetrics";
 import { computeMonthlyReportContent, formatDurationLabel } from "@/lib/monthlyReport";
 import { resolveDateRange, detectActivePreset, formatKstDateParam, toDotFormat, type DateRangePreset } from "@/lib/reportDateRange";
 import ReportEmail from "@/components/ReportEmail";
@@ -63,11 +63,14 @@ export default async function ReportAdminPage({ params, searchParams }: Props) {
 
   // 관리자 KPI 요약과 리포트 미리보기가 정확히 같은 [range.start, range.end)를 쓴다 —
   // 각자 따로 날짜를 계산하지 않는 것이 "기간 일치" 원칙(§21)의 핵심.
-  const [rangeStats, rangeExtended, dailyTrend, previewData] = await Promise.all([
+  // 시간별 조회는 하루(from===to)를 선택했을 때만 의미가 있으므로 그때만 쿼리한다.
+  const isSingleDay = range.from === range.to;
+  const [rangeStats, rangeExtended, dailyTrend, previewData, hourlyStats] = await Promise.all([
     getSpaceMonthlyKpi(spaceId, range.start, range.end),
     getExtendedPeriodStats(spaceId, range.start, range.end),
     getDailyVisitTrend(spaceId, range.start, range.end),
     computeMonthlyReportContent(spaceId, range.start, range.end, null, null),
+    isSingleDay ? getHourlyPeriodStats(spaceId, range.start, range.end) : Promise.resolve(null),
   ]);
 
   const recommendedFileName = `공간큐브_${space.name}_${range.from}_${range.to}.pdf`;
@@ -193,6 +196,8 @@ export default async function ReportAdminPage({ params, searchParams }: Props) {
                 <p className="text-xs" style={{ color: "var(--dim)" }}>선택한 기간이 길어(62일 초과) 일별 추이는 생략합니다.</p>
               )
             )}
+
+            {hourlyStats && <HourlySection data={hourlyStats} dateLabel={toDotFormat(range.from)} />}
           </>
         )}
       </section>
@@ -259,6 +264,60 @@ function DailyTrendChart({ data }: { data: { date: string; count: number }[] }) 
       <div className="flex justify-between text-[10px]" style={{ color: "var(--dim)" }}>
         <span>{toDotFormat(data[0].date)}</span>
         <span>{toDotFormat(data[data.length - 1].date)}</span>
+      </div>
+    </div>
+  );
+}
+
+const HOURLY_METRICS: { key: keyof HourlyCountSet; label: string }[] = [
+  { key: "qrScans", label: "QR 인식" },
+  { key: "episodeViews", label: "스토리 조회" },
+  { key: "episodeCompletions", label: "스토리 완료" },
+  { key: "records", label: "취향 기록(Record)" },
+  { key: "guestbookPosts", label: "방명록 작성" },
+];
+
+/** 하루를 선택했을 때만 나타나는 "시간별 조회" — 설치 위치/문구를 바꾼 뒤 실제 QR/Story
+ *  진입이 언제 발생했는지 시간 단위로 확인하기 위한 최소 구현. 지표마다 DailyTrendChart와
+ *  같은 막대 그래프를 하나씩 쌓아 보여주고, X축(00시~23시)은 맨 아래 한 번만 공유해서
+ *  화면을 과하게 늘리지 않는다. */
+function HourlySection({ data, dateLabel }: { data: HourlyCountSet[]; dateLabel: string }) {
+  return (
+    <div className="space-y-3">
+      <p className="text-xs" style={{ color: "var(--dim)" }}>시간별 조회 — {dateLabel} (KST)</p>
+      {HOURLY_METRICS.map(({ key, label }) => (
+        <HourlyTrendChart key={key} label={label} data={data.map((d) => ({ hour: d.hour, count: d[key] as number }))} />
+      ))}
+      <div className="flex justify-between text-[10px]" style={{ color: "var(--dim)" }}>
+        {[0, 4, 8, 12, 16, 20].map((h) => (
+          <span key={h}>{String(h).padStart(2, "0")}시</span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function HourlyTrendChart({ label, data }: { label: string; data: { hour: number; count: number }[] }) {
+  const max = Math.max(1, ...data.map((d) => d.count));
+  const total = data.reduce((sum, d) => sum + d.count, 0);
+  return (
+    <div className="space-y-1">
+      <div className="flex items-baseline justify-between">
+        <p className="text-[11px]" style={{ color: "var(--dim)" }}>{label}</p>
+        <p className="text-[11px]" style={{ color: "var(--dim)" }}>합계 {total}</p>
+      </div>
+      <div className="flex items-end gap-[2px]" style={{ height: 40 }}>
+        {data.map((d) => (
+          <div
+            key={d.hour}
+            title={`${String(d.hour).padStart(2, "0")}시 · ${d.count}건`}
+            className="flex-1"
+            style={{
+              height: `${Math.max((d.count / max) * 100, d.count > 0 ? 8 : 2)}%`,
+              background: d.count > 0 ? "var(--fg)" : "var(--border)",
+            }}
+          />
+        ))}
       </div>
     </div>
   );

@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { getAdminUserIds } from "@/lib/kpiEligibility";
+import { buildHourlyTrend } from "@/lib/reportDateRange";
 
 /* ── 리포트 확장 지표 ────────────────────────────────────────────────
    태그 기반 KPI(방문자 취향 TOP3/공간 사용 방식)를 대체하는 새 리포트 구조가 필요로 하는
@@ -117,4 +118,52 @@ export async function getExtendedPeriodStats(
   const avgReadDurationMs = durationAgg._avg.durationMs != null ? Math.round(durationAgg._avg.durationMs) : null;
 
   return { qrScans, episodeViews, episodeCompletions, avgReadDurationMs, newlyUnlockedEpisodes, reactionsTotal, tasteScoreDistribution };
+}
+
+export interface HourlyCountSet {
+  hour: number; // KST 0~23
+  qrScans: number;
+  episodeViews: number;
+  episodeCompletions: number;
+  records: number;
+  guestbookPosts: number;
+}
+
+/**
+ * 관리자 리포트의 "시간별 조회"(하루를 선택했을 때만) — 각 지표를 날짜별 집계와 정확히 같은
+ * 기준(원본 필드, 관리자 제외 여부)으로 시간대별 0건 포함 24개 버킷으로 나눈다. 시간대마다
+ * DB를 24번 쏘지 않고 지표당 딱 1번(총 4번)만 범위 쿼리한 뒤 서버 메모리에서 그룹핑한다.
+ *
+ * "Story Complete"는 완독이 일어난 시각이 아니라, getExtendedPeriodStats의 episodeCompletions와
+ * 동일하게 "그 시간대에 조회를 시작했다가(openedAt) 결국 완독까지 간 수"로 센다 — 그래야
+ * 하루 전체 합계(getExtendedPeriodStats)와 시간별 합계가 모든 지표에서 정확히 일치한다.
+ */
+export async function getHourlyPeriodStats(spaceId: string, dayStart: Date, dayEnd: Date): Promise<HourlyCountSet[]> {
+  const adminUserIds = await getAdminUserIds();
+  const notAdmin = { notIn: [...adminUserIds] };
+
+  const [scans, reads, records, notes] = await Promise.all([
+    prisma.spaceScan.findMany({ where: { spaceId, scannedAt: { gte: dayStart, lt: dayEnd } }, select: { scannedAt: true } }),
+    prisma.episodeRead.findMany({
+      where: { episode: { spaceId }, openedAt: { gte: dayStart, lt: dayEnd } },
+      select: { openedAt: true, completedAt: true },
+    }),
+    prisma.record.findMany({ where: { spaceId, visitedAt: { gte: dayStart, lt: dayEnd }, userId: notAdmin }, select: { visitedAt: true } }),
+    prisma.guestbookNote.findMany({ where: { spaceId, createdAt: { gte: dayStart, lt: dayEnd }, userId: notAdmin }, select: { createdAt: true } }),
+  ]);
+
+  const qrBuckets = buildHourlyTrend(scans.map((s) => s.scannedAt), dayStart, dayEnd);
+  const viewBuckets = buildHourlyTrend(reads.map((r) => r.openedAt), dayStart, dayEnd);
+  const completeBuckets = buildHourlyTrend(reads.filter((r) => r.completedAt != null).map((r) => r.openedAt), dayStart, dayEnd);
+  const recordBuckets = buildHourlyTrend(records.map((r) => r.visitedAt), dayStart, dayEnd);
+  const guestbookBuckets = buildHourlyTrend(notes.map((n) => n.createdAt), dayStart, dayEnd);
+
+  return Array.from({ length: 24 }, (_, hour) => ({
+    hour,
+    qrScans: qrBuckets[hour]?.count ?? 0,
+    episodeViews: viewBuckets[hour]?.count ?? 0,
+    episodeCompletions: completeBuckets[hour]?.count ?? 0,
+    records: recordBuckets[hour]?.count ?? 0,
+    guestbookPosts: guestbookBuckets[hour]?.count ?? 0,
+  }));
 }

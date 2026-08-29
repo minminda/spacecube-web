@@ -7,6 +7,7 @@ import {
   detectActivePreset,
   resolveDateRange,
   buildDailyVisitTrend,
+  buildHourlyTrend,
 } from "./reportDateRange";
 
 describe("formatKstDateParam / parseKstDateStart", () => {
@@ -207,5 +208,77 @@ describe("buildDailyVisitTrend", () => {
     const start = parseKstDateStart("2026-01-01") as Date;
     const end = parseKstDateStart("2026-06-01") as Date; // 150일 이상
     expect(buildDailyVisitTrend([], start, end)).toEqual([]);
+  });
+});
+
+describe("buildHourlyTrend", () => {
+  it("데이터가 없어도 0~23시 24개 시간대를 0건으로 채워 반환한다", () => {
+    const start = parseKstDateStart("2026-08-29") as Date;
+    const end = parseKstDateStart("2026-08-30") as Date;
+    const trend = buildHourlyTrend([], start, end);
+    expect(trend).toHaveLength(24);
+    expect(trend.map((t) => t.hour)).toEqual(Array.from({ length: 24 }, (_, i) => i));
+    expect(trend.every((t) => t.count === 0)).toBe(true);
+  });
+
+  it("KST 23시대 데이터를 해당 날짜 23시에 정확히 포함한다(자정 넘어 다음날로 새지 않음)", () => {
+    const start = parseKstDateStart("2026-08-29") as Date;
+    const end = parseKstDateStart("2026-08-30") as Date;
+    // KST 2026-08-29 23:30 = UTC 2026-08-29 14:30
+    const ts = [new Date("2026-08-29T14:30:00.000Z")];
+    const trend = buildHourlyTrend(ts, start, end);
+    expect(trend[23].count).toBe(1);
+    expect(trend.filter((t) => t.count > 0)).toHaveLength(1);
+  });
+
+  it("UTC 날짜 기준으로는 전날이지만 KST로는 당일 새벽인 데이터를 정확히 포함한다", () => {
+    const start = parseKstDateStart("2026-08-29") as Date;
+    const end = parseKstDateStart("2026-08-30") as Date;
+    // KST 2026-08-29 03:00 = UTC 2026-08-28 18:00
+    const ts = [new Date("2026-08-28T18:00:00.000Z")];
+    const trend = buildHourlyTrend(ts, start, end);
+    expect(trend[3].count).toBe(1);
+  });
+
+  it("여러 시간대에 걸친 타임스탬프를 정확히 각자의 시간대로 나눈다", () => {
+    const start = parseKstDateStart("2026-08-29") as Date;
+    const end = parseKstDateStart("2026-08-30") as Date;
+    const ts = [
+      new Date("2026-08-29T01:00:00.000Z"), // KST 10:00
+      new Date("2026-08-29T01:30:00.000Z"), // KST 10:30 (같은 10시대)
+      new Date("2026-08-29T03:00:00.000Z"), // KST 12:00
+    ];
+    const trend = buildHourlyTrend(ts, start, end);
+    expect(trend[10].count).toBe(2);
+    expect(trend[12].count).toBe(1);
+    expect(trend.reduce((sum, t) => sum + t.count, 0)).toBe(3);
+  });
+
+  it("구간 밖의 타임스탬프는 집계하지 않는다", () => {
+    const start = parseKstDateStart("2026-08-29") as Date;
+    const end = parseKstDateStart("2026-08-30") as Date;
+    const ts = [new Date("2026-08-30T01:00:00.000Z"), new Date("2026-08-27T01:00:00.000Z")];
+    const trend = buildHourlyTrend(ts, start, end);
+    expect(trend.every((t) => t.count === 0)).toBe(true);
+  });
+
+  it("하루(24시간)가 아닌 구간이 들어오면 빈 배열을 반환한다(방어적 가드)", () => {
+    const start = parseKstDateStart("2026-08-29") as Date;
+    const end = parseKstDateStart("2026-08-31") as Date; // 2일
+    expect(buildHourlyTrend([], start, end)).toEqual([]);
+  });
+
+  it("같은 하루의 시간별 합계는 일별 집계의 그 날짜 건수와 정확히 일치한다", () => {
+    const start = parseKstDateStart("2026-08-29") as Date;
+    const end = parseKstDateStart("2026-08-30") as Date;
+    const ts = [
+      new Date("2026-08-29T01:00:00.000Z"),
+      new Date("2026-08-29T05:00:00.000Z"),
+      new Date("2026-08-29T14:30:00.000Z"),
+    ];
+    const hourlyTotal = buildHourlyTrend(ts, start, end).reduce((sum, t) => sum + t.count, 0);
+    const dailyCount = buildDailyVisitTrend(ts, start, end)[0].count;
+    expect(hourlyTotal).toBe(dailyCount);
+    expect(hourlyTotal).toBe(3);
   });
 });

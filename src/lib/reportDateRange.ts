@@ -6,6 +6,7 @@
 
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
+const HOUR_MS = 60 * 60 * 1000;
 const DATE_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
 
 /** 최대 62일까지만 일별 추이를 그린다 — 그 이상은 막대가 너무 촘촘해져 생략한다(§10). */
@@ -156,4 +157,32 @@ export function buildDailyVisitTrend(visitedAtList: Date[], start: Date, end: Da
     if (counts.has(key)) counts.set(key, (counts.get(key) ?? 0) + 1);
   }
   return [...counts.entries()].map(([date, count]) => ({ date, count }));
+}
+
+export interface HourlyCount {
+  hour: number; // KST 0~23
+  count: number;
+}
+
+/**
+ * 하루(24시간, [dayStart, dayEnd)) 구간을 KST 시간대별로 0건 포함해 채운 뒤 타임스탬프
+ * 목록을 집계한다(순수 함수, DB 접근 없음 — 실제 조회는 reportMetrics.ts의
+ * getHourlyPeriodStats가 담당). dayStart/dayEnd는 반드시 KST 00:00~다음날 00:00을 나타내는
+ * Date 쌍이어야 한다(resolveDateRange의 결과 중 from===to일 때의 start/end를 그대로 쓴다).
+ * getHours() 같은 로컬 getter를 전혀 쓰지 않고 dayStart로부터의 ms 오프셋만으로 시간대를
+ * 계산하므로, 서버 프로세스가 어떤 타임존으로 돌든 항상 KST 기준으로 정확하다(monthlyReport.ts
+ * 상단 주석에 기록된 "로컬 getter로 KST 날짜를 표시하지 말 것" 함정과 같은 종류의 실수를
+ * 피하기 위함).
+ */
+export function buildHourlyTrend(timestamps: Date[], dayStart: Date, dayEnd: Date): HourlyCount[] {
+  const totalHours = Math.round((dayEnd.getTime() - dayStart.getTime()) / HOUR_MS);
+  if (totalHours !== 24) return [];
+
+  const counts = new Array(24).fill(0) as number[];
+  for (const ts of timestamps) {
+    if (ts < dayStart || ts >= dayEnd) continue;
+    const idx = Math.floor((ts.getTime() - dayStart.getTime()) / HOUR_MS);
+    if (idx >= 0 && idx < 24) counts[idx] += 1;
+  }
+  return counts.map((count, hour) => ({ hour, count }));
 }
