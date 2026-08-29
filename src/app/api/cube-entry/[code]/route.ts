@@ -1,9 +1,12 @@
+import { randomUUID } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { normalizeCubeCode, getCubeByCode, resolveCubeDestination } from "@/lib/cube";
 import { resolveEntryDestination } from "@/lib/episodeEntry";
 import { createQrAccessToken, grantSpaceUnlock, QR_ACCESS_COOKIE, QR_ACCESS_COOKIE_MAX_AGE_SECONDS } from "@/lib/spaceUnlock";
+import { ANON_VISITOR_COOKIE } from "@/lib/anonVisitor";
 
 export const dynamic = "force-dynamic";
 
@@ -38,12 +41,19 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ code
   }
   if (debug) console.log(`[cube-entry] space=${destination.slug} loggedIn=${!!userId}`);
 
+  // 비로그인 스캔에도 sc_anon_id를 남겨 "QR 진입자 수(고유 방문자)"를 Story View와 같은
+  // 방문자 기준으로 비교할 수 있게 한다(anonVisitor.ts와 동일한 쿠키, 새 식별자 체계 아님).
+  // 이미 쿠키가 있으면 그대로 재사용하고 만료시간을 갱신하지 않는다(기존 정책과 동일).
+  const existingAnonId = userId ? null : (await cookies()).get(ANON_VISITOR_COOKIE)?.value ?? null;
+  const anonId = userId ? null : existingAnonId ?? randomUUID();
+
   await prisma.spaceScan
     .create({
       data: {
         spaceId: cube.spaceId,
         cubeId: cube.id,
         userId,
+        anonId,
         userAgent: req.headers.get("user-agent")?.slice(0, 300) ?? null,
         referrer: req.headers.get("referer")?.slice(0, 300) ?? null,
         locale: req.headers.get("accept-language")?.slice(0, 60) ?? null,
@@ -74,6 +84,16 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ code
     maxAge: QR_ACCESS_COOKIE_MAX_AGE_SECONDS,
     path: "/",
   });
+
+  if (!userId && !existingAnonId && anonId) {
+    response.cookies.set(ANON_VISITOR_COOKIE, anonId, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: QR_ACCESS_COOKIE_MAX_AGE_SECONDS,
+      path: "/",
+    });
+  }
 
   if (userId) {
     // 로그인 상태면 추가로 DB에도 즉시 반영 — 이 쿠키가 나중에 만료돼도 로그인 사용자는

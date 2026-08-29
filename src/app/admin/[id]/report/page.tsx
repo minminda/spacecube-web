@@ -4,7 +4,13 @@ import { auth } from "@/auth";
 import { isAdmin } from "@/lib/admin";
 import { prisma } from "@/lib/prisma";
 import { recomputeSpaceKPI, getSpaceMonthlyKpi, getEarliestRecordDate, getDailyVisitTrend } from "@/lib/kpi";
-import { getExtendedPeriodStats, getHourlyPeriodStats, getGuestbookFunnelStats, type HourlyCountSet } from "@/lib/reportMetrics";
+import {
+  getExtendedPeriodStats,
+  getHourlyPeriodStats,
+  getGuestbookConversionFunnel,
+  type HourlyCountSet,
+  type GuestbookConversionFunnel,
+} from "@/lib/reportMetrics";
 import { computeMonthlyReportContent, formatDurationLabel } from "@/lib/monthlyReport";
 import { resolveDateRange, detectActivePreset, formatKstDateParam, toDotFormat, type DateRangePreset } from "@/lib/reportDateRange";
 import ReportEmail from "@/components/ReportEmail";
@@ -71,7 +77,7 @@ export default async function ReportAdminPage({ params, searchParams }: Props) {
     getDailyVisitTrend(spaceId, range.start, range.end),
     computeMonthlyReportContent(spaceId, range.start, range.end, null, null),
     isSingleDay ? getHourlyPeriodStats(spaceId, range.start, range.end) : Promise.resolve(null),
-    getGuestbookFunnelStats(spaceId, range.start, range.end),
+    getGuestbookConversionFunnel(spaceId, range.start, range.end),
   ]);
 
   const recommendedFileName = `공간큐브_${space.name}_${range.from}_${range.to}.pdf`;
@@ -181,33 +187,17 @@ export default async function ReportAdminPage({ params, searchParams }: Props) {
                 <StatBox label="작성자 수" value={rangeStats.guestbookWriters} unit="명" />
                 <StatBox label="작성률" value={pct(rangeStats.guestbookRate)} unit="" />
               </div>
-              <div className="grid grid-cols-3 gap-3">
-                <StatBox label="방명록 진입" value={funnelStats.entryAttempts} unit="명" />
-                <StatBox label="작성 시도" value={funnelStats.writeAttempts} unit="명" />
-                <StatBox label="로그인 요구" value={funnelStats.loginRequired} unit="명" />
-              </div>
               <div className="grid grid-cols-2 gap-3">
-                <StatBox label="로그인 성공" value={funnelStats.loginSuccess} unit="명" />
                 <StatBox label="공감 수" value={rangeExtended.reactionsTotal} unit="회" />
-              </div>
-              <div className="grid grid-cols-3 gap-3">
                 <StatBox
-                  label="스토리→방명록 진입률"
-                  value={rangeExtended.episodeViews > 0 ? pct(funnelStats.entryAttempts / rangeExtended.episodeViews) : "—"}
-                  unit=""
-                />
-                <StatBox
-                  label="작성 시도율"
-                  value={funnelStats.entryAttempts > 0 ? pct(funnelStats.writeAttempts / funnelStats.entryAttempts) : "—"}
-                  unit=""
-                />
-                <StatBox
-                  label="작성 완료율"
-                  value={funnelStats.writeAttempts > 0 ? pct(rangeStats.guestbookPosts / funnelStats.writeAttempts) : "—"}
-                  unit=""
+                  label="실제 방명록 조회"
+                  value={funnelStats.guestbookViewers}
+                  unit="명 — 아래 방문자 퍼널 참고"
                 />
               </div>
             </div>
+
+            <FunnelSection funnel={funnelStats} />
 
             {dailyTrend.length > 0 ? (
               <DailyTrendChart data={dailyTrend} />
@@ -249,6 +239,76 @@ export default async function ReportAdminPage({ params, searchParams }: Props) {
         }
       `}</style>
     </main>
+  );
+}
+
+/**
+ * "방문자 퍼널" — QR 인식부터 포스트잇 작성까지 9단계를 원시 숫자(명)와 직전 단계 대비
+ * 전환율로 한 줄씩 보여준다. 어느 구간에서 가장 크게 빠지는지 한눈에 보기 위한 진단용
+ * 화면이라 막대그래프 대신 텍스트 목록으로 구성했다(기존 관리자 화면의 흑백/텍스트 스타일
+ * 유지). getGuestbookConversionFunnel이 이미 모든 값을 "명"(고유 방문자) 단위로 통일해
+ * 넘겨주므로 여기서는 표시만 담당한다 — 절대 다른 곳의 "회" 단위 숫자를 섞어 넣지 않는다.
+ */
+function FunnelSection({ funnel }: { funnel: GuestbookConversionFunnel }) {
+  const steps: { key: string; label: string; value: number }[] = [
+    { key: "qr", label: "QR 진입", value: funnel.qrEntrants },
+    { key: "storyView", label: "Story View", value: funnel.storyViewers },
+    { key: "storyComplete", label: "Story Complete", value: funnel.storyCompleters },
+    { key: "entryAttempt", label: "방명록 열기 클릭", value: funnel.entryAttempts },
+    { key: "loginSuccess", label: "로그인 성공", value: funnel.loginSuccess },
+    { key: "record", label: "취향 점수 완료", value: funnel.recordCompleters },
+    { key: "guestbookView", label: "실제 방명록 조회", value: funnel.guestbookViewers },
+    { key: "writeAttempt", label: "작성 시도", value: funnel.writeAttempts },
+    { key: "postIt", label: "작성 완료", value: funnel.postItAuthors },
+  ];
+
+  return (
+    <div className="space-y-3">
+      <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>방문자 퍼널 — 이탈 구간 진단</p>
+      <p className="text-xs leading-relaxed" style={{ color: "var(--dim)" }}>
+        모두 &quot;몇 명&quot;(중복 제거) 기준입니다. 위 KPI의 &quot;회&quot; 단위 숫자(스토리 조회 등, 같은 사람이 여러 번 잡힐 수 있음)와는
+        집계 단위가 달라 직접 비교하면 안 됩니다.
+      </p>
+
+      <div className="flex flex-col">
+        {steps.map((step, i) => {
+          const prevValue = i > 0 ? steps[i - 1].value : null;
+          const rateLabel = prevValue == null ? null : prevValue > 0 ? pct(step.value / prevValue) : "—";
+          return (
+            <div key={step.key}>
+              {rateLabel != null && (
+                <p className="text-xs text-center py-1" style={{ color: "var(--border)" }}>↓ {rateLabel}</p>
+              )}
+              <div className="flex items-center justify-between p-3 border" style={{ borderColor: "var(--border)" }}>
+                <span className="text-sm">{step.label}</span>
+                <span className="text-lg font-bold">{step.value}<span className="text-xs font-normal" style={{ color: "var(--dim)" }}> 명</span></span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="space-y-1">
+        <div className="grid grid-cols-2 gap-3">
+          <StatBox label="로그인 요구" value={funnel.loginRequired} unit="명" />
+          <StatBox
+            label="로그인 전환율"
+            value={funnel.loginRequired > 0 ? pct(funnel.loginSuccess / funnel.loginRequired) : "—"}
+            unit=""
+          />
+        </div>
+        <p className="text-xs leading-relaxed" style={{ color: "var(--border)" }}>
+          로그인 요구/전환율은 비로그인 방문자에게만 발생합니다(이미 로그인된 방문자는 &quot;방명록 열기 클릭&quot;에서 곧장
+          다음 단계로 이어져 이 값을 거치지 않습니다) — 방명록에 관심을 보인 비로그인 방문자가 로그인 때문에 얼마나
+          이탈하는지는 위 퍼널의 &quot;방명록 열기 클릭 → 로그인 성공&quot; 전환율이 아니라 이 값으로 판단하세요.
+        </p>
+      </div>
+
+      <p className="text-xs leading-relaxed" style={{ color: "var(--border)" }}>
+        비로그인 QR 진입/Story View/방명록 열기 클릭 계측은 2026-08-29부터 시작되었습니다. 그 이전 기간을 조회하면
+        이 지표들은 로그인 사용자만 반영해 실제보다 적게 나올 수 있습니다.
+      </p>
+    </div>
   );
 }
 

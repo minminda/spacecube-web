@@ -397,6 +397,10 @@ model SpaceScan {
   // IP는 저장하지 않고, userId도 로그인 상태였을 때만 채운다.
   cubeId    String?
   userId    String?
+  // 비로그인 스캔의 방문자 식별자(sc_anon_id 쿠키, EpisodeRead/GuestbookFunnelEvent와 동일한
+  // 값 재사용) — "QR 진입자 수(고유 방문자)"를 Story View와 같은 기준으로 비교하기 위해 추가.
+  // 스캔 자체는 여러 번 발생할 수 있으므로 유니크 제약을 두지 않는다(원시 스캔 로그는 그대로 유지).
+  anonId    String?
   userAgent String? @db.VarChar(300)
   referrer  String? @db.VarChar(300)
   locale    String?

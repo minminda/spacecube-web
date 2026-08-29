@@ -168,45 +168,109 @@ export async function getHourlyPeriodStats(spaceId: string, dayStart: Date, dayE
   }));
 }
 
-export interface GuestbookFunnelStats {
-  entryAttempts: number; // 방명록 진입(방향 이동 시도) — 로그인/비로그인 공통
-  writeAttempts: number; // 작성 시도(캔버스 안 "작성" 버튼) — 구조상 로그인 사용자만
-  loginRequired: number; // 비로그인으로 이 흐름을 타다 실제로 로그인 요구를 본 방문자
-  loginSuccess: number; // 위 로그인 요구를 받았다가 실제로 로그인을 완료한 방문자
+/**
+ * 방문자 전환 퍼널(§QR 진입 ~ 포스트잇 작성) — 관리자가 "어느 구간에서 이탈했는지" 진단하는
+ * 화면 전용 지표. 이 함수의 모든 필드는 반드시 "그 단계까지 도달한 고유 방문자 수"(중복
+ * 제거, 명 단위)로 통일한다 — 옆 함수들의 qrScans("회", 원시 스캔 이벤트 수)나
+ * episodeViews("회", 조회 이벤트 수, 같은 방문자가 이 공간의 Episode를 여러 개 열면 여러 번
+ * 잡힘)와는 다른 집계 단위이므로 절대 섞어 쓰지 않는다 — 두 종류를 같은 화면에 같이 쓸 때는
+ * 라벨/단위로 반드시 구분한다(관리자 리포트 화면 참고).
+ *
+ * - qrEntrants: SpaceScan distinct(userId ?? anonId). anonId는 2026-08-29 이후 스캔부터만
+ *   채워진다(그 전 스캔은 로그인한 경우만 식별 가능) — 계측 시작 이전 기간을 조회하면
+ *   과소집계될 수 있다.
+ * - storyViewers/storyCompleters: EpisodeRead distinct(userId ?? anonId). 공간에 Episode가
+ *   여러 개면 한 사람이 여러 행을 만들 수 있어 raw count(episodeViews)보다 항상 작거나 같다.
+ * - entryAttempts/loginRequired/loginSuccess/writeAttempts: GuestbookFunnelEvent는 이미
+ *   방문자당 스텝별 최초 1회만 기록되므로(guestbookFunnel.ts) count 자체가 고유 인원이다.
+ * - recordCompleters: Record distinct(userId) — kpi.ts의 "QR 이용자"와 정의가 완전히
+ *   같다(같은 데이터를 퍼널 관점에서 다시 부르는 것일 뿐, 별도 계산 아님).
+ * - guestbookViewers: Record.guestbookViewedAt distinct(userId) — 실제로 방명록 캔버스에
+ *   도달한 사람. ENTRY_ATTEMPT(방명록 방향으로 이동을 "시도"함)와 반드시 구분해서 써야 한다.
+ * - postItAuthors: GuestbookNote distinct(userId) — kpi.ts의 "작성자 수"와 동일 정의.
+ *
+ * 관리자 제외 시 주의: userId가 nullable인 테이블(SpaceScan/EpisodeRead/GuestbookFunnelEvent)은
+ * `userId: { notIn: [...] }`만 쓰면 SQL이 `NULL NOT IN (...)`을 거짓으로 평가해 익명 행까지
+ * 걸러버린다 — distinct 집계가 필요한 SpaceScan/EpisodeRead는 행을 그대로 가져와 JS에서
+ * admin userId만 골라 제외하고, GuestbookFunnelEvent는 기존과 같이 OR 절로 명시한다.
+ */
+export interface GuestbookConversionFunnel {
+  qrEntrants: number;
+  storyViewers: number;
+  storyCompleters: number;
+  entryAttempts: number;
+  loginRequired: number;
+  loginSuccess: number;
+  recordCompleters: number;
+  guestbookViewers: number;
+  writeAttempts: number;
+  postItAuthors: number;
 }
 
-/**
- * 방명록 퍼널(GuestbookFunnelEvent) 기간 집계 — createdAt 기준, 스텝별로 "방문자당 최초
- * 1회"만 기록돼 있으므로(guestbookFunnel.ts) 그대로 count하면 곧 "몇 명"이 된다.
- *
- * 관리자 제외 시 주의: userId는 nullable(익명 행은 null)이라 `userId: { notIn: [...] }`만
- * 쓰면 SQL에서 `NULL NOT IN (...)`이 NULL(=거짓 취급)로 평가돼 익명 행까지 통째로 걸러진다
- * (Prisma도 이 SQL 동작을 그대로 따름). 그래서 반드시 "userId가 null이거나, admin이
- * 아니거나"를 OR로 명시한다 — anonId 쪽은 애초에 로그인 계정이 없어 관리자 여부를 알 수
- * 없으므로(Story View의 qrScans와 같은 구조적 한계) 그대로 둔다.
- */
-export async function getGuestbookFunnelStats(
+export async function getGuestbookConversionFunnel(
   spaceId: string,
   periodStart: Date,
   periodEnd: Date,
-): Promise<GuestbookFunnelStats> {
+): Promise<GuestbookConversionFunnel> {
   const adminUserIds = await getAdminUserIds();
+  const adminSet = new Set(adminUserIds);
+  const notAdmin = { notIn: [...adminUserIds] };
   const notAdminOrAnonymous = { OR: [{ userId: null }, { userId: { notIn: [...adminUserIds] } }] };
 
-  const [entryAttempts, writeAttempts, loginRequired, loginSuccess] = await Promise.all([
-    prisma.guestbookFunnelEvent.count({
-      where: { spaceId, step: "ENTRY_ATTEMPT", createdAt: { gte: periodStart, lt: periodEnd }, ...notAdminOrAnonymous },
-    }),
-    prisma.guestbookFunnelEvent.count({
-      where: { spaceId, step: "WRITE_ATTEMPT", createdAt: { gte: periodStart, lt: periodEnd }, ...notAdminOrAnonymous },
-    }),
-    prisma.guestbookFunnelEvent.count({
-      where: { spaceId, step: "LOGIN_REQUIRED", createdAt: { gte: periodStart, lt: periodEnd } },
-    }),
-    prisma.guestbookFunnelEvent.count({
-      where: { spaceId, step: "LOGIN_SUCCESS", createdAt: { gte: periodStart, lt: periodEnd }, ...notAdminOrAnonymous },
-    }),
-  ]);
+  const identity = (row: { userId: string | null; anonId?: string | null }): string | null =>
+    row.userId ?? (row.anonId ? `anon:${row.anonId}` : null);
+  const distinctCount = (rows: { userId: string | null; anonId?: string | null }[]): number =>
+    new Set(rows.map(identity).filter((v): v is string => v != null)).size;
 
-  return { entryAttempts, writeAttempts, loginRequired, loginSuccess };
+  const [scans, reads, entryAttempts, loginRequired, loginSuccess, writeAttempts, records, guestbookViews, notes] =
+    await Promise.all([
+      prisma.spaceScan.findMany({
+        where: { spaceId, scannedAt: { gte: periodStart, lt: periodEnd } },
+        select: { userId: true, anonId: true },
+      }),
+      prisma.episodeRead.findMany({
+        where: { episode: { spaceId }, openedAt: { gte: periodStart, lt: periodEnd } },
+        select: { userId: true, anonId: true, completedAt: true },
+      }),
+      prisma.guestbookFunnelEvent.count({
+        where: { spaceId, step: "ENTRY_ATTEMPT", createdAt: { gte: periodStart, lt: periodEnd }, ...notAdminOrAnonymous },
+      }),
+      prisma.guestbookFunnelEvent.count({
+        where: { spaceId, step: "LOGIN_REQUIRED", createdAt: { gte: periodStart, lt: periodEnd } },
+      }),
+      prisma.guestbookFunnelEvent.count({
+        where: { spaceId, step: "LOGIN_SUCCESS", createdAt: { gte: periodStart, lt: periodEnd }, ...notAdminOrAnonymous },
+      }),
+      prisma.guestbookFunnelEvent.count({
+        where: { spaceId, step: "WRITE_ATTEMPT", createdAt: { gte: periodStart, lt: periodEnd }, ...notAdminOrAnonymous },
+      }),
+      prisma.record.findMany({
+        where: { spaceId, visitedAt: { gte: periodStart, lt: periodEnd }, userId: notAdmin },
+        select: { userId: true },
+      }),
+      prisma.record.findMany({
+        where: { spaceId, guestbookViewedAt: { gte: periodStart, lt: periodEnd }, userId: notAdmin },
+        select: { userId: true },
+      }),
+      prisma.guestbookNote.findMany({
+        where: { spaceId, createdAt: { gte: periodStart, lt: periodEnd }, userId: notAdmin },
+        select: { userId: true },
+      }),
+    ]);
+
+  const nonAdminScans = scans.filter((s) => !(s.userId && adminSet.has(s.userId)));
+  const nonAdminReads = reads.filter((r) => !(r.userId && adminSet.has(r.userId)));
+
+  return {
+    qrEntrants: distinctCount(nonAdminScans),
+    storyViewers: distinctCount(nonAdminReads),
+    storyCompleters: distinctCount(nonAdminReads.filter((r) => r.completedAt != null)),
+    entryAttempts,
+    loginRequired,
+    loginSuccess,
+    recordCompleters: new Set(records.map((r) => r.userId)).size,
+    guestbookViewers: new Set(guestbookViews.map((r) => r.userId)).size,
+    writeAttempts,
+    postItAuthors: new Set(notes.map((n) => n.userId)).size,
+  };
 }
