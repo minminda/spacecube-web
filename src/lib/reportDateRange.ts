@@ -47,6 +47,24 @@ export function toDotFormat(isoDate: string): string {
   return isoDate.replace(/-/g, ".");
 }
 
+function kstTimeParts(date: Date) {
+  const k = new Date(date.getTime() + KST_OFFSET_MS);
+  return { y: k.getUTCFullYear(), m: k.getUTCMonth(), d: k.getUTCDate(), h: k.getUTCHours(), min: k.getUTCMinutes(), s: k.getUTCSeconds() };
+}
+
+/** KST 기준 "YYYY.MM.DD HH:mm:ss" — PHASE 2 현장 관찰에서 QR Entry/Story 방문 로그의
+ *  실제 발생 시각을 초 단위까지 대조하기 위한 포맷(§관리자 방문 로그). */
+export function formatKstDateTime(date: Date): string {
+  const { y, m, d, h, min, s } = kstTimeParts(date);
+  return `${y}.${String(m + 1).padStart(2, "0")}.${String(d).padStart(2, "0")} ${String(h).padStart(2, "0")}:${String(min).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+}
+
+/** KST 기준 "HH:mm:ss"만 — 같은 날짜 그룹 안에서 날짜를 반복 표시하지 않을 때 쓴다. */
+export function formatKstTime(date: Date): string {
+  const { h, min, s } = kstTimeParts(date);
+  return `${String(h).padStart(2, "0")}:${String(min).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+}
+
 function addDays(date: Date, n: number): Date {
   return new Date(date.getTime() + n * DAY_MS);
 }

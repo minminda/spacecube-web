@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
 import {
   formatKstDateParam,
+  formatKstDateTime,
+  formatKstTime,
   parseKstDateStart,
   toDotFormat,
   presetDateRange,
@@ -9,6 +11,21 @@ import {
   buildDailyVisitTrend,
   buildHourlyTrend,
 } from "./reportDateRange";
+
+describe("formatKstDateTime / formatKstTime", () => {
+  it("UTC 시각을 KST(UTC+9)로 변환해 초 단위까지 표기한다", () => {
+    // 2026-08-31T09:42:17Z → KST 2026-08-31 18:42:17
+    const date = new Date("2026-08-31T09:42:17.000Z");
+    expect(formatKstDateTime(date)).toBe("2026.08.31 18:42:17");
+    expect(formatKstTime(date)).toBe("18:42:17");
+  });
+
+  it("KST로 넘어가면서 날짜가 바뀌는 경계도 정확히 처리한다", () => {
+    // 2026-08-30T15:30:00Z → KST 2026-08-31 00:30:00
+    const date = new Date("2026-08-30T15:30:00.000Z");
+    expect(formatKstDateTime(date)).toBe("2026.08.31 00:30:00");
+  });
+});
 
 describe("formatKstDateParam / parseKstDateStart", () => {
   it("KST 자정을 그 날짜 문자열로 되돌린다(왕복)", () => {

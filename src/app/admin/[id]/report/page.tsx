@@ -8,11 +8,20 @@ import {
   getExtendedPeriodStats,
   getHourlyPeriodStats,
   getGuestbookConversionFunnel,
+  getRecentVisitLog,
   type HourlyCountSet,
   type GuestbookConversionFunnel,
+  type VisitLogEntry,
 } from "@/lib/reportMetrics";
 import { computeMonthlyReportContent, formatDurationLabel } from "@/lib/monthlyReport";
-import { resolveDateRange, detectActivePreset, formatKstDateParam, toDotFormat, type DateRangePreset } from "@/lib/reportDateRange";
+import {
+  resolveDateRange,
+  detectActivePreset,
+  formatKstDateParam,
+  formatKstTime,
+  toDotFormat,
+  type DateRangePreset,
+} from "@/lib/reportDateRange";
 import ReportEmail from "@/components/ReportEmail";
 import DateRangeFilter from "./DateRangeFilter";
 import PrintReportButton from "./PrintReportButton";
@@ -71,13 +80,14 @@ export default async function ReportAdminPage({ params, searchParams }: Props) {
   // 각자 따로 날짜를 계산하지 않는 것이 "기간 일치" 원칙(§21)의 핵심.
   // 시간별 조회는 하루(from===to)를 선택했을 때만 의미가 있으므로 그때만 쿼리한다.
   const isSingleDay = range.from === range.to;
-  const [rangeStats, rangeExtended, dailyTrend, previewData, hourlyStats, funnelStats] = await Promise.all([
+  const [rangeStats, rangeExtended, dailyTrend, previewData, hourlyStats, funnelStats, visitLog] = await Promise.all([
     getSpaceMonthlyKpi(spaceId, range.start, range.end),
     getExtendedPeriodStats(spaceId, range.start, range.end),
     getDailyVisitTrend(spaceId, range.start, range.end),
     computeMonthlyReportContent(spaceId, range.start, range.end, null, null),
     isSingleDay ? getHourlyPeriodStats(spaceId, range.start, range.end) : Promise.resolve(null),
     getGuestbookConversionFunnel(spaceId, range.start, range.end),
+    getRecentVisitLog(spaceId, range.start, range.end, 50),
   ]);
 
   const recommendedFileName = `공간큐브_${space.name}_${range.from}_${range.to}.pdf`;
@@ -197,6 +207,8 @@ export default async function ReportAdminPage({ params, searchParams }: Props) {
               </div>
             </div>
 
+            <VisitLogSection entries={visitLog} />
+
             <FunnelSection funnel={funnelStats} />
 
             {dailyTrend.length > 0 ? (
@@ -240,6 +252,70 @@ export default async function ReportAdminPage({ params, searchParams }: Props) {
       `}</style>
     </main>
   );
+}
+
+/**
+ * "최근 방문 로그"(PHASE 2 현장 관찰용) — 평균 체류시간 같은 요약값만으로는 실제 방문자
+ * 행동을 판단하기 어렵다는 요청에 따라, 개별 QR Entry 발생 시각과 그 방문에서 Story를
+ * 얼마나 읽었는지를 원본 그대로(요약 전) 최근 방문 순으로 보여준다. 새 세션 추적 시스템을
+ * 만들지 않고 getRecentVisitLog(reportMetrics.ts)가 기존 SpaceScan/EpisodeRead만으로
+ * 짝지은 결과를 표시만 한다. 날짜가 바뀔 때만 날짜 헤더를 넣고, 같은 날짜 안에서는
+ * 시각(HH:mm:ss)만 반복한다.
+ */
+function VisitLogSection({ entries }: { entries: VisitLogEntry[] }) {
+  if (entries.length === 0) {
+    return (
+      <div className="space-y-2">
+        <p className="text-xs" style={{ color: "var(--dim)" }}>최근 방문 로그</p>
+        <p className="text-sm" style={{ color: "var(--dim)" }}>선택한 기간에 QR Entry 기록이 없습니다.</p>
+      </div>
+    );
+  }
+
+  let lastDateKey: string | null = null;
+
+  return (
+    <div className="space-y-2">
+      <p className="text-xs" style={{ color: "var(--dim)" }}>
+        최근 방문 로그(KST) — QR Entry 시각 · Story 체류시간, 최근 {entries.length}건
+      </p>
+      <div className="flex flex-col border" style={{ borderColor: "var(--border)" }}>
+        {entries.map((entry, i) => {
+          const dateKey = formatKstDateParam(entry.scannedAt);
+          const showDateHeader = dateKey !== lastDateKey;
+          lastDateKey = dateKey;
+          return (
+            <div key={i}>
+              {showDateHeader && (
+                <p
+                  className="text-[11px] uppercase tracking-widest px-3 pt-2"
+                  style={{ color: "var(--dim)", borderTop: i > 0 ? "1px solid var(--border)" : undefined }}
+                >
+                  {toDotFormat(dateKey)}
+                </p>
+              )}
+              <div className="flex items-center justify-between px-3 py-2 text-xs" style={{ borderTop: showDateHeader ? undefined : "1px solid var(--border)" }}>
+                <span className="font-mono">{formatKstTime(entry.scannedAt)}</span>
+                <span style={{ color: "var(--dim)" }}>{visitOutcomeLabel(entry)}</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <p className="text-xs leading-relaxed" style={{ color: "var(--border)" }}>
+        최근 {entries.length}건만 표시합니다. &quot;스토리 미조회&quot;는 QR은 인식됐지만 이 기간 안에 이야기를 열람한
+        기록이 없는 경우(같은 방문자가 이미 열어본 이야기를 재방문 시 다시 열지 않은 경우 포함)이고,
+        &quot;중도 이탈&quot;은 이야기를 열었지만 마지막까지 스크롤하지 않고 페이지를 벗어난 경우입니다.
+      </p>
+    </div>
+  );
+}
+
+function visitOutcomeLabel(entry: VisitLogEntry): string {
+  if (!entry.storyOpenedAt) return "스토리 미조회";
+  if (entry.storyDurationMs == null) return "Story 진행 중 / 측정 안 됨";
+  const duration = formatDurationLabel(entry.storyDurationMs);
+  return entry.storyCompleted ? `Story ${duration}` : `Story ${duration} · 중도 이탈`;
 }
 
 /**

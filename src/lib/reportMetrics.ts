@@ -168,6 +168,85 @@ export async function getHourlyPeriodStats(spaceId: string, dayStart: Date, dayE
   }));
 }
 
+export interface VisitLogEntry {
+  scannedAt: Date; // QR Entry 실제 발생 시각(SpaceScan.scannedAt)
+  storyOpenedAt: Date | null; // 매칭된 Story 조회 시작 시각(없으면 이 QR 진입에서 스토리를 열지 않음)
+  storyDurationMs: number | null; // EpisodeRead.durationMs — sendBeacon이 아직 도착하지 않았으면 null
+  storyCompleted: boolean; // EpisodeRead.completedAt not null
+}
+
+/**
+ * 순수 함수 — SpaceScan(QR Entry)과 EpisodeRead(Story 조회/완독/체류시간)를 같은 방문자
+ * 식별자(userId 우선, 없으면 anonId — [[project_visitor_funnel_diagnosis_2026-08-29]]에서
+ * 확립된 것과 동일한 sc_anon_id 쿠키)로 짝짓는다. 새 세션/방문 테이블을 만들지 않고, 기존
+ * 두 로그를 "그 스캔 이후 가장 먼저 열람된 이야기"로 최소 연결하는 근사치다. 같은 방문자가
+ * 짧은 시간 안에 QR을 여러 번 찍으면(재스캔 등) 각 스캔은 서로 다른 EpisodeRead에 한 번씩만
+ * 짝지어진다(이미 짝지어진 행은 재사용하지 않음) — clock skew 대비 5초의 여유만 둔다(스캔
+ * 직후 리다이렉트로 이야기가 열리므로 실제로는 밀리초 단위 차이만 난다).
+ */
+export function pairScansWithReads(
+  scans: { scannedAt: Date; userId: string | null; anonId: string | null }[],
+  reads: { openedAt: Date; completedAt: Date | null; durationMs: number | null; userId: string | null; anonId: string | null }[],
+): VisitLogEntry[] {
+  const identity = (row: { userId: string | null; anonId?: string | null }): string | null =>
+    row.userId ?? (row.anonId ? `anon:${row.anonId}` : null);
+  const CLOCK_SKEW_GRACE_MS = 5000;
+
+  const readsByIdentity = new Map<string, typeof reads>();
+  for (const r of reads) {
+    const id = identity(r);
+    if (!id) continue;
+    const list = readsByIdentity.get(id) ?? [];
+    list.push(r);
+    readsByIdentity.set(id, list);
+  }
+  for (const list of readsByIdentity.values()) list.sort((a, b) => a.openedAt.getTime() - b.openedAt.getTime());
+
+  const used = new Set<(typeof reads)[number]>();
+  const sortedScans = [...scans].sort((a, b) => a.scannedAt.getTime() - b.scannedAt.getTime());
+
+  const entries = sortedScans.map((scan) => {
+    const id = identity(scan);
+    const candidates = id ? readsByIdentity.get(id) ?? [] : [];
+    const match = candidates.find((r) => !used.has(r) && r.openedAt.getTime() >= scan.scannedAt.getTime() - CLOCK_SKEW_GRACE_MS);
+    if (match) used.add(match);
+    return {
+      scannedAt: scan.scannedAt,
+      storyOpenedAt: match?.openedAt ?? null,
+      storyDurationMs: match?.durationMs ?? null,
+      storyCompleted: match?.completedAt != null,
+    };
+  });
+
+  return entries.sort((a, b) => b.scannedAt.getTime() - a.scannedAt.getTime());
+}
+
+/**
+ * 관리자 리포트의 "최근 방문 로그"(PHASE 2 현장 관찰용) — 개별 QR Entry 발생 시각과, 그
+ * 방문에서 Story를 얼마나 읽었는지를 하나의 줄로 묶어 최근 방문 순으로 보여준다. 관리자
+ * 계정의 스캔/조회는 다른 지표와 동일하게 제외한다.
+ */
+export async function getRecentVisitLog(spaceId: string, periodStart: Date, periodEnd: Date, limit = 50): Promise<VisitLogEntry[]> {
+  const adminUserIds = await getAdminUserIds();
+  const adminSet = new Set(adminUserIds);
+
+  const [scans, reads] = await Promise.all([
+    prisma.spaceScan.findMany({
+      where: { spaceId, scannedAt: { gte: periodStart, lt: periodEnd } },
+      select: { scannedAt: true, userId: true, anonId: true },
+    }),
+    prisma.episodeRead.findMany({
+      where: { episode: { spaceId }, openedAt: { gte: periodStart, lt: periodEnd } },
+      select: { openedAt: true, completedAt: true, durationMs: true, userId: true, anonId: true },
+    }),
+  ]);
+
+  const nonAdminScans = scans.filter((s) => !(s.userId && adminSet.has(s.userId)));
+  const nonAdminReads = reads.filter((r) => !(r.userId && adminSet.has(r.userId)));
+
+  return pairScansWithReads(nonAdminScans, nonAdminReads).slice(0, limit);
+}
+
 /**
  * 방문자 전환 퍼널(§QR 진입 ~ 포스트잇 작성) — 관리자가 "어느 구간에서 이탈했는지" 진단하는
  * 화면 전용 지표. 이 함수의 모든 필드는 반드시 "그 단계까지 도달한 고유 방문자 수"(중복

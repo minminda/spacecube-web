@@ -37,25 +37,27 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function EpisodeDetailPage({ params }: Props) {
   const { slug, episodeId } = await params;
 
-  const [space, session] = await Promise.all([
+  // episode 조회는 space/session 결과에 의존하지 않으므로(episodeId는 이미 params에 있음)
+  // 같은 Promise.all에 넣어 서버 왕복을 하나 줄인다 — QR 진입 직후 이 페이지가 첫 HTML을
+  // 보내기까지의 지연(=Cube Unlock 화면이 뜨기 전 공백)을 줄이기 위한 최소 변경.
+  const [space, session, episode] = await Promise.all([
     prisma.space.findUnique({
       where: { slug, isActive: true },
       select: { id: true, name: true, slug: true, ownerId: true, naverMapUrl: true, multilingualEnabled: true, supportedLocales: true },
     }),
     auth(),
+    prisma.episode.findUnique({
+      where: { id: episodeId },
+      include: {
+        scenes: {
+          where: { isActive: true },
+          orderBy: { displayOrder: "asc" },
+          include: { images: { orderBy: { displayOrder: "asc" } } },
+        },
+      },
+    }),
   ]);
   if (!space) notFound();
-
-  const episode = await prisma.episode.findUnique({
-    where: { id: episodeId },
-    include: {
-      scenes: {
-        where: { isActive: true },
-        orderBy: { displayOrder: "asc" },
-        include: { images: { orderBy: { displayOrder: "asc" } } },
-      },
-    },
-  });
   if (!episode || episode.spaceId !== space.id || !episode.published) notFound();
 
   // ── 다국어: 공간 페이지와 동일한 쿠키/헤더 기준으로 언어를 감지해 같은 언어 상태를 유지한다.

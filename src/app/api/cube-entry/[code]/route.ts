@@ -23,7 +23,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ code
   const normalizedCode = normalizeCubeCode(code);
   const origin = req.nextUrl.origin;
 
-  const cube = await getCubeByCode(normalizedCode);
+  // getCubeByCode/auth()는 서로 독립적이라 병렬로 조회한다 — QR 인식 직후 이 라우트가
+  // 리다이렉트를 내보내기까지의 서버 왕복 횟수를 줄여 Cube Unlock 화면이 뜨기 전 공백을
+  // 줄이기 위한 최소 변경(화면/구조는 그대로, 지연 시간만 단축).
+  const [cube, session] = await Promise.all([getCubeByCode(normalizedCode), auth()]);
   const destination = resolveCubeDestination(cube);
   const debug = process.env.NODE_ENV !== "production";
   if (debug) console.log(`[cube-entry] code=${normalizedCode} destination=${destination.type}`);
@@ -33,7 +36,6 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ code
     return NextResponse.redirect(new URL(`/c/${normalizedCode}`, origin));
   }
 
-  const session = await auth();
   let userId: string | null = null;
   if (session?.user?.id) {
     const user = await prisma.user.findUnique({ where: { id: session.user.id }, select: { id: true } });
@@ -47,26 +49,30 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ code
   const existingAnonId = userId ? null : (await cookies()).get(ANON_VISITOR_COOKIE)?.value ?? null;
   const anonId = userId ? null : existingAnonId ?? randomUUID();
 
-  await prisma.spaceScan
-    .create({
-      data: {
-        spaceId: cube.spaceId,
-        cubeId: cube.id,
-        userId,
-        anonId,
-        userAgent: req.headers.get("user-agent")?.slice(0, 300) ?? null,
-        referrer: req.headers.get("referer")?.slice(0, 300) ?? null,
-        locale: req.headers.get("accept-language")?.slice(0, 60) ?? null,
-      },
-    })
-    .catch(() => {
-      /* 로그 기록 실패가 방문 자체를 막으면 안 된다 */
-    });
-
-  // 사용자가 이미 QR을 찍은 상태이므로, 공간 페이지에서 다시 Episode를 고르게 하지 않고
-  // 대표 이야기(없으면 표시 순서가 가장 빠른 공개 이야기)로 바로 들여보낸다. 공개된 이야기가
-  // 하나도 없으면 공간 페이지로 폴백(그 페이지가 "준비 중" 상태를 이미 처리한다).
-  const entry = await resolveEntryDestination(cube.spaceId);
+  // 스캔 기록(쓰기)과 진입 목적지 계산(읽기)은 서로 결과를 주고받지 않으므로 병렬로 실행한다
+  // (지연 시간 단축 목적, 스캔 기록 자체는 여전히 응답을 보내기 전에 완료를 기다린다 —
+  // 이 값이 QR Entry 분석 KPI의 원본이라 fire-and-forget으로 건너뛰지 않는다).
+  const [, entry] = await Promise.all([
+    prisma.spaceScan
+      .create({
+        data: {
+          spaceId: cube.spaceId,
+          cubeId: cube.id,
+          userId,
+          anonId,
+          userAgent: req.headers.get("user-agent")?.slice(0, 300) ?? null,
+          referrer: req.headers.get("referer")?.slice(0, 300) ?? null,
+          locale: req.headers.get("accept-language")?.slice(0, 60) ?? null,
+        },
+      })
+      .catch(() => {
+        /* 로그 기록 실패가 방문 자체를 막으면 안 된다 */
+      }),
+    // 사용자가 이미 QR을 찍은 상태이므로, 공간 페이지에서 다시 Episode를 고르게 하지 않고
+    // 대표 이야기(없으면 표시 순서가 가장 빠른 공개 이야기)로 바로 들여보낸다. 공개된 이야기가
+    // 하나도 없으면 공간 페이지로 폴백(그 페이지가 "준비 중" 상태를 이미 처리한다).
+    resolveEntryDestination(cube.spaceId),
+  ]);
   const destinationPath =
     entry.type === "episode" ? `/space/${destination.slug}/episodes/${entry.episodeId}` : `/space/${destination.slug}`;
 

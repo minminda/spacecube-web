@@ -4,20 +4,32 @@ import { useEffect, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 
 /* ── Cube Unlock 인트로 ──────────────────────────────────────
-   QR 스캔(?src=qr) 진입 시에만 표시되는 약 3초 리츄얼 화면.
-   Phase 1 (0~0.5s)     큐브 fade-in + scale 0.95→1
-   Phase 2 (0.5~1.9s)   엣지 글로우 펄스 (기대감을 쌓는 여백 구간)
-   Phase 3 (1.9~2.4s)   앞면이 문처럼 열림
-   Phase 4 (2.55s~)     화면 전체가 공간 페이지로 페이드
-   기존(총 대기 4초: PLAY_MS 3550ms + FADE_MS 450ms)에서 대기 구간(Phase 2 펄스 반복
-   횟수)만 1초 줄여 총 3초로 단축했다 — 각 애니메이션 자체의 duration(펄스 1회당 1s,
-   문 열림 0.5s, 텍스트 0.6s, 페이드 450ms)은 그대로 두고 시작 시점(delay)만 앞당겼다.
-   종료 후 URL에서 src 파라미터를 제거해 새로고침/뒤로가기 시
-   재생되지 않게 한다.
+   QR 스캔(?src=qr) 진입 시에만 표시되는 짧은 리츄얼 화면 — 실사용 파일럿에서 QR 진입
+   구간 이탈이 관찰되어(PHASE 2) 총 체류시간을 약 0.5초(PLAY_MS 380ms + FADE_MS 120ms)로
+   단축했다(기존 3초: PLAY_MS 2550ms + FADE_MS 450ms).
+   개별 keyframe(@keyframes unlockEnter/unlockDrift/unlockPulse/unlockDoor/unlockText)의
+   모양은 전혀 바꾸지 않았다 — 화면이 "확인된 이후 대기"만 줄이라는 요구사항에 맞춰,
+   각 애니메이션의 duration/delay를 SCALE = 새 PLAY_MS / 기존 PLAY_MS(2550ms) 비율로
+   전부 동일하게 압축했다. 즉 큐브 fade-in → 엣지 글로우 펄스 → 문 열림 → 텍스트가
+   나타나는 순서와 상대적 타이밍(비율)은 기존과 완전히 같고, 재생 속도만 약 6.7배
+   빨라졌다. 종료 후 URL에서 src 파라미터를 제거해 새로고침/뒤로가기 시 재생되지
+   않게 한다.
 ──────────────────────────────────────────────────────────── */
 
-const PLAY_MS = 2550;
-const FADE_MS = 450;
+const PLAY_MS = 380;
+const FADE_MS = 120;
+
+// 기존 안무(choreography) 비율 그대로 유지한 채 재생 속도만 압축한다(위 주석 참고).
+const SCALE = PLAY_MS / 2550;
+const SCENE_MS = Math.round(500 * SCALE);
+const PULSE_MS = Math.round(1000 * SCALE);
+const PULSE_DELAY_MS = Math.round(500 * SCALE);
+const DOOR_MS = Math.round(500 * SCALE);
+const DOOR_DELAY_MS = Math.round(1900 * SCALE);
+const TITLE_MS = Math.round(600 * SCALE);
+const TITLE_DELAY_MS = Math.round(350 * SCALE);
+const SUB_MS = Math.round(600 * SCALE);
+const SUB_DELAY_MS = Math.round(550 * SCALE);
 
 export default function SpaceUnlockScreen() {
   const searchParams = useSearchParams();
@@ -77,28 +89,28 @@ export default function SpaceUnlockScreen() {
           width: 96px;
           height: 96px;
           perspective: 720px;
-          animation: unlockEnter 0.5s ease-out both;
+          animation: unlockEnter ${SCENE_MS}ms ease-out both;
         }
         .unlock-cube {
           position: relative;
           width: 100%;
           height: 100%;
           transform-style: preserve-3d;
-          animation: unlockDrift 2.55s ease-in-out both;
+          animation: unlockDrift ${PLAY_MS}ms ease-in-out both;
         }
         .unlock-face {
           position: absolute;
           inset: 0;
           border: 1.5px solid #141414;
           background: transparent;
-          animation: unlockPulse 1s ease-in-out 0.5s 1;
+          animation: unlockPulse ${PULSE_MS}ms ease-in-out ${PULSE_DELAY_MS}ms 1;
         }
         .uf-front {
           transform: translateZ(48px);
           transform-origin: left center;
           animation:
-            unlockPulse 1s ease-in-out 0.5s 1,
-            unlockDoor 0.5s cubic-bezier(0.45, 0, 0.2, 1) 1.9s forwards;
+            unlockPulse ${PULSE_MS}ms ease-in-out ${PULSE_DELAY_MS}ms 1,
+            unlockDoor ${DOOR_MS}ms cubic-bezier(0.45, 0, 0.2, 1) ${DOOR_DELAY_MS}ms forwards;
         }
         .uf-back   { transform: rotateY(180deg) translateZ(48px); }
         .uf-right  { transform: rotateY(90deg)  translateZ(48px); }
@@ -112,14 +124,14 @@ export default function SpaceUnlockScreen() {
           font-weight: 500;
           letter-spacing: 0.22em;
           color: #111111;
-          animation: unlockText 0.6s ease-out 0.35s both;
+          animation: unlockText ${TITLE_MS}ms ease-out ${TITLE_DELAY_MS}ms both;
         }
         .unlock-sub {
           margin-top: 10px;
           font-size: 0.75rem;
           letter-spacing: 0.02em;
           color: #9a9a9a;
-          animation: unlockText 0.6s ease-out 0.55s both;
+          animation: unlockText ${SUB_MS}ms ease-out ${SUB_DELAY_MS}ms both;
         }
 
         @keyframes unlockEnter {
