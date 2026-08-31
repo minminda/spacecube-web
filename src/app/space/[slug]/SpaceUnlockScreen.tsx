@@ -5,21 +5,22 @@ import { usePathname, useSearchParams } from "next/navigation";
 
 /* ── Cube Unlock 인트로 ──────────────────────────────────────
    QR 스캔(?src=qr) 진입 시에만 표시되는 짧은 리츄얼 화면 — 실사용 파일럿에서 QR 진입
-   구간 이탈이 관찰되어(PHASE 2) 총 체류시간을 약 0.5초(PLAY_MS 380ms + FADE_MS 120ms)로
-   단축했다(기존 3초: PLAY_MS 2550ms + FADE_MS 450ms).
+   구간 이탈이 관찰되어(PHASE 2) 총 체류시간을 기존 3초(PLAY_MS 2550ms + FADE_MS 450ms)
+   에서 정확히 0.5초만 줄여 2.5초(PLAY_MS 2050ms + FADE_MS 450ms)로 단축했다 — 전체를
+   0.5초로 줄이는 것이 아니라 "0.5초만큼 단축"하는 것이 요구사항이었다.
    개별 keyframe(@keyframes unlockEnter/unlockDrift/unlockPulse/unlockDoor/unlockText)의
-   모양은 전혀 바꾸지 않았다 — 화면이 "확인된 이후 대기"만 줄이라는 요구사항에 맞춰,
-   각 애니메이션의 duration/delay를 SCALE = 새 PLAY_MS / 기존 PLAY_MS(2550ms) 비율로
-   전부 동일하게 압축했다. 즉 큐브 fade-in → 엣지 글로우 펄스 → 문 열림 → 텍스트가
-   나타나는 순서와 상대적 타이밍(비율)은 기존과 완전히 같고, 재생 속도만 약 6.7배
-   빨라졌다. 종료 후 URL에서 src 파라미터를 제거해 새로고침/뒤로가기 시 재생되지
-   않게 한다.
+   모양은 전혀 바꾸지 않았다 — 각 애니메이션의 duration/delay를
+   SCALE = 새 PLAY_MS / 기존 PLAY_MS(2550ms) 비율로 전부 동일하게 압축했다. 즉 큐브
+   fade-in → 엣지 글로우 펄스 → 문 열림 → 텍스트가 나타나는 순서와 상대적 타이밍(비율)은
+   기존과 완전히 같고, 재생 속도만 이번 축소 폭(약 20%)만큼만 살짝 빨라졌다 — 이번 요청은
+   "전체 리듬을 최대한 유지"였으므로 이전처럼 큰 폭으로 압축하지 않는다. 종료 후 URL에서
+   src 파라미터를 제거해 새로고침/뒤로가기 시 재생되지 않게 한다.
 ──────────────────────────────────────────────────────────── */
 
-const PLAY_MS = 380;
-const FADE_MS = 120;
+const PLAY_MS = 2050;
+const FADE_MS = 450;
 
-// 기존 안무(choreography) 비율 그대로 유지한 채 재생 속도만 압축한다(위 주석 참고).
+// 기존 안무(choreography) 비율 그대로 유지한 채 재생 속도만 살짝 압축한다(위 주석 참고).
 const SCALE = PLAY_MS / 2550;
 const SCENE_MS = Math.round(500 * SCALE);
 const PULSE_MS = Math.round(1000 * SCALE);
