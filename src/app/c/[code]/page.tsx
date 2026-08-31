@@ -1,8 +1,8 @@
-import { redirect } from "next/navigation";
 import Link from "next/link";
 import { auth } from "@/auth";
 import { isAdmin } from "@/lib/admin";
 import { normalizeCubeCode, getCubeByCode, resolveCubeDestination } from "@/lib/cube";
+import CubeUnlockBridge from "./CubeUnlockBridge";
 
 export const dynamic = "force-dynamic";
 
@@ -22,7 +22,11 @@ export default async function CubeEntryPage({ params }: Props) {
     // 서명 쿠키 발급은 전부 쿠키를 쓸 수 있어야 해서 Server Component가 아닌 Route Handler
     // (/api/cube-entry/[code])에서 처리한다. 이 페이지는 큐브 코드만 다시 실어 넘긴다 —
     // 클라이언트가 spaceId/cubeId를 직접 전달할 수 없게 하기 위함(그 라우트가 코드로 다시 조회).
-    redirect(`/api/cube-entry/${normalizedCode}`);
+    //
+    // 서버 redirect() 대신 CubeUnlockBridge(클라이언트 컴포넌트)를 렌더한다 — QR 인식 직후
+    // 흰 화면이 보이지 않도록, 이미 화면에 떠 있는 Cube Unlock 대기 화면을 유지한 채
+    // client-side로 다음 홉을 이어간다(하드 리로드로 화면을 갈아치우지 않음).
+    return <CubeUnlockBridge code={normalizedCode} />;
   }
 
   if (destination.type === "not_found") {
