@@ -19,6 +19,14 @@ export const ENABLE_TASTE_SCORE_RECOMMENDATION = true;
 export const ENABLE_RECOMMENDATION_PLAYLIST_UI = true;
 
 /**
+ * /archive/taste의 "내가 좋아하는 태그" 취향 그래프, "내 취향과 닮은 사람" 섹션 노출 여부.
+ * 추천을 하나의 명확한 핵심 기능으로 보이게 하기 위해 사용자 화면에서만 숨긴다.
+ * 계산 로직(aggregateTags, cosineSimilarity 등)과 데이터는 삭제하지 않고 그대로 유지 —
+ * true로 바꾸면 즉시 원상복구.
+ */
+export const ENABLE_SIMILAR_TASTE_PEOPLE_UI = false;
+
+/**
  * 디지털 방명록 — 공간별 /space/[slug]/guestbook 캔버스 페이지.
  * 공간 상세의 "방문자들의 이야기 열어보기" 입구와
  * 기존 방문자 기록 리스트 숨김을 함께 제어.

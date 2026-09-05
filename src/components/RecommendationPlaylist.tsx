@@ -20,6 +20,8 @@ export interface PlaylistCard {
   imageUrl: string | null;
   tagLabels: string[]; // 공간 취향 태그 2~3개 (한국어 레이블)
   reason: string; // 추천 이유 한 줄
+  rank?: number; // TOP3 순위(1~3) — 있으면 이미지 위에 절제된 배지로 표시
+  matchPercent?: number; // 실제 계산된 취향 적합도(%) — 없으면 표시 안 함(임의 수치 생성 금지)
 }
 
 const SPRING = { type: "spring", stiffness: 300, damping: 32, mass: 0.9 } as const;
@@ -189,14 +191,26 @@ function Card({ card, dimmed }: { card: PlaylistCard; dimmed: boolean }) {
             sizes="(max-width: 768px) 80vw, 480px"
           />
         )}
+        {card.rank && (
+          <span
+            className="absolute top-2.5 left-2.5 text-xs px-2 py-0.5"
+            style={{ background: "var(--bg)", color: "var(--fg)", border: "1px solid var(--border)" }}
+          >
+            {card.rank}위
+          </span>
+        )}
       </div>
 
       {/* 정보 */}
       <div className="p-4 space-y-2.5">
         <div className="space-y-0.5">
           <p className="text-base font-semibold leading-snug">{card.name}</p>
-          {card.district && (
-            <p className="text-xs" style={{ color: "var(--dim)" }}>{card.district}</p>
+          {(card.district || typeof card.matchPercent === "number") && (
+            <p className="text-xs" style={{ color: "var(--dim)" }}>
+              {[card.district, typeof card.matchPercent === "number" ? `취향 적합도 ${card.matchPercent}%` : null]
+                .filter(Boolean)
+                .join(" · ")}
+            </p>
           )}
         </div>
 

@@ -7,12 +7,13 @@ import TasteProfileCard from "@/components/TasteProfileCard";
 import { aggregateTags, getTastePhrase } from "@/lib/taste";
 import {
   rankSpaces, getRecommendReason,
-  buildWeightedTasteVector, vectorTopTags, rankSpacesByVector, getVectorReason,
+  buildWeightedTasteVector, vectorTopTags, rankSpacesByVector, getVectorReason, getMatchPercent,
   cosineSimilarity, getSimilarityPhrase, visibleTagNames,
 } from "@/lib/recommend";
 import {
   ENABLE_TASTE_SCORE_RECOMMENDATION,
   ENABLE_RECOMMENDATION_PLAYLIST_UI,
+  ENABLE_SIMILAR_TASTE_PEOPLE_UI,
 } from "@/lib/features";
 import RecommendationPlaylist, { type PlaylistCard } from "@/components/RecommendationPlaylist";
 import ArchiveBottomNav from "@/components/archive/ArchiveBottomNav";
@@ -78,7 +79,6 @@ export default async function ArchiveTastePage() {
   const tasteVector = ENABLE_TASTE_SCORE_RECOMMENDATION ? buildWeightedTasteVector(allRecords) : null;
   const allTags: [string, number][] = tasteVector ? vectorTopTags(tasteVector) : aggregateTags(allRecords);
   const topTags = allTags.slice(0, 5);
-  const maxCount = topTags[0]?.[1] ?? 1;
   const myTopTagList = topTags.slice(0, 3).map(([t]) => t);
 
   const tagNameById = new Map(
@@ -104,7 +104,7 @@ export default async function ArchiveTastePage() {
           take: 30,
         })
       : Promise.resolve([]),
-    allRecords.length >= 3
+    ENABLE_SIMILAR_TASTE_PEOPLE_UI && allRecords.length >= 3
       ? prisma.user.findMany({
           where: { visibility: "PARTIAL", id: { not: user.id, notIn: [...savedTargetIds] }, records: { some: {} } },
           select: {
@@ -128,7 +128,7 @@ export default async function ArchiveTastePage() {
     : rankSpaces(recommendCandidates, myTopTagList, 3);
 
   const playlistCards: PlaylistCard[] = tasteVector
-    ? recommended.map((s) => ({
+    ? recommended.map((s, i) => ({
         id: s.id,
         slug: s.slug,
         name: s.name,
@@ -136,11 +136,13 @@ export default async function ArchiveTastePage() {
         imageUrl: s.imageUrl,
         tagLabels: visibleTagNames(s.spaceTagLinks ?? []),
         reason: getVectorReason(s, tasteVector),
+        rank: i + 1,
+        matchPercent: getMatchPercent(s, tasteVector),
       }))
     : [];
 
   // 내 취향과 닮은 사람 — 코사인 유사도 상위 3명 (취향 데이터 부족/미방문 사용자 제외)
-  const similar = !tasteVector ? [] : similarCandidates
+  const similar = !ENABLE_SIMILAR_TASTE_PEOPLE_UI || !tasteVector ? [] : similarCandidates
     .filter((u) => u.records.length >= MIN_RECORDS_FOR_SIMILARITY)
     .map((u) => {
       const theirVector = buildWeightedTasteVector(u.records);
@@ -182,28 +184,12 @@ export default async function ArchiveTastePage() {
       {header}
 
       <section className="mb-10 space-y-2">
-        <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>{tastePhrase}</p>
+        <h1 className="text-xl font-bold leading-snug">내 취향과 닮은 공간</h1>
+        <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>
+          지금까지 남긴 공간 경험과 취향을 바탕으로<br />나와 잘 맞는 공간을 추천해요
+        </p>
+        <p className="text-xs pt-1" style={{ color: "var(--border)" }}>{tastePhrase}</p>
       </section>
-
-      {topTagsWithNames.length > 0 && (
-        <section className="mb-10 space-y-2.5">
-          {topTagsWithNames.map(({ name, weight }) => {
-            const filled = Math.round((weight / maxCount) * 10);
-            return (
-              <div key={name} className="flex items-center gap-4 text-xs">
-                <span className="w-16 flex-shrink-0 text-right text-xs" style={{ color: "var(--dim)" }}>{name}</span>
-                <div className="flex-1 h-0.5 relative" style={{ background: "var(--border)" }}>
-                  <div
-                    className="absolute inset-y-0 left-0 h-full"
-                    style={{ width: `${filled * 10}%`, background: "var(--fg)", transition: "width 0.6s ease" }}
-                  />
-                </div>
-                <span className="w-4 text-right" style={{ color: "var(--dim)" }}>{weight}</span>
-              </div>
-            );
-          })}
-        </section>
-      )}
 
       {allRecords.length < 3 ? (
         <section className="mb-10 space-y-2 pl-4 border-l" style={{ borderColor: "var(--border)" }}>
@@ -218,7 +204,7 @@ export default async function ArchiveTastePage() {
         <>
           <Divider className="my-8" />
           <section className="mb-10">
-            <SectionLabel>// 내 취향과 닮은 공간</SectionLabel>
+            <SectionLabel>// 내 취향과 비슷한 공간 TOP 3</SectionLabel>
             {ENABLE_RECOMMENDATION_PLAYLIST_UI && playlistCards.length > 0 ? (
               <div className="space-y-4">
                 <p className="text-xs -mt-3" style={{ color: "var(--dim)" }}>
@@ -245,38 +231,48 @@ export default async function ArchiveTastePage() {
                 })}
               </div>
             ) : (
-              <p className="text-sm" style={{ color: "var(--dim)" }}>
-                아직 추천할 공간이 없습니다
-              </p>
-            )}
-          </section>
-          <Divider className="my-8" />
-
-          <section className="mb-10">
-            <SectionLabel>// 내 취향과 닮은 사람</SectionLabel>
-            <p className="text-xs -mt-3 mb-5" style={{ color: "var(--dim)" }}>
-              비슷한 공간에 머문 사람들의 취향입니다
-            </p>
-            {similar.length > 0 ? (
-              <div className="space-y-6">
-                {similar.map((card) => (
-                  <TasteProfileCard
-                    key={card.id}
-                    href={`/taste/${card.id}`}
-                    nickname={card.nickname}
-                    phrase={card.phrase}
-                    tagLabels={card.tagLabels}
-                    spaces={card.spaces}
-                    note={getSimilarityPhrase(card.score)}
-                  />
-                ))}
-              </div>
-            ) : (
               <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>
-                취향 기록이 더 쌓이면<br />비슷한 취향의 사람을 만날 수 있습니다
+                아직 취향에 꼭 맞는 공간을 찾지 못했어요<br />
+                새로운 공간이 열리면 알려드릴게요
               </p>
             )}
+            {recommended.length > 0 && (
+              <Link href="/archive/taste/all" className="inline-block mt-4 text-xs" style={{ color: "var(--fg)" }}>
+                전체 추천 공간 보기 →
+              </Link>
+            )}
           </section>
+
+          {ENABLE_SIMILAR_TASTE_PEOPLE_UI && (
+            <>
+              <Divider className="my-8" />
+              <section className="mb-10">
+                <SectionLabel>// 내 취향과 닮은 사람</SectionLabel>
+                <p className="text-xs -mt-3 mb-5" style={{ color: "var(--dim)" }}>
+                  비슷한 공간에 머문 사람들의 취향입니다
+                </p>
+                {similar.length > 0 ? (
+                  <div className="space-y-6">
+                    {similar.map((card) => (
+                      <TasteProfileCard
+                        key={card.id}
+                        href={`/taste/${card.id}`}
+                        nickname={card.nickname}
+                        phrase={card.phrase}
+                        tagLabels={card.tagLabels}
+                        spaces={card.spaces}
+                        note={getSimilarityPhrase(card.score)}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>
+                    취향 기록이 더 쌓이면<br />비슷한 취향의 사람을 만날 수 있습니다
+                  </p>
+                )}
+              </section>
+            </>
+          )}
         </>
       )}
 
