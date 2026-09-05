@@ -6,12 +6,21 @@ import { buildWeightedTasteVector, rankSpacesByVector, getVectorReason, getMatch
 import { getUserUnlockSets } from "@/lib/spaceUnlock";
 import { resolveSpaceTypeLabel } from "@/lib/spaceType";
 import SpaceDiscoveryCard from "@/app/discover/SpaceDiscoveryCard";
+import Divider from "@/components/Divider";
 
 /* ── /archive/taste "내 취향과 비슷한 공간 TOP 3"의 전체 보기 ─────────────
    TOP3와 완전히 같은 계산(buildWeightedTasteVector → rankSpacesByVector → getVectorReason/
    getMatchPercent)을 재사용하되, limit만 늘려 가중치 순 전체 목록을 보여준다. 새 추천
    알고리즘 없음 — 지역 제한도 없이 /archive/taste가 쓰는 후보 조건(전체 활성 공간, 미방문)을
-   그대로 따른다. 카드도 discover의 SpaceDiscoveryCard를 그대로 재사용한다. ── */
+   그대로 따른다. 카드도 discover의 SpaceDiscoveryCard를 그대로 재사용한다.
+
+   추천 점수(score>0)가 있는 공간만 보여주면 파일럿 초기(등록 공간 자체가 적음)엔 목록이
+   지나치게 빈약해 보인다. rankSpacesByVector는 원래 score>0인 공간만 남기고 나머지를
+   버리므로(추천 랭킹 전용 설계, 그대로 재사용), 여기서는 그 결과에 없는 "점수 없는" 공간을
+   별도로 집계해 뒤에 이어붙인다 — 개인화 추천이 아니라 순수 탐색용 fallback이라는 걸
+   구분하기 위해 순위 배지·매치율·추천 이유는 절대 붙이지 않는다(실제 없는 적합도를
+   만들지 않는다는 원칙). fallback 순서는 요청마다 한 번만 셔플해 같은 페이지 로드 안에서는
+   흔들리지 않고, 새로고침/재방문 시에는 달라지도록 한다. ── */
 
 const CANDIDATE_SELECT = {
   id: true,
@@ -25,6 +34,16 @@ const CANDIDATE_SELECT = {
   naverMapUrl: true,
   spaceTagLinks: { include: { tag: { include: { categoryRef: true } } } },
 } as const;
+
+/** Fisher-Yates — 매 렌더가 아니라 이 함수 호출 시점(요청당 1회) 기준으로만 순서를 고정한다. */
+function shuffle<T>(items: T[]): T[] {
+  const result = [...items];
+  for (let i = result.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+  return result;
+}
 
 export default async function ArchiveTasteAllPage() {
   const session = await auth();
@@ -62,11 +81,16 @@ export default async function ArchiveTasteAllPage() {
     prisma.space.findMany({
       where: { isActive: true, id: { notIn: [...visitedIds] } },
       select: CANDIDATE_SELECT,
-      take: 100,
+      take: 500,
     }),
     getUserUnlockSets(user.id),
   ]);
+
+  // 1) 추천 점수(score>0)가 있는 공간 — 점수 높은 순. 2) 점수를 계산할 수 없는 나머지 공간 —
+  // 탐색용 fallback, 요청당 한 번만 섞어 뒤에 이어붙인다(가짜 적합도 부여하지 않음).
   const ranked = rankSpacesByVector(candidates, tasteVector, candidates.length);
+  const rankedIds = new Set(ranked.map((s) => s.id));
+  const fallback = shuffle(candidates.filter((s) => !rankedIds.has(s.id)));
 
   return (
     <main className="flex flex-col min-h-screen px-6 pt-8 pb-16">
@@ -76,39 +100,91 @@ export default async function ArchiveTasteAllPage() {
         <p className="text-sm" style={{ color: "var(--dim)" }}>취향 적합도가 높은 순으로 모두 보여드려요</p>
       </section>
 
-      {ranked.length === 0 ? (
+      {ranked.length === 0 && fallback.length === 0 ? (
         <section className="flex-1 flex flex-col justify-center items-center gap-4 text-center py-16">
           <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>
-            아직 취향에 꼭 맞는 공간을 찾지 못했어요<br />
+            아직 둘러볼 수 있는 공간이 없어요<br />
             새로운 공간이 열리면 알려드릴게요
           </p>
           <Link href="/archive/taste" className="text-sm" style={{ color: "var(--fg)" }}>내 취향으로 돌아가기</Link>
         </section>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-          {ranked.map((s, i) => (
-            <SpaceDiscoveryCard
-              key={s.id}
-              rank={i + 1}
-              space={{
-                id: s.id,
-                slug: s.slug,
-                name: s.name,
-                type: resolveSpaceTypeLabel(s.spaceTagLinks, s.type),
-                district: s.district,
-                tagline: s.tagline,
-                openingHours: s.openingHours,
-                imageUrl: s.imageUrl,
-                naverMapUrl: s.naverMapUrl,
-              }}
-              isUnlocked={unlockSets.unlocked.has(s.id)}
-              variant="recommended"
-              matchPercent={getMatchPercent(s, tasteVector)}
-              recommendationReason={getVectorReason(s, tasteVector)}
-            />
-          ))}
-        </div>
+        <>
+          {ranked.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+              {ranked.map((s, i) => (
+                <SpaceCard
+                  key={s.id}
+                  space={s}
+                  isUnlocked={unlockSets.unlocked.has(s.id)}
+                  rank={i + 1}
+                  matchPercent={getMatchPercent(s, tasteVector)}
+                  recommendationReason={getVectorReason(s, tasteVector)}
+                />
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm leading-relaxed mb-8" style={{ color: "var(--dim)" }}>
+              아직 취향에 꼭 맞는 공간을 찾지 못했어요<br />
+              대신 둘러볼 수 있는 공간들을 보여드려요
+            </p>
+          )}
+
+          {fallback.length > 0 && (
+            <>
+              {ranked.length > 0 && <Divider className="my-10" />}
+              <p className="text-xs uppercase tracking-widest mb-5" style={{ color: "var(--dim)" }}>
+                그 외 둘러볼 수 있는 공간
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+                {fallback.map((s) => (
+                  <SpaceCard
+                    key={s.id}
+                    space={s}
+                    isUnlocked={unlockSets.unlocked.has(s.id)}
+                  />
+                ))}
+              </div>
+            </>
+          )}
+        </>
       )}
     </main>
+  );
+}
+
+interface SpaceCardProps {
+  space: {
+    id: string; slug: string; name: string; type: string; district: string | null;
+    tagline: string | null; openingHours: string | null; imageUrl: string | null; naverMapUrl: string | null;
+    spaceTagLinks: Parameters<typeof resolveSpaceTypeLabel>[0];
+  };
+  isUnlocked: boolean;
+  /** 아래 세 값이 전부 없으면 순수 탐색용 fallback 카드 — 순위·매치율·추천 이유를 절대 지어내지 않는다. */
+  rank?: number;
+  matchPercent?: number;
+  recommendationReason?: string;
+}
+
+function SpaceCard({ space: s, isUnlocked, rank, matchPercent, recommendationReason }: SpaceCardProps) {
+  return (
+    <SpaceDiscoveryCard
+      rank={rank}
+      space={{
+        id: s.id,
+        slug: s.slug,
+        name: s.name,
+        type: resolveSpaceTypeLabel(s.spaceTagLinks, s.type),
+        district: s.district,
+        tagline: s.tagline,
+        openingHours: s.openingHours,
+        imageUrl: s.imageUrl,
+        naverMapUrl: s.naverMapUrl,
+      }}
+      isUnlocked={isUnlocked}
+      variant="recommended"
+      matchPercent={matchPercent}
+      recommendationReason={recommendationReason}
+    />
   );
 }
