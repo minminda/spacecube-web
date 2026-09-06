@@ -46,14 +46,19 @@ const SPACE_SLUG = "aka-coffee-room"; // 아카커피룸
 const DUMMY_EMAIL_PREFIX = "dummy.aka-demo+";
 const DUMMY_EMAIL_DOMAIN = "spacecube.local";
 
-const NOTE_COUNT = 18;
-const DUMMY_USER_COUNT = 18;
+const NOTE_COUNT = 70; // 목표 개수 — 밀도가 높아질수록 findFreePositionInBounds가 자리를 못 찾아 일부는 건너뛴다(실제 생성 개수는 로그로 확인)
+const DUMMY_USER_COUNT = 50;
 
 // buk의 NICKNAMES(43개)와 절대 겹치지 않는 새 이름 풀 — nickname은 전역 @unique라 겹치면 즉시 실패한다.
 const NICKNAMES = [
   "이서준", "박지안", "김하윤", "정예은", "최시온", "한도현", "윤소이", "임채원",
   "강은우", "오하람", "신유주", "배승민", "조아린", "권다인",
   "조용한아침", "말없이앉아", "혼자만의시간", "커피향기가득", "느긋한오후", "창가체질",
+  "장하늘", "문지호", "유서아", "백승우", "나은채", "서지민", "황도윤", "표승아",
+  "안유진", "구민재", "홍서율", "차은우",
+  "마시멜로우", "여름밤바람", "조각모음", "잠깐앉음", "오후네시반", "발걸음가벼이",
+  "하늘보는중", "조명아래", "책한장", "노래흥얼", "걷다가들름", "커피한모금",
+  "창밖풍경", "잔잔한하루", "오늘의한잔", "늦은아침형", "소란없이", "고요한자리",
 ] as const;
 
 // content는 VarChar(80) 제약 — 전부 80자 이내. 별점/리뷰 플랫폼처럼 들리는 과장 문구
@@ -76,6 +81,17 @@ const FREE_MESSAGES = [
   "혼자 책 읽기 딱 좋았어요",
   "오늘 하루 중 가장 편안한 시간이었어요",
   "우연히 들렀는데 계속 생각나는 곳이에요",
+  "생각을 정리하기에 좋은 자리였어요",
+  "가만히 앉아있는 시간이 좋았어요",
+  "오늘따라 발걸음이 여기로 향했어요",
+  "조용한 오후를 보내고 싶을 때 다시 올게요",
+  "낯선 동네인데 편안했어요",
+  "천천히 흘러가는 시간이 좋았어요",
+  "창밖 풍경을 한참 바라봤어요",
+  "혼자 있는 시간이 편했어요",
+  "적당한 소음이 오히려 집중을 도왔어요",
+  "커피 한 모금에 하루가 정리되는 기분이었어요",
+  "다음에도 이 자리에 앉고 싶어요",
 ] as const;
 
 // GuestbookSession.question1 = "오늘, 당신의 행복은 무엇인가요?" 답변형 문장.
@@ -90,6 +106,14 @@ const QUESTION1_MESSAGES = [
   "햇살 좋은 창가 자리에 앉는 거요",
   "오랜만에 느긋하게 걷다가 들어온 이 시간이요",
   "별거 아닌 하루가 편안했다는 것 자체요",
+  "오늘 하루 무사히 지나간 것이요",
+  "좋아하는 책 한 페이지 넘기는 시간이요",
+  "특별한 일 없이 지나가는 오후요",
+  "누군가와 나눈 짧은 안부요",
+  "커피 냄새가 퍼지는 이 순간이요",
+  "혼자 걷다가 마주친 여유로운 시간이요",
+  "날씨가 좋았던 것만으로도 충분했어요",
+  "잠깐이라도 쉬어가는 이 시간이요",
 ] as const;
 
 // GuestbookSession.question2 = "공간에서 처음 느낀 감정은 무엇인가요?" 답변형 문장.
@@ -104,6 +128,14 @@ const QUESTION2_MESSAGES = [
   "차분한 공기가 좋았어요",
   "안정감이 먼저 느껴지는 곳이었어요",
   "생각보다 아늑해서 좋았어요",
+  "생각보다 편안한 온도였어요",
+  "조용한 분위기에 마음이 놓였어요",
+  "따뜻한 색감이 먼저 눈에 들어왔어요",
+  "차분한 첫인상이었어요",
+  "예상보다 아늑한 느낌이었어요",
+  "부드러운 조명이 인상적이었어요",
+  "생각보다 넓어서 놀랐어요",
+  "은은한 음악에 긴장이 풀렸어요",
 ] as const;
 
 const CLUSTER_TYPES = ["FREE", "QUESTION_1", "QUESTION_2"] as const;
@@ -134,16 +166,23 @@ function randomReactionCount(): number {
   return pick(table);
 }
 
-function messagesFor(clusterType: ClusterTypeLiteral): readonly string[] {
-  if (clusterType === "QUESTION_1") return QUESTION1_MESSAGES;
-  if (clusterType === "QUESTION_2") return QUESTION2_MESSAGES;
-  return FREE_MESSAGES;
+/**
+ * 문구 풀을 매번 무작위로 pick하면 50개를 채울 때 같은 문장이 눈에 띄게 반복된다.
+ * 그래서 풀을 섞은 뒤 순서대로 소비하고, 다 쓰면 다시 섞어서 채우는 "셔플 큐"로 바꿔
+ * 같은 군집 안에서 문장이 겹치는 빈도를 최소화한다(풀 크기를 다 쓰기 전까지는 중복 없음).
+ */
+function makeShuffleCycler<T>(pool: readonly T[]): () => T {
+  let queue: T[] = [];
+  return () => {
+    if (queue.length === 0) queue = [...pool].sort(() => Math.random() - 0.5);
+    return queue.pop() as T;
+  };
 }
 
 /** 지정한 군집 중심 주변에 밀집/여유 배치가 섞이도록 반경 구간을 가중 샘플링한다. */
 function sampleDesiredPoint(center: Point): Point {
   const r = Math.random();
-  const [minR, maxR] = r < 0.55 ? [0, 220] : r < 0.85 ? [220, 420] : [420, 620]; // 55% 밀집 / 30% 중간 / 15% 여유
+  const [minR, maxR] = r < 0.55 ? [0, 260] : r < 0.85 ? [260, 500] : [500, 750]; // 55% 밀집 / 30% 중간 / 15% 여유 — 50개를 채우려면 buk 대비 반경을 넓혀야 한다
   const angle = Math.random() * Math.PI * 2;
   const radius = randomBetween(minR, maxR);
   return { x: center.x + Math.cos(angle) * radius, y: center.y + Math.sin(angle) * radius };
@@ -158,7 +197,7 @@ function sampleDesiredPoint(center: Point): Point {
  * 결과를 반환한다(운영 코드인 postitCollision.ts 자체는 수정하지 않는다).
  */
 function findFreePositionInBounds(center: Point, width: number, height: number, obstacles: Rect[]): Point | null {
-  for (let attempt = 0; attempt < 60; attempt++) {
+  for (let attempt = 0; attempt < 250; attempt++) {
     const raw = attempt === 0 ? center : sampleDesiredPoint(center);
     const candidate = {
       x: Math.min(Math.max(raw.x - width / 2, MIN_X), MAX_X),
@@ -182,6 +221,12 @@ async function main() {
     FREE: { x: activeSession.freeClusterX, y: activeSession.freeClusterY },
     QUESTION_1: { x: activeSession.question1ClusterX, y: activeSession.question1ClusterY },
     QUESTION_2: { x: activeSession.question2ClusterX, y: activeSession.question2ClusterY },
+  };
+
+  const messageCyclers: Record<ClusterTypeLiteral, () => string> = {
+    FREE: makeShuffleCycler(FREE_MESSAGES),
+    QUESTION_1: makeShuffleCycler(QUESTION1_MESSAGES),
+    QUESTION_2: makeShuffleCycler(QUESTION2_MESSAGES),
   };
 
   // ── 0) idempotent 리셋 — 기존 더미(이 접두사로 식별되는 User)만 먼저 전부 지운다.
@@ -226,7 +271,7 @@ async function main() {
   for (let i = 0; i < NOTE_COUNT; i++) {
     const author = users[i % users.length];
     const clusterType = weightedPick(CLUSTER_TYPES, CLUSTER_WEIGHTS);
-    const content = pick(messagesFor(clusterType));
+    const content = messageCyclers[clusterType]();
     // ENABLE_GUESTBOOK_IMAGE pilot flag/GuestbookSettings.allowImage 상태가 이 환경에서 불확실해
     // (로컬 .env 미설정, Vercel 배포 환경변수는 확인 불가) 촬영 시 깨져 보일 위험을 피하려고
     // 이미지 없는 텍스트 포스트잇만 생성한다.
