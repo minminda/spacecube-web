@@ -7,6 +7,7 @@ import { getUserUnlockSets } from "@/lib/spaceUnlock";
 import { resolveSpaceTypeLabel } from "@/lib/spaceType";
 import SpaceDiscoveryCard from "@/app/discover/SpaceDiscoveryCard";
 import Divider from "@/components/Divider";
+import { isAdminDemoSession } from "@/lib/adminDemo";
 
 /* ── /archive/taste "내 취향과 비슷한 공간 TOP 3"의 전체 보기 ─────────────
    TOP3와 완전히 같은 계산(buildWeightedTasteVector → rankSpacesByVector → getVectorReason/
@@ -52,6 +53,12 @@ export default async function ArchiveTasteAllPage() {
   const user = await prisma.user.findUnique({ where: { id: session.user.id } });
   if (!user) redirect("/login");
 
+  // 한이음 시연 영상용 관리자 데모 — 일반 사용자 정렬(점수순+탐색 fallback)은 그대로 두고,
+  // 관리자만 "미방문" 제한 없이 전체 활성 공간을 랜덤 순서로 보여준다(§adminDemo.ts).
+  // 이 계정은 이미 전체 활성 공간을 방문한 상태라 기존 notIn(visitedIds) 조건대로면
+  // 후보가 0개가 되어 이 페이지 자체가 비어 보이는 문제가 있었다.
+  const demo = isAdminDemoSession(session.user.email);
+
   const records = await prisma.record.findMany({
     where: { userId: user.id },
     select: {
@@ -70,7 +77,7 @@ export default async function ArchiveTasteAllPage() {
     </nav>
   );
 
-  if (records.length < 3) {
+  if (records.length < 3 && !demo) {
     redirect("/archive/taste");
   }
 
@@ -79,7 +86,7 @@ export default async function ArchiveTasteAllPage() {
 
   const [candidates, unlockSets] = await Promise.all([
     prisma.space.findMany({
-      where: { isActive: true, id: { notIn: [...visitedIds] } },
+      where: demo ? { isActive: true } : { isActive: true, id: { notIn: [...visitedIds] } },
       select: CANDIDATE_SELECT,
       take: 500,
     }),
@@ -88,9 +95,14 @@ export default async function ArchiveTasteAllPage() {
 
   // 1) 추천 점수(score>0)가 있는 공간 — 점수 높은 순. 2) 점수를 계산할 수 없는 나머지 공간 —
   // 탐색용 fallback, 요청당 한 번만 섞어 뒤에 이어붙인다(가짜 적합도 부여하지 않음).
-  const ranked = rankSpacesByVector(candidates, tasteVector, candidates.length);
+  // 관리자 데모에서는 순위/매치율을 아예 계산하지 않고 전체를 fallback 취급해 랜덤 순서로만 보여준다.
+  const ranked = demo ? [] : rankSpacesByVector(candidates, tasteVector, candidates.length);
   const rankedIds = new Set(ranked.map((s) => s.id));
-  const fallback = shuffle(candidates.filter((s) => !rankedIds.has(s.id)));
+  const fallback = demo ? shuffle(candidates) : shuffle(candidates.filter((s) => !rankedIds.has(s.id)));
+
+  // 관리자는 테스트 편의를 위해 모든 공간을 해제된 것으로 본다(discover/page.tsx와 동일한 기존 패턴 재사용).
+  // 이게 없으면 QR로 최근에 열지 않은 공간의 카드가 "잠긴 공간"으로 표시돼 클릭해도 이동하지 않는다.
+  const unlockedIds = demo ? new Set(candidates.map((s) => s.id)) : unlockSets.unlocked;
 
   return (
     <main className="flex flex-col min-h-screen px-6 pt-8 pb-16">
@@ -116,7 +128,7 @@ export default async function ArchiveTasteAllPage() {
                 <SpaceCard
                   key={s.id}
                   space={s}
-                  isUnlocked={unlockSets.unlocked.has(s.id)}
+                  isUnlocked={unlockedIds.has(s.id)}
                   rank={i + 1}
                   matchPercent={getMatchPercent(s, tasteVector)}
                   recommendationReason={getVectorReason(s, tasteVector)}
@@ -141,7 +153,7 @@ export default async function ArchiveTasteAllPage() {
                   <SpaceCard
                     key={s.id}
                     space={s}
-                    isUnlocked={unlockSets.unlocked.has(s.id)}
+                    isUnlocked={unlockedIds.has(s.id)}
                   />
                 ))}
               </div>
