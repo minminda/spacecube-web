@@ -18,7 +18,6 @@ import {
 import RecommendationPlaylist, { type PlaylistCard } from "@/components/RecommendationPlaylist";
 import ArchiveBottomNav from "@/components/archive/ArchiveBottomNav";
 import Divider from "@/components/Divider";
-import { isAdminDemoSession, ADMIN_DEMO_TOP3_SLUGS } from "@/lib/adminDemo";
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return <p className="text-xs uppercase tracking-widest mb-5" style={{ color: "var(--dim)" }}>{children}</p>;
@@ -54,10 +53,6 @@ export default async function ArchiveTastePage() {
   });
   if (!user) redirect("/login");
 
-  // 한이음 시연 영상용 관리자 데모 — 실제 취향 계산과 무관하게 TOP3를 고정 노출한다(§adminDemo.ts).
-  // 일반 사용자에게는 절대 적용되지 않는다.
-  const demo = isAdminDemoSession(session.user.email);
-
   const allRecords = user.records;
 
   const header = (
@@ -67,7 +62,7 @@ export default async function ArchiveTastePage() {
     </nav>
   );
 
-  if (allRecords.length === 0 && !demo) {
+  if (allRecords.length === 0) {
     return (
       <main className="flex flex-col min-h-screen px-6 pt-8 pb-16">
         {header}
@@ -98,8 +93,8 @@ export default async function ArchiveTastePage() {
   const visitedIds = new Set(allRecords.map((r) => r.space.id));
   const savedTargetIds = new Set(user.savedTastes.map((st) => st.targetUserId));
 
-  const [recommendCandidates, similarCandidates, demoTop3Spaces] = await Promise.all([
-    !demo && allRecords.length >= 3 && myTopTagList.length > 0
+  const [recommendCandidates, similarCandidates] = await Promise.all([
+    allRecords.length >= 3 && myTopTagList.length > 0
       ? prisma.space.findMany({
           where: { isActive: true, id: { notIn: [...visitedIds] } },
           select: {
@@ -126,12 +121,6 @@ export default async function ArchiveTastePage() {
           take: 50,
         })
       : Promise.resolve([]),
-    demo
-      ? prisma.space.findMany({
-          where: { slug: { in: [...ADMIN_DEMO_TOP3_SLUGS] } },
-          select: { id: true, name: true, slug: true, imageUrl: true, district: true, spaceTagLinks: { include: { tag: true } } },
-        })
-      : Promise.resolve([]),
   ]);
 
   const recommended = tasteVector
@@ -151,27 +140,6 @@ export default async function ArchiveTastePage() {
         matchPercent: getMatchPercent(s, tasteVector),
       }))
     : [];
-
-  // 관리자 데모 TOP3 — ADMIN_DEMO_TOP3_SLUGS 순서 그대로, 실제 취향 계산 결과를 대체한다.
-  // matchPercent/reason은 실제로 계산된 값이 아니므로 지어내지 않는다(임의 수치 생성 금지 원칙).
-  const orderedDemoTop3 = demo
-    ? ADMIN_DEMO_TOP3_SLUGS.map((slug) => demoTop3Spaces.find((s) => s.slug === slug)).filter(
-        (s): s is NonNullable<typeof s> => !!s,
-      )
-    : [];
-  const demoPlaylistCards: PlaylistCard[] = orderedDemoTop3.map((s, i) => ({
-    id: s.id,
-    slug: s.slug,
-    name: s.name,
-    district: s.district,
-    imageUrl: s.imageUrl,
-    tagLabels: visibleTagNames(s.spaceTagLinks ?? []),
-    reason: "지금 소개해드리는 공간이에요",
-    rank: i + 1,
-  }));
-
-  const effectivePlaylistCards = demo ? demoPlaylistCards : playlistCards;
-  const effectiveRecommendedCount = demo ? orderedDemoTop3.length : recommended.length;
 
   // 내 취향과 닮은 사람 — 코사인 유사도 상위 3명 (취향 데이터 부족/미방문 사용자 제외)
   const similar = !ENABLE_SIMILAR_TASTE_PEOPLE_UI || !tasteVector ? [] : similarCandidates
@@ -223,7 +191,7 @@ export default async function ArchiveTastePage() {
         <p className="text-xs pt-1" style={{ color: "var(--border)" }}>{tastePhrase}</p>
       </section>
 
-      {allRecords.length < 3 && !demo ? (
+      {allRecords.length < 3 ? (
         <section className="mb-10 space-y-2 pl-4 border-l" style={{ borderColor: "var(--border)" }}>
           <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>
             아직 취향을 파악하는 중입니다<br />
@@ -237,12 +205,12 @@ export default async function ArchiveTastePage() {
           <Divider className="my-8" />
           <section className="mb-10">
             <SectionLabel>// 내 취향과 비슷한 공간 TOP 3</SectionLabel>
-            {ENABLE_RECOMMENDATION_PLAYLIST_UI && effectivePlaylistCards.length > 0 ? (
+            {ENABLE_RECOMMENDATION_PLAYLIST_UI && playlistCards.length > 0 ? (
               <div className="space-y-4">
                 <p className="text-xs -mt-3" style={{ color: "var(--dim)" }}>
                   높은 점수를 남긴 공간들의 결을 바탕으로 골랐어요
                 </p>
-                <RecommendationPlaylist cards={effectivePlaylistCards} />
+                <RecommendationPlaylist cards={playlistCards} />
               </div>
             ) : !ENABLE_RECOMMENDATION_PLAYLIST_UI && recommended.length > 0 ? (
               /* 레거시: 정적 리스트 (플래그 복구용 보존) */
@@ -268,7 +236,7 @@ export default async function ArchiveTastePage() {
                 새로운 공간이 열리면 알려드릴게요
               </p>
             )}
-            {effectiveRecommendedCount > 0 && (
+            {recommended.length > 0 && (
               <Link href="/archive/taste/all" className="inline-block mt-4 text-xs" style={{ color: "var(--fg)" }}>
                 전체 추천 공간 보기 →
               </Link>

@@ -23,7 +23,6 @@ import { LOCALE_COOKIE_NAME, resolveInitialLocale, availableLocalesForSpace } fr
 import { resolveLocalizedField } from "@/lib/i18nContent";
 import { DEFAULT_LOCALE, type LocaleCode } from "@/lib/locales";
 import { ENABLE_MULTILINGUAL } from "@/lib/pilotFlags";
-import { isAdminDemoSession, isAdminDemoUnlockedSpace } from "@/lib/adminDemo";
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -153,44 +152,37 @@ export default async function SpacePage({ params }: Props) {
     };
   });
 
-  // 한이음 시연 영상용 관리자 데모 — ADMIN_DEMO_UNLOCKED_SLUGS 밖의 공간은 실제
-  // unlockVisitCount/visitCount 계산과 무관하게 EP.1(및 그 뒤 Episode)을 잠금 상태로 보여준다.
-  // 일반 사용자에게는 적용되지 않고, Episode 데이터(unlockVisitCount)나 Record는 그대로다 —
-  // 화면 표시용 배열(episodes)의 state만 이 자리에서 덮어쓴다(§adminDemo.ts).
-  const forceLockedForDemo = isAdminDemoSession(session?.user?.email) && !isAdminDemoUnlockedSpace(space.slug);
-  const displayEpisodes = forceLockedForDemo ? episodes.map((e) => ({ ...e, state: "LOCKED" as const })) : episodes;
-
-  const newlyUnlocked = displayEpisodes.filter((e) => e.state === "NEWLY_UNLOCKED");
-  const locked = displayEpisodes.filter((e) => e.state === "LOCKED");
+  const newlyUnlocked = episodes.filter((e) => e.state === "NEWLY_UNLOCKED");
+  const locked = episodes.filter((e) => e.state === "LOCKED");
 
   // 상단 안내 문구: 첫 방문 → 이번 방문으로 새 Episode 해제 → 잠긴 Episode 존재 → 모든 Episode 해제
   let banner: BannerInfo = null;
-  if (isFirstVisit && !forceLockedForDemo) {
+  if (isFirstVisit) {
     banner = { type: "first" };
   } else if (newlyUnlocked.length > 0) {
     banner = { type: "new", count: newlyUnlocked.length };
   } else if (locked.length > 0) {
     banner = { type: "locked", count: locked.length };
-  } else if (displayEpisodes.length > 0) {
+  } else if (episodes.length > 0) {
     banner = { type: "allUnlocked" };
   }
 
   // 아직 관리자가 만들지 않은 다음 이야기를 "예정" 카드로 예고 — 재방문 동기 부여용.
   // 배너 집계(locked 등)에는 영향을 주지 않도록 화면 표시용 배열에만 덧붙인다.
   const episodesForDisplay =
-    displayEpisodes.length > 0
+    episodes.length > 0
       ? [
-          ...displayEpisodes,
+          ...episodes,
           {
             id: "__upcoming__",
-            episodeNumber: displayEpisodes[displayEpisodes.length - 1].episodeNumber + 1,
+            episodeNumber: episodes[episodes.length - 1].episodeNumber + 1,
             title: "",
             unlockVisitCount: 0,
             state: "LOCKED" as const,
             isPlaceholder: true as const,
           },
         ]
-      : displayEpisodes;
+      : episodes;
 
   const spaceTopTags = aggregateSpaceTags(allTagRecords);
   const usageSummary = getSpaceUsageSummary(spaceTopTags);
