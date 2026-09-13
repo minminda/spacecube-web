@@ -143,9 +143,6 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
   const [canWriteThisVisit, setCanWriteThisVisit] = useState(initialCanWriteThisVisit);
   const [hasCommentedThisVisit, setHasCommentedThisVisit] = useState(initialHasCommentedThisVisit);
   const [myNickname, setMyNickname] = useState<string | null>(nickname);
-  const [writeMode, setWriteMode] = useState(
-    searchParams.get("mode") === "write" && isLoggedIn && initialCanWriteThisVisit,
-  );
   const [composer, setComposer] = useState<{ x: number; y: number } | null>(null);
   const [composerClusterType, setComposerClusterType] = useState<ClusterLabel["type"]>("FREE");
   const [content, setContent] = useState("");
@@ -357,29 +354,6 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
     pendingActionRef.current = null;
   }
 
-  function enterWriteMode() {
-    // 첫 방문 흐름 단순화 — 비로그인 방문자도 로그인 없이 바로 작성모드에 들어갈 수 있다.
-    if (!canWriteThisVisit) return;
-    // 방명록 퍼널 계측 — "작성" 버튼을 눌러 실제로 작성모드에 들어가는 순간을 Write Attempt로
-    // 본다(닉네임 설정 여부와 무관, 그건 그 다음 단계). 실패해도 작성 흐름 자체는 막지 않는다.
-    fetch("/api/guestbook/write-attempt", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ spaceId: space.id }),
-      keepalive: true,
-    }).catch(() => {});
-    requireNickname(() => setWriteMode(true));
-  }
-
-  function exitWriteMode() {
-    setWriteMode(false);
-    setComposer(null);
-    setContent("");
-    setPhotoPreview(null);
-    setPhotoUrl(null);
-    window.history.replaceState(null, "", `/space/${space.slug}/guestbook`);
-  }
-
   // 탭한 위치에서 가장 가까운 군집을 찾는다 — 물리적 제한이 아니라 clusterType 메타데이터 결정용.
   function nearestClusterType(x: number, y: number): ClusterLabel["type"] {
     if (clusters.length === 0) return "FREE";
@@ -425,14 +399,23 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
     ];
   }
 
+  /** 캔버스 배경을 직접 클릭하면 그 자리에서 곧바로 작성창이 열린다 — 별도의 "작성" CTA로
+      모드에 먼저 들어가는 단계가 없다(로그인/비로그인 동일). 이미 작성창이 열려 있으면 취소,
+      composer가 없고 이번 방문에 아직 쓸 수 있으면 클릭 위치에 새 포스트잇을 놓는다. */
   function handleWorldClick(e: React.MouseEvent<HTMLDivElement>) {
-    if (!writeMode) return;
     const down = downPos.current;
     if (down && Math.hypot(e.clientX - down.x, e.clientY - down.y) > CLICK_TOLERANCE) return; // 팬이었음
 
     // 이미 작성창이 열려 있는데 배경을 눌렀다 → 취소하고 캔버스로 복귀
     if (composer) {
       cancelCompose();
+      return;
+    }
+
+    if (!canWriteThisVisit) {
+      // 별도의 "이미 작성함" CTA/배너를 새로 만들지 않는다 — 기존에 쓰던 것과 같은 안내 문구를
+      // 최소한으로만 보여준다(VISIT_ALREADY_POSTED 응답 문구와 동일).
+      showToast("이번 방문에 이미 흔적을 남기셨어요");
       return;
     }
 
@@ -461,11 +444,22 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
       showToast("가까운 빈자리에 흔적을 놓았습니다");
     }
 
-    // 생성 직후 해당 위치로 부드럽게 이동/확대하고, 취소 시 되돌아갈 이전 위치를 기억해둔다
-    preComposeTransformRef.current = { ...lastTransformRef.current };
-    setComposer({ x, y });
-    setComposerClusterType(nearestClusterType(x + NOTE_W / 2, y + 70));
-    focusOnPoint(x + NOTE_W / 2, y + 70, COMPOSE_SCALE, COMPOSE_DURATION_MS);
+    // 방명록 퍼널 계측 — 배경을 눌러 실제로 작성을 시도하는 순간을 Write Attempt로 본다
+    // (닉네임 설정 여부와 무관, 그건 그 다음 단계). 실패해도 작성 흐름 자체는 막지 않는다.
+    fetch("/api/guestbook/write-attempt", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ spaceId: space.id }),
+      keepalive: true,
+    }).catch(() => {});
+
+    requireNickname(() => {
+      // 생성 직후 해당 위치로 부드럽게 이동/확대하고, 취소 시 되돌아갈 이전 위치를 기억해둔다
+      preComposeTransformRef.current = { ...lastTransformRef.current };
+      setComposer({ x, y });
+      setComposerClusterType(nearestClusterType(x + NOTE_W / 2, y + 70));
+      focusOnPoint(x + NOTE_W / 2, y + 70, COMPOSE_SCALE, COMPOSE_DURATION_MS);
+    });
   }
 
   // 모바일 키보드가 열리면 작성창이 가려지지 않도록 초점을 위로 밀어 재조정
@@ -540,7 +534,6 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
           setPhotoPreview(null);
           setPhotoUrl(null);
           preComposeTransformRef.current = null;
-          exitWriteMode();
           return;
         }
         showToast(data.error ?? "저장에 실패했습니다");
@@ -557,7 +550,6 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
       setPhotoPreview(null);
       setPhotoUrl(null);
       preComposeTransformRef.current = null; // 저장 완료 — 취소 시 되돌아갈 위치는 더 이상 필요 없음, 지금 확대 상태 유지
-      exitWriteMode();
       // 포스트잇 저장만으로 캔버스를 닫거나 추천을 강제로 띄우지 않는다 — 짧은 완료 피드백만 주고
       // 캔버스 탐색을 계속할 수 있게 둔다. 추천은 "다음으로"(handleFinishVisit)를 눌렀을 때만 노출.
       showToast("흔적이 저장되었습니다");
@@ -581,13 +573,13 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
   }
 
   const openFocused = useCallback((note: GuestbookNoteData) => {
-    if (writeMode) return;
+    if (composer) return; // 작성창이 열려 있는 동안은 다른 흔적을 열지 않는다
     setFocused(note);
     setOverlayMode("read");
     setEditContent(note.content);
     setEditPhotoPreview(undefined);
     setEditPhotoUrl(undefined);
-  }, [writeMode]);
+  }, [composer]);
 
   function closeFocused() {
     setFocused(null);
@@ -700,25 +692,6 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
         style={{ touchAction: "none", background: worldBg }}
       >
         <AnimatePresence>
-          {writeMode && !composer && !introPlaying && (
-            <motion.div
-              initial={{ opacity: 0, y: -8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              className="absolute top-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-3 px-4 py-2.5"
-              style={{ background: "rgba(255,255,255,0.08)", backdropFilter: "blur(4px)" }}
-            >
-              <p className="text-xs whitespace-nowrap" style={{ color: "#eee" }}>
-                이 공간에 남기고 싶은 위치를 골라주세요
-              </p>
-              <button type="button" onClick={exitWriteMode} className="text-xs flex-shrink-0 underline underline-offset-2" style={{ color: "#999" }}>
-                취소
-              </button>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        <AnimatePresence>
           {toast && (
             <motion.p
               initial={{ opacity: 0, y: 8 }}
@@ -734,7 +707,7 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
 
         {/* 아직 흔적이 하나도 없는 공간 — 빈 상태 안내 */}
         <AnimatePresence>
-          {allNotes.length === 0 && !introPlaying && !writeMode && (
+          {allNotes.length === 0 && !introPlaying && !composer && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -826,8 +799,8 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
                       background: note.color,
                       rotate: `${effectiveRotation(note.rotation)}deg`,
                       boxShadow: "0 2px 10px rgba(0,0,0,0.5)",
-                      pointerEvents: writeMode ? "none" : "auto",
-                      cursor: writeMode ? "default" : "pointer",
+                      pointerEvents: composer ? "none" : "auto",
+                      cursor: composer ? "default" : "pointer",
                     }}
                     onClick={(e) => { e.stopPropagation(); openFocused(note); }}
                   >
@@ -951,37 +924,25 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
         </div>
 
         <div className="max-w-md mx-auto w-full px-4 pt-2 pb-3 flex flex-col gap-2">
-          {(myNoteId || canWriteThisVisit) && (
-            <div className="flex flex-col gap-2">
-              {canWriteThisVisit && !writeMode && (
-                <button
-                  type="button"
-                  onClick={enterWriteMode}
-                  className="w-full min-h-[44px] text-xs py-2.5 px-3 border hover:bg-white hover:text-black transition-colors"
-                  style={{ borderColor: "#fff", color: "#fff" }}
-                >
-                  {myNoteId ? "이번 방문에도 흔적 남기기" : "나도 흔적 남기기"}
-                </button>
-              )}
-              {myNoteId && (
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={goToMyNote}
-                    className="min-h-[44px] text-xs py-2.5 px-3 border hover:bg-white hover:text-black transition-colors whitespace-nowrap"
-                    style={{ borderColor: "#fff", color: "#fff" }}
-                  >
-                    내 기록 보기
-                  </button>
-                  <Link
-                    href={`/space/${space.slug}`}
-                    className="min-h-[44px] flex items-center justify-center text-xs py-2.5 px-3 border text-center hover:bg-white hover:text-black transition-colors whitespace-nowrap"
-                    style={{ borderColor: "#fff", color: "#fff" }}
-                  >
-                    이 공간 더보기
-                  </Link>
-                </div>
-              )}
+          {/* 별도의 "작성" CTA는 없다 — 캔버스 배경을 직접 눌러 그 자리에 바로 흔적을 남긴다
+              (handleWorldClick). 여기에는 이미 흔적을 남긴 뒤에만 나오는 보조 링크만 둔다. */}
+          {myNoteId && (
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={goToMyNote}
+                className="min-h-[44px] text-xs py-2.5 px-3 border hover:bg-white hover:text-black transition-colors whitespace-nowrap"
+                style={{ borderColor: "#fff", color: "#fff" }}
+              >
+                내 기록 보기
+              </button>
+              <Link
+                href={`/space/${space.slug}`}
+                className="min-h-[44px] flex items-center justify-center text-xs py-2.5 px-3 border text-center hover:bg-white hover:text-black transition-colors whitespace-nowrap"
+                style={{ borderColor: "#fff", color: "#fff" }}
+              >
+                이 공간 더보기
+              </Link>
             </div>
           )}
 
