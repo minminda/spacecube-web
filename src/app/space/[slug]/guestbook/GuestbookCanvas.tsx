@@ -668,7 +668,10 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
   }
 
   return (
-    <div className="flex flex-col" style={{ height: "calc(100dvh - 3.5rem)", background: worldBg }}>
+    // full-bleed: 공용 레이아웃(layout.tsx)의 max-w-sm/md:max-w-2xl 중앙 정렬 wrapper를 뚫고
+    // 뷰포트 폭 전체를 채운다(768px 미만에서만 적용, 데스크톱은 기존 중앙 정렬 폭 그대로 —
+    // globals.css 참고, 대표사진에 이미 쓰이던 것과 동일한 유틸리티를 그대로 재사용).
+    <div className="full-bleed flex flex-col" style={{ height: "calc(100dvh - 3.5rem)", background: worldBg }}>
 
       {/* ── 상단 ── */}
       <div className="flex items-center justify-between px-6 py-4 gap-3">
@@ -917,13 +920,16 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
           pointerEvents: introPlaying ? "none" : "auto",
         }}
       >
-        <div className="flex items-center justify-center gap-1.5 px-4 pt-2">
+        <div className="flex items-center justify-center gap-1.5 px-6 pt-2">
           <button type="button" aria-label="줌 아웃" onClick={() => transformRef.current?.zoomOut(0.35)} className="w-8 h-8 border text-sm flex-shrink-0" style={{ borderColor: "#333", color: "#999" }}>−</button>
           <span className="text-xs w-12 text-center tabular-nums flex-shrink-0" style={{ color: "#999" }}>{scalePct}%</span>
           <button type="button" aria-label="줌 인" onClick={() => transformRef.current?.zoomIn(0.35)} className="w-8 h-8 border text-sm flex-shrink-0" style={{ borderColor: "#333", color: "#999" }}>+</button>
         </div>
 
-        <div className="max-w-md mx-auto w-full px-4 pt-2 pb-3 flex flex-col gap-2">
+        {/* px-6/pb-6: 다른 화면의 CTA 컨테이너(예: Episode 페이지 "방명록 열기")와 동일한 좌우
+            여백, 안전 영역(env(safe-area-inset-bottom), 위 wrapper) 위에 추가 여유를 둬 버튼이
+            화면 맨 아래 가장자리에 붙어 잘려 보이지 않게 한다. */}
+        <div className="max-w-md mx-auto w-full px-6 pt-2 pb-6 flex flex-col gap-2">
           {/* 별도의 "작성" CTA는 없다 — 캔버스 배경을 직접 눌러 그 자리에 바로 흔적을 남긴다
               (handleWorldClick). 여기에는 이미 흔적을 남긴 뒤에만 나오는 보조 링크만 둔다. */}
           {myNoteId && (
@@ -947,12 +953,15 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
           )}
 
           {/* 방명록 작성 여부와 무관하게 항상 뜨는 명시적 종료 CTA — 채워진 배경으로 시각적
-              우선순위를 가장 높게 두고, 브라우저 뒤로가기는 가로채지 않는다. */}
+              우선순위를 가장 높게 두고, 브라우저 뒤로가기는 가로채지 않는다. 높이/좌우 padding/
+              폰트 크기·굵기/정렬/터치 영역/모바일 너비는 Episode 페이지 "방명록 열기"(tap-target,
+              w-full, text-sm, py-3, flex 중앙 정렬)와 동일한 값으로 맞췄다 — 채워진 배경(흰색)만
+              의도적으로 유지해 이 화면의 최종 CTA라는 우선순위를 그대로 보존한다. */}
           <button
             type="button"
             onClick={finishVisit}
             disabled={navigatingToComplete}
-            className="tap-target w-full text-sm font-medium py-3 px-3 transition-opacity disabled:opacity-40 break-keep"
+            className="tap-target flex items-center justify-center w-full text-center text-sm py-3 transition-opacity disabled:opacity-40 break-keep"
             style={{ background: "#fff", color: "#000" }}
           >
             {navigatingToComplete ? "이동 중..." : myNoteId ? "이번 경험 마치기" : "작성하지 않고 마치기"}
