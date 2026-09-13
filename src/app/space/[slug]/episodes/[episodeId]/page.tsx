@@ -177,9 +177,10 @@ export default async function EpisodeDetailPage({ params }: Props) {
 
   const nextEpisodeUnlocked = !!nextEpisode && nextEpisode.unlockVisitCount <= visitCount;
 
-  // 공간 페이지와 동일한 CTA로 통일 — 취향 점수를 저장해야 방명록이 열린다(로그인 전이면 콜백 경유).
-  const recordHref = `/space/${space.slug}/record`;
-  const ctaHref = session ? recordHref : `/login?callbackUrl=${encodeURIComponent(recordHref)}`;
+  // 첫 방문 흐름 단순화 — 로그인/취향 점수 없이 방명록으로 바로 이동한다(로그인·취향 점수는
+  // 더 이상 이 CTA의 관문이 아니다. src/app/space/[slug]/guestbook/page.tsx가 로그인/비로그인
+  // 모두를 직접 받아들인다).
+  const ctaHref = `/space/${space.slug}/guestbook`;
 
   return (
     <main className="flex flex-col min-h-screen px-6 py-8 gap-8">

@@ -87,6 +87,9 @@ export async function getExtendedPeriodStats(
 ): Promise<ExtendedPeriodStats> {
   const adminUserIds = await getAdminUserIds();
   const notAdmin = { notIn: [...adminUserIds] };
+  // GuestbookReaction.userId는 비로그인 반응자에서 null일 수 있다 — `notIn`만 쓰면 익명 반응이
+  // 조용히 빠진다(NULL NOT IN(...) 함정, 아래 notAdminOrAnonymous와 동일한 이유).
+  const notAdminOrAnonymousReaction = { OR: [{ userId: null }, { userId: notAdmin }] };
   const [qrScans, episodeViews, episodeCompletions, durationAgg, episodes, allRecords, periodRecords, reactionsTotal] = await Promise.all([
     prisma.spaceScan.count({ where: { spaceId, scannedAt: { gte: periodStart, lt: periodEnd } } }),
     prisma.episodeRead.count({ where: { episode: { spaceId }, openedAt: { gte: periodStart, lt: periodEnd } } }),
@@ -104,7 +107,7 @@ export async function getExtendedPeriodStats(
       select: { tasteScore: true },
     }),
     prisma.guestbookReaction.count({
-      where: { post: { spaceId, createdAt: { gte: periodStart, lt: periodEnd } }, userId: notAdmin },
+      where: { post: { spaceId, createdAt: { gte: periodStart, lt: periodEnd } }, ...notAdminOrAnonymousReaction },
     }),
   ]);
 
@@ -149,7 +152,12 @@ export async function getHourlyPeriodStats(spaceId: string, dayStart: Date, dayE
       select: { openedAt: true, completedAt: true },
     }),
     prisma.record.findMany({ where: { spaceId, visitedAt: { gte: dayStart, lt: dayEnd }, userId: notAdmin }, select: { visitedAt: true } }),
-    prisma.guestbookNote.findMany({ where: { spaceId, createdAt: { gte: dayStart, lt: dayEnd }, userId: notAdmin }, select: { createdAt: true } }),
+    // GuestbookNote.userId는 비로그인 작성자에서 null일 수 있다 — OR로 명시하지 않으면 익명
+    // 작성 행이 `notIn` 필터에서 조용히 빠진다.
+    prisma.guestbookNote.findMany({
+      where: { spaceId, createdAt: { gte: dayStart, lt: dayEnd }, OR: [{ userId: null }, { userId: notAdmin }] },
+      select: { createdAt: true },
+    }),
   ]);
 
   const qrBuckets = buildHourlyTrend(scans.map((s) => s.scannedAt), dayStart, dayEnd);
@@ -332,8 +340,8 @@ export async function getGuestbookConversionFunnel(
         select: { userId: true },
       }),
       prisma.guestbookNote.findMany({
-        where: { spaceId, createdAt: { gte: periodStart, lt: periodEnd }, userId: notAdmin },
-        select: { userId: true },
+        where: { spaceId, createdAt: { gte: periodStart, lt: periodEnd }, ...notAdminOrAnonymous },
+        select: { userId: true, anonId: true },
       }),
     ]);
 
@@ -350,6 +358,6 @@ export async function getGuestbookConversionFunnel(
     recordCompleters: new Set(records.map((r) => r.userId)).size,
     guestbookViewers: new Set(guestbookViews.map((r) => r.userId)).size,
     writeAttempts,
-    postItAuthors: new Set(notes.map((n) => n.userId)).size,
+    postItAuthors: distinctCount(notes),
   };
 }

@@ -1,12 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { formatDotDate as formatDots } from "@/lib/time";
 
 export interface GuestbookCommentData {
   id: string;
-  userId: string;
+  userId: string | null;
+  anonId: string | null;
   nickname: string | null;
   content: string;
   createdAt: string; // ISO
@@ -17,8 +17,9 @@ const MAX_CONTENT = 200;
 interface Props {
   noteId: string;
   initialCount: number;
-  isLoggedIn: boolean;
   currentUserId: string | null;
+  /** 비로그인 방문자 식별자(sc_anon_id) — 본인 댓글 판정에 currentUserId 대신 사용 */
+  currentAnonId: string | null;
   ink?: string;
   inkDim?: string;
   /** 이번 방문에 이미 답글을 남겼으면(어느 포스트잇이든) 작성창 대신 이 안내 문구를 보여준다 */
@@ -28,18 +29,19 @@ interface Props {
 }
 
 /* 포스트잇 하단에 붙는 1단계 댓글 스레드 — 대댓글 없음, 본인 댓글만 수정/삭제 가능.
-   방문자용 캔버스 오버레이·아카이브 상세 모달 양쪽에서 공용으로 쓴다. */
+   방문자용 캔버스 오버레이·아카이브 상세 모달 양쪽에서 공용으로 쓴다. 비로그인 방문자도
+   작성 가능(익명 닉네임으로 저장) — 본인 판정은 userId가 있으면 userId, 없으면 anonId로 한다
+   (둘 다 null인 두 익명 댓글을 서로 "내 것"으로 오판하지 않도록 currentAnonId까지 비교). */
 export default function GuestbookCommentThread({
   noteId,
   initialCount,
-  isLoggedIn,
   currentUserId,
+  currentAnonId,
   ink = "#3d3524",
   inkDim = "#8a7d5c",
   disabledReason,
   onCommentPosted,
 }: Props) {
-  const router = useRouter();
   const [expanded, setExpanded] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [comments, setComments] = useState<GuestbookCommentData[]>([]);
@@ -65,10 +67,7 @@ export default function GuestbookCommentThread({
   }
 
   async function submit() {
-    if (!isLoggedIn) {
-      router.push(`/login?callbackUrl=${encodeURIComponent(window.location.pathname)}`);
-      return;
-    }
+    // 첫 방문 흐름 단순화 — 비로그인 방문자도 로그인 없이 답글을 남길 수 있다.
     if (disabledReason) return;
     const text = draft.trim();
     if (!text || submitting) return;
@@ -162,7 +161,8 @@ export default function GuestbookCommentThread({
                         <span>{c.nickname ?? "익명"}</span>
                         <span>·</span>
                         <span>{formatDots(c.createdAt)}</span>
-                        {c.userId === currentUserId && (
+                        {((c.userId && c.userId === currentUserId) ||
+                          (!c.userId && !!c.anonId && c.anonId === currentAnonId)) && (
                           <>
                             <button type="button" onClick={() => startEdit(c)} className="underline underline-offset-2">수정</button>
                             <button type="button" onClick={() => remove(c.id)} className="underline underline-offset-2">삭제</button>
@@ -183,7 +183,7 @@ export default function GuestbookCommentThread({
               <textarea
                 value={draft}
                 onChange={(e) => { if (e.target.value.length <= MAX_CONTENT) setDraft(e.target.value); }}
-                placeholder={isLoggedIn ? "댓글을 남겨보세요" : "로그인하면 댓글을 남길 수 있어요"}
+                placeholder="댓글을 남겨보세요"
                 rows={2}
                 className="w-full text-xs p-2 resize-none outline-none"
                 style={{ background: "rgba(255,255,255,0.45)", color: ink }}

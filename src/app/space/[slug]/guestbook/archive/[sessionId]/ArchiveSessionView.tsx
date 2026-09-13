@@ -90,8 +90,8 @@ export default function ArchiveSessionView({
               <GuestbookCommentThread
                 noteId={openNote.id}
                 initialCount={openNote.commentCount}
-                isLoggedIn={isLoggedIn}
                 currentUserId={currentUserId}
+                currentAnonId={null}
                 disabledReason="종료된 방명록이라 답글을 남길 수 없어요"
               />
             )}

@@ -114,8 +114,8 @@ interface Props {
   clusters: ClusterLabel[];
   /** 로그인한 내 사용자 id — 댓글 본인 확인(수정/삭제 노출)에 사용, 비로그인이면 null */
   currentUserId: string | null;
-  /** 이번 방문(가장 최근 인정된 Record)의 id — "이번 경험 마치기"가 완료 페이지로 넘겨줄 식별자, 없으면 null(비로그인 등) */
-  currentRecordId: string | null;
+  /** 비로그인 방문자 식별자(sc_anon_id) — 댓글 본인 확인에 currentUserId 대신 사용, 로그인 상태면 null */
+  currentAnonId: string | null;
   /** 파일럿 플래그 — 방명록 이미지 첨부(업로드·표시) 허용 여부. off면 사진 UI와 기존 이미지 표시를 모두 숨긴다. */
   enableImage: boolean;
   /** 파일럿 플래그 — 방명록 댓글(작성·표시) 허용 여부. off면 댓글 스레드를 숨긴다. */
@@ -126,7 +126,7 @@ interface Props {
 const INK = "#3d3524";
 const INK_DIM = "#8a7d5c";
 
-export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initialMyNoteId, initialCanWriteThisVisit, hasCommentedThisVisit: initialHasCommentedThisVisit, nickname, settings, newNotesCount, clusters, currentUserId, currentRecordId, enableImage, enableComments }: Props) {
+export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initialMyNoteId, initialCanWriteThisVisit, hasCommentedThisVisit: initialHasCommentedThisVisit, nickname, settings, newNotesCount, clusters, currentUserId, currentAnonId, enableImage, enableComments }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const transformRef = useRef<ReactZoomPanPinchContentRef>(null);
@@ -322,7 +322,8 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
   }
 
   function requireNickname(action: () => void) {
-    if (myNickname) {
+    // 비로그인 방문자는 닉네임을 직접 정하지 않는다 — 서버가 고정 익명 닉네임을 붙인다.
+    if (!isLoggedIn || myNickname) {
       action();
       return;
     }
@@ -357,10 +358,7 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
   }
 
   function enterWriteMode() {
-    if (!isLoggedIn) {
-      router.push(`/login?callbackUrl=${encodeURIComponent(`/space/${space.slug}/guestbook`)}`);
-      return;
-    }
+    // 첫 방문 흐름 단순화 — 비로그인 방문자도 로그인 없이 바로 작성모드에 들어갈 수 있다.
     if (!canWriteThisVisit) return;
     // 방명록 퍼널 계측 — "작성" 버튼을 눌러 실제로 작성모드에 들어가는 순간을 Write Attempt로
     // 본다(닉네임 설정 여부와 무관, 그건 그 다음 단계). 실패해도 작성 흐름 자체는 막지 않는다.
@@ -571,13 +569,15 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
     }
   }
 
-  /** "이번 경험 마치기" — 포스트잇 작성 여부와 무관하게 항상 누를 수 있다(방명록은 선택 기능).
-      별도의 방문 완료·추천 페이지로 이동한다(모달로 즉시 계산하지 않음). 브라우저 뒤로가기는
+  /** "이번 경험 마치기" — 포스트잇 작성 여부와 무관하게, 로그인 여부와도 무관하게 항상 누를 수
+      있다(방명록은 선택 기능). 별도의 짧은 완료 페이지로 이동한다(추천을 강제로 띄우지 않음).
+      이번에 작성한 노트가 있으면 id를 넘겨 완료 페이지가 "작성함" 문구를 보여줄 수 있게 한다 —
+      recordId 대신 myNoteId를 쓰므로 비로그인 방문자도 동일하게 동작한다. 브라우저 뒤로가기는
       건드리지 않으므로, 이 페이지에서 뒤로가기를 누르면 다시 이 캔버스로 돌아온다. */
   function finishVisit() {
-    if (navigatingToComplete || !currentRecordId) return; // 연속 클릭으로 중복 라우팅되는 것만 막는다
+    if (navigatingToComplete) return; // 연속 클릭으로 중복 라우팅되는 것만 막는다
     setNavigatingToComplete(true);
-    router.push(`/space/${space.slug}/complete?recordId=${currentRecordId}`);
+    router.push(`/space/${space.slug}/complete${myNoteId ? `?note=${myNoteId}` : ""}`);
   }
 
   const openFocused = useCallback((note: GuestbookNoteData) => {
@@ -664,10 +664,7 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
   const isMine = focused ? focused.id === myNoteId : false;
 
   async function toggleReaction(noteId: string) {
-    if (!isLoggedIn) {
-      router.push(`/login?callbackUrl=${encodeURIComponent(`/space/${space.slug}/guestbook`)}`);
-      return;
-    }
+    // 첫 방문 흐름 단순화 — 비로그인 방문자도 로그인 없이 공감할 수 있다.
     const res = await fetch(`/api/guestbook/${noteId}/reactions`, { method: "POST" });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
@@ -993,7 +990,7 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
           <button
             type="button"
             onClick={finishVisit}
-            disabled={navigatingToComplete || !currentRecordId}
+            disabled={navigatingToComplete}
             className="tap-target w-full text-sm font-medium py-3 px-3 transition-opacity disabled:opacity-40 break-keep"
             style={{ background: "#fff", color: "#000" }}
           >
@@ -1094,8 +1091,8 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
                     <GuestbookCommentThread
                       noteId={focused.id}
                       initialCount={focused.commentCount}
-                      isLoggedIn={isLoggedIn}
                       currentUserId={currentUserId}
+                      currentAnonId={currentAnonId}
                       disabledReason={hasCommentedThisVisit ? ALREADY_COMMENTED_MSG : undefined}
                       onCommentPosted={() => setHasCommentedThisVisit(true)}
                     />

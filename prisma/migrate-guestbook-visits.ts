@@ -47,6 +47,12 @@ async function backfillNotes() {
   let skipped = 0;
 
   for (const note of notes) {
+    // 첫 방문 흐름 단순화 이후 생긴 비로그인(anonId) 작성 행은 애초에 Record가 없으므로
+    // 연결 대상이 아니다 — recordId: null 그대로 둔다.
+    if (!note.userId) {
+      skipped++;
+      continue;
+    }
     const key = `${note.userId}:${note.spaceId}`;
     let records = recordsCache.get(key);
     if (!records) {
@@ -88,16 +94,21 @@ async function backfillComments() {
   let skipped = 0;
 
   for (const comment of comments) {
-    const key = `${comment.userId}:${comment.note.spaceId}`;
-    let records = recordsCache.get(key);
-    if (!records) {
-      records = await prisma.record.findMany({
-        where: { userId: comment.userId, spaceId: comment.note.spaceId },
-        select: { id: true, visitedAt: true },
-      });
-      recordsCache.set(key, records);
+    // 첫 방문 흐름 단순화 이후 생긴 비로그인(anonId) 작성 행은 이미 생성 시점에
+    // guestbookSessionId가 채워져 있고 Record 자체가 없으므로 연결 대상이 아니다.
+    let recordId: string | null = null;
+    if (comment.userId) {
+      const key = `${comment.userId}:${comment.note.spaceId}`;
+      let records = recordsCache.get(key);
+      if (!records) {
+        records = await prisma.record.findMany({
+          where: { userId: comment.userId, spaceId: comment.note.spaceId },
+          select: { id: true, visitedAt: true },
+        });
+        recordsCache.set(key, records);
+      }
+      recordId = nearestRecordId(records, comment.createdAt);
     }
-    const recordId = nearestRecordId(records, comment.createdAt);
     await prisma.guestbookComment.update({
       where: { id: comment.id },
       data: { guestbookSessionId: comment.note.guestbookSessionId, ...(recordId ? { recordId } : {}) },

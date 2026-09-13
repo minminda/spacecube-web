@@ -302,9 +302,10 @@ async function getQuestionParticipation(spaceId: string, periodStart: Date, peri
       orderBy: { startsAt: "desc" },
       select: { question1: true, question2: true },
     }),
+    // userId가 null인 익명 작성 행은 `notIn`만으로는 조용히 빠진다 — OR로 명시한다.
     prisma.guestbookNote.groupBy({
       by: ["clusterType"],
-      where: { spaceId, createdAt: { gte: periodStart, lt: periodEnd }, userId: { notIn: [...adminUserIds] } },
+      where: { spaceId, createdAt: { gte: periodStart, lt: periodEnd }, OR: [{ userId: null }, { userId: { notIn: [...adminUserIds] } }] },
       _count: { _all: true },
     }),
   ]);
@@ -416,6 +417,9 @@ export async function computeMonthlyReportContent(
   const space = await prisma.space.findUnique({ where: { id: spaceId }, select: { name: true } });
   const adminUserIds = await getAdminUserIds();
   const notAdmin = { notIn: [...adminUserIds] };
+  // GuestbookNote/GuestbookReaction의 userId는 비로그인 작성자/반응자에서 null일 수 있다 —
+  // `notIn`만 쓰면 익명 행이 조용히 빠진다(kpi.ts/reportMetrics.ts와 동일한 함정/해법).
+  const notAdminOrAnonymous = { OR: [{ userId: null }, { userId: notAdmin }] };
 
   const [stats, extended, questionParticipation, noteRows] = await Promise.all([
     getSpaceMonthlyKpi(spaceId, periodStart, periodEnd),
@@ -423,9 +427,10 @@ export async function computeMonthlyReportContent(
     getQuestionParticipation(spaceId, periodStart, periodEnd),
     // 관리자가 검수 중 남긴 글은 "공감 TOP3" 후보에서 제외하고, 실제 글에 달린 공감이라도
     // 관리자가 누른 공감은 집계하지 않는다(reportMetrics.ts의 reactionsTotal과 동일 기준).
+    // 비로그인 작성/공감은 후보·집계에 정상 포함한다.
     prisma.guestbookNote.findMany({
-      where: { spaceId, createdAt: { gte: periodStart, lt: periodEnd }, userId: notAdmin },
-      select: { id: true, content: true, clusterType: true, createdAt: true, reactions: { where: { userId: notAdmin }, select: { id: true } } },
+      where: { spaceId, createdAt: { gte: periodStart, lt: periodEnd }, ...notAdminOrAnonymous },
+      select: { id: true, content: true, clusterType: true, createdAt: true, reactions: { where: notAdminOrAnonymous, select: { id: true } } },
     }),
   ]);
 
@@ -494,6 +499,9 @@ export async function generateOrGetMonthlyReport(spaceId: string, periodStart: D
 
   const adminUserIds = await getAdminUserIds();
   const notAdmin = { notIn: [...adminUserIds] };
+  // GuestbookNote/GuestbookReaction의 userId는 비로그인 작성자/반응자에서 null일 수 있다 —
+  // `notIn`만 쓰면 익명 행이 조용히 빠진다.
+  const notAdminOrAnonymous = { OR: [{ userId: null }, { userId: notAdmin }] };
 
   const [stats, extended, questionParticipation, previousReport] = await Promise.all([
     getSpaceMonthlyKpi(spaceId, periodStart, periodEnd),
@@ -508,8 +516,8 @@ export async function generateOrGetMonthlyReport(spaceId: string, periodStart: D
   const suggestions = buildSuggestions(stats, extended, questionParticipation);
 
   const notes = await prisma.guestbookNote.findMany({
-    where: { spaceId, createdAt: { gte: periodStart, lt: periodEnd }, userId: notAdmin },
-    select: { id: true, createdAt: true, reactions: { where: { userId: notAdmin }, select: { id: true } } },
+    where: { spaceId, createdAt: { gte: periodStart, lt: periodEnd }, ...notAdminOrAnonymous },
+    select: { id: true, createdAt: true, reactions: { where: notAdminOrAnonymous, select: { id: true } } },
   });
   const candidates: FeaturedPostCandidate[] = notes.map((n) => ({
     id: n.id,

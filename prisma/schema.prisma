@@ -10,12 +10,12 @@ datasource db {
 // ─── NextAuth ────────────────────────────────────────────────
 
 model User {
-  id            String     @id @default(cuid())
-  name          String?
-  email         String?    @unique
-  emailVerified DateTime?
-  image         String?
-  nickname          String?   @unique
+  id                String     @id @default(cuid())
+  name              String?
+  email             String?    @unique
+  emailVerified     DateTime?
+  image             String?
+  nickname          String?    @unique
   // 마지막으로 닉네임을 변경한 시각 — 30일에 1회만 변경 가능한 정책의 서버측 기준.
   // null이면 아직 한 번도 변경(최초 설정 포함)한 적 없다는 뜻으로, 쿨다운 없이 즉시 설정 가능하다.
   nicknameUpdatedAt DateTime?
@@ -27,8 +27,8 @@ model User {
   records               Record[]
   spaces                Space[]
   collections           Collection[]
-  savedTastes           SavedTaste[]        @relation("SavedBy")
-  savedByOthers         SavedTaste[]        @relation("SavedTarget")
+  savedTastes           SavedTaste[]           @relation("SavedBy")
+  savedByOthers         SavedTaste[]           @relation("SavedTarget")
   guestbookNotes        GuestbookNote[]
   episodeReads          EpisodeRead[]
   savedSpaces           SavedSpace[]
@@ -36,8 +36,8 @@ model User {
   spaceUnlocks          SpaceUnlock[]
   guestbookReactions    GuestbookReaction[]
   guestbookComments     GuestbookComment[]
-  notificationsReceived Notification[]      @relation("NotificationReceiver")
-  notificationsSent     Notification[]      @relation("NotificationSender")
+  notificationsReceived Notification[]         @relation("NotificationReceiver")
+  notificationsSent     Notification[]         @relation("NotificationSender")
   guestbookFunnelEvents GuestbookFunnelEvent[]
 }
 
@@ -143,25 +143,25 @@ model Space {
   operatorReportEmail        String?
   operatorReportEmailEnabled Boolean @default(true)
 
-  owner                User?                 @relation(fields: [ownerId], references: [id], onDelete: SetNull)
-  records              Record[]
-  collectionItems      CollectionItem[]
-  storySpaces          ContentStorySpace[]
-  scans                SpaceScan[]
-  waitlistEntries      WaitlistEntry[]
-  notes                SpaceNote[]
-  guestbookNotes       GuestbookNote[]
-  episodes             Episode[]
-  guestbookSettings    GuestbookSettings?
-  spaceTagLinks        SpaceTag[]
-  savedByUsers         SavedSpace[]
-  kpis                 SpaceKPI[]
-  translations         SpaceTranslation[]
-  cube                 Cube?
-  guestbookSessions    GuestbookSession[]
-  monthlyReports       SpaceMonthlyReport[]
-  operatorMonthlyNotes OperatorMonthlyNote[]
-  unlocks              SpaceUnlock[]
+  owner                 User?                  @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+  records               Record[]
+  collectionItems       CollectionItem[]
+  storySpaces           ContentStorySpace[]
+  scans                 SpaceScan[]
+  waitlistEntries       WaitlistEntry[]
+  notes                 SpaceNote[]
+  guestbookNotes        GuestbookNote[]
+  episodes              Episode[]
+  guestbookSettings     GuestbookSettings?
+  spaceTagLinks         SpaceTag[]
+  savedByUsers          SavedSpace[]
+  kpis                  SpaceKPI[]
+  translations          SpaceTranslation[]
+  cube                  Cube?
+  guestbookSessions     GuestbookSession[]
+  monthlyReports        SpaceMonthlyReport[]
+  operatorMonthlyNotes  OperatorMonthlyNote[]
+  unlocks               SpaceUnlock[]
   guestbookFunnelEvents GuestbookFunnelEvent[]
 }
 
@@ -261,7 +261,10 @@ enum ClusterType {
 // (prisma/migrate-guestbook-visits.ts가 가능한 범위에서 가장 가까운 방문 기록을 backfill).
 model GuestbookNote {
   id                 String      @id @default(cuid())
-  userId             String
+  userId             String?
+  // 비로그인 작성자 식별자(src/lib/anonVisitor.ts의 sc_anon_id 쿠키 값) — userId가 null인
+  // 행에만 채워진다. EpisodeRead/GuestbookFunnelEvent와 동일한 이중 nullable 패턴.
+  anonId             String?
   spaceId            String
   guestbookSessionId String
   recordId           String?
@@ -283,7 +286,7 @@ model GuestbookNote {
   hiddenAt  DateTime?
   deletedAt DateTime?
 
-  user    User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user    User?            @relation(fields: [userId], references: [id], onDelete: Cascade)
   space   Space            @relation(fields: [spaceId], references: [id], onDelete: Cascade)
   session GuestbookSession @relation(fields: [guestbookSessionId], references: [id], onDelete: Cascade)
   record  Record?          @relation(fields: [recordId], references: [id], onDelete: SetNull)
@@ -297,19 +300,25 @@ model GuestbookNote {
   // recordId가 null인 레거시 행끼리는 NULL이 서로 달라 취급되어(Postgres 유니크 인덱스 규칙)
   // 이 제약에 걸리지 않는다.
   @@unique([userId, guestbookSessionId, recordId])
+  // 비로그인 작성자용 "방문 1회당 흔적 1개" — anonId는 12시간마다 새로 발급되므로 이 자체가
+  // 이미 방문 단위 경계 역할을 한다(recordId 없이도 동일한 정책을 표현).
+  @@unique([anonId, guestbookSessionId])
 }
 
-// 방명록 포스트잇 공감 — 좋아요/랭킹이 아니라 "공감"으로만 노출. 로그인 사용자만, 포스트잇당 1회.
+// 방명록 포스트잇 공감 — 좋아요/랭킹이 아니라 "공감"으로만 노출. 포스트잇당 1회(로그인은 userId,
+// 비로그인은 anonId 기준 — sc_anon_id 쿠키, GuestbookNote와 동일 패턴).
 model GuestbookReaction {
   id        String   @id @default(cuid())
   postId    String
-  userId    String
+  userId    String?
+  anonId    String?
   createdAt DateTime @default(now())
 
   post GuestbookNote @relation(fields: [postId], references: [id], onDelete: Cascade)
-  user User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([postId, userId])
+  @@unique([postId, anonId])
   @@index([postId])
   @@index([userId])
   @@map("guestbook_reactions")
@@ -322,7 +331,9 @@ model GuestbookReaction {
 model GuestbookComment {
   id                 String   @id @default(cuid())
   guestbookId        String
-  userId             String
+  userId             String?
+  // 비로그인 작성자 식별자(sc_anon_id) — userId가 null인 행에만 채워진다.
+  anonId             String?
   guestbookSessionId String?
   recordId           String?
   content            String   @db.VarChar(200)
@@ -330,7 +341,7 @@ model GuestbookComment {
   updatedAt          DateTime @updatedAt
 
   note          GuestbookNote     @relation(fields: [guestbookId], references: [id], onDelete: Cascade)
-  user          User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user          User?             @relation(fields: [userId], references: [id], onDelete: Cascade)
   session       GuestbookSession? @relation(fields: [guestbookSessionId], references: [id], onDelete: Cascade)
   record        Record?           @relation(fields: [recordId], references: [id], onDelete: SetNull)
   notifications Notification[]
@@ -338,6 +349,8 @@ model GuestbookComment {
   // 같은 방문 기록으로는 (어느 포스트잇이든) 댓글 하나만 — guestbookSessionId/recordId가
   // 둘 다 null인 레거시 댓글끼리는 NULL 규칙상 서로 충돌하지 않는다.
   @@unique([guestbookSessionId, userId, recordId])
+  // 비로그인 작성자용 "방문 1회당 답글 1개" — anonId가 방문 단위 경계 역할을 한다.
+  @@unique([guestbookSessionId, anonId])
   @@index([guestbookId])
   @@map("guestbook_comments")
 }
@@ -954,9 +967,11 @@ model EpisodeRead {
 // Post-it 작성은 이 테이블에 넣지 않고 기존 GuestbookNote를 그대로 KPI에 쓴다.
 enum GuestbookFunnelStep {
   ENTRY_ATTEMPT // 방명록/기록 페이지 방향으로 이동을 시도함(로그인/비로그인 공통, 최초로 관측 가능한 지점)
-  WRITE_ATTEMPT // 방명록 캔버스 안에서 "작성" 버튼을 눌러 작성모드에 진입함(로그인 사용자만 도달 가능)
+  WRITE_ATTEMPT // 방명록 캔버스 안에서 "작성" 버튼을 눌러 작성모드에 진입함(로그인/비로그인 공통)
   LOGIN_REQUIRED // 비로그인 상태로 방명록/기록 흐름을 타다 로그인 요구 화면을 실제로 봄
   LOGIN_SUCCESS // 위 로그인 요구를 받았던 익명 방문자가 실제로 로그인을 완료함
+  GUESTBOOK_VIEWED // 방명록 캔버스가 실제로 렌더됨(로그인/비로그인 공통) — 첫 방문 흐름 단순화 이후 추가
+  EXPERIENCE_COMPLETE // 완료 페이지(/space/[slug]/complete)에 도달함(로그인/비로그인 공통)
 }
 
 model GuestbookFunnelEvent {

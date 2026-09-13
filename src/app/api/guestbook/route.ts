@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
+import { cookies } from "next/headers";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { Prisma, ClusterType, GuestbookSessionStatus } from "@prisma/client";
@@ -8,6 +9,8 @@ import { recomputeSpaceKPI } from "@/lib/kpi";
 import { canWriteToSession, canWriteNoteForVisit, getVisibleClusters } from "@/lib/guestbookSession";
 import { hasCollision, clusterLabelRect, POST_IT_WIDTH, POST_IT_HEIGHT, POST_IT_GAP, type Rect } from "@/lib/postitCollision";
 import { ENABLE_GUESTBOOK_IMAGE } from "@/lib/pilotFlags";
+import { getOrCreateAnonVisitorId } from "@/lib/anonVisitor";
+import { ANONYMOUS_NICKNAME } from "@/lib/anonNickname";
 
 const MAX_CONTENT = 80;
 const DEFAULT_COLOR = "#F6E7A8"; // 관리자 설정이 없을 때 기본 노란 포스트잇
@@ -15,9 +18,6 @@ const VALID_CLUSTER_TYPES: string[] = [ClusterType.FREE, ClusterType.QUESTION_1,
 
 export async function POST(req: NextRequest) {
   const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
 
   const { spaceId, content, x, y, rotation, imageUrl, clusterType } = await req.json();
 
@@ -32,12 +32,26 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "x and y coordinates are required" }, { status: 400 });
   }
 
-  const user = await prisma.user.findUnique({ where: { id: session.user.id } });
-  if (!user) {
-    return NextResponse.json({ error: "User not found" }, { status: 404 });
-  }
-  if (!user.nickname) {
-    return NextResponse.json({ error: "닉네임을 먼저 설정해주세요.", code: "NICKNAME_REQUIRED" }, { status: 400 });
+  // 첫 방문 흐름 단순화 — 로그인 사용자는 기존과 완전히 동일(닉네임 필수, Record 필수 — 이제
+  // Record는 방명록 진입 시 이미 조용히 만들어져 있다). 비로그인은 sc_anon_id 쿠키로 식별하고
+  // 닉네임/Record 요구를 건너뛴다(고정 익명 닉네임, recordId 없음).
+  let authorWhere: { userId: string } | { anonId: string };
+  let nickname: string;
+
+  if (session?.user?.id) {
+    const user = await prisma.user.findUnique({ where: { id: session.user.id } });
+    if (!user) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+    if (!user.nickname) {
+      return NextResponse.json({ error: "닉네임을 먼저 설정해주세요.", code: "NICKNAME_REQUIRED" }, { status: 400 });
+    }
+    authorWhere = { userId: user.id };
+    nickname = user.nickname;
+  } else {
+    const anonId = getOrCreateAnonVisitorId(await cookies());
+    authorWhere = { anonId };
+    nickname = ANONYMOUS_NICKNAME;
   }
 
   const space = await prisma.space.findUnique({
@@ -48,14 +62,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Space not found" }, { status: 404 });
   }
 
-  // 방문 단위 식별자 — 이 공간에 대해 가장 최근에 "인정된 방문"(Record, isNewVisit 정책 기준)이
-  // 곧 이번 방문이다. 기록을 완료해야 방명록에 흔적을 남길 수 있음.
-  const currentVisit = await prisma.record.findFirst({
-    where: { userId: user.id, spaceId },
-    orderBy: { visitedAt: "desc" },
-  });
-  if (!currentVisit) {
-    return NextResponse.json({ error: "이 공간에 대한 기록을 먼저 남겨주세요." }, { status: 403 });
+  // 방문 단위 식별자 — 로그인 사용자는 이 공간에 대해 가장 최근에 "인정된 방문"(Record,
+  // isNewVisit 정책 기준)이 곧 이번 방문이다(방명록 진입 시 항상 미리 만들어져 있음). 비로그인은
+  // Record가 없으므로 recordId 없이 anonId만으로 방문을 구분한다(아래 유니크 제약 참고).
+  let currentVisitId: string | null = null;
+  if ("userId" in authorWhere) {
+    const currentVisit = await prisma.record.findFirst({
+      where: { userId: authorWhere.userId, spaceId },
+      orderBy: { visitedAt: "desc" },
+    });
+    if (!currentVisit) {
+      return NextResponse.json({ error: "이 공간에 대한 기록을 먼저 남겨주세요." }, { status: 403 });
+    }
+    currentVisitId = currentVisit.id;
   }
 
   // 방문자가 sessionId를 직접 지정하지 않는다 — 서버에서 이 공간의 현재 ACTIVE 세션을 조회한다.
@@ -78,10 +97,11 @@ export async function POST(req: NextRequest) {
 
   try {
     const note = await prisma.$transaction(async (tx) => {
-      // 한 번의 방문은 하나의 흔적만 — 같은 세션 안에서도 이번 방문(recordId)으로는 이미 썼는지 확인.
-      // UI에서도 막지만 동시 요청/새로고침 대비 서버에서도 다시 확인한다.
+      // 한 번의 방문은 하나의 흔적만 — 로그인은 이번 방문(recordId), 비로그인은 anonId 기준으로
+      // 같은 세션에 이미 썼는지 확인한다. UI에서도 막지만 동시 요청/새로고침 대비 서버에서도
+      // 다시 확인한다.
       const existingForVisit = await tx.guestbookNote.findFirst({
-        where: { userId: user.id, guestbookSessionId: activeSession.id, recordId: currentVisit.id },
+        where: { ...authorWhere, guestbookSessionId: activeSession.id, recordId: currentVisitId },
         select: { id: true },
       });
       if (!canWriteNoteForVisit(activeSession.status, !!existingForVisit)) {
@@ -104,13 +124,13 @@ export async function POST(req: NextRequest) {
 
       return tx.guestbookNote.create({
         data: {
-          userId: user.id,
+          ...authorWhere,
           spaceId,
           guestbookSessionId: activeSession.id,
-          recordId: currentVisit.id,
+          recordId: currentVisitId,
           clusterType: resolvedClusterType,
           content: text,
-          nickname: user.nickname,
+          nickname,
           // 파일럿 기간 이미지 첨부 비활성 — 클라이언트가 URL을 보내도 저장하지 않는다.
           imageUrl: ENABLE_GUESTBOOK_IMAGE && typeof imageUrl === "string" && imageUrl ? imageUrl : null,
           x,

@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
+import { cookies } from "next/headers";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { Prisma, NotificationType } from "@prisma/client";
 import { shouldNotify } from "@/lib/notification";
 import { canWriteToSession, canWriteCommentForVisit } from "@/lib/guestbookSession";
 import { ENABLE_GUESTBOOK_COMMENTS, ENABLE_NOTIFICATIONS } from "@/lib/pilotFlags";
+import { getOrCreateAnonVisitorId } from "@/lib/anonVisitor";
+import { ANONYMOUS_NICKNAME } from "@/lib/anonNickname";
 
 const MAX_CONTENT = 200;
 
@@ -32,14 +35,16 @@ export async function GET(_req: NextRequest, { params }: Props) {
     comments: comments.map((c) => ({
       id: c.id,
       userId: c.userId,
-      nickname: c.user.nickname,
+      anonId: c.anonId,
+      nickname: c.user?.nickname ?? (c.userId ? null : ANONYMOUS_NICKNAME),
       content: c.content,
       createdAt: c.createdAt.toISOString(),
     })),
   });
 }
 
-// 댓글 작성 — 포스트잇 작성과 동일하게 해당 공간에 기록(Record)이 있어야 가능. 자기 글에도 작성 가능.
+// 댓글 작성 — 포스트잇 작성과 동일하게 로그인은 해당 공간에 기록(Record)이 있어야 가능,
+// 비로그인은 sc_anon_id 쿠키로 식별한다(닉네임/Record 요구 없음). 자기 글에도 작성 가능.
 export async function POST(req: NextRequest, { params }: Props) {
   // 파일럿 기간 댓글 비활성 — 작성 자체를 막는다.
   if (!ENABLE_GUESTBOOK_COMMENTS) {
@@ -47,13 +52,6 @@ export async function POST(req: NextRequest, { params }: Props) {
   }
 
   const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  const user = await prisma.user.findUnique({ where: { id: session.user.id } });
-  if (!user) {
-    return NextResponse.json({ error: "User not found" }, { status: 404 });
-  }
 
   const { id: guestbookId } = await params;
   const note = await prisma.guestbookNote.findUnique({
@@ -70,13 +68,29 @@ export async function POST(req: NextRequest, { params }: Props) {
     return NextResponse.json({ error: "종료된 방명록에는 답글을 남길 수 없습니다." }, { status: 403 });
   }
 
-  // 방문 단위 식별자 — 포스트잇 작성과 동일하게 이 공간에 대해 가장 최근에 인정된 방문(Record)을 쓴다.
-  const currentVisit = await prisma.record.findFirst({
-    where: { userId: user.id, spaceId: note.spaceId },
-    orderBy: { visitedAt: "desc" },
-  });
-  if (!currentVisit) {
-    return NextResponse.json({ error: "이 공간에 대한 기록을 먼저 남겨주세요." }, { status: 403 });
+  let authorWhere: { userId: string } | { anonId: string };
+  let nickname: string | null;
+  let currentVisitId: string | null = null;
+
+  if (session?.user?.id) {
+    const user = await prisma.user.findUnique({ where: { id: session.user.id } });
+    if (!user) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+    // 방문 단위 식별자 — 포스트잇 작성과 동일하게 이 공간에 대해 가장 최근에 인정된 방문(Record)을 쓴다.
+    const currentVisit = await prisma.record.findFirst({
+      where: { userId: user.id, spaceId: note.spaceId },
+      orderBy: { visitedAt: "desc" },
+    });
+    if (!currentVisit) {
+      return NextResponse.json({ error: "이 공간에 대한 기록을 먼저 남겨주세요." }, { status: 403 });
+    }
+    authorWhere = { userId: user.id };
+    nickname = user.nickname;
+    currentVisitId = currentVisit.id;
+  } else {
+    authorWhere = { anonId: getOrCreateAnonVisitorId(await cookies()) };
+    nickname = ANONYMOUS_NICKNAME;
   }
 
   const body = await req.json().catch(() => ({}));
@@ -91,7 +105,7 @@ export async function POST(req: NextRequest, { params }: Props) {
   // 한 번의 방문으로는(어느 포스트잇이든) 답글 하나만 — 삭제하면 같은 방문에서 다시 남길 수 있다
   // (댓글이 삭제되면 이 조회 자체가 더 이상 걸리지 않기 때문에 별도 처리 없이 자연히 재작성이 열린다).
   const existingForVisit = await prisma.guestbookComment.findFirst({
-    where: { userId: user.id, guestbookSessionId: noteSession.id, recordId: currentVisit.id },
+    where: { ...authorWhere, guestbookSessionId: noteSession.id, recordId: currentVisitId },
     select: { id: true },
   });
   if (!canWriteCommentForVisit(noteSession.status, !!existingForVisit)) {
@@ -109,10 +123,10 @@ export async function POST(req: NextRequest, { params }: Props) {
     comment = await prisma.guestbookComment.create({
       data: {
         guestbookId,
-        userId: user.id,
+        ...authorWhere,
         content: text,
         guestbookSessionId: noteSession.id,
-        recordId: currentVisit.id,
+        recordId: currentVisitId,
       },
     });
   } catch (err) {
@@ -128,11 +142,13 @@ export async function POST(req: NextRequest, { params }: Props) {
     throw err;
   }
 
-  if (ENABLE_NOTIFICATIONS && shouldNotify(note.userId, user.id)) {
+  // 알림은 댓글 작성자·포스트잇 작성자 둘 다 실제 로그인 사용자일 때만(User가 없는 익명
+  // 신원에는 senderId/receiverId를 채울 수 없다).
+  if (ENABLE_NOTIFICATIONS && "userId" in authorWhere && note.userId && shouldNotify(note.userId, authorWhere.userId)) {
     await prisma.notification.create({
       data: {
         receiverId: note.userId,
-        senderId: user.id,
+        senderId: authorWhere.userId,
         type: NotificationType.COMMENT,
         guestbookId,
         commentId: comment.id,
@@ -144,7 +160,8 @@ export async function POST(req: NextRequest, { params }: Props) {
     {
       id: comment.id,
       userId: comment.userId,
-      nickname: user.nickname,
+      anonId: comment.anonId,
+      nickname,
       content: comment.content,
       createdAt: comment.createdAt.toISOString(),
     },

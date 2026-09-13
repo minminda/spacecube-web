@@ -41,12 +41,16 @@ export async function recomputeSpaceKPI(spaceId: string, at: Date = new Date()):
   // 매번 원본 테이블에서 다시 계산하는 구조라, 과거에 관리자가 남긴 데이터도 다음 재계산부터
   // 자동으로 빠진다(백필/삭제 불필요).
   const adminUserIds = await getAdminUserIds();
+  // guestbookNote.userId는 비로그인 작성자에서 null일 수 있다 — `notIn`만 쓰면 SQL이
+  // `NULL NOT IN (...)`을 거짓으로 평가해 익명 작성 행 전체가 조용히 빠진다
+  // (src/lib/reportMetrics.ts의 notAdminOrAnonymous와 동일한 함정/해법).
+  const notAdminOrAnonymousNote = { OR: [{ userId: null }, { userId: { notIn: [...adminUserIds] } }] };
   const [records, guestbookNotes] = await Promise.all([
     prisma.record.findMany({
       where: { spaceId, userId: { notIn: [...adminUserIds] } },
       select: { userId: true, visitedAt: true, tasteScore: true },
     }),
-    prisma.guestbookNote.findMany({ where: { spaceId, userId: { notIn: [...adminUserIds] } }, select: { userId: true } }),
+    prisma.guestbookNote.findMany({ where: { spaceId, ...notAdminOrAnonymousNote }, select: { userId: true, anonId: true } }),
   ]);
 
   const recordCountByUser = new Map<string, number>();
@@ -74,7 +78,9 @@ export async function recomputeSpaceKPI(spaceId: string, at: Date = new Date()):
 
   const averageTasteScore = scoreCount > 0 ? scoreSum / scoreCount : null;
 
-  const guestbookUserSet = new Set(guestbookNotes.map((n) => n.userId));
+  // 익명 작성자는 userId가 전부 null이라 Set에 그대로 넣으면 여러 명이 하나로 뭉개진다 —
+  // anonId를 대신 식별자로 쓴다(EpisodeRead/reportMetrics.ts와 동일한 identity 패턴).
+  const guestbookUserSet = new Set(guestbookNotes.map((n) => n.userId ?? `anon:${n.anonId}`));
   const guestbookUsersTotal = guestbookUserSet.size;
   const totalGuestbookCount = guestbookNotes.length;
   const guestbookRate = qrUsersTotal > 0 ? guestbookUsersTotal / qrUsersTotal : 0;
@@ -127,7 +133,7 @@ export interface PeriodKpiStats {
  */
 export function computePeriodStats(
   records: { userId: string; visitedAt: Date; tasteScore: number | null }[],
-  guestbookNotes: { userId: string; createdAt: Date }[],
+  guestbookNotes: { userId: string | null; anonId?: string | null; createdAt: Date }[],
   periodStart: Date,
   periodEnd: Date,
 ): PeriodKpiStats {
@@ -150,7 +156,8 @@ export function computePeriodStats(
   const averageTasteScore = scoreCount > 0 ? scoreSum / scoreCount : null;
 
   const periodNotes = guestbookNotes.filter((n) => n.createdAt >= periodStart && n.createdAt < periodEnd);
-  const guestbookWriters = new Set(periodNotes.map((n) => n.userId)).size;
+  // 익명 작성자는 userId가 null이라 anonId를 대신 식별자로 쓴다(여러 명이 null 하나로 뭉개지지 않도록).
+  const guestbookWriters = new Set(periodNotes.map((n) => n.userId ?? `anon:${n.anonId}`)).size;
   const guestbookPosts = periodNotes.length;
   const guestbookRate = qrUsers > 0 ? guestbookWriters / qrUsers : 0;
 
@@ -174,9 +181,11 @@ export async function getSpaceMonthlyKpi(spaceId: string, periodStart: Date, per
       where: { spaceId, userId: { notIn: [...adminUserIds] } },
       select: { userId: true, visitedAt: true, tasteScore: true },
     }),
+    // userId가 null인 익명 작성 행은 `notIn`만으로 필터링하면 SQL이 NULL NOT IN(...)을 거짓으로
+    // 평가해 조용히 빠진다 — null 또는 비관리자만 남도록 OR로 명시한다.
     prisma.guestbookNote.findMany({
-      where: { spaceId, userId: { notIn: [...adminUserIds] } },
-      select: { userId: true, createdAt: true },
+      where: { spaceId, OR: [{ userId: null }, { userId: { notIn: [...adminUserIds] } }] },
+      select: { userId: true, anonId: true, createdAt: true },
     }),
   ]);
   return computePeriodStats(records, guestbookNotes, periodStart, periodEnd);
