@@ -292,6 +292,15 @@ export interface GuestbookConversionFunnel {
   guestbookViewers: number;
   writeAttempts: number;
   postItAuthors: number;
+  // ── 첫 방문 흐름 단순화(로그인/취향점수 관문 제거) 이후 "핵심 퍼널"에 쓰는 필드 ──
+  // guestbookViewers(위)는 Record.guestbookViewedAt 기준이라 로그인 사용자만 잡힌다(레거시
+  // 정의 그대로 보존, 삭제하지 않음). 지금은 비로그인 방문자도 방명록에 바로 도달하므로,
+  // 로그인/비로그인 공통으로 기록되는 GuestbookFunnelEvent.GUESTBOOK_VIEWED(스키마는 이미
+  // 있었고 쓰기만 하고 아무도 읽지 않던 값)를 새로 집계해 "방명록 실제 조회"의 정확한 값으로
+  // 쓴다 — 스키마 변경 없이 읽기만 추가.
+  guestbookViewedVisitors: number;
+  // EXPERIENCE_COMPLETE도 같은 이유로 기록만 되고 있었다(완료 페이지 도달, 로그인/비로그인 공통).
+  experienceCompleters: number;
 }
 
 export async function getGuestbookConversionFunnel(
@@ -309,41 +318,59 @@ export async function getGuestbookConversionFunnel(
   const distinctCount = (rows: { userId: string | null; anonId?: string | null }[]): number =>
     new Set(rows.map(identity).filter((v): v is string => v != null)).size;
 
-  const [scans, reads, entryAttempts, loginRequired, loginSuccess, writeAttempts, records, guestbookViews, notes] =
-    await Promise.all([
-      prisma.spaceScan.findMany({
-        where: { spaceId, scannedAt: { gte: periodStart, lt: periodEnd } },
-        select: { userId: true, anonId: true },
-      }),
-      prisma.episodeRead.findMany({
-        where: { episode: { spaceId }, openedAt: { gte: periodStart, lt: periodEnd } },
-        select: { userId: true, anonId: true, completedAt: true },
-      }),
-      prisma.guestbookFunnelEvent.count({
-        where: { spaceId, step: "ENTRY_ATTEMPT", createdAt: { gte: periodStart, lt: periodEnd }, ...notAdminOrAnonymous },
-      }),
-      prisma.guestbookFunnelEvent.count({
-        where: { spaceId, step: "LOGIN_REQUIRED", createdAt: { gte: periodStart, lt: periodEnd } },
-      }),
-      prisma.guestbookFunnelEvent.count({
-        where: { spaceId, step: "LOGIN_SUCCESS", createdAt: { gte: periodStart, lt: periodEnd }, ...notAdminOrAnonymous },
-      }),
-      prisma.guestbookFunnelEvent.count({
-        where: { spaceId, step: "WRITE_ATTEMPT", createdAt: { gte: periodStart, lt: periodEnd }, ...notAdminOrAnonymous },
-      }),
-      prisma.record.findMany({
-        where: { spaceId, visitedAt: { gte: periodStart, lt: periodEnd }, userId: notAdmin },
-        select: { userId: true },
-      }),
-      prisma.record.findMany({
-        where: { spaceId, guestbookViewedAt: { gte: periodStart, lt: periodEnd }, userId: notAdmin },
-        select: { userId: true },
-      }),
-      prisma.guestbookNote.findMany({
-        where: { spaceId, createdAt: { gte: periodStart, lt: periodEnd }, ...notAdminOrAnonymous },
-        select: { userId: true, anonId: true },
-      }),
-    ]);
+  const [
+    scans,
+    reads,
+    entryAttempts,
+    loginRequired,
+    loginSuccess,
+    writeAttempts,
+    records,
+    guestbookViews,
+    notes,
+    guestbookViewedVisitors,
+    experienceCompleters,
+  ] = await Promise.all([
+    prisma.spaceScan.findMany({
+      where: { spaceId, scannedAt: { gte: periodStart, lt: periodEnd } },
+      select: { userId: true, anonId: true },
+    }),
+    prisma.episodeRead.findMany({
+      where: { episode: { spaceId }, openedAt: { gte: periodStart, lt: periodEnd } },
+      select: { userId: true, anonId: true, completedAt: true },
+    }),
+    prisma.guestbookFunnelEvent.count({
+      where: { spaceId, step: "ENTRY_ATTEMPT", createdAt: { gte: periodStart, lt: periodEnd }, ...notAdminOrAnonymous },
+    }),
+    prisma.guestbookFunnelEvent.count({
+      where: { spaceId, step: "LOGIN_REQUIRED", createdAt: { gte: periodStart, lt: periodEnd } },
+    }),
+    prisma.guestbookFunnelEvent.count({
+      where: { spaceId, step: "LOGIN_SUCCESS", createdAt: { gte: periodStart, lt: periodEnd }, ...notAdminOrAnonymous },
+    }),
+    prisma.guestbookFunnelEvent.count({
+      where: { spaceId, step: "WRITE_ATTEMPT", createdAt: { gte: periodStart, lt: periodEnd }, ...notAdminOrAnonymous },
+    }),
+    prisma.record.findMany({
+      where: { spaceId, visitedAt: { gte: periodStart, lt: periodEnd }, userId: notAdmin },
+      select: { userId: true },
+    }),
+    prisma.record.findMany({
+      where: { spaceId, guestbookViewedAt: { gte: periodStart, lt: periodEnd }, userId: notAdmin },
+      select: { userId: true },
+    }),
+    prisma.guestbookNote.findMany({
+      where: { spaceId, createdAt: { gte: periodStart, lt: periodEnd }, ...notAdminOrAnonymous },
+      select: { userId: true, anonId: true },
+    }),
+    // GuestbookFunnelEvent는 스텝별로 방문자당 유니크 제약이 있으므로 count()가 곧 고유 인원.
+    prisma.guestbookFunnelEvent.count({
+      where: { spaceId, step: "GUESTBOOK_VIEWED", createdAt: { gte: periodStart, lt: periodEnd }, ...notAdminOrAnonymous },
+    }),
+    prisma.guestbookFunnelEvent.count({
+      where: { spaceId, step: "EXPERIENCE_COMPLETE", createdAt: { gte: periodStart, lt: periodEnd }, ...notAdminOrAnonymous },
+    }),
+  ]);
 
   const nonAdminScans = scans.filter((s) => !(s.userId && adminSet.has(s.userId)));
   const nonAdminReads = reads.filter((r) => !(r.userId && adminSet.has(r.userId)));
@@ -359,5 +386,19 @@ export async function getGuestbookConversionFunnel(
     guestbookViewers: new Set(guestbookViews.map((r) => r.userId)).size,
     writeAttempts,
     postItAuthors: distinctCount(notes),
+    guestbookViewedVisitors,
+    experienceCompleters,
   };
+}
+
+/**
+ * 분모가 0이거나 도달 인원이 직전 단계보다 많아(여러 진입 경로가 있는 퍼널이라 구조적으로
+ * 가능하다 — 예: Story를 거치지 않고 공간 페이지에서 곧장 방명록으로 이동) 비율이 100%를
+ * 넘는 경우를 안전하게 표시하기 위한 순수 함수. 분모가 0이면 null(호출부가 "—"로 표시),
+ * 그 외에는 0~1 사이로 clamp한다 — 실제 값(분자/분모)은 그대로 화면에 따로 보여주므로
+ * 데이터 자체를 왜곡하지 않고, "전환율" 표시만 오해를 주지 않게 한다.
+ */
+export function safeConversionRate(current: number, previous: number): number | null {
+  if (previous <= 0) return null;
+  return Math.min(current / previous, 1);
 }

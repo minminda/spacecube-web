@@ -9,6 +9,7 @@ import {
   getHourlyPeriodStats,
   getGuestbookConversionFunnel,
   getRecentVisitLog,
+  safeConversionRate,
   type HourlyCountSet,
   type GuestbookConversionFunnel,
   type VisitLogEntry,
@@ -33,6 +34,13 @@ interface Props {
 
 function pct(rate: number) {
   return `${Math.round(rate * 100)}%`;
+}
+
+/** 직전 단계 대비 전환율 라벨 — 분모 0이면 "—", 여러 진입 경로 때문에 분자가 분모보다
+ *  커도(§핵심 퍼널) 100%를 넘는 값을 보여주지 않는다(safeConversionRate가 clamp). */
+function conversionRateLabel(current: number, previous: number): string {
+  const rate = safeConversionRate(current, previous);
+  return rate == null ? "—" : pct(rate);
 }
 
 const PRESET_LABEL: Record<DateRangePreset, string> = { today: "오늘", "7d": "최근 7일", "30d": "최근 30일", all: "전체" };
@@ -136,6 +144,8 @@ export default async function ReportAdminPage({ params, searchParams }: Props) {
           <p className="text-sm" style={{ color: "var(--dim)" }}>선택한 기간에 기록된 방문이 없습니다.</p>
         ) : (
           <>
+            <CoreFunnelSection funnel={funnelStats} />
+
             <div className="space-y-2">
               <p className="text-xs" style={{ color: "var(--dim)" }}>방문</p>
               <div className="grid grid-cols-3 gap-3">
@@ -145,13 +155,15 @@ export default async function ReportAdminPage({ params, searchParams }: Props) {
               </div>
             </div>
 
-            <div className="space-y-2">
-              <p className="text-xs" style={{ color: "var(--dim)" }}>재방문</p>
-              <div className="grid grid-cols-2 gap-3">
+            <details className="space-y-2">
+              <summary className="text-xs uppercase tracking-widest cursor-pointer" style={{ color: "var(--dim)" }}>
+                운영/재방문 지표
+              </summary>
+              <div className="grid grid-cols-2 gap-3 pt-2">
                 <StatBox label="재방문자" value={rangeStats.returningUsers} unit="명" />
                 <StatBox label="재방문율" value={pct(rangeStats.revisitRate)} unit="" />
               </div>
-            </div>
+            </details>
 
             <div className="space-y-2">
               <p className="text-xs" style={{ color: "var(--dim)" }}>공간 이야기</p>
@@ -200,16 +212,29 @@ export default async function ReportAdminPage({ params, searchParams }: Props) {
               <div className="grid grid-cols-2 gap-3">
                 <StatBox label="공감 수" value={rangeExtended.reactionsTotal} unit="회" />
                 <StatBox
-                  label="실제 방명록 조회"
+                  label="실제 방명록 조회(로그인, 레거시)"
                   value={funnelStats.guestbookViewers}
-                  unit="명 — 아래 방문자 퍼널 참고"
+                  unit="명 — 비로그인 포함 값은 위 핵심 퍼널 참고"
                 />
               </div>
             </div>
 
             <VisitLogSection entries={visitLog} />
 
-            <FunnelSection funnel={funnelStats} />
+            <details className="space-y-3">
+              <summary className="text-xs uppercase tracking-widest cursor-pointer" style={{ color: "var(--dim)" }}>
+                추가 행동 지표 — 로그인 · 취향 기록 · 진단
+              </summary>
+              <div className="pt-2 space-y-3">
+                <FunnelSection funnel={funnelStats} />
+                <p className="text-xs leading-relaxed" style={{ color: "var(--border)" }}>
+                  추천/Archive 조회·클릭에 대한 자동 계측 이벤트는 현재 코드에 없습니다(추천 화면 진입 시
+                  갱신하도록 준비된 <code className="font-mono">Record.recommendationViewedAt</code> 필드가
+                  스키마에 있으나 어디서도 기록되지 않는 죽은 필드입니다). 임의로 숫자를 만들어 채우지 않고
+                  사실대로 남겨둡니다 — 필요해지면 이 필드를 실제로 채우는 계측을 추가하는 별도 작업이 필요합니다.
+                </p>
+              </div>
+            </details>
 
             {dailyTrend.length > 0 ? (
               <DailyTrendChart data={dailyTrend} />
@@ -319,11 +344,72 @@ function visitOutcomeLabel(entry: VisitLogEntry): string {
 }
 
 /**
- * "방문자 퍼널" — QR 인식부터 포스트잇 작성까지 9단계를 원시 숫자(명)와 직전 단계 대비
- * 전환율로 한 줄씩 보여준다. 어느 구간에서 가장 크게 빠지는지 한눈에 보기 위한 진단용
- * 화면이라 막대그래프 대신 텍스트 목록으로 구성했다(기존 관리자 화면의 흑백/텍스트 스타일
- * 유지). getGuestbookConversionFunnel이 이미 모든 값을 "명"(고유 방문자) 단위로 통일해
- * 넘겨주므로 여기서는 표시만 담당한다 — 절대 다른 곳의 "회" 단위 숫자를 섞어 넣지 않는다.
+ * "핵심 퍼널" — 로그인/취향 점수 관문을 뺀 현재 최소 방문 흐름(QR Entry → Story View →
+ * Story Complete → Guestbook Viewed → Write Attempt → Post-it Created → Experience
+ * Complete) 7단계를 그대로 보여준다. 로그인/취향점수/추천/Archive 등 기존 KPI는 여기 섞지
+ * 않고 아래 "추가 행동 지표"(접혀 있는 기존 9단계 진단 퍼널)에만 남겨, 이 화면이 실제 이탈처럼
+ * 보이지 않게 한다(§요청 원칙). Guestbook Viewed/Experience Complete는 GuestbookFunnelEvent에
+ * 이미 로그인·비로그인 공통으로 기록되고 있었지만 지금까지 어떤 화면도 읽지 않던 값이었다 —
+ * getGuestbookConversionFunnel에 집계만 추가했을 뿐 새 스키마는 없다. 모든 값은 기존 진단
+ * 퍼널과 동일하게 "몇 명"(고유 방문자, 중복 제거) 기준이다.
+ */
+function CoreFunnelSection({ funnel }: { funnel: GuestbookConversionFunnel }) {
+  const steps: { key: string; label: string; value: number }[] = [
+    { key: "qr", label: "QR Entry", value: funnel.qrEntrants },
+    { key: "storyView", label: "Story View", value: funnel.storyViewers },
+    { key: "storyComplete", label: "Story Complete", value: funnel.storyCompleters },
+    { key: "guestbookViewed", label: "Guestbook Viewed", value: funnel.guestbookViewedVisitors },
+    { key: "writeAttempt", label: "Write Attempt", value: funnel.writeAttempts },
+    { key: "postIt", label: "Post-it Created", value: funnel.postItAuthors },
+    { key: "experienceComplete", label: "Experience Complete", value: funnel.experienceCompleters },
+  ];
+
+  return (
+    <div className="space-y-3">
+      <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>핵심 퍼널</p>
+      <p className="text-xs leading-relaxed" style={{ color: "var(--dim)" }}>
+        현재 최소 방문 흐름(로그인/취향 점수 없이도 방명록 작성까지 가능) 기준입니다. 모두 &quot;몇 명&quot;
+        (중복 제거) 기준이며, 위 KPI의 &quot;회&quot; 단위 숫자와는 집계 단위가 달라 직접 비교하면 안 됩니다.
+      </p>
+
+      <div className="flex flex-col">
+        {steps.map((step, i) => {
+          const prevValue = i > 0 ? steps[i - 1].value : null;
+          const rateLabel = prevValue == null ? null : conversionRateLabel(step.value, prevValue);
+          return (
+            <div key={step.key}>
+              {rateLabel != null && (
+                <p className="text-xs text-center py-1" style={{ color: "var(--border)" }}>↓ {rateLabel}</p>
+              )}
+              <div className="flex items-center justify-between p-3 border" style={{ borderColor: "var(--border)" }}>
+                <span className="text-sm">{step.label}</span>
+                <span className="text-lg font-bold">{step.value}<span className="text-xs font-normal" style={{ color: "var(--dim)" }}> 명</span></span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <p className="text-xs leading-relaxed" style={{ color: "var(--border)" }}>
+        Guestbook Viewed/Write Attempt/Post-it Created/Experience Complete는 로그인/비로그인
+        방문자 모두를 포함합니다. QR Entry/Story View/Story Complete의 비로그인 계측은
+        2026-08-29부터 시작되어, 그 이전 기간을 조회하면 로그인 사용자만 반영해 실제보다 적게
+        나올 수 있습니다(과거 데이터를 추정해서 채우지 않았습니다). 또한 이 퍼널은 반드시 순서대로
+        진행한 같은 사람만 세는 것이 아니라 &quot;그 단계까지 도달한 방문자 수&quot;이므로 — 예를 들어
+        Story를 거치지 않고 공간 페이지에서 곧장 방명록으로 이동하는 경로도 있어 — 단계별 숫자가
+        항상 이전 단계의 부분집합은 아닙니다.
+      </p>
+    </div>
+  );
+}
+
+/**
+ * "추가 행동 지표"에 접혀 들어가는 기존 9단계 진단 퍼널 — QR 인식부터 포스트잇 작성까지를
+ * 원시 숫자(명)와 직전 단계 대비 전환율로 한 줄씩 보여준다. 어느 구간에서 가장 크게 빠지는지
+ * 한눈에 보기 위한 진단용 화면이라 막대그래프 대신 텍스트 목록으로 구성했다(기존 관리자
+ * 화면의 흑백/텍스트 스타일 유지). getGuestbookConversionFunnel이 이미 모든 값을 "명"(고유
+ * 방문자) 단위로 통일해 넘겨주므로 여기서는 표시만 담당한다 — 절대 다른 곳의 "회" 단위
+ * 숫자를 섞어 넣지 않는다.
  */
 function FunnelSection({ funnel }: { funnel: GuestbookConversionFunnel }) {
   const steps: { key: string; label: string; value: number }[] = [
@@ -349,7 +435,7 @@ function FunnelSection({ funnel }: { funnel: GuestbookConversionFunnel }) {
       <div className="flex flex-col">
         {steps.map((step, i) => {
           const prevValue = i > 0 ? steps[i - 1].value : null;
-          const rateLabel = prevValue == null ? null : prevValue > 0 ? pct(step.value / prevValue) : "—";
+          const rateLabel = prevValue == null ? null : conversionRateLabel(step.value, prevValue);
           return (
             <div key={step.key}>
               {rateLabel != null && (
@@ -369,7 +455,7 @@ function FunnelSection({ funnel }: { funnel: GuestbookConversionFunnel }) {
           <StatBox label="로그인 요구" value={funnel.loginRequired} unit="명" />
           <StatBox
             label="로그인 전환율"
-            value={funnel.loginRequired > 0 ? pct(funnel.loginSuccess / funnel.loginRequired) : "—"}
+            value={conversionRateLabel(funnel.loginSuccess, funnel.loginRequired)}
             unit=""
           />
         </div>

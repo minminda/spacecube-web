@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { countNewlyUnlockedEpisodes, buildTasteScoreDistribution, pairScansWithReads } from "./reportMetrics";
+import { countNewlyUnlockedEpisodes, buildTasteScoreDistribution, pairScansWithReads, safeConversionRate } from "./reportMetrics";
 
 const PERIOD_START = new Date("2026-07-01T00:00:00.000Z");
 const PERIOD_END = new Date("2026-08-01T00:00:00.000Z");
@@ -139,5 +139,22 @@ describe("pairScansWithReads", () => {
     ];
     const result = pairScansWithReads(scans, reads);
     expect(result[0].storyOpenedAt).toBeNull();
+  });
+});
+
+describe("safeConversionRate", () => {
+  it("분모가 0이면 null(호출부가 —로 표시)", () => {
+    expect(safeConversionRate(0, 0)).toBeNull();
+    expect(safeConversionRate(5, 0)).toBeNull();
+  });
+
+  it("정상 범위(0~1)에서는 있는 그대로 비율을 반환한다", () => {
+    expect(safeConversionRate(1, 2)).toBe(0.5);
+    expect(safeConversionRate(0, 5)).toBe(0);
+    expect(safeConversionRate(5, 5)).toBe(1);
+  });
+
+  it("도달 인원이 직전 단계보다 많아도(여러 진입 경로) 100%를 넘지 않게 clamp한다", () => {
+    expect(safeConversionRate(10, 4)).toBe(1);
   });
 });

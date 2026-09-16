@@ -59,6 +59,11 @@ export default function StoryReadTracker({ episodeId, loggedIn }: Props) {
     return () => {
       document.removeEventListener("visibilitychange", onVisibilityChange);
       window.removeEventListener("pagehide", send);
+      // "방명록 열기" 등 앱 내부 Link로 이동하면 브라우저 탭/문서 자체는 닫히지 않아
+      // pagehide/visibilitychange가 전혀 발생하지 않는다 — 이 컴포넌트가 언마운트되는
+      // 시점(=사용자가 이 이야기를 벗어나는 시점)에도 한 번 더 보고해 그 경로로 이탈했을 때
+      // 완독/체류시간이 누락되지 않게 한다. sentRef가 다른 경로와의 중복 전송을 막는다.
+      send();
     };
   }, [episodeId]);
 
