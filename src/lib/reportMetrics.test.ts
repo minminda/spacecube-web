@@ -1,8 +1,48 @@
 import { describe, it, expect } from "vitest";
-import { countNewlyUnlockedEpisodes, buildTasteScoreDistribution, pairScansWithReads, safeConversionRate } from "./reportMetrics";
+import {
+  countNewlyUnlockedEpisodes,
+  buildTasteScoreDistribution,
+  pairScansWithReads,
+  safeConversionRate,
+  visitorIdentity,
+  distinctVisitorCount,
+} from "./reportMetrics";
 
 const PERIOD_START = new Date("2026-07-01T00:00:00.000Z");
 const PERIOD_END = new Date("2026-08-01T00:00:00.000Z");
+
+describe("visitorIdentity / distinctVisitorCount", () => {
+  it("userId가 있으면 userId를 식별자로 쓴다", () => {
+    expect(visitorIdentity({ userId: "u1", anonId: null })).toBe("u1");
+  });
+
+  it("userId가 없으면 anonId를 anon: 접두로 쓴다", () => {
+    expect(visitorIdentity({ userId: null, anonId: "a1" })).toBe("anon:a1");
+  });
+
+  it("둘 다 없으면 null", () => {
+    expect(visitorIdentity({ userId: null, anonId: null })).toBeNull();
+  });
+
+  it("같은 userId/anonId는 한 명으로 중복 제거된다", () => {
+    const rows = [
+      { userId: "u1", anonId: null },
+      { userId: "u1", anonId: null },
+      { userId: null, anonId: "a1" },
+      { userId: null, anonId: "a1" },
+      { userId: "u2", anonId: null },
+    ];
+    expect(distinctVisitorCount(rows)).toBe(3);
+  });
+
+  it("빈 배열은 0", () => {
+    expect(distinctVisitorCount([])).toBe(0);
+  });
+
+  it("식별자가 없는 행은(구조적으로 있으면 안 되지만) 무시한다", () => {
+    expect(distinctVisitorCount([{ userId: null, anonId: null }])).toBe(0);
+  });
+});
 
 // countNewlyUnlockedEpisodes는 방문 순번을 1부터 센다(i번째 Record 생성 시점의 누적 방문 횟수와
 // 동일 — episodeState.ts의 visitCount 정의와 맞춘 것). unlockVisitCount=0(항상 공개) Episode는

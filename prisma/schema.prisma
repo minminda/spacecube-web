@@ -39,6 +39,7 @@ model User {
   notificationsReceived Notification[]         @relation("NotificationReceiver")
   notificationsSent     Notification[]         @relation("NotificationSender")
   guestbookFunnelEvents GuestbookFunnelEvent[]
+  sceneReaches          SceneReach[]
 }
 
 model Account {
@@ -899,6 +900,29 @@ model Scene {
   episode      Episode            @relation(fields: [episodeId], references: [id], onDelete: Cascade)
   translations SceneTranslation[]
   images       SceneImage[]
+  reaches      SceneReach[]
+}
+
+// Story Depth 분석 — 한 방문(로그인/비로그인 공통)에서 이 Scene에 실제로 스크롤해 도달했는지
+// 최초 1회만 기록한다(EpisodeRead/GuestbookFunnelEvent와 동일한 "몇 번"이 아니라 "몇 명" 근사:
+// (userId, sceneId) 또는 (anonId, sceneId) 유니크 제약으로 같은 방문자가 반복 스크롤/새로고침해도
+// 중복 행이 생기지 않는다). Scene 1은 Story View(EpisodeRead)와 사실상 동시에 발생해 중복이므로
+// 애초에 기록하지 않는다(SceneReadingProgress.tsx, 2번째 Scene부터만 이벤트를 보낸다).
+// 관리자 계정은 API 라우트(POST /api/scenes/[sceneId]/reach)가 세션을 확인해 아예 행을 쓰지
+// 않으므로(EpisodeRead와 동일한 패턴) 여기에는 관리자 제외용 필터가 별도로 필요 없다.
+model SceneReach {
+  id        String   @id @default(cuid())
+  sceneId   String
+  userId    String?
+  anonId    String? // 비로그인 방문자 식별자(sc_anon_id 쿠키, EpisodeRead와 동일한 값 재사용)
+  reachedAt DateTime @default(now())
+
+  scene Scene @relation(fields: [sceneId], references: [id], onDelete: Cascade)
+  user  User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, sceneId])
+  @@unique([anonId, sceneId])
+  @@index([sceneId, reachedAt])
 }
 
 // Scene당 여러 장(최대 3장, UI에서 제한) 지원 — imageUrl/imageZoom/imagePositionX/Y/imageAspectRatio/

@@ -313,11 +313,6 @@ export async function getGuestbookConversionFunnel(
   const notAdmin = { notIn: [...adminUserIds] };
   const notAdminOrAnonymous = { OR: [{ userId: null }, { userId: { notIn: [...adminUserIds] } }] };
 
-  const identity = (row: { userId: string | null; anonId?: string | null }): string | null =>
-    row.userId ?? (row.anonId ? `anon:${row.anonId}` : null);
-  const distinctCount = (rows: { userId: string | null; anonId?: string | null }[]): number =>
-    new Set(rows.map(identity).filter((v): v is string => v != null)).size;
-
   const [
     scans,
     reads,
@@ -376,19 +371,33 @@ export async function getGuestbookConversionFunnel(
   const nonAdminReads = reads.filter((r) => !(r.userId && adminSet.has(r.userId)));
 
   return {
-    qrEntrants: distinctCount(nonAdminScans),
-    storyViewers: distinctCount(nonAdminReads),
-    storyCompleters: distinctCount(nonAdminReads.filter((r) => r.completedAt != null)),
+    qrEntrants: distinctVisitorCount(nonAdminScans),
+    storyViewers: distinctVisitorCount(nonAdminReads),
+    storyCompleters: distinctVisitorCount(nonAdminReads.filter((r) => r.completedAt != null)),
     entryAttempts,
     loginRequired,
     loginSuccess,
     recordCompleters: new Set(records.map((r) => r.userId)).size,
     guestbookViewers: new Set(guestbookViews.map((r) => r.userId)).size,
     writeAttempts,
-    postItAuthors: distinctCount(notes),
+    postItAuthors: distinctVisitorCount(notes),
     guestbookViewedVisitors,
     experienceCompleters,
   };
+}
+
+/**
+ * 방문자 식별자 — userId가 있으면 그걸, 없으면 anonId(sc_anon_id 쿠키)를 "anon:" 접두로
+ * 구분해 쓴다. 둘 다 없으면(구조적으로 있어서는 안 되는 행) null. storyDepth.ts 등 다른
+ * "몇 명"(고유 방문자) 집계도 이 정의를 그대로 재사용한다 — 새로 만들지 않는다.
+ */
+export function visitorIdentity(row: { userId: string | null; anonId?: string | null }): string | null {
+  return row.userId ?? (row.anonId ? `anon:${row.anonId}` : null);
+}
+
+/** visitorIdentity 기준으로 중복 제거한 고유 방문자 수. */
+export function distinctVisitorCount(rows: { userId: string | null; anonId?: string | null }[]): number {
+  return new Set(rows.map(visitorIdentity).filter((v): v is string => v != null)).size;
 }
 
 /**

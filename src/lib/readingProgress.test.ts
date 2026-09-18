@@ -55,4 +55,41 @@ describe("computeSceneProgress", () => {
     const result = computeSceneProgress(-100, scenes([100, 300]));
     expect(result[0]).toBe(0);
   });
+
+  describe("isAtPageBottom — 마지막 Scene 아래 여백이 짧아 readLine이 도달 못 하는 구조적 한계 보정", () => {
+    it("페이지 끝에 도달하면 readLine이 마지막 Scene bottom에 못 미쳐도 마지막만 100%", () => {
+      // readLine=550이 마지막 Scene(500~700)의 중간(25%)에 불과해도 페이지 끝이면 100%.
+      const result = computeSceneProgress(550, scenes([100, 300], [300, 500], [500, 700]), { isAtPageBottom: true });
+      expect(result[2]).toBe(1);
+    });
+
+    it("페이지 끝이 아니면 마지막 Scene도 평소대로 부분 진행만 반영한다", () => {
+      const result = computeSceneProgress(550, scenes([100, 300], [300, 500], [500, 700]), { isAtPageBottom: false });
+      expect(result[2]).toBeCloseTo(0.25, 5);
+    });
+
+    it("옵션을 생략하면 기존과 동일하게 동작한다(하위 호환)", () => {
+      const withOption = computeSceneProgress(550, scenes([100, 300], [300, 500], [500, 700]));
+      expect(withOption[2]).toBeCloseTo(0.25, 5);
+    });
+
+    it("마지막 Scene 이전 Scene들의 값은 isAtPageBottom과 무관하게 그대로다", () => {
+      const result = computeSceneProgress(650, scenes([100, 300], [300, 500], [500, 700]), { isAtPageBottom: true });
+      expect(result[0]).toBe(1);
+      expect(result[1]).toBe(1);
+    });
+
+    it("Scene이 없으면 isAtPageBottom이어도 빈 배열 그대로", () => {
+      expect(computeSceneProgress(100, [], { isAtPageBottom: true })).toEqual([]);
+    });
+
+    it("페이지 끝에서 다시 위로 스크롤하면(isAtPageBottom=false로 전환) 마지막 Scene 진행도도 감소한다", () => {
+      const bounds = scenes([100, 300], [300, 500], [500, 700]);
+      const atBottom = computeSceneProgress(560, bounds, { isAtPageBottom: true });
+      const scrolledUp = computeSceneProgress(560, bounds, { isAtPageBottom: false });
+      expect(atBottom[2]).toBe(1);
+      expect(scrolledUp[2]).toBeLessThan(1);
+      expect(scrolledUp[2]).toBeCloseTo(0.3, 5);
+    });
+  });
 });

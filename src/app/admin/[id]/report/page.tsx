@@ -26,6 +26,7 @@ import {
 import ReportEmail from "@/components/ReportEmail";
 import DateRangeFilter from "./DateRangeFilter";
 import PrintReportButton from "./PrintReportButton";
+import ReportTabs from "./ReportTabs";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -115,6 +116,8 @@ export default async function ReportAdminPage({ params, searchParams }: Props) {
         <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>운영 리포트</p>
         <h1 className="text-xl font-bold">{space.name}</h1>
       </div>
+
+      <ReportTabs spaceId={space.id} active="core" from={range.from} to={range.to} />
 
       {/* ── 기간 선택 — 이 페이지 전체(KPI 요약 + 리포트 미리보기)가 공유하는 단일 기간 소스 ── */}
       <div className="no-print" style={{ borderTop: "1px solid var(--border)" }} />
