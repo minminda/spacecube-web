@@ -9,6 +9,7 @@ import { resolveSpaceAccess, canBypassSpaceLock } from "@/lib/spaceUnlock";
 import { isAdmin } from "@/lib/admin";
 import SpaceLockNotice from "@/components/SpaceLockNotice";
 import StoryReadTracker from "@/components/StoryReadTracker";
+import SceneReadingProgress from "@/components/SceneReadingProgress";
 import SpaceUnlockScreen from "@/app/space/[slug]/SpaceUnlockScreen";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { LOCALE_COOKIE_NAME, resolveInitialLocale, availableLocalesForSpace } from "@/lib/localeResolve";
@@ -198,6 +199,8 @@ export default async function EpisodeDetailPage({ params }: Props) {
         </div>
       </div>
 
+      <SceneReadingProgress sceneCount={episode.scenes.length} />
+
       {usedContentFallback && (
         <p className="text-xs leading-relaxed" style={{ color: "var(--border)" }}>
           이 이야기는 아직 선택한 언어로 준비되지 않아 다른 언어로 보여드리고 있어요
@@ -309,6 +312,10 @@ export default async function EpisodeDetailPage({ params }: Props) {
                 // 않는다(first:pt-0으로 자기 몫의 위쪽 여백도 없앰 — 헤더 쪽 mt-4만 남는다).
                 // 마지막 Scene은 아래쪽 여백(py-12의 하단)을 없애 바로 다음 "다음 이야기"
                 // 구분선과 너무 멀어지지 않게 한다 — main의 gap-8만 남아 적당히 좁아진다.
+                // data-scene-order는 SceneReadingProgress가 각 Scene의 실제 DOM 영역을
+                // 측정해 상단 progress bar를 채우는 데만 쓰인다(렌더링 로직과는 무관).
+                data-scene-id={scene.id}
+                data-scene-order={i + 1}
                 className="py-12 first:pt-0 last:pb-0"
                 style={i > 0 ? { borderTop: "1px solid var(--border)" } : undefined}
               >
