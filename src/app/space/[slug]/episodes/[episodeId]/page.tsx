@@ -230,6 +230,15 @@ export default async function EpisodeDetailPage({ params }: Props) {
             const localized = localizedScenes[i];
             const hasContent = !!localized.content;
             if (hasContent) sceneNumber++;
+            // Story Complete 감시 지점 — Scene 개수는 Episode마다 다르므로 "5번째"를
+            // 하드코딩하지 않고 실제 마지막 Scene(배열의 끝)을 기준으로 삼는다. 본문 바로
+            // 뒤(이미지·강조 문장보다 앞)에 둬서, 완독 판정이 그 아래 요소(이미지, 강조 문장,
+            // Scene 여백, 다음 이야기 안내, 방명록 CTA, Footer)까지 스크롤해야만 되는 일을
+            // 막는다 — StoryReadTracker가 이 지점을 IntersectionObserver로 감시한다.
+            const isLastScene = i === episode.scenes.length - 1;
+            const storyCompleteAnchor = isLastScene ? (
+              <div data-story-complete-anchor aria-hidden style={{ height: 1 }} />
+            ) : null;
 
             // 본문은 입력된 내용을 그대로 보여준다(자동으로 마지막 문장을 잘라 요약처럼 쓰지 않는다).
             // 강조 문장은 관리자가 별도로 입력한 summary만 쓴다 — 없으면 강조 영역 자체를 렌더하지 않는다.
@@ -337,6 +346,7 @@ export default async function EpisodeDetailPage({ params }: Props) {
                         {bodyText}
                       </p>
                     )}
+                    {storyCompleteAnchor}
                     {sceneImage}
                     {highlight && (
                       <p
@@ -349,7 +359,10 @@ export default async function EpisodeDetailPage({ params }: Props) {
                   </div>
                 ) : (
                   // 글 없이 사진만 있는 Scene — 이야기 사이의 짧은 쉼표 역할, 번호를 매기지 않는다.
-                  sceneImage
+                  <>
+                    {sceneImage}
+                    {storyCompleteAnchor}
+                  </>
                 )}
               </div>
             );

@@ -7,17 +7,24 @@ interface Props {
   loggedIn: boolean;
 }
 
+// page.tsx가 마지막 Scene의 본문 바로 뒤(이미지·강조 문장보다 앞)에 렌더하는 감시 지점.
+const STORY_COMPLETE_ANCHOR_SELECTOR = "[data-story-complete-anchor]";
+
 /**
- * 스토리 조회/완독/체류시간 계측 — 화면엔 보이지 않는 1px 감시 지점만 렌더한다.
+ * 스토리 조회/완독/체류시간 계측 — 화면엔 보이지 않고 부수효과만 담당한다(DOM은 렌더하지 않음).
  * 로그인 사용자의 "조회"는 episodes/[episodeId]/page.tsx가 렌더 시점에 서버에서 이미
  * 기록하므로, 여기서는 마운트 시 비로그인 방문자에 한해서만 별도 조회 신호를
  * `/api/episode-reads/[id]/view`로 보낸다(로그인 사용자는 중복 기록하지 않음).
- * 완독 판정은 이 컴포넌트가 스토리 본문의 맨 아래(마지막 Scene 다음)에 렌더된다는 전제로,
- * 감시 지점이 뷰포트에 한 번이라도 들어오면 "마지막 섹션까지 스크롤"로 본다(로그인/비로그인
- * 공통). 체류시간은 페이지를 벗어나는 시점(탭 전환/닫기/이동)에 한 번만 sendBeacon으로 보고한다.
+ *
+ * 완독 판정 기준은 "페이지 최하단 도달"이 아니라 "마지막 Scene의 실제 본문 도달"이다 —
+ * 감시 지점(`data-story-complete-anchor`)은 이 컴포넌트가 아니라 page.tsx가 직접 렌더하므로,
+ * Scene 하단 여백·다음 이야기 안내·방명록 CTA·Footer처럼 스토리 본문과 무관한 UI를 지나야만
+ * 완독으로 잡히던 문제가 없다. 이 지점이 뷰포트에 한 번이라도 들어오면 "마지막 Scene 본문까지
+ * 읽음"으로 본다(로그인/비로그인 공통, 한 번 true가 되면 되돌리지 않는다 — 위로 스크롤해도
+ * 완독 기록은 유지). 체류시간은 페이지를 벗어나는 시점(탭 전환/닫기/이동)에 한 번만
+ * sendBeacon으로 보고한다.
  */
 export default function StoryReadTracker({ episodeId, loggedIn }: Props) {
-  const sentinelRef = useRef<HTMLDivElement>(null);
   const reachedEndRef = useRef(false);
   const startedAtRef = useRef(Date.now());
   const sentRef = useRef(false);
@@ -28,7 +35,7 @@ export default function StoryReadTracker({ episodeId, loggedIn }: Props) {
   }, [episodeId, loggedIn]);
 
   useEffect(() => {
-    const el = sentinelRef.current;
+    const el = document.querySelector(STORY_COMPLETE_ANCHOR_SELECTOR);
     if (!el) return;
     const observer = new IntersectionObserver((entries) => {
       if (entries[0]?.isIntersecting) reachedEndRef.current = true;
@@ -67,5 +74,5 @@ export default function StoryReadTracker({ episodeId, loggedIn }: Props) {
     };
   }, [episodeId]);
 
-  return <div ref={sentinelRef} aria-hidden style={{ height: 1 }} />;
+  return null;
 }
