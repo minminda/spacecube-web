@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 import { cookies } from "next/headers";
+import { Prisma } from "@prisma/client";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { getOrCreateAnonVisitorId } from "@/lib/anonVisitor";
@@ -31,11 +32,20 @@ export async function POST(req: NextRequest, { params }: Props) {
   const store = await cookies();
   const anonId = getOrCreateAnonVisitorId(store);
 
-  await prisma.episodeRead.upsert({
-    where: { anonId_episodeId: { anonId, episodeId } },
-    create: { anonId, episodeId },
-    update: {},
-  });
+  try {
+    await prisma.episodeRead.upsert({
+      where: { anonId_episodeId: { anonId, episodeId } },
+      create: { anonId, episodeId },
+      update: {},
+    });
+  } catch (err) {
+    // 같은 anonId+episodeId 조회 신호가 거의 동시에 두 번 도착하면(예: 컴포넌트 재마운트,
+    // 중복 탭) upsert의 SELECT-then-INSERT 경쟁으로 P2002가 날 수 있다 — 결과적으로 행은
+    // 이미 존재하므로(다른 요청이 먼저 만듦) 조용히 무시한다. 그 외 에러는 그대로 던진다.
+    if (!(err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002")) {
+      throw err;
+    }
+  }
 
   return new NextResponse(null, { status: 204 });
 }
