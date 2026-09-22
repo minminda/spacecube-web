@@ -83,6 +83,23 @@ export default async function TasteJourneyPage({ params }: Props) {
     }
   }
 
+  // 방문한 공간 목록 — 공간이 존재한다는 사실(이름/유형/지역)은 방명록 포스트잇 카드와
+  // 동일하게 항상 보여주되, 개인 메모와 그날 선택한 감정 태그는 "지금 보고 있는 내"가 그
+  // 공간을 실제로 방문해 잠금을 해제한 경우에만 채운다. 잠긴 공간의 메모/태그는 서버에서부터
+  // 아예 내려보내지 않는다 — 클라이언트에서 숨기는 게 아니라 애초에 응답(HTML)에 담기지
+  // 않아야 하기 때문(guestbookNotes와 동일한 unlocked 기준·동일한 방어 방식을 재사용).
+  const visibleRecords = uniqueRecords.map((r) => {
+    const unlocked = viewerUnlockedSpaceIds.has(r.space.id);
+    const hasHiddenContent = !unlocked && (!!r.memo || r.tags.length > 0);
+    return {
+      id: r.id,
+      space: r.space,
+      hasHiddenContent,
+      memo: unlocked ? r.memo : null,
+      tags: unlocked ? r.tags : [],
+    };
+  });
+
   // 이 사용자가 남긴 방명록 포스트잇 — 공간이 존재한다는 사실(카드 자체)은 항상 보여주되,
   // 내용(content/imageUrl)은 "지금 보고 있는 내"가 그 공간을 실제로 방문해 잠금을 해제한
   // 경우에만 채운다. 잠긴 공간의 흔적은 서버에서부터 아예 content를 내려보내지 않는다 —
@@ -134,11 +151,11 @@ export default async function TasteJourneyPage({ params }: Props) {
       <section className="space-y-4">
         <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>이 취향이 다녀온 공간</p>
 
-        {uniqueRecords.length === 0 ? (
+        {visibleRecords.length === 0 ? (
           <p className="text-sm" style={{ color: "var(--dim)" }}>아직 공개된 기록이 없습니다</p>
         ) : (
           <div className="space-y-6">
-            {uniqueRecords.map((r, i) => (
+            {visibleRecords.map((r, i) => (
               <Link key={r.id} href={`/space/${r.space.slug}`} className="flex gap-4 group">
                 <span className="text-xs flex-shrink-0 mt-0.5 w-5 text-right" style={{ color: "var(--border)" }}>
                   {i + 1}
@@ -159,6 +176,9 @@ export default async function TasteJourneyPage({ params }: Props) {
                         </span>
                       ))}
                     </div>
+                  )}
+                  {r.hasHiddenContent && (
+                    <p className="text-xs" style={{ color: "var(--border)" }}>이 공간을 직접 방문하면 남긴 기록을 볼 수 있어요</p>
                   )}
                 </div>
               </Link>
