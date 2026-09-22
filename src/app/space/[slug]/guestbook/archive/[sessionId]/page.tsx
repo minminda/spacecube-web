@@ -6,6 +6,7 @@ import { auth } from "@/auth";
 import { GuestbookSessionStatus } from "@prisma/client";
 import { formatDotDate as formatDate } from "@/lib/time";
 import { ENABLE_GUESTBOOK_COMMENTS } from "@/lib/pilotFlags";
+import { hasAnonymousSpaceAccess } from "@/lib/spaceUnlock";
 import Divider from "@/components/Divider";
 import ArchiveSessionView from "./ArchiveSessionView";
 
@@ -31,9 +32,13 @@ export default async function GuestbookArchiveSessionPage({ params, searchParams
   const user = session?.user?.id
     ? await prisma.user.findUnique({ where: { id: session.user.id }, select: { id: true } })
     : null;
-  const hasRecord = user ? (await prisma.record.count({ where: { userId: user.id, spaceId: space.id } })) > 0 : false;
+  // archive/page.tsx(목록)와 동일한 기준 — 비로그인 방문자는 Record가 없으므로 라이브
+  // 방명록과 같은 QR 접근 쿠키 판정을 쓴다(쿠키 만료 후 재방문은 지원하지 않는 한계 동일).
+  const canView = user
+    ? (await prisma.record.count({ where: { userId: user.id, spaceId: space.id } })) > 0
+    : await hasAnonymousSpaceAccess(space.id);
 
-  if (!hasRecord) {
+  if (!canView) {
     return (
       <main className="flex flex-col items-center justify-center min-h-screen px-6 gap-6 text-center">
         <p className="text-sm leading-relaxed whitespace-pre-line" style={{ color: "var(--dim)" }}>
@@ -83,7 +88,6 @@ export default async function GuestbookArchiveSessionPage({ params, searchParams
       ) : (
         <ArchiveSessionView
           isLoggedIn={!!session?.user?.id}
-          currentUserId={user?.id ?? null}
           highlightId={highlight ?? null}
           enableComments={ENABLE_GUESTBOOK_COMMENTS}
           notes={notes.map((n) => ({

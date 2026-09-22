@@ -273,8 +273,6 @@ export default async function GuestbookPage({ params }: Props) {
           settings={settings}
           newNotesCount={newNotesCount}
           clusters={clusters}
-          currentUserId={user?.id ?? null}
-          currentAnonId={anonId}
           enableImage={ENABLE_GUESTBOOK_IMAGE}
           enableComments={ENABLE_GUESTBOOK_COMMENTS}
         />

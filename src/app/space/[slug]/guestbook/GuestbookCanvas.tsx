@@ -112,10 +112,6 @@ interface Props {
   newNotesCount: number;
   /** 현재 세션의 군집 라벨 — 질문이 없는 군집은 애초에 배열에 없다 */
   clusters: ClusterLabel[];
-  /** 로그인한 내 사용자 id — 댓글 본인 확인(수정/삭제 노출)에 사용, 비로그인이면 null */
-  currentUserId: string | null;
-  /** 비로그인 방문자 식별자(sc_anon_id) — 댓글 본인 확인에 currentUserId 대신 사용, 로그인 상태면 null */
-  currentAnonId: string | null;
   /** 파일럿 플래그 — 방명록 이미지 첨부(업로드·표시) 허용 여부. off면 사진 UI와 기존 이미지 표시를 모두 숨긴다. */
   enableImage: boolean;
   /** 파일럿 플래그 — 방명록 댓글(작성·표시) 허용 여부. off면 댓글 스레드를 숨긴다. */
@@ -126,7 +122,7 @@ interface Props {
 const INK = "#3d3524";
 const INK_DIM = "#8a7d5c";
 
-export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initialMyNoteId, initialCanWriteThisVisit, hasCommentedThisVisit: initialHasCommentedThisVisit, nickname, settings, newNotesCount, clusters, currentUserId, currentAnonId, enableImage, enableComments }: Props) {
+export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initialMyNoteId, initialCanWriteThisVisit, hasCommentedThisVisit: initialHasCommentedThisVisit, nickname, settings, newNotesCount, clusters, enableImage, enableComments }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const transformRef = useRef<ReactZoomPanPinchContentRef>(null);
@@ -1061,8 +1057,6 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
                     <GuestbookCommentThread
                       noteId={focused.id}
                       initialCount={focused.commentCount}
-                      currentUserId={currentUserId}
-                      currentAnonId={currentAnonId}
                       disabledReason={hasCommentedThisVisit ? ALREADY_COMMENTED_MSG : undefined}
                       onCommentPosted={() => setHasCommentedThisVisit(true)}
                     />

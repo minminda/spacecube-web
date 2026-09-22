@@ -8,7 +8,7 @@ import { Prisma, NotificationType } from "@prisma/client";
 import { shouldNotify } from "@/lib/notification";
 import { canWriteToSession, canWriteCommentForVisit } from "@/lib/guestbookSession";
 import { ENABLE_GUESTBOOK_COMMENTS, ENABLE_NOTIFICATIONS } from "@/lib/pilotFlags";
-import { getOrCreateAnonVisitorId } from "@/lib/anonVisitor";
+import { getOrCreateAnonVisitorId, ANON_VISITOR_COOKIE } from "@/lib/anonVisitor";
 import { ANONYMOUS_NICKNAME } from "@/lib/anonNickname";
 
 const MAX_CONTENT = 200;
@@ -25,17 +25,27 @@ export async function GET(_req: NextRequest, { params }: Props) {
   }
   const { id: guestbookId } = await params;
 
-  const comments = await prisma.guestbookComment.findMany({
-    where: { guestbookId },
-    orderBy: { createdAt: "asc" },
-    include: { user: { select: { nickname: true } } },
-  });
+  const [comments, session, cookieStore] = await Promise.all([
+    prisma.guestbookComment.findMany({
+      where: { guestbookId },
+      orderBy: { createdAt: "asc" },
+      include: { user: { select: { nickname: true } } },
+    }),
+    auth(),
+    cookies(),
+  ]);
+
+  // 다른 방문자의 원시 userId/anonId는 응답에 담지 않는다 — 익명 식별자(anonId)는 수정/삭제
+  // 권한 판정에도 쓰이는 사실상의 소유권 토큰이라(PATCH/DELETE 라우트 참고), 목록 조회로
+  // 노출되면 다른 사람의 흔적을 훔쳐 위조 수정/삭제하는 신원 도용으로 이어질 수 있다. 본인
+  // 여부만 서버가 미리 계산해 isMine으로 내려준다.
+  const viewerUserId = session?.user?.id ?? null;
+  const viewerAnonId = cookieStore.get(ANON_VISITOR_COOKIE)?.value ?? null;
 
   return NextResponse.json({
     comments: comments.map((c) => ({
       id: c.id,
-      userId: c.userId,
-      anonId: c.anonId,
+      isMine: c.userId ? c.userId === viewerUserId : !!viewerAnonId && c.anonId === viewerAnonId,
       nickname: c.user?.nickname ?? (c.userId ? null : ANONYMOUS_NICKNAME),
       content: c.content,
       createdAt: c.createdAt.toISOString(),
@@ -159,8 +169,7 @@ export async function POST(req: NextRequest, { params }: Props) {
   return NextResponse.json(
     {
       id: comment.id,
-      userId: comment.userId,
-      anonId: comment.anonId,
+      isMine: true, // 방금 이 요청을 보낸 본인이 작성한 댓글
       nickname,
       content: comment.content,
       createdAt: comment.createdAt.toISOString(),

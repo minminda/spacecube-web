@@ -17,13 +17,11 @@ interface Note {
 export default function ArchiveSessionView({
   notes: initialNotes,
   isLoggedIn,
-  currentUserId,
   highlightId,
   enableComments,
 }: {
   notes: Note[];
   isLoggedIn: boolean;
-  currentUserId: string | null;
   highlightId?: string | null;
   /** 파일럿 플래그 — 방명록 댓글 표시 여부. off면 댓글 스레드를 숨긴다. */
   enableComments: boolean;
@@ -90,8 +88,6 @@ export default function ArchiveSessionView({
               <GuestbookCommentThread
                 noteId={openNote.id}
                 initialCount={openNote.commentCount}
-                currentUserId={currentUserId}
-                currentAnonId={null}
                 disabledReason="종료된 방명록이라 답글을 남길 수 없어요"
               />
             )}
