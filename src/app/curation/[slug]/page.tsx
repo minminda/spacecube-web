@@ -4,8 +4,9 @@ import type { Metadata } from "next";
 import EdImage from "@/components/editorial/EdImage";
 import SpaceCard from "@/components/editorial/SpaceCard";
 import SiteFooter from "@/components/editorial/SiteFooter";
-import BlockRenderer, { collectBlockSpaceSlugs } from "@/components/editorial/BlockRenderer";
-import { getEditorialViewer, getSpacesBySlugs, resolveImage, toSpaceMap } from "@/lib/editorial";
+import BlockRenderer from "@/components/editorial/BlockRenderer";
+import { getEditorialViewer } from "@/lib/editorial";
+import { getSpacesBySlugs, resolveImage } from "@/content/spaces";
 import { getCuration, getCurations, formatCurationNumber } from "@/content/curations";
 
 interface Props {
@@ -27,17 +28,7 @@ export default async function CurationDetailPage({ params }: Props) {
   if (!curation) notFound();
 
   const related = getCurations().filter((c) => c.slug !== curation.slug).slice(0, 2);
-  const spaceMap = toSpaceMap(
-    await getSpacesBySlugs(
-      [
-        curation.cover.spaceSlug ?? "",
-        ...curation.spaceSlugs,
-        ...collectBlockSpaceSlugs(curation.blocks),
-        ...related.map((r) => r.cover.spaceSlug ?? ""),
-      ].filter(Boolean),
-    ),
-  );
-  const spaces = curation.spaceSlugs.flatMap((s) => spaceMap.get(s) ?? []);
+  const spaces = getSpacesBySlugs(curation.spaceSlugs);
   // 본문에 SPACE_CARD 블록이 없으면 선정 공간을 별도 섹션으로 보여준다.
   const bodyHasSpaceCards = curation.blocks.some((b) => b.type === "SPACE_CARD");
 
@@ -63,19 +54,19 @@ export default async function CurationDetailPage({ params }: Props) {
         </header>
 
         <div className="ed-container pt-10 md:pt-14">
-          <EdImage image={resolveImage(curation.cover, spaceMap)} ratio="16 / 9" sizes="(min-width: 1200px) 1120px, 100vw" priority />
+          <EdImage image={resolveImage(curation.cover)} ratio="16 / 9" sizes="(min-width: 1200px) 1120px, 100vw" priority />
         </div>
 
         {/* Editorial body */}
         <article className="ed-container py-16 md:py-24">
-          <BlockRenderer blocks={curation.blocks} spaces={spaceMap} />
+          <BlockRenderer blocks={curation.blocks} />
         </article>
 
         {!bodyHasSpaceCards && spaces.length > 0 && (
           <section className="ed-container pb-20" style={{ borderTop: "1px solid var(--ed-line)" }}>
             <p className="ed-label pt-12 pb-8" style={{ color: "var(--ed-dim)" }}>선정된 공간</p>
             <div className="grid gap-10 grid-cols-1 md:grid-cols-3">
-              {spaces.map((s) => <SpaceCard key={s.slug} space={s} showTagline />)}
+              {spaces.map((s) => <SpaceCard key={s.slug} space={s} showSummary />)}
             </div>
           </section>
         )}
@@ -87,7 +78,7 @@ export default async function CurationDetailPage({ params }: Props) {
               <div className="grid gap-10 md:grid-cols-2">
                 {related.map((c) => (
                   <Link key={c.slug} href={`/curation/${c.slug}`} className="group grid grid-cols-[120px_1fr] md:grid-cols-[200px_1fr] gap-5 items-center">
-                    <EdImage image={resolveImage(c.cover, spaceMap)} ratio="1 / 1" sizes="200px" />
+                    <EdImage image={resolveImage(c.cover)} ratio="1 / 1" sizes="200px" />
                     <div className="space-y-2">
                       <p className="ed-label" style={{ color: "var(--ed-dim)" }}>{formatCurationNumber(c.number)} · {c.region}</p>
                       <p className="text-lg md:text-xl font-bold leading-snug group-hover:underline underline-offset-4">{c.title}</p>

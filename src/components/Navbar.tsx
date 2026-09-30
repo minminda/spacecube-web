@@ -15,7 +15,8 @@ const LEGACY_NAV_ITEMS = [
 const EDITORIAL_NAV_ITEMS = [
   { label: "CURATION", href: "/curation", match: (p: string) => p.startsWith("/curation") },
   { label: "PEOPLE", href: "/people", match: (p: string) => p.startsWith("/people") },
-  { label: "SPACE", href: "/space", match: (p: string) => p === "/space" || p.startsWith("/space/") },
+  // 공개 SPACE는 /spaces — Cube 운영 라우트(/space/[slug]/**)와 분리돼 있어 거기서는 활성 표시하지 않는다.
+  { label: "SPACE", href: "/spaces", match: (p: string) => p === "/spaces" || p.startsWith("/spaces/") },
   { label: "ABOUT", href: "/about", match: (p: string) => p.startsWith("/about") },
 ];
 

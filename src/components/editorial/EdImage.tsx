@@ -1,6 +1,6 @@
 import Image from "next/image";
 import CubeGlyph from "@/components/CubeGlyph";
-import type { ResolvedImage } from "@/lib/editorial";
+import type { ResolvedImage } from "@/content/spaces";
 
 interface Props {
   image: ResolvedImage;

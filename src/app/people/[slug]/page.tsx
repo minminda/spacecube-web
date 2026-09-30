@@ -4,8 +4,9 @@ import type { Metadata } from "next";
 import EdImage from "@/components/editorial/EdImage";
 import SpaceCard from "@/components/editorial/SpaceCard";
 import SiteFooter from "@/components/editorial/SiteFooter";
-import BlockRenderer, { collectBlockSpaceSlugs } from "@/components/editorial/BlockRenderer";
-import { getEditorialViewer, getSpacesBySlugs, resolveImage, toSpaceMap } from "@/lib/editorial";
+import BlockRenderer from "@/components/editorial/BlockRenderer";
+import { getEditorialViewer } from "@/lib/editorial";
+import { getSpacesBySlugs, resolveImage } from "@/content/spaces";
 import { getPerson, getPeople, formatPeopleNumber } from "@/content/people";
 
 interface Props {
@@ -27,12 +28,7 @@ export default async function PeopleDetailPage({ params }: Props) {
   if (!person) notFound();
 
   const others = getPeople().filter((p) => p.slug !== person.slug).slice(0, 3);
-  const spaceMap = toSpaceMap(
-    await getSpacesBySlugs(
-      [person.cover?.spaceSlug ?? "", ...person.spaceSlugs, ...collectBlockSpaceSlugs(person.blocks), ...others.map((o) => o.cover?.spaceSlug ?? "")].filter(Boolean),
-    ),
-  );
-  const spaces = person.spaceSlugs.flatMap((s) => spaceMap.get(s) ?? []);
+  const spaces = getSpacesBySlugs(person.spaceSlugs);
 
   return (
     <div className="editorial-bleed">
@@ -49,18 +45,18 @@ export default async function PeopleDetailPage({ params }: Props) {
         </header>
 
         <div className="ed-container pt-10 md:pt-14">
-          <EdImage image={resolveImage(person.cover, spaceMap)} ratio="16 / 9" sizes="(min-width: 1200px) 1120px, 100vw" priority />
+          <EdImage image={resolveImage(person.cover)} ratio="16 / 9" sizes="(min-width: 1200px) 1120px, 100vw" priority />
         </div>
 
         <article className="ed-container py-16 md:py-24">
-          <BlockRenderer blocks={person.blocks} spaces={spaceMap} />
+          <BlockRenderer blocks={person.blocks} />
         </article>
 
         {spaces.length > 0 && (
           <section className="ed-container pb-20" style={{ borderTop: "1px solid var(--ed-line)" }}>
             <p className="ed-label pt-12 pb-8" style={{ color: "var(--ed-dim)" }}>이 사람이 머문 공간</p>
             <div className="grid gap-10 grid-cols-1 md:grid-cols-3">
-              {spaces.map((s) => <SpaceCard key={s.slug} space={s} showTagline />)}
+              {spaces.map((s) => <SpaceCard key={s.slug} space={s} showSummary />)}
             </div>
           </section>
         )}
@@ -72,7 +68,7 @@ export default async function PeopleDetailPage({ params }: Props) {
               <div className="grid gap-10 md:grid-cols-3">
                 {others.map((o) => (
                   <Link key={o.slug} href={`/people/${o.slug}`} className="group block">
-                    <EdImage image={resolveImage(o.cover, spaceMap)} ratio="4 / 5" sizes="(min-width: 768px) 33vw, 100vw" />
+                    <EdImage image={resolveImage(o.cover)} ratio="4 / 5" sizes="(min-width: 768px) 33vw, 100vw" />
                     <p className="pt-4 ed-label" style={{ color: "var(--ed-dim)" }}>{formatPeopleNumber(o.number)}</p>
                     <p className="pt-2 text-lg font-bold leading-snug group-hover:underline underline-offset-4">{o.title}</p>
                   </Link>

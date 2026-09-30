@@ -1,30 +1,18 @@
 import Link from "next/link";
 import EdImage from "./EdImage";
-import { resolveImage, type EditorialSpace } from "@/lib/editorial";
+import { getSpace, resolveImage, spaceCoverImage, spaceHref } from "@/content/spaces";
 import type { ContentBlock } from "@/content/types";
-
-/** 블록 본문이 참조하는 모든 공간 slug(SPACE_CARD + 공간 사진) — 페이지가 한 번에 조회하도록 모은다. */
-export function collectBlockSpaceSlugs(blocks: ContentBlock[]): string[] {
-  const out: string[] = [];
-  for (const b of blocks) {
-    if (b.type === "SPACE_CARD") out.push(b.spaceSlug);
-    if (b.type === "IMAGE" || b.type === "IMAGE_TEXT") if (b.image.spaceSlug) out.push(b.image.spaceSlug);
-    if (b.type === "IMAGE_GALLERY") for (const i of b.images) if (i.spaceSlug) out.push(i.spaceSlug);
-  }
-  return out;
-}
 
 interface Props {
   blocks: ContentBlock[];
-  spaces: Map<string, EditorialSpace>;
 }
 
-/** 에디토리얼 본문 블록 렌더러 — 텍스트는 읽기 폭(640px), 이미지는 넓게 써서 리듬을 만든다. */
-export default function BlockRenderer({ blocks, spaces }: Props) {
+/** 에디토리얼 본문 블록 렌더러 — 공간 참조는 홈페이지 SPACE(정적 데이터)만, 링크는 /spaces/[slug]만. — 텍스트는 읽기 폭(640px), 이미지는 넓게 써서 리듬을 만든다. */
+export default function BlockRenderer({ blocks }: Props) {
   return (
     <div className="space-y-10 md:space-y-14">
       {blocks.map((block, i) => (
-        <Block key={i} block={block} spaces={spaces} />
+        <Block key={i} block={block} />
       ))}
     </div>
   );
@@ -32,7 +20,7 @@ export default function BlockRenderer({ blocks, spaces }: Props) {
 
 const READ = "max-w-[640px] mx-auto";
 
-function Block({ block, spaces }: { block: ContentBlock; spaces: Map<string, EditorialSpace> }) {
+function Block({ block }: { block: ContentBlock }) {
   switch (block.type) {
     case "HEADING":
       return <h2 className={`${READ} text-xl md:text-2xl font-bold leading-snug tracking-tight`}>{block.text}</h2>;
@@ -50,7 +38,7 @@ function Block({ block, spaces }: { block: ContentBlock; spaces: Map<string, Edi
         </figure>
       );
     case "IMAGE": {
-      const img = resolveImage(block.image, spaces);
+      const img = resolveImage(block.image);
       return (
         <figure className={block.wide ? "" : "max-w-[900px] mx-auto"}>
           <EdImage image={img} ratio="3 / 2" sizes="(min-width: 768px) 900px, 100vw" />
@@ -62,12 +50,12 @@ function Block({ block, spaces }: { block: ContentBlock; spaces: Map<string, Edi
       return (
         <div className="grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-4">
           {block.images.map((ref, i) => (
-            <EdImage key={i} image={resolveImage(ref, spaces)} ratio="4 / 5" sizes="(min-width: 768px) 33vw, 50vw" />
+            <EdImage key={i} image={resolveImage(ref)} ratio="4 / 5" sizes="(min-width: 768px) 33vw, 50vw" />
           ))}
         </div>
       );
     case "IMAGE_TEXT": {
-      const img = resolveImage(block.image, spaces);
+      const img = resolveImage(block.image);
       return (
         <div className={`max-w-[900px] mx-auto grid md:grid-cols-2 gap-6 md:gap-10 items-center ${block.reverse ? "md:[&>*:first-child]:order-2" : ""}`}>
           <EdImage image={img} ratio="4 / 5" sizes="(min-width: 768px) 450px, 100vw" />
@@ -87,13 +75,13 @@ function Block({ block, spaces }: { block: ContentBlock; spaces: Map<string, Edi
         </dl>
       );
     case "SPACE_CARD": {
-      const space = spaces.get(block.spaceSlug);
+      const space = getSpace(block.spaceSlug);
       if (!space) return null;
-      const meta = [space.district, space.typeLabel].filter(Boolean).join(" · ");
+      const meta = [space.area, space.category].filter(Boolean).join(" · ");
       return (
-        <Link href={`/space/${space.slug}`} className="group max-w-[900px] mx-auto grid grid-cols-[112px_1fr] md:grid-cols-[280px_1fr] gap-5 md:gap-10 items-center">
+        <Link href={spaceHref(space.slug)} className="group max-w-[900px] mx-auto grid grid-cols-[112px_1fr] md:grid-cols-[280px_1fr] gap-5 md:gap-10 items-center">
           <EdImage
-            image={{ src: space.imageUrl, alt: space.name, position: `${space.imagePositionX * 100}% ${space.imagePositionY * 100}%` }}
+            image={spaceCoverImage(space)}
             ratio="4 / 5"
             sizes="(min-width: 768px) 280px, 112px"
           />
@@ -101,8 +89,8 @@ function Block({ block, spaces }: { block: ContentBlock; spaces: Map<string, Edi
             <p className="ed-label" style={{ color: "var(--ed-dim)" }}>SPACE</p>
             <p className="text-lg md:text-2xl font-bold leading-snug group-hover:underline underline-offset-4">{space.name}</p>
             {meta && <p className="text-xs" style={{ color: "var(--ed-dim)" }}>{meta}</p>}
-            {(block.note ?? space.tagline) && (
-              <p className="text-sm md:text-base leading-relaxed pt-1">{block.note ?? space.tagline}</p>
+            {(block.note ?? space.summary) && (
+              <p className="text-sm md:text-base leading-relaxed pt-1">{block.note ?? space.summary}</p>
             )}
             <p className="text-xs pt-1" style={{ color: "var(--ed-dim)" }}>공간 보기 →</p>
           </div>

@@ -4,7 +4,7 @@ import EdImage from "@/components/editorial/EdImage";
 import SpaceCard from "@/components/editorial/SpaceCard";
 import Participation from "@/components/editorial/Participation";
 import SiteFooter from "@/components/editorial/SiteFooter";
-import { getSpacesBySlugs, resolveImage, toSpaceMap, type EditorialSpace, type ResolvedImage } from "@/lib/editorial";
+import { getSpace, getSpacesBySlugs, resolveImage, spaceCoverImage, spaceHref, type ResolvedImage } from "@/content/spaces";
 import { getCurations, getCuration, formatCurationNumber } from "@/content/curations";
 import { getPerson, formatPeopleNumber } from "@/content/people";
 import { BRAND_NAME, FEATURED_CURATION_SLUG, FEATURED_SPACE_SLUGS, HERO_IMAGE_SPACE_SLUG, LATEST_FEED } from "@/content/site";
@@ -12,7 +12,8 @@ import QrScanSheet from "./QrScanSheet";
 
 /* ── 에디토리얼 홈(1차 개편) ─────────────────────────────────────────────
    발견 → 이해 → 방문 → 경험 → 기록. 기능 설명보다 콘텐츠를 먼저 보여주고, 큐브(QR) 경험은
-   중반부 GONGGANCUBE EXPERIENCE 섹션에서 소개한다. 공간 데이터는 기존 Space를 조회만 한다. ── */
+   중반부 GONGGANCUBE EXPERIENCE 섹션에서 소개한다. 모든 콘텐츠는 src/content/ 정적 데이터이며,
+   Cube 운영 DB·라우트(/space/[slug]/** 의 Episode/Scene/방명록)로는 연결하지 않는다. ── */
 
 interface FeedCardData {
   key: string;
@@ -24,22 +25,14 @@ interface FeedCardData {
   image: ResolvedImage;
 }
 
-export default async function EditorialHome({ admin }: { admin: boolean }) {
+export default function EditorialHome({ admin }: { admin: boolean }) {
   const curations = getCurations();
   const featured = getCuration(FEATURED_CURATION_SLUG) ?? curations[0];
 
-  const slugs = [
-    HERO_IMAGE_SPACE_SLUG,
-    ...FEATURED_SPACE_SLUGS,
-    ...curations.flatMap((c) => [...c.spaceSlugs, c.cover.spaceSlug ?? ""]),
-    ...LATEST_FEED.flatMap((f) => (f.kind === "space" ? [f.slug] : [])),
-  ].filter(Boolean);
-  const spaceMap = toSpaceMap(await getSpacesBySlugs(slugs));
-
-  const heroSpace = spaceMap.get(HERO_IMAGE_SPACE_SLUG);
-  const featuredSpaces = featured ? featured.spaceSlugs.flatMap((s) => spaceMap.get(s) ?? []) : [];
-  const exploreSpaces = FEATURED_SPACE_SLUGS.flatMap((s) => spaceMap.get(s) ?? []);
-  const feed = buildFeed(spaceMap);
+  const heroSpace = getSpace(HERO_IMAGE_SPACE_SLUG);
+  const featuredSpaces = featured ? getSpacesBySlugs(featured.spaceSlugs) : [];
+  const exploreSpaces = getSpacesBySlugs(FEATURED_SPACE_SLUGS);
+  const feed = buildFeed();
 
   return (
     <div className="editorial-bleed">
@@ -63,15 +56,15 @@ export default async function EditorialHome({ admin }: { admin: boolean }) {
             </div>
             <div className="md:col-span-7">
               {heroSpace ? (
-                <Link href={`/space/${heroSpace.slug}`} className="group block">
+                <Link href={spaceHref(heroSpace.slug)} className="group block">
                   <EdImage
-                    image={{ src: heroSpace.imageUrl, alt: heroSpace.name, position: `${heroSpace.imagePositionX * 100}% ${heroSpace.imagePositionY * 100}%` }}
+                    image={spaceCoverImage(heroSpace)}
                     ratio="5 / 4"
                     sizes="(min-width: 768px) 58vw, 100vw"
                     priority
                   />
                   <p className="mt-3 text-xs flex justify-between" style={{ color: "var(--ed-dim)" }}>
-                    <span>{heroSpace.name}{heroSpace.district ? ` · ${heroSpace.district}` : ""}</span>
+                    <span>{heroSpace.name} · {heroSpace.area}</span>
                     <span className="group-hover:underline underline-offset-4">공간 보기 →</span>
                   </p>
                 </Link>
@@ -89,7 +82,7 @@ export default async function EditorialHome({ admin }: { admin: boolean }) {
               <SectionHead label="Featured Curation" moreHref="/curation" moreLabel="모든 큐레이션" />
               <div className="grid gap-8 md:grid-cols-12 md:gap-12">
                 <Link href={`/curation/${featured.slug}`} className="group block md:col-span-8">
-                  <EdImage image={resolveImage(featured.cover, spaceMap)} ratio="3 / 2" sizes="(min-width: 768px) 66vw, 100vw" />
+                  <EdImage image={resolveImage(featured.cover)} ratio="3 / 2" sizes="(min-width: 768px) 66vw, 100vw" />
                 </Link>
                 <div className="md:col-span-4 flex flex-col">
                   <p className="ed-label" style={{ color: "var(--ed-dim)" }}>{formatCurationNumber(featured.number)}</p>
@@ -105,10 +98,10 @@ export default async function EditorialHome({ admin }: { admin: boolean }) {
                       <ol>
                         {featuredSpaces.map((s, i) => (
                           <li key={s.slug} style={{ borderBottom: "1px solid var(--ed-line)" }}>
-                            <Link href={`/space/${s.slug}`} className="flex items-baseline gap-4 py-3 text-sm hover:underline underline-offset-4">
+                            <Link href={spaceHref(s.slug)} className="flex items-baseline gap-4 py-3 text-sm hover:underline underline-offset-4">
                               <span className="tabular-nums text-xs" style={{ color: "var(--ed-dim)" }}>{String(i + 1).padStart(2, "0")}</span>
                               <span className="font-medium">{s.name}</span>
-                              <span className="ml-auto text-xs" style={{ color: "var(--ed-dim)" }}>{s.typeLabel}</span>
+                              <span className="ml-auto text-xs" style={{ color: "var(--ed-dim)" }}>{s.category}</span>
                             </Link>
                           </li>
                         ))}
@@ -159,7 +152,7 @@ export default async function EditorialHome({ admin }: { admin: boolean }) {
         {exploreSpaces.length > 0 && (
           <section style={{ borderTop: "1px solid var(--ed-line)" }}>
             <div className="ed-container pt-14 md:pt-20 pb-6">
-              <SectionHead label="Explore Space" title="공간을 둘러보세요." moreHref="/space" moreLabel="전체 공간 보기" />
+              <SectionHead label="Explore Space" title="공간을 둘러보세요." moreHref="/spaces" moreLabel="전체 공간 보기" />
             </div>
             {/* 모바일: 가로 스크롤 / 데스크톱: 엇갈린 3열 */}
             <div className="md:hidden ed-scroll-x flex gap-4 overflow-x-auto snap-x snap-mandatory px-5 pb-14">
@@ -233,28 +226,28 @@ export default async function EditorialHome({ admin }: { admin: boolean }) {
   );
 }
 
-function buildFeed(spaceMap: Map<string, EditorialSpace>): FeedCardData[] {
+function buildFeed(): FeedCardData[] {
   return LATEST_FEED.flatMap((item): FeedCardData[] => {
     if (item.kind === "people") {
       const p = getPerson(item.slug);
       if (!p) return [];
-      return [{ key: `p-${p.slug}`, label: formatPeopleNumber(p.number), title: p.title, summary: p.summary, href: `/people/${p.slug}`, image: resolveImage(p.cover, spaceMap) }];
+      return [{ key: `p-${p.slug}`, label: formatPeopleNumber(p.number), title: p.title, summary: p.summary, href: `/people/${p.slug}`, image: resolveImage(p.cover) }];
     }
     if (item.kind === "curation") {
       const c = getCuration(item.slug);
       if (!c) return [];
-      return [{ key: `c-${c.slug}`, label: `${formatCurationNumber(c.number)} · ${c.region}`, title: c.title, summary: c.summary, href: `/curation/${c.slug}`, image: resolveImage(c.cover, spaceMap) }];
+      return [{ key: `c-${c.slug}`, label: `${formatCurationNumber(c.number)} · ${c.region}`, title: c.title, summary: c.summary, href: `/curation/${c.slug}`, image: resolveImage(c.cover) }];
     }
-    const s = spaceMap.get(item.slug);
+    const s = getSpace(item.slug);
     if (!s) return [];
     return [{
       key: `s-${s.slug}`,
       label: "Space",
       title: s.name,
-      summary: item.headline ?? s.tagline,
-      meta: [s.district, s.typeLabel].filter(Boolean).join(" · "),
-      href: `/space/${s.slug}`,
-      image: { src: s.imageUrl, alt: s.name, position: `${s.imagePositionX * 100}% ${s.imagePositionY * 100}%` },
+      summary: item.headline ?? s.summary,
+      meta: [s.area, s.category].filter(Boolean).join(" · "),
+      href: spaceHref(s.slug),
+      image: spaceCoverImage(s),
     }];
   });
 }

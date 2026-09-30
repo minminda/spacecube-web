@@ -8,7 +8,7 @@ interface Props {
 const EXPLORE = [
   { label: "Curation", href: "/curation" },
   { label: "People", href: "/people" },
-  { label: "Space", href: "/space" },
+  { label: "Space", href: "/spaces" },
   { label: "About", href: "/about" },
 ];
 

@@ -4,7 +4,8 @@ import type { Metadata } from "next";
 import EdImage from "@/components/editorial/EdImage";
 import PageHeader from "@/components/editorial/PageHeader";
 import SiteFooter from "@/components/editorial/SiteFooter";
-import { getEditorialViewer, getSpacesBySlugs, resolveImage, toSpaceMap } from "@/lib/editorial";
+import { getEditorialViewer } from "@/lib/editorial";
+import { getSpacesBySlugs, resolveImage } from "@/content/spaces";
 import { getCurations, formatCurationNumber } from "@/content/curations";
 
 export const metadata: Metadata = {
@@ -17,9 +18,7 @@ export default async function CurationListPage() {
   if (!viewer.editorial) redirect("/");
 
   const curations = getCurations();
-  const spaces = await getSpacesBySlugs(curations.flatMap((c) => [...c.spaceSlugs, c.cover.spaceSlug ?? ""]).filter(Boolean));
-  const spaceMap = toSpaceMap(spaces);
-  const countOf = (slugs: string[]) => slugs.filter((s) => spaceMap.has(s)).length;
+  const countOf = (slugs: string[]) => getSpacesBySlugs(slugs).length;
 
   const [first, ...rest] = curations;
 
@@ -36,7 +35,7 @@ export default async function CurationListPage() {
           <section className="ed-container pt-12 md:pt-16">
             <Link href={`/curation/${first.slug}`} className="group grid gap-6 md:grid-cols-12 md:gap-12 md:items-end">
               <div className="md:col-span-8">
-                <EdImage image={resolveImage(first.cover, spaceMap)} ratio="3 / 2" sizes="(min-width: 768px) 66vw, 100vw" priority />
+                <EdImage image={resolveImage(first.cover)} ratio="3 / 2" sizes="(min-width: 768px) 66vw, 100vw" priority />
               </div>
               <div className="md:col-span-4 space-y-4">
                 <p className="ed-label" style={{ color: "var(--ed-dim)" }}>{formatCurationNumber(first.number)}</p>
@@ -54,7 +53,7 @@ export default async function CurationListPage() {
             <div className="grid gap-12 md:grid-cols-2 md:gap-x-12 md:gap-y-20" style={{ borderTop: "1px solid var(--ed-line)", paddingTop: 48 }}>
               {rest.map((c, i) => (
                 <Link key={c.slug} href={`/curation/${c.slug}`} className={`group block ${i % 2 === 1 ? "md:mt-20" : ""}`}>
-                  <EdImage image={resolveImage(c.cover, spaceMap)} ratio={i % 2 === 0 ? "4 / 5" : "1 / 1"} sizes="(min-width: 768px) 50vw, 100vw" />
+                  <EdImage image={resolveImage(c.cover)} ratio={i % 2 === 0 ? "4 / 5" : "1 / 1"} sizes="(min-width: 768px) 50vw, 100vw" />
                   <div className="pt-5 space-y-2">
                     <p className="ed-label" style={{ color: "var(--ed-dim)" }}>{formatCurationNumber(c.number)} · {c.region}</p>
                     <p className="text-2xl font-bold leading-snug tracking-tight group-hover:underline underline-offset-4">{c.title}</p>

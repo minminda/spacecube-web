@@ -255,11 +255,12 @@ export default async function AboutPage() {
 
       <div className="px-6 py-10">
         <Link
-          href={ENABLE_PUBLIC_SPACE_BROWSER ? "/discover" : "/"}
+          href={viewer.editorial ? "/spaces" : ENABLE_PUBLIC_SPACE_BROWSER ? "/discover" : "/"}
           className="tap-target flex items-center justify-center w-full text-center text-sm font-medium py-3 border hover:bg-[var(--fg)] hover:text-[var(--bg)] transition-colors"
           style={{ borderColor: "var(--fg)" }}
         >
-          {ENABLE_PUBLIC_SPACE_BROWSER ? "공간 둘러보기 →" : "홈으로 →"}
+          {/* 에디토리얼 공개 시에는 공개 SPACE 목록으로 — Cube 운영 쪽 둘러보기(/discover)와 섞지 않는다 */}
+          {viewer.editorial || ENABLE_PUBLIC_SPACE_BROWSER ? "공간 둘러보기 →" : "홈으로 →"}
         </Link>
       </div>
     </main>

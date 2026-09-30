@@ -7,9 +7,8 @@ export const CONTACT_EMAIL = "gonggancube@gmail.com";
 export const INSTAGRAM_URL = "https://www.instagram.com/gonggancube/";
 
 /**
- * 홈 EXPLORE SPACE와 /space 목록에 노출할 공간(Space.slug, 표시 순서).
- * 파일럿 기간에 공개 공간 목록(/discover)을 막아둔 정책(ENABLE_PUBLIC_SPACE_BROWSER)을
- * 유지하기 위해, DB 전체가 아니라 여기 적힌 공간만 보여준다. 시연용 공간(buk)은 제외.
+ * 홈 EXPLORE SPACE에 노출할 홈페이지 SPACE(src/content/spaces.ts의 slug, 표시 순서).
+ * /spaces 목록은 spaces.ts 전체를 보여준다. Cube 운영 DB와는 무관하다.
  */
 export const FEATURED_SPACE_SLUGS = [
   "turndown-service",
@@ -23,12 +22,12 @@ export const FEATURED_SPACE_SLUGS = [
 /** 홈 FEATURED CURATION — 다른 지역으로 교체할 때 이 값만 바꾼다(없으면 가장 최근 번호) */
 export const FEATURED_CURATION_SLUG = "yeonnam-slow-alone";
 
-/** 홈 HERO 사진으로 빌려 쓸 공간 */
+/** 홈 HERO 사진으로 빌려 쓸 홈페이지 SPACE */
 export const HERO_IMAGE_SPACE_SLUG = "aka-coffee-room";
 
 /**
  * 홈 LATEST STORIES 피드 — PEOPLE/SPACE/CURATION을 섞어 매거진처럼 보여준다(위에서부터).
- * SPACE 항목의 headline이 없으면 공간의 한 줄 소개(Space.tagline)를 쓴다.
+ * SPACE 항목의 headline이 없으면 홈페이지 SPACE의 summary를 쓴다.
  */
 export type FeedItem =
   | { kind: "people"; slug: string }

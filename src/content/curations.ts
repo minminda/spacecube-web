@@ -1,8 +1,8 @@
 import type { Curation } from "./types";
 
 /* ── CURATION 정적 데이터 ────────────────────────────────────────────────
-   지역 × 하나의 관점. 선정 공간은 실제 등록된 Space.slug만 참조한다(표시 정보는 DB에서
-   조회). 본문 원고는 임시 초안이다 — 공간에 대한 사실(역사·메뉴·운영자 발언 등)은 쓰지
+   지역 × 하나의 관점. 선정 공간은 홈페이지 SPACE(src/content/spaces.ts)의 slug로 참조하고,
+   공간을 누르면 공개 SPACE 상세(/spaces/[slug])로만 이동한다. 본문 원고는 임시 초안이다 — 공간에 대한 사실(역사·메뉴·운영자 발언 등)은 쓰지
    않았고, 실제 원고가 나오면 blocks만 교체하면 된다. 목록은 number 내림차순,
    홈 FEATURED CURATION은 src/content/site.ts의 FEATURED_CURATION_SLUG. ── */
 

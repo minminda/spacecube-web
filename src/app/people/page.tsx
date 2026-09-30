@@ -4,7 +4,8 @@ import type { Metadata } from "next";
 import EdImage from "@/components/editorial/EdImage";
 import PageHeader from "@/components/editorial/PageHeader";
 import SiteFooter from "@/components/editorial/SiteFooter";
-import { getEditorialViewer, getSpacesBySlugs, resolveImage, toSpaceMap } from "@/lib/editorial";
+import { getEditorialViewer } from "@/lib/editorial";
+import { resolveImage } from "@/content/spaces";
 import { getPeople, formatPeopleNumber } from "@/content/people";
 
 export const metadata: Metadata = {
@@ -17,7 +18,6 @@ export default async function PeopleListPage() {
   if (!viewer.editorial) redirect("/");
 
   const people = getPeople();
-  const spaceMap = toSpaceMap(await getSpacesBySlugs(people.flatMap((p) => (p.cover?.spaceSlug ? [p.cover.spaceSlug] : []))));
 
   return (
     <div className="editorial-bleed">
@@ -35,7 +35,7 @@ export default async function PeopleListPage() {
                 href={`/people/${p.slug}`}
                 className={`group block ${i === 0 ? "md:col-span-8" : "md:col-span-4"}`}
               >
-                <EdImage image={resolveImage(p.cover, spaceMap)} ratio={i === 0 ? "3 / 2" : "4 / 5"} sizes="(min-width: 768px) 66vw, 100vw" priority={i === 0} />
+                <EdImage image={resolveImage(p.cover)} ratio={i === 0 ? "3 / 2" : "4 / 5"} sizes="(min-width: 768px) 66vw, 100vw" priority={i === 0} />
                 <div className="pt-5 space-y-2">
                   <p className="ed-label" style={{ color: "var(--ed-dim)" }}>
                     {formatPeopleNumber(p.number)}{p.subject ? ` · ${p.subject}` : ""}
