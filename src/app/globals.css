@@ -117,3 +117,45 @@ body {
 .tap-target {
   min-height: 48px;
 }
+
+/* ── 에디토리얼 페이지(홈 / CURATION / PEOPLE / SPACE 목록) ────────────────
+   공용 레이아웃(layout.tsx)의 max-w-sm/2xl 래퍼를 건드리지 않고, 이 페이지들만 뷰포트 폭
+   전체로 확장한다(기존 페이지 렌더링은 그대로). transform 대신 margin 계산을 써서 내부의
+   fixed/sticky 요소 기준이 바뀌지 않게 한다. 색은 흰 바탕 + 검정 + 라이트 그레이. */
+.editorial-bleed {
+  width: 100vw;
+  margin-left: calc(50% - 50vw);
+  --ed-bg: #ffffff;
+  --ed-fg: #111111;
+  --ed-dim: #6f6f6f;
+  --ed-line: #e4e4e4;
+  --ed-soft: #f2f2f2;
+  /* QrScanSheet 등 기존 컴포넌트가 쓰는 공용 변수도 이 영역 안에서는 흰 바탕 기준으로 맞춘다 */
+  --bg: #ffffff;
+  --fg: #111111;
+  background: var(--ed-bg);
+  color: var(--ed-fg);
+}
+/* 콘텐츠가 짧아도 푸터 아래로 기본 배경(--bg)이 드러나지 않도록 본문이 최소 한 화면을 채운다(56px = Navbar) */
+.editorial-bleed > main {
+  min-height: calc(100vh - 3.5rem);
+}
+.ed-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding-left: 20px;
+  padding-right: 20px;
+}
+@media (min-width: 768px) {
+  .ed-container { padding-left: 40px; padding-right: 40px; }
+}
+.ed-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.ed-scroll-x {
+  scrollbar-width: none;
+}
+.ed-scroll-x::-webkit-scrollbar { display: none; }

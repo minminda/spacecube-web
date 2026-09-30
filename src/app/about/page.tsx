@@ -4,6 +4,8 @@ import type { Metadata } from "next";
 import Divider from "@/components/Divider";
 import CubeGlyph from "@/components/CubeGlyph";
 import { ENABLE_PUBLIC_SPACE_BROWSER } from "@/lib/features";
+import SiteFooter from "@/components/editorial/SiteFooter";
+import { getEditorialViewer } from "@/lib/editorial";
 
 export const metadata: Metadata = {
   title: "공간큐브 소개",
@@ -42,14 +44,6 @@ function StoryIcon() {
   );
 }
 
-function ScoreIcon() {
-  return (
-    <svg width={ICON_SIZE} height={ICON_SIZE} viewBox="0 0 40 40" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round">
-      <path d="M20 8 L23.5 16 L32 17 L25.5 23 L27.5 32 L20 27 L12.5 32 L14.5 23 L8 17 L16.5 16 Z" />
-    </svg>
-  );
-}
-
 function GuestbookIcon() {
   return (
     <svg width={ICON_SIZE} height={ICON_SIZE} viewBox="0 0 40 40" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" strokeLinecap="round">
@@ -57,15 +51,6 @@ function GuestbookIcon() {
       <line x1="13" y1="15" x2="21" y2="15" />
       <line x1="13" y1="20" x2="19" y2="20" />
       <path d="M24 25 L31 18 a1.6 1.6 0 0 1 2.2 2.2 L26 27 L23 28 Z" />
-    </svg>
-  );
-}
-
-function RecommendIcon() {
-  return (
-    <svg width={ICON_SIZE} height={ICON_SIZE} viewBox="0 0 40 40" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round">
-      <circle cx="20" cy="20" r="12" />
-      <path d="M24.5 15.5 L21.5 21.5 L15.5 24.5 L18.5 18.5 Z" />
     </svg>
   );
 }
@@ -80,18 +65,21 @@ function ArchiveIcon() {
   );
 }
 
+// 현재 실제 첫 방문 핵심 흐름(QR → 이야기 → 방명록)만 보여준다. 취향 점수·추천은
+// 선택 기능이라 핵심 흐름 설명에서 뺐다(기능 자체는 그대로 유지).
 const STEPS = [
   { Icon: DiscoverIcon, title: "공간 발견", desc: "공간에 놓인 큐브를 발견해요" },
   { Icon: ScanIcon, title: "QR 스캔", desc: "큐브의 QR을 통해 공간의 이야기를 열어요" },
   { Icon: StoryIcon, title: "공간 이야기", desc: "공간을 만든 사람의 이야기를 만나요" },
-  { Icon: ScoreIcon, title: "취향 점수", desc: "이 공간이 나와 얼마나 맞는지 점수로 남겨요" },
-  { Icon: GuestbookIcon, title: "방명록", desc: "오늘 이 공간에서 느낀 나의 흔적을 남겨요" },
+  { Icon: GuestbookIcon, title: "방명록", desc: "오늘 이 공간에서 느낀 나의 이야기를 한 줄 남겨요" },
   { Icon: ArchiveIcon, title: "공간 아카이브", desc: "내가 만난 공간들이 하나씩 기록돼요" },
-  { Icon: RecommendIcon, title: "공간 추천", desc: "쌓인 기록을 바탕으로 나와 맞는 다음 공간을 발견해요" },
 ];
 
-export default function AboutPage() {
+export default async function AboutPage() {
+  // 에디토리얼 정보구조 공개(또는 관리자 미리보기) 시에만 새 푸터를 붙인다 — 그 전에는 기존과 동일.
+  const viewer = await getEditorialViewer();
   return (
+    <>
     <main className="flex flex-col min-h-screen">
       <div className="flex items-center justify-between px-6 pt-10 pb-6">
         <Link href="/" className="text-xs" style={{ color: "var(--dim)" }}>← 홈</Link>
@@ -275,5 +263,7 @@ export default function AboutPage() {
         </Link>
       </div>
     </main>
+    {viewer.editorial && <SiteFooter admin={viewer.admin} />}
+    </>
   );
 }

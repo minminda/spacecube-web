@@ -3,7 +3,6 @@ import "./globals.css";
 import ThemeToggle from "@/components/ThemeToggle";
 import OnboardingOverlay from "@/components/OnboardingOverlay";
 import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
 import { ENABLE_DARK_MODE_TOGGLE, ENABLE_INITIAL_ONBOARDING } from "@/lib/features";
 import { getBaseUrl } from "@/lib/config";
 
@@ -40,7 +39,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <div className="max-w-sm md:max-w-2xl mx-auto w-full flex-1">
           {children}
         </div>
-        <Footer />
         {ENABLE_INITIAL_ONBOARDING && <OnboardingOverlay />}
         {ENABLE_DARK_MODE_TOGGLE && <ThemeToggle />}
       </body>

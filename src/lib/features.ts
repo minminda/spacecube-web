@@ -75,3 +75,14 @@ export const ENABLE_NAV_RECOMMENDATION_LINK = false;
  * true로 바꾸면 즉시 원상복구 — 컴포넌트/라우팅/데이터는 그대로 유지된다.
  */
 export const ENABLE_PUBLIC_SPACE_BROWSER = false;
+
+/**
+ * 에디토리얼 홈페이지(1차 대개편) 공개 여부.
+ * - false(현재): 일반 방문자는 기존 홈/내비게이션을 그대로 본다. 관리자 계정만 새 홈,
+ *   /curation, /people, /space(목록)와 새 내비게이션·푸터를 미리 볼 수 있다
+ *   (관리자가 기존 홈을 다시 보려면 /?legacy=1).
+ * - true: 모든 방문자에게 새 정보구조를 공개한다.
+ * CURATION/PEOPLE 콘텐츠는 아직 src/content/의 정적 데이터(임시 원고)라 실제 원고가
+ * 준비되기 전까지 공개하지 않는다. QR 진입(/c/[code])·공간 상세·방명록 흐름과는 무관하다.
+ */
+export const ENABLE_EDITORIAL_HOME = false;
