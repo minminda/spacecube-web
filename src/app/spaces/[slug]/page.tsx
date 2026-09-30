@@ -5,10 +5,10 @@ import CubeGlyph from "@/components/CubeGlyph";
 import EdImage from "@/components/editorial/EdImage";
 import SpaceCard from "@/components/editorial/SpaceCard";
 import SiteFooter from "@/components/editorial/SiteFooter";
-import { getEditorialViewer } from "@/lib/editorial";
-import { SPACES, getSpace, resolveImage, spaceCoverImage } from "@/content/spaces";
-import { getCurations, formatCurationNumber } from "@/content/curations";
-import { getPeople, formatPeopleNumber } from "@/content/people";
+import { getEditorialViewer } from "@/lib/editorial/viewer";
+import PreviewBanner from "@/components/editorial/PreviewBanner";
+import { getSpaceBySlug, getStoriesForSpace, listSpaces } from "@/lib/editorial/queries";
+import { curationLabel, formatPeopleNumber, spaceCoverImage } from "@/lib/editorial/types";
 import { BRAND_NAME, INSTAGRAM_URL } from "@/content/site";
 
 interface Props {
@@ -17,13 +17,13 @@ interface Props {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
-  const s = getSpace(slug);
-  if (!s) return {};
+  const s = await getSpaceBySlug(slug);
+  if (!s) return { robots: { index: false } };
   return { title: `${s.name} — 공간큐브`, description: s.summary ?? `${s.area} · ${s.category}` };
 }
 
 /**
- * 공개 SPACE 상세 — 공개 정보만 보여준다(src/content/spaces.ts).
+ * 공개 SPACE 상세 — Editorial CMS의 공간 콘텐츠(발행된 것만, 관리자는 미리보기 가능).
  * Cube 운영 DB·Episode/Scene·방명록(/space/[slug]/**)으로는 어떤 링크도 두지 않는다.
  * cubeAvailable이면 "공간에서 Cube를 찾아보라"는 안내만 한다 — 온라인에서 이야기를 미리 열지 않는다.
  */
@@ -31,12 +31,11 @@ export default async function SpaceDetailPage({ params }: Props) {
   const [{ slug }, viewer] = await Promise.all([params, getEditorialViewer()]);
   if (!viewer.editorial) redirect("/");
 
-  const space = getSpace(slug);
+  const space = await getSpaceBySlug(slug, { preview: viewer.admin });
   if (!space) notFound();
 
-  const curations = getCurations().filter((c) => c.spaceSlugs.includes(space.slug));
-  const people = getPeople().filter((p) => p.spaceSlugs.includes(space.slug));
-  const nearby = SPACES.filter((s) => s.slug !== space.slug && s.area === space.area).slice(0, 3);
+  const [{ curations, people }, published] = await Promise.all([getStoriesForSpace(space.id), listSpaces()]);
+  const nearby = published.filter((s) => s.id !== space.id && s.area === space.area).slice(0, 3);
 
   const info = [
     { label: "지역", value: space.area },
@@ -52,6 +51,7 @@ export default async function SpaceDetailPage({ params }: Props) {
 
   return (
     <div className="editorial-bleed">
+      <PreviewBanner status={space.status} editHref={`/admin/content/spaces/${space.id}`} />
       <main>
         <header className="ed-container pt-10 md:pt-16">
           <Link href="/spaces" className="text-xs hover:underline underline-offset-4" style={{ color: "var(--ed-dim)" }}>← SPACE</Link>
@@ -146,17 +146,17 @@ export default async function SpaceDetailPage({ params }: Props) {
               <p className="ed-label pb-8" style={{ color: "var(--ed-dim)" }}>이 공간이 소개된 이야기</p>
               <div className="grid gap-10 md:grid-cols-2">
                 {curations.map((c) => (
-                  <Link key={c.slug} href={`/curation/${c.slug}`} className="group grid grid-cols-[120px_1fr] md:grid-cols-[200px_1fr] gap-5 items-center">
-                    <EdImage image={resolveImage(c.cover)} ratio="1 / 1" sizes="200px" />
+                  <Link key={c.id} href={`/curation/${c.slug}`} className="group grid grid-cols-[120px_1fr] md:grid-cols-[200px_1fr] gap-5 items-center">
+                    <EdImage image={c.cover} ratio="1 / 1" sizes="200px" />
                     <div className="space-y-2">
-                      <p className="ed-label" style={{ color: "var(--ed-dim)" }}>{formatCurationNumber(c.number)} · {c.region}</p>
+                      <p className="ed-label" style={{ color: "var(--ed-dim)" }}>{curationLabel(c)}</p>
                       <p className="text-lg md:text-xl font-bold leading-snug group-hover:underline underline-offset-4">{c.title}</p>
                     </div>
                   </Link>
                 ))}
                 {people.map((p) => (
-                  <Link key={p.slug} href={`/people/${p.slug}`} className="group grid grid-cols-[120px_1fr] md:grid-cols-[200px_1fr] gap-5 items-center">
-                    <EdImage image={resolveImage(p.cover)} ratio="1 / 1" sizes="200px" />
+                  <Link key={p.id} href={`/people/${p.slug}`} className="group grid grid-cols-[120px_1fr] md:grid-cols-[200px_1fr] gap-5 items-center">
+                    <EdImage image={p.cover} ratio="1 / 1" sizes="200px" />
                     <div className="space-y-2">
                       <p className="ed-label" style={{ color: "var(--ed-dim)" }}>{formatPeopleNumber(p.number)}</p>
                       <p className="text-lg md:text-xl font-bold leading-snug group-hover:underline underline-offset-4">{p.title}</p>

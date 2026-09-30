@@ -1,10 +1,9 @@
 import Link from "next/link";
 import EdImage from "./EdImage";
-import { spaceCoverImage, spaceHref } from "@/content/spaces";
-import type { EditorialSpace } from "@/content/types";
+import { spaceCoverImage, spaceHref, type SpaceView } from "@/lib/editorial/types";
 
 interface Props {
-  space: EditorialSpace;
+  space: SpaceView;
   ratio?: string;
   sizes?: string;
   /** 카드 아래 한 줄(큐레이션 메모 등) — 없으면 표시하지 않는다 */

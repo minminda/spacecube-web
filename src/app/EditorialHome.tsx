@@ -4,16 +4,16 @@ import EdImage from "@/components/editorial/EdImage";
 import SpaceCard from "@/components/editorial/SpaceCard";
 import Participation from "@/components/editorial/Participation";
 import SiteFooter from "@/components/editorial/SiteFooter";
-import { getSpace, getSpacesBySlugs, resolveImage, spaceCoverImage, spaceHref, type ResolvedImage } from "@/content/spaces";
-import { getCurations, getCuration, formatCurationNumber } from "@/content/curations";
-import { getPerson, formatPeopleNumber } from "@/content/people";
-import { BRAND_NAME, FEATURED_CURATION_SLUG, FEATURED_SPACE_SLUGS, HERO_IMAGE_SPACE_SLUG, LATEST_FEED } from "@/content/site";
+import { getHomeData, type HomeFeedEntry } from "@/lib/editorial/queries";
+import { curationLabel, formatCurationNumber, formatPeopleNumber, spaceCoverImage, spaceHref, type ResolvedImage } from "@/lib/editorial/types";
+import { BRAND_NAME } from "@/content/site";
 import QrScanSheet from "./QrScanSheet";
 
 /* ── 에디토리얼 홈(1차 개편) ─────────────────────────────────────────────
    발견 → 이해 → 방문 → 경험 → 기록. 기능 설명보다 콘텐츠를 먼저 보여주고, 큐브(QR) 경험은
-   중반부 GONGGANCUBE EXPERIENCE 섹션에서 소개한다. 모든 콘텐츠는 src/content/ 정적 데이터이며,
-   Cube 운영 DB·라우트(/space/[slug]/** 의 Episode/Scene/방명록)로는 연결하지 않는다. ── */
+   중반부 GONGGANCUBE EXPERIENCE 섹션에서 소개한다. 콘텐츠는 Editorial CMS(발행된 것만,
+   무엇을 노출할지는 관리자 › 홈페이지 설정)에서 읽으며, Cube 운영 DB·라우트(/space/[slug]/** 의
+   Episode/Scene/방명록)로는 연결하지 않는다. ── */
 
 interface FeedCardData {
   key: string;
@@ -25,14 +25,13 @@ interface FeedCardData {
   image: ResolvedImage;
 }
 
-export default function EditorialHome({ admin }: { admin: boolean }) {
-  const curations = getCurations();
-  const featured = getCuration(FEATURED_CURATION_SLUG) ?? curations[0];
-
-  const heroSpace = getSpace(HERO_IMAGE_SPACE_SLUG);
-  const featuredSpaces = featured ? getSpacesBySlugs(featured.spaceSlugs) : [];
-  const exploreSpaces = getSpacesBySlugs(FEATURED_SPACE_SLUGS);
-  const feed = buildFeed();
+export default async function EditorialHome({ admin }: { admin: boolean }) {
+  const home = await getHomeData();
+  const featured = home.featuredCuration;
+  const heroSpace = home.hero;
+  const featuredSpaces = featured ? featured.spaces.map((l) => l.space) : [];
+  const exploreSpaces = home.featuredSpaces;
+  const feed = buildFeed(home.feed);
 
   return (
     <div className="editorial-bleed">
@@ -82,18 +81,18 @@ export default function EditorialHome({ admin }: { admin: boolean }) {
               <SectionHead label="Featured Curation" moreHref="/curation" moreLabel="모든 큐레이션" />
               <div className="grid gap-8 md:grid-cols-12 md:gap-12">
                 <Link href={`/curation/${featured.slug}`} className="group block md:col-span-8">
-                  <EdImage image={resolveImage(featured.cover)} ratio="3 / 2" sizes="(min-width: 768px) 66vw, 100vw" />
+                  <EdImage image={featured.cover} ratio="3 / 2" sizes="(min-width: 768px) 66vw, 100vw" />
                 </Link>
                 <div className="md:col-span-4 flex flex-col">
                   <p className="ed-label" style={{ color: "var(--ed-dim)" }}>{formatCurationNumber(featured.number)}</p>
-                  <p className="mt-4 text-[56px] md:text-[80px] font-bold leading-none tracking-[-0.04em]">{featured.region}</p>
+                  {featured.area && <p className="mt-4 text-[56px] md:text-[80px] font-bold leading-none tracking-[-0.04em]">{featured.area}</p>}
                   <p className="mt-5 text-xl md:text-2xl font-bold leading-snug tracking-tight">{featured.title}</p>
                   <p className="mt-4 text-sm md:text-base leading-relaxed" style={{ color: "var(--ed-dim)" }}>{featured.summary}</p>
 
                   {featuredSpaces.length > 0 && (
                     <div className="mt-8">
                       <p className="text-xs pb-2" style={{ color: "var(--ed-dim)", borderBottom: "1px solid var(--ed-line)" }}>
-                        {featured.region}에서 발견한 {featuredSpaces.length}개의 공간
+                        {featured.area ? `${featured.area}에서 발견한 ${featuredSpaces.length}개의 공간` : `이 큐레이션의 공간 ${featuredSpaces.length}곳`}
                       </p>
                       <ol>
                         {featuredSpaces.map((s, i) => (
@@ -114,7 +113,7 @@ export default function EditorialHome({ admin }: { admin: boolean }) {
                     className="tap-target mt-8 md:mt-auto inline-flex items-center justify-between gap-6 px-5 text-sm font-semibold transition-opacity hover:opacity-85"
                     style={{ background: "var(--ed-fg)", color: "#fff" }}
                   >
-                    {featured.region} 둘러보기 <span aria-hidden>→</span>
+                    {featured.area ? `${featured.area} 둘러보기` : "큐레이션 보기"} <span aria-hidden>→</span>
                   </Link>
                 </div>
               </div>
@@ -226,29 +225,26 @@ export default function EditorialHome({ admin }: { admin: boolean }) {
   );
 }
 
-function buildFeed(): FeedCardData[] {
-  return LATEST_FEED.flatMap((item): FeedCardData[] => {
-    if (item.kind === "people") {
-      const p = getPerson(item.slug);
-      if (!p) return [];
-      return [{ key: `p-${p.slug}`, label: formatPeopleNumber(p.number), title: p.title, summary: p.summary, href: `/people/${p.slug}`, image: resolveImage(p.cover) }];
+function buildFeed(entries: HomeFeedEntry[]): FeedCardData[] {
+  return entries.map((item): FeedCardData => {
+    if (item.kind === "person") {
+      const p = item.person;
+      return { key: `p-${p.id}`, label: formatPeopleNumber(p.number), title: p.title, summary: p.summary, href: `/people/${p.slug}`, image: p.cover };
     }
     if (item.kind === "curation") {
-      const c = getCuration(item.slug);
-      if (!c) return [];
-      return [{ key: `c-${c.slug}`, label: `${formatCurationNumber(c.number)} · ${c.region}`, title: c.title, summary: c.summary, href: `/curation/${c.slug}`, image: resolveImage(c.cover) }];
+      const c = item.curation;
+      return { key: `c-${c.id}`, label: curationLabel(c), title: c.title, summary: c.summary, href: `/curation/${c.slug}`, image: c.cover };
     }
-    const s = getSpace(item.slug);
-    if (!s) return [];
-    return [{
-      key: `s-${s.slug}`,
+    const s = item.space;
+    return {
+      key: `s-${s.id}`,
       label: "Space",
       title: s.name,
       summary: item.headline ?? s.summary,
       meta: [s.area, s.category].filter(Boolean).join(" · "),
       href: spaceHref(s.slug),
       image: spaceCoverImage(s),
-    }];
+    };
   });
 }
 

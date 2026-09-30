@@ -1,18 +1,22 @@
 import Link from "next/link";
 import EdImage from "./EdImage";
-import { getSpace, resolveImage, spaceCoverImage, spaceHref } from "@/content/spaces";
-import type { ContentBlock } from "@/content/types";
+import { spaceCoverImage, spaceHref, type BlockImage, type EditorialBlock, type ResolvedImage, type SpaceView } from "@/lib/editorial/types";
 
 interface Props {
-  blocks: ContentBlock[];
+  blocks: EditorialBlock[];
+  /** SPACE_CARD 블록이 가리키는 공간(페이지가 공개 규칙에 맞춰 미리 조회) — 없는 공간 카드는 표시하지 않는다 */
+  spaces: Map<string, SpaceView>;
 }
 
-/** 에디토리얼 본문 블록 렌더러 — 공간 참조는 홈페이지 SPACE(정적 데이터)만, 링크는 /spaces/[slug]만. — 텍스트는 읽기 폭(640px), 이미지는 넓게 써서 리듬을 만든다. */
-export default function BlockRenderer({ blocks }: Props) {
+/**
+ * 에디토리얼 본문 블록 렌더러(Editorial CMS 블록) — 텍스트는 읽기 폭(640px), 이미지는 넓게 써서 리듬을 만든다.
+ * 공간 카드는 공개 SPACE 상세(/spaces/[slug])로만 연결한다.
+ */
+export default function BlockRenderer({ blocks, spaces }: Props) {
   return (
     <div className="space-y-10 md:space-y-14">
       {blocks.map((block, i) => (
-        <Block key={i} block={block} />
+        <Block key={i} block={block} spaces={spaces} />
       ))}
     </div>
   );
@@ -20,14 +24,32 @@ export default function BlockRenderer({ blocks }: Props) {
 
 const READ = "max-w-[640px] mx-auto";
 
-function Block({ block }: { block: ContentBlock }) {
+function img(i: BlockImage): ResolvedImage {
+  return { src: i.url, alt: i.alt ?? "", caption: i.caption };
+}
+
+function ratioOf(i: BlockImage, fallback: string): string {
+  return i.width && i.height ? `${i.width} / ${i.height}` : fallback;
+}
+
+function paragraphs(text: string): string[] {
+  return text.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
+}
+
+function Block({ block, spaces }: { block: EditorialBlock; spaces: Map<string, SpaceView> }) {
   switch (block.type) {
     case "HEADING":
       return <h2 className={`${READ} text-xl md:text-2xl font-bold leading-snug tracking-tight`}>{block.text}</h2>;
     case "TEXT":
-      return <p className={`${READ} text-base md:text-[17px] leading-[1.85]`}>{block.text}</p>;
-    case "CAPTION":
-      return <p className={`${READ} text-xs leading-relaxed`} style={{ color: "var(--ed-dim)" }}>{block.text}</p>;
+      return block.small ? (
+        <p className={`${READ} text-xs leading-relaxed whitespace-pre-line`} style={{ color: "var(--ed-dim)" }}>{block.text}</p>
+      ) : (
+        <div className={`${READ} space-y-5`}>
+          {paragraphs(block.text).map((p, i) => (
+            <p key={i} className="text-base md:text-[17px] leading-[1.85] whitespace-pre-line">{p}</p>
+          ))}
+        </div>
+      );
     case "DIVIDER":
       return <div className={`${READ} h-px`} style={{ background: "var(--ed-line)" }} />;
     case "QUOTE":
@@ -37,54 +59,57 @@ function Block({ block }: { block: ContentBlock }) {
           {block.cite && <figcaption className="mt-4 text-sm" style={{ color: "var(--ed-dim)" }}>— {block.cite}</figcaption>}
         </figure>
       );
-    case "IMAGE": {
-      const img = resolveImage(block.image);
+    case "IMAGE":
       return (
         <figure className={block.wide ? "" : "max-w-[900px] mx-auto"}>
-          <EdImage image={img} ratio="3 / 2" sizes="(min-width: 768px) 900px, 100vw" />
-          {img.caption && <figcaption className="mt-2 text-xs" style={{ color: "var(--ed-dim)" }}>{img.caption}</figcaption>}
+          <EdImage image={img(block.image)} ratio={ratioOf(block.image, "3 / 2")} sizes="(min-width: 768px) 900px, 100vw" />
+          {block.image.caption && <figcaption className="mt-2 text-xs" style={{ color: "var(--ed-dim)" }}>{block.image.caption}</figcaption>}
         </figure>
       );
-    }
-    case "IMAGE_GALLERY":
+    case "GALLERY":
       return (
         <div className="grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-4">
-          {block.images.map((ref, i) => (
-            <EdImage key={i} image={resolveImage(ref)} ratio="4 / 5" sizes="(min-width: 768px) 33vw, 50vw" />
+          {block.images.map((im, i) => (
+            <figure key={i}>
+              <EdImage image={img(im)} ratio="4 / 5" sizes="(min-width: 768px) 33vw, 50vw" />
+              {im.caption && <figcaption className="mt-1.5 text-[11px]" style={{ color: "var(--ed-dim)" }}>{im.caption}</figcaption>}
+            </figure>
           ))}
         </div>
       );
-    case "IMAGE_TEXT": {
-      const img = resolveImage(block.image);
+    case "IMAGE_TEXT":
       return (
         <div className={`max-w-[900px] mx-auto grid md:grid-cols-2 gap-6 md:gap-10 items-center ${block.reverse ? "md:[&>*:first-child]:order-2" : ""}`}>
-          <EdImage image={img} ratio="4 / 5" sizes="(min-width: 768px) 450px, 100vw" />
-          <p className="text-base leading-[1.85]">{block.text}</p>
+          <figure>
+            <EdImage image={img(block.image)} ratio="4 / 5" sizes="(min-width: 768px) 450px, 100vw" />
+            {block.image.caption && <figcaption className="mt-2 text-xs" style={{ color: "var(--ed-dim)" }}>{block.image.caption}</figcaption>}
+          </figure>
+          <div className="space-y-3">
+            {block.title && <p className="text-lg md:text-xl font-bold leading-snug">{block.title}</p>}
+            {paragraphs(block.text).map((p, i) => (
+              <p key={i} className="text-base leading-[1.85] whitespace-pre-line">{p}</p>
+            ))}
+          </div>
         </div>
       );
-    }
     case "QNA":
       return (
         <dl className={`${READ} space-y-6`}>
           {block.items.map((item, i) => (
             <div key={i} className="space-y-2">
               <dt className="text-base font-bold leading-snug">Q. {item.q}</dt>
-              <dd className="text-base leading-[1.85]" style={{ color: "#333" }}>{item.a}</dd>
+              <dd className="text-base leading-[1.85] whitespace-pre-line" style={{ color: "#333" }}>{item.a}</dd>
             </div>
           ))}
         </dl>
       );
     case "SPACE_CARD": {
-      const space = getSpace(block.spaceSlug);
+      const space = spaces.get(block.spaceId);
       if (!space) return null;
       const meta = [space.area, space.category].filter(Boolean).join(" · ");
       return (
         <Link href={spaceHref(space.slug)} className="group max-w-[900px] mx-auto grid grid-cols-[112px_1fr] md:grid-cols-[280px_1fr] gap-5 md:gap-10 items-center">
-          <EdImage
-            image={spaceCoverImage(space)}
-            ratio="4 / 5"
-            sizes="(min-width: 768px) 280px, 112px"
-          />
+          <EdImage image={spaceCoverImage(space)} ratio="4 / 5" sizes="(min-width: 768px) 280px, 112px" />
           <div className="space-y-2">
             <p className="ed-label" style={{ color: "var(--ed-dim)" }}>SPACE</p>
             <p className="text-lg md:text-2xl font-bold leading-snug group-hover:underline underline-offset-4">{space.name}</p>

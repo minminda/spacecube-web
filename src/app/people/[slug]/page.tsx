@@ -5,9 +5,10 @@ import EdImage from "@/components/editorial/EdImage";
 import SpaceCard from "@/components/editorial/SpaceCard";
 import SiteFooter from "@/components/editorial/SiteFooter";
 import BlockRenderer from "@/components/editorial/BlockRenderer";
-import { getEditorialViewer } from "@/lib/editorial";
-import { getSpacesBySlugs, resolveImage } from "@/content/spaces";
-import { getPerson, getPeople, formatPeopleNumber } from "@/content/people";
+import PreviewBanner from "@/components/editorial/PreviewBanner";
+import { getEditorialViewer } from "@/lib/editorial/viewer";
+import { getBlockSpaces, getPersonBySlug, listPeople } from "@/lib/editorial/queries";
+import { formatPeopleNumber } from "@/lib/editorial/types";
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -15,23 +16,26 @@ interface Props {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
-  const p = getPerson(slug);
-  if (!p) return {};
+  const p = await getPersonBySlug(slug);
+  if (!p) return { robots: { index: false } };
   return { title: `${formatPeopleNumber(p.number)} — 공간큐브`, description: p.summary };
 }
 
+/** PEOPLE 상세 — 발행된 것만 공개. 관리자는 초안·보관 콘텐츠를 미리보기 띠와 함께 볼 수 있다. */
 export default async function PeopleDetailPage({ params }: Props) {
   const [{ slug }, viewer] = await Promise.all([params, getEditorialViewer()]);
   if (!viewer.editorial) redirect("/");
 
-  const person = getPerson(slug);
+  const preview = viewer.admin;
+  const person = await getPersonBySlug(slug, { preview });
   if (!person) notFound();
 
-  const others = getPeople().filter((p) => p.slug !== person.slug).slice(0, 3);
-  const spaces = getSpacesBySlugs(person.spaceSlugs);
+  const [blockSpaces, all] = await Promise.all([getBlockSpaces(person.blocks, { preview }), listPeople()]);
+  const others = all.filter((p) => p.id !== person.id).slice(0, 3);
 
   return (
     <div className="editorial-bleed">
+      <PreviewBanner status={person.status} editHref={`/admin/content/people/${person.id}`} />
       <main>
         <header className="ed-container pt-10 md:pt-16">
           <Link href="/people" className="text-xs hover:underline underline-offset-4" style={{ color: "var(--ed-dim)" }}>← PEOPLE</Link>
@@ -45,18 +49,20 @@ export default async function PeopleDetailPage({ params }: Props) {
         </header>
 
         <div className="ed-container pt-10 md:pt-14">
-          <EdImage image={resolveImage(person.cover)} ratio="16 / 9" sizes="(min-width: 1200px) 1120px, 100vw" priority />
+          <EdImage image={person.cover} ratio="16 / 9" sizes="(min-width: 1200px) 1120px, 100vw" priority />
         </div>
 
-        <article className="ed-container py-16 md:py-24">
-          <BlockRenderer blocks={person.blocks} />
-        </article>
+        {person.blocks.length > 0 && (
+          <article className="ed-container py-16 md:py-24">
+            <BlockRenderer blocks={person.blocks} spaces={blockSpaces} />
+          </article>
+        )}
 
-        {spaces.length > 0 && (
-          <section className="ed-container pb-20" style={{ borderTop: "1px solid var(--ed-line)" }}>
-            <p className="ed-label pt-12 pb-8" style={{ color: "var(--ed-dim)" }}>이 사람이 머문 공간</p>
+        {person.spaces.length > 0 && (
+          <section className="ed-container py-16 md:pb-20" style={{ borderTop: "1px solid var(--ed-line)" }}>
+            <p className="ed-label pb-8" style={{ color: "var(--ed-dim)" }}>이 사람이 머문 공간</p>
             <div className="grid gap-10 grid-cols-1 md:grid-cols-3">
-              {spaces.map((s) => <SpaceCard key={s.slug} space={s} showSummary />)}
+              {person.spaces.map((l) => <SpaceCard key={l.space.id} space={l.space} note={l.note} showSummary={!l.note} />)}
             </div>
           </section>
         )}
@@ -67,8 +73,8 @@ export default async function PeopleDetailPage({ params }: Props) {
               <p className="ed-label pb-8" style={{ color: "var(--ed-dim)" }}>다른 PEOPLE</p>
               <div className="grid gap-10 md:grid-cols-3">
                 {others.map((o) => (
-                  <Link key={o.slug} href={`/people/${o.slug}`} className="group block">
-                    <EdImage image={resolveImage(o.cover)} ratio="4 / 5" sizes="(min-width: 768px) 33vw, 100vw" />
+                  <Link key={o.id} href={`/people/${o.slug}`} className="group block">
+                    <EdImage image={o.cover} ratio="4 / 5" sizes="(min-width: 768px) 33vw, 100vw" />
                     <p className="pt-4 ed-label" style={{ color: "var(--ed-dim)" }}>{formatPeopleNumber(o.number)}</p>
                     <p className="pt-2 text-lg font-bold leading-snug group-hover:underline underline-offset-4">{o.title}</p>
                   </Link>

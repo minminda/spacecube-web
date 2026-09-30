@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getEditorialViewer } from "@/lib/editorial";
+import { getEditorialViewer } from "@/lib/editorial/viewer";
 
 export const dynamic = "force-dynamic";
 

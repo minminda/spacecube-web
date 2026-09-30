@@ -5,7 +5,7 @@ import Divider from "@/components/Divider";
 import CubeGlyph from "@/components/CubeGlyph";
 import { ENABLE_PUBLIC_SPACE_BROWSER } from "@/lib/features";
 import SiteFooter from "@/components/editorial/SiteFooter";
-import { getEditorialViewer } from "@/lib/editorial";
+import { getEditorialViewer } from "@/lib/editorial/viewer";
 
 export const metadata: Metadata = {
   title: "공간큐브 소개",
