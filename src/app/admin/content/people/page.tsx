@@ -1,35 +1,48 @@
-import Link from "next/link";
+import type { Prisma } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 import { requireAdminPage } from "@/lib/adminGuard";
-import { getPeople, formatPeopleNumber } from "@/content/people";
-import { AdminPageHeader, AdminTable, NotReady, StatusBadge, adminButtonClass } from "@/components/admin/ui";
+import { formatPeopleNumber } from "@/lib/editorial/types";
+import DocListPage, { statusCounts } from "@/components/admin/editorial/DocListPage";
+import { parseStatusFilter } from "@/components/admin/editorial/StatusTabs";
 
-/** CONTENT › 피플 — src/content/people.ts 읽기 전용 목록. */
-export default async function AdminContentPeoplePage() {
+interface Props {
+  searchParams: Promise<{ q?: string; status?: string }>;
+}
+
+/** CONTENT › 피플 — 공간을 통해 한 사람을 알아가는 홈페이지 콘텐츠(현장 에피소드와 별개). */
+export default async function AdminContentPeoplePage({ searchParams }: Props) {
   await requireAdminPage();
-  const people = getPeople();
+  const { q: qRaw, status: statusRaw } = await searchParams;
+  const q = qRaw?.trim() ?? "";
+  const filter = parseStatusFilter(statusRaw);
+  const search: Prisma.EditorialPersonWhereInput = q
+    ? { OR: [{ title: { contains: q, mode: "insensitive" } }, { subject: { contains: q, mode: "insensitive" } }, { slug: { contains: q, mode: "insensitive" } }] }
+    : {};
+
+  const [rows, groups] = await Promise.all([
+    prisma.editorialPerson.findMany({
+      where: { ...search, ...(filter === "ALL" ? {} : { status: filter }) },
+      orderBy: { number: "desc" },
+      include: { _count: { select: { spaces: true } } },
+    }),
+    prisma.editorialPerson.groupBy({ by: ["status"], where: search, _count: { _all: true } }),
+  ]);
 
   return (
-    <>
-      <AdminPageHeader
-        area="content"
-        title="피플"
-        description="공간을 통해 한 사람을 알아가는 홈페이지 콘텐츠입니다. 현장 Cube의 에피소드와는 별개예요."
-      />
-      <div className="mb-5"><NotReady description="현재는 src/content/people.ts 정적 데이터를 읽기 전용으로 보여줍니다. 새 PEOPLE 작성·블록 편집·발행은 CMS 단계에서 제공됩니다." /></div>
-      <AdminTable head={["번호", "제목", "소개 대상", "발행일", "상태", ""]} minWidth={720}>
-        {people.map((p) => (
-          <tr key={p.slug}>
-            <td className="text-xs tabular-nums whitespace-nowrap" style={{ color: "var(--a-dim)" }}>{formatPeopleNumber(p.number)}</td>
-            <td className="font-semibold max-w-[360px]">{p.title}</td>
-            <td style={{ color: p.subject ? undefined : "var(--a-faint)" }}>{p.subject ?? "미정"}</td>
-            <td className="text-xs tabular-nums" style={{ color: "var(--a-dim)" }}>{p.publishedAt.replaceAll("-", ".")}</td>
-            <td><StatusBadge tone="static">STATIC</StatusBadge></td>
-            <td className="text-right">
-              <Link href={`/people/${p.slug}`} target="_blank" className={adminButtonClass("ghost", "sm")}>보기 ↗</Link>
-            </td>
-          </tr>
-        ))}
-      </AdminTable>
-    </>
+    <DocListPage
+      kind="people"
+      title="피플"
+      description="공간을 통해 한 사람을 알아가는 홈페이지 콘텐츠입니다. 현장 Cube의 에피소드와는 별개예요."
+      newLabel="+ 새 PEOPLE"
+      searchPlaceholder="제목, 소개 대상, slug"
+      publicBase="/people"
+      q={q}
+      filter={filter}
+      counts={statusCounts(groups)}
+      rows={rows.map((p) => ({
+        id: p.id, slug: p.slug, numberLabel: formatPeopleNumber(p.number), title: p.title, sub: p.subject,
+        spaceCount: p._count.spaces, status: p.status, updatedAt: p.updatedAt,
+      }))}
+    />
   );
 }

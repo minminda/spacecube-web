@@ -5,9 +5,8 @@ import { prisma } from "@/lib/prisma";
 import { isAdmin } from "@/lib/admin";
 import { getAdminUserIds } from "@/lib/kpiEligibility";
 import { ENABLE_EDITORIAL_HOME } from "@/lib/features";
-import { SPACES } from "@/content/spaces";
-import { CURATIONS, formatCurationNumber } from "@/content/curations";
-import { PEOPLE, formatPeopleNumber } from "@/content/people";
+import { curationLabel, formatPeopleNumber } from "@/lib/editorial/types";
+import { EditorialStatusBadge } from "@/components/admin/editorial/EditorialControls";
 import { AdminPageHeader, AdminSection, AdminStat, AreaTag, StatusBadge, EmptyState } from "@/components/admin/ui";
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -23,7 +22,7 @@ function formatKst(d: Date): string {
 
 /**
  * 관리자 Overview — 온라인(CONTENT)과 현장(CUBE OPERATION)의 현재 상태를 한 화면에서 본다.
- * 숫자는 전부 실제 데이터다: CONTENT는 src/content/ 정적 데이터의 개수, CUBE OPERATION은 기존
+ * 숫자는 전부 실제 데이터다: CONTENT는 Editorial CMS 테이블, CUBE OPERATION은 기존
  * 테이블의 읽기 전용 집계(쓰기 없음). 없는 지표는 만들지 않는다.
  */
 export default async function AdminOverviewPage() {
@@ -61,10 +60,18 @@ export default async function AdminOverviewPage() {
   const cubeCount = (status: string) => cubeGroups.find((g) => g.status === status)?._count._all ?? 0;
   const cubeTotal = cubeGroups.reduce((sum, g) => sum + g._count._all, 0);
 
+  // CONTENT — Editorial CMS(읽기 전용 집계)
+  const [edSpaces, edCurations, edPeople] = await Promise.all([
+    prisma.editorialSpace.findMany({ select: { status: true, cubeAvailable: true } }),
+    prisma.editorialCuration.findMany({ select: { id: true, number: true, area: true, title: true, status: true, updatedAt: true } }),
+    prisma.editorialPerson.findMany({ select: { id: true, number: true, title: true, status: true, updatedAt: true } }),
+  ]);
+  const published = (rows: { status: string }[]) => rows.filter((r) => r.status === "PUBLISHED").length;
+  const drafts = (rows: { status: string }[]) => rows.filter((r) => r.status === "DRAFT").length;
   const recentContent = [
-    ...CURATIONS.map((c) => ({ key: `c-${c.slug}`, label: `${formatCurationNumber(c.number)} · ${c.region}`, title: c.title, date: c.publishedAt, href: `/admin/content/curations` })),
-    ...PEOPLE.map((p) => ({ key: `p-${p.slug}`, label: formatPeopleNumber(p.number), title: p.title, date: p.publishedAt, href: `/admin/content/people` })),
-  ].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 5);
+    ...edCurations.map((c) => ({ key: `c-${c.id}`, label: curationLabel(c), title: c.title, status: c.status, date: c.updatedAt, href: `/admin/content/curations/${c.id}` })),
+    ...edPeople.map((p) => ({ key: `p-${p.id}`, label: formatPeopleNumber(p.number), title: p.title, status: p.status, date: p.updatedAt, href: `/admin/content/people/${p.id}` })),
+  ].sort((a, b) => b.date.getTime() - a.date.getTime()).slice(0, 5);
 
   return (
     <>
@@ -78,15 +85,18 @@ export default async function AdminOverviewPage() {
             <p className="text-xs" style={{ color: "var(--a-dim)" }}>홈페이지에서 발견되는 공개 콘텐츠</p>
           </div>
           <div className="grid grid-cols-3 gap-3">
-            <AdminStat label="공간 콘텐츠" value={SPACES.length} hint={`Cube 있는 곳 ${SPACES.filter((s) => s.cubeAvailable).length}`} href="/admin/content/spaces" />
-            <AdminStat label="큐레이션" value={CURATIONS.length} href="/admin/content/curations" />
-            <AdminStat label="피플" value={PEOPLE.length} href="/admin/content/people" />
+            <AdminStat label="공간 콘텐츠" value={edSpaces.length} hint={`발행 ${published(edSpaces)} · 초안 ${drafts(edSpaces)}`} href="/admin/content/spaces" />
+            <AdminStat label="큐레이션" value={edCurations.length} hint={`발행 ${published(edCurations)} · 초안 ${drafts(edCurations)}`} href="/admin/content/curations" />
+            <AdminStat label="피플" value={edPeople.length} hint={`발행 ${published(edPeople)} · 초안 ${drafts(edPeople)}`} href="/admin/content/people" />
           </div>
           <div className="a-card px-4 py-3 flex items-center justify-between gap-3 text-sm">
             <span>새 홈페이지 공개 상태</span>
             {ENABLE_EDITORIAL_HOME ? <StatusBadge tone="live">전체 공개</StatusBadge> : <StatusBadge tone="draft">관리자 미리보기</StatusBadge>}
           </div>
-          <AdminSection title="최근 콘텐츠" description="현재 src/content/ 정적 데이터 기준입니다(CMS 준비 중).">
+          <AdminSection title="최근 수정한 콘텐츠">
+            {recentContent.length === 0 ? (
+              <EmptyState title="아직 큐레이션·피플 콘텐츠가 없습니다" />
+            ) : (
             <ul className="a-card divide-y" style={{ borderColor: "var(--a-line)" }}>
               {recentContent.map((c) => (
                 <li key={c.key} style={{ borderColor: "var(--a-line)" }}>
@@ -95,11 +105,12 @@ export default async function AdminOverviewPage() {
                       <p className="text-[11px]" style={{ color: "var(--a-dim)" }}>{c.label}</p>
                       <p className="text-sm truncate">{c.title}</p>
                     </div>
-                    <StatusBadge tone="static">STATIC</StatusBadge>
+                    <EditorialStatusBadge status={c.status} />
                   </Link>
                 </li>
               ))}
             </ul>
+            )}
           </AdminSection>
         </div>
 

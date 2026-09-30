@@ -1,43 +1,49 @@
-import Link from "next/link";
+import type { Prisma } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 import { requireAdminPage } from "@/lib/adminGuard";
-import { getCurations, formatCurationNumber } from "@/content/curations";
-import { getSpacesBySlugs } from "@/content/spaces";
-import { FEATURED_CURATION_SLUG } from "@/content/site";
-import { AdminPageHeader, AdminTable, NotReady, StatusBadge, adminButtonClass } from "@/components/admin/ui";
+import { curationLabel } from "@/lib/editorial/types";
+import DocListPage, { statusCounts } from "@/components/admin/editorial/DocListPage";
+import { parseStatusFilter } from "@/components/admin/editorial/StatusTabs";
 
-/** CONTENT › 큐레이션 — src/content/curations.ts 읽기 전용 목록. */
-export default async function AdminContentCurationsPage() {
+interface Props {
+  searchParams: Promise<{ q?: string; status?: string }>;
+}
+
+/** CONTENT › 큐레이션 — 공간 콘텐츠를 하나의 관점(주로 지역 × 관점)으로 묶는 홈페이지 콘텐츠. */
+export default async function AdminContentCurationsPage({ searchParams }: Props) {
   await requireAdminPage();
-  const curations = getCurations();
+  const { q: qRaw, status: statusRaw } = await searchParams;
+  const q = qRaw?.trim() ?? "";
+  const filter = parseStatusFilter(statusRaw);
+  const search: Prisma.EditorialCurationWhereInput = q
+    ? { OR: [{ title: { contains: q, mode: "insensitive" } }, { area: { contains: q, mode: "insensitive" } }, { slug: { contains: q, mode: "insensitive" } }] }
+    : {};
+
+  const [rows, groups, home] = await Promise.all([
+    prisma.editorialCuration.findMany({
+      where: { ...search, ...(filter === "ALL" ? {} : { status: filter }) },
+      orderBy: { number: "desc" },
+      include: { _count: { select: { spaces: true } } },
+    }),
+    prisma.editorialCuration.groupBy({ by: ["status"], where: search, _count: { _all: true } }),
+    prisma.editorialHomeSettings.findUnique({ where: { id: "home" }, select: { featuredCurationId: true } }),
+  ]);
 
   return (
-    <>
-      <AdminPageHeader
-        area="content"
-        title="큐레이션"
-        description="지역 하나를 하나의 관점으로 묶는 홈페이지 콘텐츠입니다. 선정 공간은 '공간 콘텐츠'를 참조합니다."
-      />
-      <div className="mb-5"><NotReady description="현재는 src/content/curations.ts 정적 데이터를 읽기 전용으로 보여줍니다. 새 큐레이션 작성·블록 편집·발행은 CMS 단계에서 제공됩니다." /></div>
-      <AdminTable head={["번호", "지역 · 제목", "공간", "발행일", "상태", ""]} minWidth={760}>
-        {curations.map((c) => (
-          <tr key={c.slug}>
-            <td className="text-xs tabular-nums whitespace-nowrap" style={{ color: "var(--a-dim)" }}>{formatCurationNumber(c.number)}</td>
-            <td>
-              <p className="font-semibold">{c.region}</p>
-              <p className="text-xs mt-0.5" style={{ color: "var(--a-dim)" }}>{c.title}</p>
-            </td>
-            <td className="text-xs" style={{ color: "var(--a-dim)" }}>{getSpacesBySlugs(c.spaceSlugs).map((s) => s.name).join(", ")}</td>
-            <td className="text-xs tabular-nums" style={{ color: "var(--a-dim)" }}>{c.publishedAt.replaceAll("-", ".")}</td>
-            <td className="space-x-1 whitespace-nowrap">
-              <StatusBadge tone="static">STATIC</StatusBadge>
-              {c.slug === FEATURED_CURATION_SLUG && <StatusBadge tone="neutral">홈 대표</StatusBadge>}
-            </td>
-            <td className="text-right">
-              <Link href={`/curation/${c.slug}`} target="_blank" className={adminButtonClass("ghost", "sm")}>보기 ↗</Link>
-            </td>
-          </tr>
-        ))}
-      </AdminTable>
-    </>
+    <DocListPage
+      kind="curations"
+      title="큐레이션"
+      description="공간 콘텐츠 여러 곳을 하나의 관점으로 묶는 홈페이지 콘텐츠입니다. 주 운영 방식은 '지역 × 하나의 관점'이고, 지역 없는 주제형도 만들 수 있어요."
+      newLabel="+ 새 큐레이션"
+      searchPlaceholder="제목, 지역, slug"
+      publicBase="/curation"
+      q={q}
+      filter={filter}
+      counts={statusCounts(groups)}
+      rows={rows.map((c) => ({
+        id: c.id, slug: c.slug, numberLabel: curationLabel({ number: c.number, area: c.area }), title: c.title,
+        spaceCount: c._count.spaces, status: c.status, updatedAt: c.updatedAt, homeFeatured: home?.featuredCurationId === c.id,
+      }))}
+    />
   );
 }
