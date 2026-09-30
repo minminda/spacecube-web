@@ -6,8 +6,9 @@
 
 import type { EditorialCuration, EditorialPerson, EditorialSpace, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { readStoredBlocks, readStoredFeed, collectBlockSpaceIds } from "./input";
-import type { CurationView, LinkedSpace, PersonView, ResolvedImage, SpaceView, EditorialBlock } from "./types";
+import { readStoredBlocks, collectBlockSpaceIds } from "./input";
+import type { ContentItem, CurationView, LinkedSpace, PersonView, ResolvedImage, SpaceView, EditorialBlock } from "./types";
+import { curationLabel, formatEditorialDate, formatPeopleNumber, spaceCoverImage, spaceHref } from "./types";
 
 export interface Visibility {
   preview?: boolean;
@@ -171,53 +172,56 @@ export async function getStoriesForSpace(spaceId: string) {
   return { curations: curations.map((c) => toCurationView(c)), people: people.map((p) => toPersonView(p)) };
 }
 
-/* ── 홈 ── */
+/* ── HOME 콘텐츠 스트림 ─────────────────────────────────────────────────
+   CURATION / PEOPLE / SPACE를 하나의 목록으로 합쳐 publishedAt DESC로 정렬한다. HOME은 이 규칙으로만
+   자동 구성된다(발행하면 곧바로 LATEST·FEED에 반영, 별도 홈 편집 없음).
+   - 기본: PUBLISHED만.
+   - { preview: true }: 초안까지 포함(관리자 미리보기·로컬 개발 전용 — 호출부가 판단). 보관은 항상 제외.
+     초안은 publishedAt이 없으므로 updatedAt으로 정렬한다. ── */
 
-export type HomeFeedEntry =
-  | { kind: "curation"; curation: CurationView }
-  | { kind: "person"; person: PersonView }
-  | { kind: "space"; space: SpaceView; headline?: string };
-
-export interface HomeData {
-  hero: SpaceView | null;
-  featuredCuration: CurationView | null;
-  featuredSpaces: SpaceView[];
-  feed: HomeFeedEntry[];
-}
-
-/** 홈 노출 데이터 — 설정에 지정돼 있어도 발행 상태가 아닌 콘텐츠는 빠진다. */
-export async function getHomeData(): Promise<HomeData> {
-  const settings = await prisma.editorialHomeSettings.findUnique({ where: { id: "home" } });
-  if (!settings) return { hero: null, featuredCuration: null, featuredSpaces: [], feed: [] };
-
-  const feedItems = readStoredFeed(settings.feed);
-  const spaceIds = [
-    settings.heroSpaceId ?? "",
-    ...settings.featuredSpaceIds,
-    ...feedItems.flatMap((f) => (f.kind === "space" ? [f.id] : [])),
-  ];
-  const curationIds = [settings.featuredCurationId ?? "", ...feedItems.flatMap((f) => (f.kind === "curation" ? [f.id] : []))].filter(Boolean);
-  const personIds = feedItems.flatMap((f) => (f.kind === "person" ? [f.id] : []));
-
+export async function listContentStream(v?: Visibility): Promise<ContentItem[]> {
+  const where = v?.preview ? { status: { in: ["PUBLISHED" as const, "DRAFT" as const] } } : { status: "PUBLISHED" as const };
   const [spaces, curations, people] = await Promise.all([
-    getSpacesByIds(spaceIds),
-    prisma.editorialCuration.findMany({ where: { id: { in: curationIds }, status: "PUBLISHED" }, include: { spaces: linkInclude } }),
-    prisma.editorialPerson.findMany({ where: { id: { in: personIds }, status: "PUBLISHED" }, include: { spaces: linkInclude } }),
+    prisma.editorialSpace.findMany({ where }),
+    prisma.editorialCuration.findMany({ where, include: { spaces: linkInclude } }),
+    prisma.editorialPerson.findMany({ where, include: { spaces: linkInclude } }),
   ]);
-  const curationMap = new Map(curations.map((c) => [c.id, toCurationView(c)]));
-  const personMap = new Map(people.map((p) => [p.id, toPersonView(p)]));
 
-  const feed: HomeFeedEntry[] = feedItems.flatMap((f): HomeFeedEntry[] => {
-    if (f.kind === "curation") { const c = curationMap.get(f.id); return c ? [{ kind: "curation", curation: c }] : []; }
-    if (f.kind === "person") { const p = personMap.get(f.id); return p ? [{ kind: "person", person: p }] : []; }
-    const s = spaces.get(f.id);
-    return s ? [{ kind: "space", space: s, headline: f.headline }] : [];
-  });
+  const sortTime = (r: { publishedAt: Date | null; updatedAt: Date }) => (r.publishedAt ?? r.updatedAt).getTime();
+  const rows: { t: number; created: number; item: ContentItem }[] = [];
 
-  return {
-    hero: settings.heroSpaceId ? spaces.get(settings.heroSpaceId) ?? null : null,
-    featuredCuration: settings.featuredCurationId ? curationMap.get(settings.featuredCurationId) ?? null : null,
-    featuredSpaces: settings.featuredSpaceIds.flatMap((id) => spaces.get(id) ?? []),
-    feed,
-  };
+  for (const r of curations) {
+    const c = toCurationView(r, v);
+    rows.push({
+      t: sortTime(r), created: r.createdAt.getTime(),
+      item: {
+        key: `curation-${c.id}`, kind: "curation", eyebrow: curationLabel(c), title: c.title, summary: c.summary,
+        meta: c.spaces.length ? (c.area ? `${c.area}에서 발견한 ${c.spaces.length}개의 공간` : `공간 ${c.spaces.length}곳`) : undefined,
+        href: `/curation/${c.slug}`, image: c.cover, date: formatEditorialDate(c.publishedAt), status: c.status,
+      },
+    });
+  }
+  for (const r of people) {
+    const p = toPersonView(r, v);
+    rows.push({
+      t: sortTime(r), created: r.createdAt.getTime(),
+      item: {
+        key: `person-${p.id}`, kind: "person", eyebrow: p.subject ? `${formatPeopleNumber(p.number)} · ${p.subject}` : formatPeopleNumber(p.number),
+        title: p.title, summary: p.summary, href: `/people/${p.slug}`, image: p.cover, date: formatEditorialDate(p.publishedAt), status: p.status,
+      },
+    });
+  }
+  for (const r of spaces) {
+    const s = toSpaceView(r);
+    rows.push({
+      t: sortTime(r), created: r.createdAt.getTime(),
+      item: {
+        key: `space-${s.id}`, kind: "space", eyebrow: [s.area, s.category].filter(Boolean).join(" · "), title: s.name, summary: s.summary,
+        href: spaceHref(s.slug), image: spaceCoverImage(s), date: formatEditorialDate(r.publishedAt), status: s.status,
+      },
+    });
+  }
+  // 최신 발행 순, 같은 시각이면 먼저 만든 것이 앞(등록 순서 유지)
+  rows.sort((a, b) => b.t - a.t || a.created - b.created);
+  return rows.map((r) => r.item);
 }

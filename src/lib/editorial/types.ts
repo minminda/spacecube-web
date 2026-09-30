@@ -142,3 +142,30 @@ export function formatEditorialDate(d: Date | string | null | undefined): string
   const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit" }).format(date);
   return parts.replaceAll("-", ".");
 }
+
+/* ── HOME 콘텐츠 스트림(CURATION / PEOPLE / SPACE 통합) ── */
+
+export type ContentKind = "curation" | "person" | "space";
+
+export const CONTENT_KIND_LABEL: Record<ContentKind, string> = {
+  curation: "CURATION",
+  person: "PEOPLE",
+  space: "SPACE",
+};
+
+/** HOME LATEST·FEED가 쓰는 공통 카드 데이터(직렬화 가능 — 클라이언트 컴포넌트로 전달). */
+export interface ContentItem {
+  key: string;
+  kind: ContentKind;
+  /** 예: "CURATION 001 · 연남", "PEOPLE 001", "연남동 · 독립서점" */
+  eyebrow: string;
+  title: string;
+  summary?: string;
+  /** 보조 정보 — 예: "연남에서 발견한 3개의 공간" */
+  meta?: string;
+  href: string;
+  image: ResolvedImage;
+  /** 표시용 발행일(KST, "2026.09.30") — 초안 미리보기는 빈 문자열 */
+  date: string;
+  status: EditorialStatusValue;
+}

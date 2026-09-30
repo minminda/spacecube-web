@@ -19,14 +19,13 @@ export default async function AdminContentCurationsPage({ searchParams }: Props)
     ? { OR: [{ title: { contains: q, mode: "insensitive" } }, { area: { contains: q, mode: "insensitive" } }, { slug: { contains: q, mode: "insensitive" } }] }
     : {};
 
-  const [rows, groups, home] = await Promise.all([
+  const [rows, groups] = await Promise.all([
     prisma.editorialCuration.findMany({
       where: { ...search, ...(filter === "ALL" ? {} : { status: filter }) },
       orderBy: { number: "desc" },
       include: { _count: { select: { spaces: true } } },
     }),
     prisma.editorialCuration.groupBy({ by: ["status"], where: search, _count: { _all: true } }),
-    prisma.editorialHomeSettings.findUnique({ where: { id: "home" }, select: { featuredCurationId: true } }),
   ]);
 
   return (
@@ -42,7 +41,7 @@ export default async function AdminContentCurationsPage({ searchParams }: Props)
       counts={statusCounts(groups)}
       rows={rows.map((c) => ({
         id: c.id, slug: c.slug, numberLabel: curationLabel({ number: c.number, area: c.area }), title: c.title,
-        spaceCount: c._count.spaces, status: c.status, updatedAt: c.updatedAt, homeFeatured: home?.featuredCurationId === c.id,
+        spaceCount: c._count.spaces, status: c.status, updatedAt: c.updatedAt,
       }))}
     />
   );

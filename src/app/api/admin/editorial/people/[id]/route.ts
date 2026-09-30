@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { collectBlockSpaceIds, parsePersonInput } from "@/lib/editorial/input";
-import { findPersonReferences } from "@/lib/editorial/references";
 import { badRequest, missingSpaceIds, prismaErrorResponse, readJson, requireAdminApi } from "@/lib/editorial/adminApi";
 
 export const dynamic = "force-dynamic";
@@ -36,7 +35,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
   }
 }
 
-/** 영구 삭제 — 보관(ARCHIVED) 상태이고 홈 설정에서 참조되지 않을 때만. 연결 공간 행만 함께 지워지고 공간 자체는 남는다. */
+/** 영구 삭제 — 보관(ARCHIVED) 상태일 때만(다른 콘텐츠가 참조하지 않는 유형). 연결 공간 행만 함께 지워지고 공간 자체는 남는다. */
 export async function DELETE(_req: Request, { params }: Ctx) {
   const denied = await requireAdminApi();
   if (denied) return denied;
@@ -46,10 +45,6 @@ export async function DELETE(_req: Request, { params }: Ctx) {
   if (!row) return NextResponse.json({ error: "콘텐츠를 찾을 수 없어요." }, { status: 404 });
   if (row.status !== "ARCHIVED") return NextResponse.json({ error: "보관된 콘텐츠만 영구 삭제할 수 있어요. 먼저 보관해주세요." }, { status: 409 });
 
-  const references = await findPersonReferences(id);
-  if (references.length > 0) {
-    return NextResponse.json({ error: "홈페이지 설정에서 사용 중이라 삭제할 수 없어요.", references }, { status: 409 });
-  }
   await prisma.editorialPerson.delete({ where: { id } });
   return NextResponse.json({ ok: true });
 }
