@@ -1,5 +1,4 @@
 import { redirect, notFound } from "next/navigation";
-import Link from "next/link";
 import { auth } from "@/auth";
 import { isAdmin } from "@/lib/admin";
 import { prisma } from "@/lib/prisma";
@@ -7,6 +6,7 @@ import { GuestbookSessionStatus } from "@prisma/client";
 import { ENABLE_GUESTBOOK_IMAGE } from "@/lib/pilotFlags";
 import { normalizeCanvasSettingsRow } from "@/lib/guestbookSettingsInput";
 import GuestbookEditor from "@/components/guestbook/GuestbookEditor";
+import { AdminPageHeader } from "@/components/admin/ui";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -102,19 +102,12 @@ export default async function GuestbookAdminRoutePage({ params }: Props) {
   const settings = normalizeCanvasSettingsRow(settingsRow);
 
   return (
-    <main className="flex flex-col min-h-screen px-6 py-8 gap-6">
-      <div className="space-y-1" style={{ color: "var(--dim)" }}>
-        <div className="flex justify-between">
-          <p className="text-xs">공간큐브 / ADMIN / GUESTBOOK</p>
-          <Link href="/admin" className="text-xs" style={{ color: "var(--dim)" }}>&lt; admin</Link>
-        </div>
-        <p className="text-xs">─────────────────────────────</p>
-      </div>
+    <main className="flex flex-col gap-6">
 
-      <div className="space-y-1">
-        <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>방명록 관리</p>
-        <h1 className="text-xl font-bold">{space.name}</h1>
-      </div>
+      <AdminPageHeader
+        title="방명록"
+        description="실제 방문자가 남기는 방명록의 질문·화면 설정·기록을 관리합니다. 운영자 화면(/operator)과 같은 편집기를 사용합니다."
+      />
 
       <GuestbookEditor
         role="admin"

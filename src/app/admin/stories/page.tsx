@@ -30,7 +30,7 @@ export default async function StoriesAdminPage() {
         className="block text-sm py-2 px-4 border hover:bg-[var(--fg)] hover:text-[var(--bg)] transition-colors"
         style={{ borderColor: "var(--fg)" }}
       >
-        [[ + 새 스토리 작성 ]]
+        + 새 스토리 작성
       </Link>
 
       {stories.length === 0 ? (
@@ -50,7 +50,7 @@ export default async function StoriesAdminPage() {
             >
               <div className="space-y-1 text-xs" style={{ color: "var(--dim)" }}>
                 <div className="flex justify-between items-start">
-                  <p style={{ color: "var(--fg)" }}>&gt; {story.title}</p>
+                  <p style={{ color: "var(--fg)" }}>{story.title}</p>
                   <div className="flex gap-2 ml-2 flex-shrink-0">
                     <span className="border px-1.5 py-0.5" style={{ borderColor: "var(--border)" }}>
                       {story.type === "REGION" ? "지역" : "취향"}

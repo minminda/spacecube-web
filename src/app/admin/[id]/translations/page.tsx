@@ -1,11 +1,11 @@
 import { notFound, redirect } from "next/navigation";
-import Link from "next/link";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { isAdmin } from "@/lib/admin";
 import { ENABLE_MULTILINGUAL } from "@/lib/pilotFlags";
 import { computeSourceHash } from "@/lib/translate";
 import TranslationManager, { type EpisodeView, type SpaceTranslationView } from "./TranslationManager";
+import { AdminPageHeader } from "@/components/admin/ui";
 
 interface Props { params: Promise<{ id: string }> }
 
@@ -28,7 +28,7 @@ export default async function SpaceTranslationsPage({ params }: Props) {
 
   const { id: spaceId } = await params;
   // 파일럿 기간 다국어 비활성 — 번역 관리 화면 자체를 막고 관리자 목록으로 돌려보낸다.
-  if (!ENABLE_MULTILINGUAL) redirect("/admin");
+  if (!ENABLE_MULTILINGUAL) redirect("/admin/spaces");
 
   const space = await prisma.space.findUnique({ where: { id: spaceId } });
   if (!space) notFound();
@@ -87,19 +87,9 @@ export default async function SpaceTranslationsPage({ params }: Props) {
   });
 
   return (
-    <main className="flex flex-col min-h-screen px-6 py-8 gap-6">
-      <div className="space-y-1" style={{ color: "var(--dim)" }}>
-        <div className="flex justify-between">
-          <p className="text-xs">공간큐브 / ADMIN / 다국어</p>
-          <Link href="/admin" className="text-xs" style={{ color: "var(--dim)" }}>&lt; admin</Link>
-        </div>
-        <p className="text-xs">─────────────────────────────</p>
-      </div>
+    <main className="flex flex-col gap-6">
 
-      <div className="space-y-1">
-        <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>다국어 공간 페이지</p>
-        <h1 className="text-xl font-bold">{space.name}</h1>
-      </div>
+      <AdminPageHeader title="다국어" description="현장 공간 페이지와 에피소드의 번역을 관리합니다." />
 
       <TranslationManager
         spaceId={space.id}

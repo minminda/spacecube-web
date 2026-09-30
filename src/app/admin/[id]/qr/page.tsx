@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { isAdmin } from "@/lib/admin";
 import { getCubeUrl } from "@/lib/cube";
 import CubeQR from "@/components/CubeQR";
+import { AdminPageHeader, adminButtonClass } from "@/components/admin/ui";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -22,55 +23,39 @@ export default async function QRPage({ params }: Props) {
   if (!space) notFound();
 
   return (
-    <main className="flex flex-col min-h-screen px-6 py-8 gap-6">
-      <div className="space-y-1" style={{ color: "var(--dim)" }}>
-        <div className="flex justify-between">
-          <p className="text-xs">공간큐브 / QR</p>
-          <Link href="/admin" className="text-xs" style={{ color: "var(--dim)" }}>&lt; back</Link>
-        </div>
-        <p className="text-xs">─────────────────────────────</p>
-      </div>
+    <main className="flex flex-col gap-6">
 
-      <div className="space-y-1 text-xs" style={{ color: "var(--dim)" }}>
-        <p>&gt; {space.name}</p>
-        <p>// 이 공간에 연결된 큐브 QR</p>
-      </div>
+      <AdminPageHeader title="QR" description="이 운영 공간에 연결된 큐브의 QR입니다. 연결 변경·해제는 큐브 관리에서 합니다." />
 
       {space.cube ? (
         <>
-          <div className="flex flex-col items-center p-6 border gap-6" style={{ borderColor: "var(--border)" }}>
+          <div className="a-card flex flex-col items-center p-6 gap-6 max-w-md">
             <CubeQR url={getCubeUrl(space.cube.code)} code={space.cube.code} size={220} showActions />
           </div>
 
-          <div className="space-y-2 text-xs" style={{ color: "var(--dim)" }}>
-            <p>&gt; 사용 방법</p>
-            <p>  1. QR 다운로드 후 인쇄</p>
-            <p>  2. 공간 안 큐브 옆에 두기</p>
-            <p>  3. 방문자가 스캔하면 공간 페이지로 연결</p>
+          <div className="grid gap-4 sm:grid-cols-2 max-w-2xl">
+            <div className="a-card p-4 space-y-2">
+              <p className="a-eyebrow">사용 방법</p>
+              <ol className="text-sm space-y-1 list-decimal pl-4" style={{ color: "var(--a-dim)" }}>
+                <li>QR 다운로드 후 인쇄</li>
+                <li>공간 안 큐브 옆에 두기</li>
+                <li>방문자가 스캔하면 공간 페이지로 연결</li>
+              </ol>
+            </div>
+            <div className="a-card p-4 space-y-2">
+              <p className="a-eyebrow">큐브 코드</p>
+              <p className="text-lg font-mono font-semibold break-all">{space.cube.code}</p>
+              <Link href="/admin/cubes" className={adminButtonClass("secondary", "sm")}>큐브 관리에서 연결 변경/해제 →</Link>
+            </div>
           </div>
-
-          <div className="p-3 border space-y-1" style={{ borderColor: "var(--border)" }}>
-            <p className="text-xs" style={{ color: "var(--dim)" }}>// 큐브 코드</p>
-            <p className="text-xs font-mono break-all">{space.cube.code}</p>
-          </div>
-
-          <Link href="/admin/cubes" className="text-xs underline underline-offset-2" style={{ color: "var(--dim)" }}>
-            큐브 관리 페이지에서 연결 변경/해제 →
-          </Link>
         </>
       ) : (
-        <div className="p-6 border space-y-3" style={{ borderColor: "var(--border)" }}>
+        <div className="a-card p-6 space-y-3 max-w-xl">
           <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>
             이 공간에는 아직 큐브가 연결되지 않았습니다.<br />
             큐브 관리 페이지에서 큐브를 생성하고 이 공간에 연결해주세요.
           </p>
-          <Link
-            href="/admin/cubes"
-            className="inline-block text-sm px-4 py-2 border hover:bg-[var(--fg)] hover:text-[var(--bg)] transition-colors"
-            style={{ borderColor: "var(--fg)" }}
-          >
-            [[ 큐브 관리로 이동 ]]
-          </Link>
+          <Link href="/admin/cubes" className={adminButtonClass("primary")}>큐브 관리로 이동</Link>
         </div>
       )}
     </main>

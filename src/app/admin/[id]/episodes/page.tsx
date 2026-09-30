@@ -1,9 +1,9 @@
 import { redirect, notFound } from "next/navigation";
-import Link from "next/link";
 import { auth } from "@/auth";
 import { isAdmin } from "@/lib/admin";
 import { prisma } from "@/lib/prisma";
 import EpisodeList from "./EpisodeList";
+import { AdminPageHeader } from "@/components/admin/ui";
 
 interface Props { params: Promise<{ id: string }> }
 
@@ -26,19 +26,12 @@ export default async function SpaceEpisodesPage({ params }: Props) {
   });
 
   return (
-    <main className="flex flex-col min-h-screen px-6 py-8 gap-6">
-      <div className="space-y-1" style={{ color: "var(--dim)" }}>
-        <div className="flex justify-between">
-          <p className="text-xs">공간큐브 / ADMIN / EPISODES</p>
-          <Link href="/admin" className="text-xs" style={{ color: "var(--dim)" }}>&lt; admin</Link>
-        </div>
-        <p className="text-xs">─────────────────────────────</p>
-      </div>
+    <main className="flex flex-col gap-6">
 
-      <div className="space-y-1">
-        <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>에피소드 관리</p>
-        <h1 className="text-xl font-bold">{space.name}</h1>
-      </div>
+      <AdminPageHeader
+        title="에피소드"
+        description="QR로 이 공간에 들어온 방문자가 읽는 운영자의 이야기입니다. 순서·발행 여부·대표 에피소드를 관리합니다."
+      />
 
       <EpisodeList
         spaceId={space.id}

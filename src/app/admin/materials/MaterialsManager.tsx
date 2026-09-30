@@ -146,7 +146,7 @@ export default function MaterialsManager({ baseUrl, initialMaterials }: Props) {
   return (
     <div className="space-y-6">
       <div className="p-4 border space-y-3" style={{ borderColor: "var(--border)" }}>
-        <p className="text-xs" style={{ color: "var(--dim)" }}>&gt; 새 자료 업로드</p>
+        <p className="text-xs" style={{ color: "var(--dim)" }}>새 자료 업로드</p>
         <input
           type="text"
           value={title}
@@ -196,13 +196,13 @@ export default function MaterialsManager({ baseUrl, initialMaterials }: Props) {
       </div>
 
       {materials.length === 0 ? (
-        <p className="text-sm" style={{ color: "var(--dim)" }}>&gt; 업로드된 자료가 없어.</p>
+        <p className="text-sm" style={{ color: "var(--dim)" }}>업로드된 자료가 없어.</p>
       ) : (
         <div className="space-y-3">
           {materials.map((m) => (
             <div key={m.id} className="p-4 border space-y-3" style={{ borderColor: "var(--border)" }}>
               <div className="space-y-1 text-xs" style={{ color: "var(--dim)" }}>
-                <p style={{ color: "var(--fg)" }}>&gt; {m.title}</p>
+                <p style={{ color: "var(--fg)" }}>{m.title}</p>
                 <p>파일     : {m.originalFileName} ({formatFileSize(m.fileSize)})</p>
                 <p className="break-all">
                   링크     : <a href={publicUrl(m.slug)} target="_blank" rel="noopener noreferrer" style={{ color: "var(--fg)" }}>{publicUrl(m.slug)}</a>

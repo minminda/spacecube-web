@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import ImageCropDialog from "@/components/ImageCropDialog";
 import { normalizeSlug, isValidSlug } from "@/lib/slug";
+import { AdminPageHeader, AdminFormField, adminButtonClass } from "@/components/admin/ui";
 
 interface SpaceData {
   id: string;
@@ -245,7 +246,7 @@ export default function SpaceForm({ mode, space, categories, existingTagLinks }:
       setLoading(false);
       return;
     }
-    router.push("/admin");
+    router.push("/admin/spaces");
     router.refresh();
   }
 
@@ -259,21 +260,23 @@ export default function SpaceForm({ mode, space, categories, existingTagLinks }:
   const SHOW_OWNER_NOTE_INPUTS = false;
 
   return (
-    <main className="flex flex-col min-h-screen px-6 py-8 gap-6">
-      <div className="flex justify-between items-center">
-        <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>
-          {mode === "new" ? "새 공간 등록" : "공간 수정"}
-        </p>
-        <button onClick={() => router.back()} className="text-xs" style={{ color: "var(--dim)" }}>← 뒤로</button>
-      </div>
+    <main className="flex flex-col gap-6">
+      {mode === "new" ? (
+        <AdminPageHeader
+          area="cube"
+          breadcrumb={[{ label: "운영 공간", href: "/admin/spaces" }]}
+          title="운영 공간 등록"
+          description="실제 GONGGANCUBE가 설치될 공간을 등록합니다. 등록 후 큐브를 연결하고 에피소드를 만들 수 있어요."
+        />
+      ) : (
+        <AdminPageHeader title="정보" description="운영 공간의 기본 정보·분류·운영자 접근 비밀번호를 관리합니다." />
+      )}
 
-      <div style={{ borderTop: "1px solid var(--border)" }} />
-
-      <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-8 max-w-2xl">
 
         {/* 대표 이미지 — 파일 선택 직후 가로 Hero 비율(16:11) crop box로 실제 잘라내기 */}
+        <FormSection title="대표 이미지" description="현장 공간 페이지 상단에 보이는 사진입니다(16:11로 잘라서 올라갑니다). 선택 항목이에요.">
         <div className="space-y-2">
-          <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>대표 이미지 (선택)</p>
           {heroImageUrl && (
             <div className="relative w-full overflow-hidden border" style={{ borderColor: "var(--border)", aspectRatio: "16 / 11" }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -281,7 +284,7 @@ export default function SpaceForm({ mode, space, categories, existingTagLinks }:
             </div>
           )}
           <div className="flex gap-3">
-            <label className="text-xs py-2 px-3 text-center border cursor-pointer transition-colors hover:bg-[var(--fg)] hover:text-[var(--bg)]" style={{ borderColor: "var(--border)", color: "var(--dim)" }}>
+            <label className={`${adminButtonClass("secondary", "sm")} cursor-pointer`}>
               {heroUploading ? "업로드 중..." : heroImageUrl ? "이미지 교체" : "사진 선택"}
               <input
                 type="file"
@@ -296,17 +299,13 @@ export default function SpaceForm({ mode, space, categories, existingTagLinks }:
               />
             </label>
             {heroImageUrl && (
-              <button
-                type="button"
-                onClick={() => setHeroImageUrl("")}
-                className="text-xs px-3 py-2 border transition-colors hover:border-red-500 hover:text-red-500"
-                style={{ borderColor: "var(--border)", color: "var(--dim)" }}
-              >
+              <button type="button" onClick={() => setHeroImageUrl("")} className={adminButtonClass("ghost", "sm")}>
                 삭제
               </button>
             )}
           </div>
         </div>
+        </FormSection>
 
         {pendingHeroFile && (
           <ImageCropDialog
@@ -318,9 +317,7 @@ export default function SpaceForm({ mode, space, categories, existingTagLinks }:
         )}
 
         {/* 기본 정보 */}
-        <div style={{ borderTop: "1px solid var(--border)" }} />
-        <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>기본 정보</p>
-
+        <FormSection title="기본 정보">
         <Field label="공간 이름 *">
           <input name="name" value={form.name} onChange={handleChange} required placeholder="북성로 헌책방"
             className="w-full text-sm px-3 py-2.5 border" style={inputStyle} />
@@ -329,8 +326,11 @@ export default function SpaceForm({ mode, space, categories, existingTagLinks }:
         <Field label="공간 주소 (영문, 하이픈만) *">
           <input name="slug" value={form.slug} onChange={handleChange} required placeholder="bukseong-books"
             className="w-full text-sm px-3 py-2.5 border font-mono" style={inputStyle} />
-          <p className="text-xs mt-1" style={{ color: "var(--dim)" }}>/space/{form.slug || "..."}</p>
+          <p className="text-[11px] mt-1" style={{ color: "var(--dim)" }}>현장 페이지 주소: /space/{form.slug || "..."} — QR 진입 후 도착하는 주소라 운영 중에는 바꾸지 않는 것이 좋아요.</p>
         </Field>
+        </FormSection>
+
+        <FormSection title="분류" description="태그 · 카테고리에서 관리하는 분류입니다. 추천에도 쓰입니다.">
 
         {categories.map((category) => (
           <Field key={category.id} label={`${category.name}${category.selectionType === "SINGLE" ? " *" : " (선택)"}`}>
@@ -339,7 +339,7 @@ export default function SpaceForm({ mode, space, categories, existingTagLinks }:
                 const selected = selectedTagIds.has(tag.id);
                 return (
                   <button key={tag.id} type="button" onClick={() => toggleTag(category, tag.id)}
-                    className="px-3 py-1.5 text-xs border transition-colors"
+                    className="px-3 py-1.5 text-xs border rounded-md transition-colors"
                     style={selected
                       ? { borderColor: "var(--fg)", background: "var(--fg)", color: "var(--bg)" }
                       : { borderColor: "var(--border)", color: "var(--dim)" }}>
@@ -354,6 +354,9 @@ export default function SpaceForm({ mode, space, categories, existingTagLinks }:
           </Field>
         ))}
 
+        </FormSection>
+
+        <FormSection title="위치 · 운영 정보">
         <Field label="지역 *">
           <input name="district" value={form.district} onChange={handleChange} required placeholder="예: 망원동"
             className="w-full text-sm px-3 py-2.5 border" style={inputStyle} />
@@ -395,13 +398,15 @@ export default function SpaceForm({ mode, space, categories, existingTagLinks }:
           </>
         )}
 
+        </FormSection>
+
         {mode === "edit" && space && (
           <a
             href={`/admin/${space.id}/episodes`}
-            className="block text-xs py-2.5 px-3 border transition-colors hover:bg-[var(--fg)] hover:text-[var(--bg)]"
-            style={{ borderColor: "var(--border)", color: "var(--dim)" }}
+            className="flex items-center justify-between gap-3 px-4 py-3 rounded-md text-sm transition-colors hover:bg-[#fafafa]"
+            style={{ border: "1px solid var(--border)", color: "var(--dim)" }}
           >
-            방문자에게 보여줄 이야기는 에피소드에서 관리해 →
+            방문자에게 보여줄 이야기는 에피소드 탭에서 관리합니다 <span aria-hidden>→</span>
           </a>
         )}
 
@@ -446,14 +451,13 @@ export default function SpaceForm({ mode, space, categories, existingTagLinks }:
         {/* 운영 접근 설정 */}
         {mode === "edit" && space && (
           <>
-            <div style={{ borderTop: "1px solid var(--border)" }} />
+            <FormSection
+              title="운영 접근 설정"
+              description="이 비밀번호는 해당 공간 운영자가 /operator에서 관리 페이지에 접속할 때 사용합니다. 새 비밀번호를 입력하지 않으면 기존 비밀번호가 유지됩니다."
+            >
             <div className="space-y-3">
-              <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>운영 접근 설정</p>
               <p className="text-xs" style={{ color: "var(--dim)" }}>
-                {space.hasOperatorPin ? "운영 비밀번호가 등록되어 있습니다." : "운영 비밀번호가 등록되어 있지 않습니다."}
-              </p>
-              <p className="text-xs leading-relaxed" style={{ color: "var(--dim)" }}>
-                이 비밀번호는 해당 공간 운영자가 /operator에서 관리 페이지에 접속할 때 사용합니다.
+                {space.hasOperatorPin ? "✓ 운영 비밀번호가 등록되어 있습니다." : "운영 비밀번호가 등록되어 있지 않습니다."}
               </p>
 
               <Field label={space.hasOperatorPin ? "새 비밀번호 (변경 시에만 입력)" : "새 비밀번호 등록"}>
@@ -485,28 +489,46 @@ export default function SpaceForm({ mode, space, categories, existingTagLinks }:
               {newPin.length === 4 && isWeakPin(newPin) && (
                 <p className="text-xs" style={{ color: "#e0a030" }}>너무 쉬운 비밀번호예요. 다른 조합을 권장해요.</p>
               )}
-              {pinError && <p className="text-xs text-red-400">{pinError}</p>}
+              {pinError && <p className="text-xs" style={{ color: "var(--a-danger)" }}>{pinError}</p>}
             </div>
+            </FormSection>
           </>
         )}
 
-        {error && <p className="text-xs text-red-400">{error}</p>}
+        {error && <p className="text-xs" style={{ color: "var(--a-danger)" }}>{error}</p>}
 
-        <button type="submit" disabled={loading}
-          className="w-full text-sm font-medium py-3 border hover:bg-[var(--fg)] hover:text-[var(--bg)] transition-colors disabled:opacity-30"
-          style={{ borderColor: "var(--fg)" }}>
-          {loading ? "저장 중..." : mode === "new" ? "공간 등록하기" : "수정 완료"}
-        </button>
+        {/* 저장 영역 — 관리 폼 공통 위치(하단 고정 바, 오른쪽 정렬) */}
+        <div className="sticky bottom-0 -mx-4 md:mx-0 px-4 md:px-0 py-3 flex justify-end gap-2" style={{ background: "var(--a-bg)", borderTop: "1px solid var(--a-line)" }}>
+          <button type="button" onClick={() => router.back()} className={adminButtonClass("secondary")}>취소</button>
+          <button type="submit" disabled={loading} className={adminButtonClass("primary")}>
+            {loading ? "저장 중..." : mode === "new" ? "운영 공간 등록" : "저장"}
+          </button>
+        </div>
       </form>
     </main>
   );
 }
 
+/** 기존 라벨 표기(" *" = 필수, "(선택)" = 선택)를 그대로 받아 공통 AdminFormField 스타일로 그린다. */
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  const required = /\s\*$/.test(label);
+  const optional = /\(선택\)/.test(label);
+  const clean = label.replace(/\s\*$/, "").replace(/\s*\(선택\)/, "");
   return (
-    <div className="space-y-1.5">
-      <label className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>{label}</label>
+    <AdminFormField label={clean} required={required} optional={optional}>
       {children}
-    </div>
+    </AdminFormField>
+  );
+}
+
+function FormSection({ title, description, children }: { title: string; description?: string; children: React.ReactNode }) {
+  return (
+    <section className="a-card p-5 md:p-6 space-y-5">
+      <div className="space-y-1">
+        <h2 className="text-[15px] font-semibold">{title}</h2>
+        {description && <p className="text-xs leading-relaxed" style={{ color: "var(--a-dim)" }}>{description}</p>}
+      </div>
+      {children}
+    </section>
   );
 }

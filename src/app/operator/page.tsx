@@ -17,7 +17,7 @@ export default async function OperatorPage() {
   }
 
   return (
-    <main className="flex flex-col min-h-screen px-6 py-8">
+    <main className="flex flex-col max-w-md mx-auto w-full pt-4 md:pt-10">
       <OperatorAccessGate />
     </main>
   );

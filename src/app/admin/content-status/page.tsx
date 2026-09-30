@@ -4,6 +4,7 @@ import { auth } from "@/auth";
 import { isAdmin } from "@/lib/admin";
 import { prisma } from "@/lib/prisma";
 import ContentStatusList from "./ContentStatusList";
+import { AdminPageHeader, adminButtonClass } from "@/components/admin/ui";
 
 export default async function ContentStatusPage() {
   const session = await auth();
@@ -22,19 +23,14 @@ export default async function ContentStatusPage() {
   });
 
   return (
-    <main className="flex flex-col min-h-screen px-6 py-8 gap-6">
-      <div className="space-y-1" style={{ color: "var(--dim)" }}>
-        <div className="flex justify-between">
-          <p className="text-xs">공간큐브 / ADMIN / CONTENT STATUS</p>
-          <Link href="/admin" className="text-xs" style={{ color: "var(--dim)" }}>&lt; admin</Link>
-        </div>
-        <p className="text-xs">─────────────────────────────</p>
-      </div>
+    <main className="flex flex-col gap-6">
 
-      <div className="space-y-1">
-        <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>콘텐츠 공개 상태</p>
-        <h1 className="text-xl font-bold">공간 {spaces.length}개 한눈에 보기</h1>
-      </div>
+      <AdminPageHeader
+        area="cube"
+        title="에피소드"
+        description={`운영 공간 ${spaces.length}곳의 공개 상태와 에피소드 발행 상태를 한눈에 보고 바로 전환합니다. 에피소드 본문은 각 운영 공간의 에피소드 탭에서 편집합니다.`}
+        actions={<Link href="/admin/interview" className={adminButtonClass("secondary")}>인터뷰 질문 라이브러리 →</Link>}
+      />
 
       <ContentStatusList spaces={spaces} />
     </main>

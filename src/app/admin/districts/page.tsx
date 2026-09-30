@@ -1,9 +1,9 @@
 import { redirect } from "next/navigation";
-import Link from "next/link";
 import { auth } from "@/auth";
 import { isAdmin } from "@/lib/admin";
 import { prisma } from "@/lib/prisma";
 import DistrictManager from "./DistrictManager";
+import { AdminPageHeader } from "@/components/admin/ui";
 
 export default async function DistrictsAdminPage() {
   const session = await auth();
@@ -21,22 +21,13 @@ export default async function DistrictsAdminPage() {
   const countByName = new Map(spaceCounts.map((s) => [s.district, s._count._all]));
 
   return (
-    <main className="flex flex-col min-h-screen px-6 py-8 gap-6">
-      <div className="space-y-1" style={{ color: "var(--dim)" }}>
-        <div className="flex justify-between">
-          <p className="text-xs">공간큐브 / ADMIN / DISTRICTS</p>
-          <Link href="/admin" className="text-xs" style={{ color: "var(--dim)" }}>&lt; admin</Link>
-        </div>
-        <p className="text-xs">─────────────────────────────</p>
-      </div>
+    <main className="flex flex-col gap-6">
 
-      <div className="space-y-1">
-        <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>지역 관리</p>
-        <h1 className="text-xl font-bold">둘러보기 지도 지역 {districts.length}개</h1>
-        <p className="text-xs" style={{ color: "var(--dim)" }}>
-          SVG 지도 도형 자체는 코드에 고정돼 있어요. 여기서는 마커 위치·줌 설정·노출 상태만 바꿀 수 있습니다.
-        </p>
-      </div>
+      <AdminPageHeader
+        area="system"
+        title="지역"
+        description={`둘러보기 지도의 지역 ${districts.length}개. SVG 지도 도형 자체는 코드에 고정돼 있어요. 여기서는 마커 위치·줌 설정·노출 상태만 바꿀 수 있습니다.`}
+      />
 
       <DistrictManager
         initialDistricts={districts.map((d) => ({

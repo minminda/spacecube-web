@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/useToast";
 import Toast from "@/components/Toast";
+import AdminModal from "@/components/admin/ui/AdminModal";
+import { adminButtonClass } from "@/components/admin/ui";
 
 interface Props {
   spaceId: string;
@@ -35,51 +37,26 @@ export default function DeleteSpaceButton({ spaceId, spaceName }: Props) {
 
   return (
     <>
-      <button
-        onClick={() => setOpen(true)}
-        className="border px-3 py-1 transition-colors hover:border-red-500 hover:text-red-500"
-        style={{ borderColor: "var(--border)", color: "var(--dim)" }}
-      >
-        [삭제]
+      <button type="button" onClick={() => setOpen(true)} className={adminButtonClass("ghost", "sm")}>
+        삭제
       </button>
 
-      {open && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center px-6"
-          style={{ background: "rgba(0,0,0,0.7)" }}
-          onClick={(e) => { if (e.target === e.currentTarget) setOpen(false); }}
-        >
-          <div
-            className="w-full max-w-sm p-6 space-y-5 border"
-            style={{ background: "var(--bg)", borderColor: "var(--border)" }}
-          >
-            <div className="space-y-2">
-              <p className="text-sm font-semibold">정말 이 공간을 삭제하시겠습니까?</p>
-              <p className="text-xs" style={{ color: "var(--dim)" }}>
-                &ldquo;{spaceName}&rdquo;의 모든 기록, 스캔 데이터, 대기자 정보가 함께 삭제됩니다.
-                이 작업은 되돌릴 수 없습니다.
-              </p>
-            </div>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setOpen(false)}
-                disabled={loading}
-                className="flex-1 py-2 text-sm border transition-colors"
-                style={{ borderColor: "var(--border)", color: "var(--dim)" }}
-              >
-                취소
-              </button>
-              <button
-                onClick={handleDelete}
-                disabled={loading}
-                className="flex-1 py-2 text-sm border border-red-500 text-red-500 hover:bg-red-500 hover:text-white transition-colors disabled:opacity-50"
-              >
-                {loading ? "삭제 중..." : "삭제"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <AdminModal
+        open={open}
+        onClose={() => { if (!loading) setOpen(false); }}
+        title="이 운영 공간을 삭제할까요?"
+        footer={
+          <>
+            <button type="button" onClick={() => setOpen(false)} disabled={loading} className={adminButtonClass("secondary")}>취소</button>
+            <button type="button" onClick={handleDelete} disabled={loading} className={adminButtonClass("danger")}>
+              {loading ? "삭제 중..." : "삭제"}
+            </button>
+          </>
+        }
+      >
+        &ldquo;{spaceName}&rdquo;의 모든 기록, 스캔 데이터, 대기자 정보가 함께 삭제됩니다.
+        이 작업은 되돌릴 수 없습니다.
+      </AdminModal>
 
       <Toast message={toast} />
     </>

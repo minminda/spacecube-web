@@ -54,7 +54,7 @@ export default function WaitlistPanel({ spaceId, spaceSlug, initialFullyBooked }
   return (
     <section className="space-y-5">
       <div className="flex items-center justify-between">
-        <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>// 대기 관리</p>
+        <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>대기 관리</p>
         <button
           onClick={toggleFull}
           disabled={toggling}

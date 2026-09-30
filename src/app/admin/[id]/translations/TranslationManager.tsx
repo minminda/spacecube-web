@@ -224,7 +224,7 @@ export default function TranslationManager({
     <div className="flex flex-col gap-8">
       {/* 다국어 사용 설정 */}
       <section className="space-y-4">
-        <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>// 다국어 공간 페이지</p>
+        <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>다국어 공간 페이지</p>
         <div className="flex gap-3">
           <button
             onClick={() => setEnabled(false)}
@@ -290,7 +290,7 @@ export default function TranslationManager({
 
           {/* 번역 생성 대상 언어 선택 (아래 모든 생성 버튼에 공통 적용) */}
           <section className="space-y-3">
-            <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>// 번역 생성 대상 언어</p>
+            <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>번역 생성 대상 언어</p>
             <div className="flex flex-wrap gap-2">
               {locales.map((code) => (
                 <label
@@ -320,7 +320,7 @@ export default function TranslationManager({
           {/* 공간 소개 번역 */}
           <section className="space-y-4">
             <div className="flex justify-between items-center">
-              <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>// 공간 소개 번역</p>
+              <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>공간 소개 번역</p>
               <button
                 onClick={generateSpace}
                 disabled={generating || genLocales.length === 0}
@@ -369,7 +369,7 @@ export default function TranslationManager({
           {/* 에피소드별 번역 */}
           <section className="space-y-4">
             <div className="flex justify-between items-center">
-              <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>// 에피소드별 번역</p>
+              <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>에피소드별 번역</p>
               <button
                 onClick={generateAllEpisodes}
                 disabled={generating || genLocales.length === 0 || episodes.length === 0}

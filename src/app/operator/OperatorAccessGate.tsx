@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { adminButtonClass } from "@/components/admin/ui";
 
 interface SpaceResult {
   slug: string;
@@ -10,7 +11,7 @@ interface SpaceResult {
   type: string;
 }
 
-const inputStyle = { background: "var(--bg)", color: "var(--fg)", borderColor: "var(--border)", outline: "none" };
+const inputStyle = { background: "var(--bg)", color: "var(--fg)", borderColor: "var(--border)", outline: "none", borderRadius: 6 };
 
 export default function OperatorAccessGate() {
   const router = useRouter();
@@ -61,7 +62,8 @@ export default function OperatorAccessGate() {
   return (
     <div className="space-y-6">
       <div className="space-y-1.5">
-        <h1 className="text-xl font-bold">관리할 공간을 찾아주세요.</h1>
+        <p className="a-eyebrow">운영자 입장</p>
+        <h1 className="text-[22px] font-bold tracking-tight">관리할 운영 공간을 찾아주세요.</h1>
         <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>
           공간 이름을 검색한 뒤 등록된 비밀번호를 입력하면 운영 페이지에 들어갈 수 있습니다.
         </p>
@@ -91,7 +93,7 @@ export default function OperatorAccessGate() {
                 key={s.slug}
                 type="button"
                 onClick={() => setSelected(s)}
-                className="w-full text-left p-3 border transition-colors hover:bg-[var(--fg)] hover:text-[var(--bg)]"
+                className="w-full text-left px-4 py-3 border transition-colors hover:bg-[var(--a-soft)]"
                 style={{ borderColor: "var(--border)" }}
               >
                 <p className="text-sm font-medium">{s.name}</p>
@@ -148,13 +150,13 @@ function PinStep({ space, onBack, onSuccess }: { space: SpaceResult; onBack: () 
 
   return (
     <div className="space-y-6">
-      <button type="button" onClick={onBack} className="text-xs" style={{ color: "var(--dim)" }}>
+      <button type="button" onClick={onBack} className={adminButtonClass("ghost", "sm")}>
         ← 다른 공간 선택
       </button>
 
       <div className="space-y-1.5">
         <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>{space.name}</p>
-        <h1 className="text-xl font-bold">운영 비밀번호를 입력해주세요.</h1>
+        <h1 className="text-[22px] font-bold tracking-tight">운영 비밀번호를 입력해주세요.</h1>
         <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>
           관리자에게 전달받은 4자리 비밀번호를 입력하세요.
         </p>
@@ -174,14 +176,13 @@ function PinStep({ space, onBack, onSuccess }: { space: SpaceResult; onBack: () 
         style={inputStyle}
       />
 
-      {error && <p className="text-xs text-red-400">{error}</p>}
+      {error && <p className="text-xs" style={{ color: "var(--a-danger)" }}>{error}</p>}
 
       <button
         type="button"
         onClick={() => verify(pin)}
         disabled={pin.length !== 4 || verifying}
-        className="w-full text-sm font-medium py-3 border hover:bg-[var(--fg)] hover:text-[var(--bg)] transition-colors disabled:opacity-30"
-        style={{ borderColor: "var(--fg)" }}
+        className={`${adminButtonClass("primary")} w-full h-11`}
       >
         {verifying ? "확인 중..." : "확인"}
       </button>

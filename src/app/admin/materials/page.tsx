@@ -1,10 +1,10 @@
 import { redirect } from "next/navigation";
-import Link from "next/link";
 import { auth } from "@/auth";
 import { isAdmin } from "@/lib/admin";
 import { prisma } from "@/lib/prisma";
 import { getBaseUrl } from "@/lib/config";
 import MaterialsManager from "./MaterialsManager";
+import { AdminPageHeader } from "@/components/admin/ui";
 
 export default async function MaterialsAdminPage() {
   const session = await auth();
@@ -14,22 +14,13 @@ export default async function MaterialsAdminPage() {
   const materials = await prisma.material.findMany({ orderBy: { createdAt: "desc" } });
 
   return (
-    <main className="flex flex-col min-h-screen px-6 py-8 gap-6">
-      <div className="space-y-1" style={{ color: "var(--dim)" }}>
-        <div className="flex justify-between">
-          <p className="text-xs">공간큐브 / ADMIN / MATERIALS</p>
-          <Link href="/admin" className="text-xs" style={{ color: "var(--dim)" }}>&lt; admin</Link>
-        </div>
-        <p className="text-xs">─────────────────────────────</p>
-      </div>
+    <main className="flex flex-col gap-6">
 
-      <div className="space-y-1">
-        <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>자료 관리</p>
-        <h1 className="text-xl font-bold">PDF 자료 {materials.length}개</h1>
-        <p className="text-xs" style={{ color: "var(--dim)" }}>
-          설치 안내서, 소개 자료 같은 PDF를 올리면 {getBaseUrl().replace(/^https?:\/\//, "")} 도메인의 공개 링크가 만들어져요.
-        </p>
-      </div>
+      <AdminPageHeader
+        area="cube"
+        title="운영 자료"
+        description={`운영자에게 전달할 설치 안내서·소개 자료 PDF ${materials.length}개. 올리면 ${getBaseUrl().replace(/^https?:\/\//, "")} 도메인의 공개 링크가 만들어져요.`}
+      />
 
       <MaterialsManager
         baseUrl={getBaseUrl()}

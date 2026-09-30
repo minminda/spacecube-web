@@ -43,7 +43,7 @@ export default function MoodPanel({ spaceId, initialMood }: Props) {
   return (
     <section className="space-y-4">
       <div className="flex items-center justify-between">
-        <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>// 지금의 공간 상태</p>
+        <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>지금의 공간 상태</p>
         {mood && (
           <button
             onClick={clear}

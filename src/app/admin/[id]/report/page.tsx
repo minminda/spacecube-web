@@ -1,5 +1,4 @@
 import { notFound, redirect } from "next/navigation";
-import Link from "next/link";
 import { auth } from "@/auth";
 import { isAdmin } from "@/lib/admin";
 import { prisma } from "@/lib/prisma";
@@ -27,6 +26,7 @@ import ReportEmail from "@/components/ReportEmail";
 import DateRangeFilter from "./DateRangeFilter";
 import PrintReportButton from "./PrintReportButton";
 import ReportTabs from "./ReportTabs";
+import { AdminPageHeader } from "@/components/admin/ui";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -103,19 +103,12 @@ export default async function ReportAdminPage({ params, searchParams }: Props) {
   const noRangeData = rangeStats.qrUsers === 0 && rangeExtended.qrScans === 0;
 
   return (
-    <main className="flex flex-col min-h-screen px-6 py-8 gap-8">
-      <div className="no-print space-y-1" style={{ color: "var(--dim)" }}>
-        <div className="flex justify-between">
-          <p className="text-xs">공간큐브 / ADMIN / REPORT</p>
-          <Link href="/admin" className="text-xs" style={{ color: "var(--dim)" }}>&lt; admin</Link>
-        </div>
-        <p className="text-xs">─────────────────────────────</p>
-      </div>
-
-      <div className="no-print space-y-1">
-        <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>운영 리포트</p>
-        <h1 className="text-xl font-bold">{space.name}</h1>
-      </div>
+    <main className="flex flex-col gap-8 print:px-6 print:py-8">
+      {/* 인쇄(PDF) 시에는 관리자 개편 이전과 같은 여백(px-6 py-8)을 유지한다 */}
+      <AdminPageHeader
+        title="KPI / 운영 리포트"
+        description="기간을 선택해 방문자 퍼널과 KPI를 확인하고, 운영자에게 전달할 리포트를 PDF로 저장합니다."
+      />
 
       <ReportTabs spaceId={space.id} active="core" from={range.from} to={range.to} />
 

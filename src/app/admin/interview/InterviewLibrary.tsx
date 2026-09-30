@@ -375,7 +375,7 @@ export default function InterviewLibrary({ initialEpisodeTemplates }: Props) {
       </div>
 
       {templates.length === 0 ? (
-        <p className="text-sm" style={{ color: "var(--dim)" }}>&gt; 아직 등록된 에피소드가 없어. 위에서 추가해봐.</p>
+        <p className="text-sm" style={{ color: "var(--dim)" }}>아직 등록된 에피소드가 없어. 위에서 추가해봐.</p>
       ) : (
         <div className="space-y-3">
           {templates.map((template, i) => (

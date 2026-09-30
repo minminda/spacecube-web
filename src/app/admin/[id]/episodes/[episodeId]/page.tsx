@@ -1,10 +1,10 @@
 import { redirect, notFound } from "next/navigation";
-import Link from "next/link";
 import { auth } from "@/auth";
 import { isAdmin } from "@/lib/admin";
 import { prisma } from "@/lib/prisma";
 import EpisodeEditor from "./EpisodeEditor";
 import SceneManager from "./SceneManager";
+import { AdminPageHeader } from "@/components/admin/ui";
 
 interface Props { params: Promise<{ id: string; episodeId: string }> }
 
@@ -29,19 +29,13 @@ export default async function EpisodeDetailPage({ params }: Props) {
   if (!space || !episode || episode.spaceId !== spaceId) notFound();
 
   return (
-    <main className="flex flex-col min-h-screen px-6 py-8 gap-8">
-      <div className="space-y-1" style={{ color: "var(--dim)" }}>
-        <div className="flex justify-between">
-          <p className="text-xs">공간큐브 / ADMIN / EPISODES</p>
-          <Link href={`/admin/${spaceId}/episodes`} className="text-xs" style={{ color: "var(--dim)" }}>&lt; 목록</Link>
-        </div>
-        <p className="text-xs">─────────────────────────────</p>
-      </div>
+    <main className="flex flex-col gap-8">
 
-      <div className="space-y-1">
-        <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>{space.name} / EP.{episode.episodeNumber}</p>
-        <h1 className="text-xl font-bold">{episode.title}</h1>
-      </div>
+      <AdminPageHeader
+        breadcrumb={[{ label: "에피소드", href: `/admin/${spaceId}/episodes` }, { label: `EP.${episode.episodeNumber}` }]}
+        title={episode.title}
+        description="에피소드 기본 정보와 Scene(본문 블록)을 편집합니다."
+      />
 
       <EpisodeEditor
         episode={{

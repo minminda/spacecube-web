@@ -1,5 +1,4 @@
 import { notFound, redirect } from "next/navigation";
-import Link from "next/link";
 import { auth } from "@/auth";
 import { isAdmin } from "@/lib/admin";
 import { prisma } from "@/lib/prisma";
@@ -9,6 +8,7 @@ import { safeConversionRate } from "@/lib/reportMetrics";
 import { resolveDateRange, detectActivePreset, formatKstDateParam, toDotFormat, type DateRangePreset } from "@/lib/reportDateRange";
 import DateRangeFilter from "../DateRangeFilter";
 import ReportTabs from "../ReportTabs";
+import { AdminPageHeader } from "@/components/admin/ui";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -57,22 +57,12 @@ export default async function StoryAnalyticsPage({ params, searchParams }: Props
   const episodes = await getStoryDepthForSpace(spaceId, range.start, range.end);
 
   return (
-    <main className="flex flex-col min-h-screen px-6 py-8 gap-8">
-      <div className="space-y-1" style={{ color: "var(--dim)" }}>
-        <div className="flex justify-between">
-          <p className="text-xs">공간큐브 / ADMIN / REPORT / STORY</p>
-          <Link href="/admin" className="text-xs" style={{ color: "var(--dim)" }}>&lt; admin</Link>
-        </div>
-        <p className="text-xs">─────────────────────────────</p>
-      </div>
+    <main className="flex flex-col gap-8">
 
-      <div className="space-y-1">
-        <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>스토리 분석</p>
-        <h1 className="text-xl font-bold">{space.name}</h1>
-        <p className="text-xs leading-relaxed" style={{ color: "var(--dim)" }}>
-          방문자가 이 공간의 이야기(Episode)를 어느 Scene까지 읽고, 어느 구간에서 이탈하는지 확인합니다.
-        </p>
-      </div>
+      <AdminPageHeader
+        title="스토리 분석"
+        description="방문자가 이 공간의 이야기(Episode)를 어느 Scene까지 읽고, 어느 구간에서 이탈하는지 확인합니다."
+      />
 
       <ReportTabs spaceId={space.id} active="story" from={range.from} to={range.to} />
 

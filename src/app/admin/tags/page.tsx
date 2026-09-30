@@ -1,9 +1,9 @@
 import { redirect } from "next/navigation";
-import Link from "next/link";
 import { auth } from "@/auth";
 import { isAdmin } from "@/lib/admin";
 import { prisma } from "@/lib/prisma";
 import TagManager from "./TagManager";
+import { AdminPageHeader } from "@/components/admin/ui";
 
 export default async function TagsAdminPage() {
   const session = await auth();
@@ -48,19 +48,13 @@ export default async function TagsAdminPage() {
   const totalTags = initialCategories.reduce((sum, c) => sum + c.tags.length, 0) + initialUnclassified.length;
 
   return (
-    <main className="flex flex-col min-h-screen px-6 py-8 gap-6">
-      <div className="space-y-1" style={{ color: "var(--dim)" }}>
-        <div className="flex justify-between">
-          <p className="text-xs">공간큐브 / ADMIN / TAGS</p>
-          <Link href="/admin" className="text-xs" style={{ color: "var(--dim)" }}>&lt; admin</Link>
-        </div>
-        <p className="text-xs">─────────────────────────────</p>
-      </div>
+    <main className="flex flex-col gap-6">
 
-      <div className="space-y-1">
-        <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>태그 관리</p>
-        <h1 className="text-xl font-bold">전체 태그 {totalTags}개</h1>
-      </div>
+      <AdminPageHeader
+        area="system"
+        title="태그 · 카테고리"
+        description={`운영 공간의 유형·분위기 태그와 카테고리(전체 태그 ${totalTags}개). 운영 공간 등록 화면과 추천 엔진이 이 분류를 사용합니다.`}
+      />
 
       <TagManager initialCategories={initialCategories} initialUnclassified={initialUnclassified} />
     </main>

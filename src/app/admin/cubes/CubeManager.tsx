@@ -238,7 +238,7 @@ export default function CubeManager({ cubes, spaceOptions, baseUrl, initialFocus
             className="text-sm px-4 py-2 border transition-colors hover:bg-[var(--fg)] hover:text-[var(--bg)]"
             style={{ borderColor: "var(--fg)" }}
           >
-            [[ 큐브 생성 ]]
+            + 큐브 생성
           </button>
           <Link
             href={selected.size > 0 ? `/admin/cubes/print?codes=${[...selected].map((id) => cubes.find((c) => c.id === id)?.code).filter(Boolean).join(",")}` : "/admin/cubes/print"}
@@ -288,7 +288,7 @@ export default function CubeManager({ cubes, spaceOptions, baseUrl, initialFocus
 
       {/* 목록 */}
       {filtered.length === 0 ? (
-        <p className="text-sm" style={{ color: "var(--dim)" }}>&gt; 조건에 맞는 큐브가 없어.</p>
+        <p className="text-sm" style={{ color: "var(--dim)" }}>조건에 맞는 큐브가 없어.</p>
       ) : (
         <div className="space-y-3">
           {filtered.map((cube) => {

@@ -6,6 +6,7 @@ import { normalizeCanvasSettingsRow } from "@/lib/guestbookSettingsInput";
 import { ENABLE_GUESTBOOK_IMAGE } from "@/lib/pilotFlags";
 import OperatorBackLink from "../OperatorBackLink";
 import GuestbookEditor from "@/components/guestbook/GuestbookEditor";
+import { AdminPageHeader } from "@/components/admin/ui";
 
 export const metadata: Metadata = {
   title: "방명록 관리 — 공간큐브 운영",
@@ -49,13 +50,10 @@ export default async function OperatorGuestbookPage({ params }: Props) {
   const settings = normalizeCanvasSettingsRow(settingsRow);
 
   return (
-    <main className="flex flex-col min-h-screen px-6 py-8 gap-6">
+    <main className="flex flex-col gap-6">
       <OperatorBackLink slug={slug} />
 
-      <div className="space-y-1.5">
-        <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>방명록 관리</p>
-        <h1 className="text-xl font-bold">방명록 화면을 설정하고 방문자의 기록을 관리합니다.</h1>
-      </div>
+      <AdminPageHeader title="방명록" description="방명록 화면을 설정하고 방문자의 기록을 관리합니다." />
 
       <GuestbookEditor
         role="operator"

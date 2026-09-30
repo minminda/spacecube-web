@@ -7,6 +7,7 @@ import { TAG_LABELS } from "@/lib/tags";
 import { aggregateSpaceTags, getSpaceUsageSummary, getRevisitStats } from "@/lib/spaceInsight";
 import WaitlistPanel from "./WaitlistPanel";
 import MoodPanel from "./MoodPanel";
+import { AdminPageHeader } from "@/components/admin/ui";
 
 interface Props { params: Promise<{ id: string }> }
 
@@ -58,19 +59,9 @@ export default async function DashboardPage({ params }: Props) {
   const revisitInsight = getRevisitInsight(revisitors, uniqueVisitors, revisitRatio);
 
   return (
-    <main className="flex flex-col min-h-screen px-6 py-8 gap-8">
-      <div className="space-y-1" style={{ color: "var(--dim)" }}>
-        <div className="flex justify-between">
-          <p className="text-xs">공간큐브 / DASHBOARD</p>
-          <Link href="/admin" className="text-xs" style={{ color: "var(--dim)" }}>&lt; admin</Link>
-        </div>
-        <p className="text-xs">─────────────────────────────</p>
-      </div>
+    <main className="flex flex-col gap-8">
 
-      <div className="space-y-1">
-        <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>반응 보드</p>
-        <h1 className="text-xl font-bold">{space.name}</h1>
-      </div>
+      <AdminPageHeader title="반응 보드" description="MVP 기간 비활성 기능입니다(메뉴에서 숨김, 기존 화면 그대로)." />
 
       {/* 지금의 공간 상태 */}
       <div style={{ borderTop: "1px solid var(--border)" }} />
@@ -79,7 +70,7 @@ export default async function DashboardPage({ params }: Props) {
       {/* 스캔 현황 */}
       <div style={{ borderTop: "1px solid var(--border)" }} />
       <section className="space-y-4">
-        <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>// QR 스캔</p>
+        <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>QR 스캔</p>
         <div className="grid grid-cols-3 gap-3">
           <StatBox label="오늘" value={scansToday} unit="회" />
           <StatBox label="이번 주" value={scansWeek} unit="회" />
@@ -96,7 +87,7 @@ export default async function DashboardPage({ params }: Props) {
         <>
           <div style={{ borderTop: "1px solid var(--border)" }} />
           <section className="space-y-3">
-            <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>// 공간 사용 방식</p>
+            <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>공간 사용 방식</p>
             <p className="text-sm leading-relaxed pl-3" style={{ borderLeft: "2px solid var(--border)", color: "var(--fg)" }}>
               {usageSummary}
             </p>
@@ -131,7 +122,7 @@ export default async function DashboardPage({ params }: Props) {
         <>
           <div style={{ borderTop: "1px solid var(--border)" }} />
           <section className="space-y-4">
-            <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>// 재방문 흔적</p>
+            <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>재방문 흔적</p>
             <div className="grid grid-cols-3 gap-3">
               <StatBox label="총 기록자" value={uniqueVisitors} unit="명" />
               <StatBox label="재방문" value={revisitors} unit="명" />
@@ -148,7 +139,7 @@ export default async function DashboardPage({ params }: Props) {
         <>
           <div style={{ borderTop: "1px solid var(--border)" }} />
           <section className="space-y-4">
-            <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>// 최근 방문자들의 한 줄</p>
+            <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>최근 방문자들의 한 줄</p>
             <p className="text-xs" style={{ color: "var(--dim)" }}>최근 방문자들은 이 공간을 이렇게 느꼈습니다.</p>
             <div className="space-y-5">
               {recentMemos.map((r) => (

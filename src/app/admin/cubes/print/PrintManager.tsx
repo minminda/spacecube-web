@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import CubeQR from "@/components/CubeQR";
 import QrStickerPrintSheet from "./QrStickerPrintSheet";
 import GcCodeStickerPrintSheet from "./GcCodeStickerPrintSheet";
+import { AdminPageHeader, adminButtonClass } from "@/components/admin/ui";
 
 export interface PrintCube {
   id: string;
@@ -51,12 +51,14 @@ export default function PrintManager({ cubes }: Props) {
 
   return (
     <>
-    <div className="min-h-screen px-6 py-8 no-print" style={{ background: "var(--bg)", color: "var(--fg)" }}>
+    <div className="no-print">
+      <AdminPageHeader
+        area="cube"
+        breadcrumb={[{ label: "큐브", href: "/admin/cubes" }]}
+        title="QR / GC 코드 스티커 인쇄"
+        description="선택한 큐브의 QR 스티커와 GC 코드 스티커를 A4로 인쇄하거나 PDF로 저장합니다."
+      />
       <div className="flex flex-col gap-4 mb-8">
-        <div className="flex justify-between items-center">
-          <h1 className="text-xl font-bold">QR / GC 코드 스티커 인쇄</h1>
-          <Link href="/admin/cubes" className="text-xs" style={{ color: "var(--dim)" }}>&lt; 큐브 관리</Link>
-        </div>
 
         {cubes.length === 0 ? (
           <p className="text-sm" style={{ color: "var(--dim)" }}>인쇄할 큐브가 없어요.</p>
@@ -70,8 +72,8 @@ export default function PrintManager({ cubes }: Props) {
             </p>
 
             <div className="flex gap-3 flex-wrap text-xs">
-              <button type="button" onClick={selectAll} className="border px-3 py-1.5" style={{ borderColor: "var(--border)", color: "var(--dim)" }}>전체 선택</button>
-              <button type="button" onClick={selectNone} className="border px-3 py-1.5" style={{ borderColor: "var(--border)", color: "var(--dim)" }}>선택 해제</button>
+              <button type="button" onClick={selectAll} className={adminButtonClass("secondary", "sm")}>전체 선택</button>
+              <button type="button" onClick={selectNone} className={adminButtonClass("secondary", "sm")}>선택 해제</button>
               <span className="self-center" style={{ color: "var(--dim)" }}>{selected.size} / {cubes.length}개 선택됨</span>
             </div>
 
@@ -80,19 +82,17 @@ export default function PrintManager({ cubes }: Props) {
                 type="button"
                 onClick={() => setPrintTarget("qr")}
                 disabled={toPrint.length === 0 || printTarget !== null}
-                className="text-sm px-4 py-2 border transition-colors hover:bg-[var(--fg)] hover:text-[var(--bg)] disabled:opacity-40"
-                style={{ borderColor: "var(--fg)" }}
+                className={adminButtonClass("primary")}
               >
-                {printTarget === "qr" ? "인쇄 준비 중..." : "[[ QR 인쇄하기 ]]"}
+                {printTarget === "qr" ? "인쇄 준비 중..." : "QR 인쇄하기"}
               </button>
               <button
                 type="button"
                 onClick={() => setPrintTarget("gc")}
                 disabled={toPrint.length === 0 || printTarget !== null}
-                className="text-sm px-4 py-2 border transition-colors hover:bg-[var(--fg)] hover:text-[var(--bg)] disabled:opacity-40"
-                style={{ borderColor: "var(--border)", color: "var(--dim)" }}
+                className={adminButtonClass("secondary")}
               >
-                {printTarget === "gc" ? "인쇄 준비 중..." : "[[ GC 코드 인쇄하기 ]]"}
+                {printTarget === "gc" ? "인쇄 준비 중..." : "GC 코드 인쇄하기"}
               </button>
             </div>
 

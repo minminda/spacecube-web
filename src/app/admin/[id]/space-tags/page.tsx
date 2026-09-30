@@ -4,6 +4,7 @@ import { auth } from "@/auth";
 import { isAdmin } from "@/lib/admin";
 import { prisma } from "@/lib/prisma";
 import SpaceTagManager from "./SpaceTagManager";
+import { AdminPageHeader, adminButtonClass } from "@/components/admin/ui";
 
 interface Props { params: Promise<{ id: string }> }
 
@@ -45,27 +46,13 @@ export default async function SpaceTagsPage({ params }: Props) {
   }
 
   return (
-    <main className="flex flex-col min-h-screen px-6 py-8 gap-6">
-      <div className="space-y-1" style={{ color: "var(--dim)" }}>
-        <div className="flex justify-between">
-          <p className="text-xs">공간큐브 / ADMIN / SPACE TAGS</p>
-          <Link href="/admin" className="text-xs" style={{ color: "var(--dim)" }}>&lt; admin</Link>
-        </div>
-        <p className="text-xs">─────────────────────────────</p>
-      </div>
+    <main className="flex flex-col gap-6">
 
-      <div className="space-y-1">
-        <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>공간별 태그 가중치</p>
-        <h1 className="text-xl font-bold">{space.name}</h1>
-      </div>
-
-      <Link
-        href={`/admin/${space.id}/edit`}
-        className="block text-xs py-2.5 px-3 border transition-colors hover:bg-[var(--fg)] hover:text-[var(--bg)]"
-        style={{ borderColor: "var(--border)", color: "var(--dim)" }}
-      >
-        태그 자체를 추가/제거하려면 공간 수정에서 →
-      </Link>
+      <AdminPageHeader
+        title="태그 가중치"
+        description="추천에 쓰이는 이 운영 공간의 태그별 가중치입니다."
+        actions={<Link href={`/admin/${space.id}/edit`} className={adminButtonClass("secondary", "sm")}>태그 추가/제거는 정보 탭에서 →</Link>}
+      />
 
       <SpaceTagManager spaceId={space.id} groups={[...grouped.values()]} />
     </main>
