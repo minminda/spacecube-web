@@ -125,6 +125,7 @@ export default function LatestSlider({ items }: { items: ContentItem[] }) {
                 >
                   <p className="ed-label hidden md:block" style={{ color: "var(--ed-dim)" }}>
                     {CONTENT_KIND_LABEL[it.kind]}
+                    {it.fresh && <span className="ml-3" style={{ color: "var(--ed-fg)" }}>New</span>}
                     {it.date && <span className="ml-3 tabular-nums">{it.date}</span>}
                   </p>
                   <p className="ed-label md:mt-6 line-clamp-1" style={{ color: "var(--ed-dim)" }}>{it.eyebrow}</p>
@@ -149,6 +150,7 @@ export default function LatestSlider({ items }: { items: ContentItem[] }) {
             {/* 모바일: 이미지 위에 유형·날짜 */}
             <p className="ed-label pb-2 md:hidden" style={{ color: "var(--ed-dim)" }}>
               {CONTENT_KIND_LABEL[current.kind]}
+              {current.fresh && <span className="ml-3" style={{ color: "var(--ed-fg)" }}>New</span>}
               {current.date && <span className="ml-3 tabular-nums">{current.date}</span>}
             </p>
             <Link href={current.href} tabIndex={-1} aria-hidden className="block relative w-full overflow-hidden aspect-[16/10] md:aspect-[4/3]" style={{ background: "var(--ed-soft)" }}>

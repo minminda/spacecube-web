@@ -7,7 +7,7 @@ import { listContentStream } from "@/lib/editorial/queries";
 import QrScanSheet from "./QrScanSheet";
 
 /* ── 에디토리얼 홈 — 하나의 Editorial Content Stream ─────────────────────
-   INTRO(한 줄) → LATEST(최신 발행 5개 Hero Slider) → STORIES(ALL/CURATION/PEOPLE/SPACE, 가로 스와이프/6개 그리드)
+   INTRO(한 줄+부제) → LATEST(최신 발행 5개 Hero Slider) → STORIES(ALL/CURATION/PEOPLE/SPACE, 가로 스와이프/6개 그리드)
    → GONGGANCUBE EXPERIENCE → PARTICIPATE(짧은 CTA) → FOOTER. 모바일 세로 길이를 최소화하는 구성.
    노출 규칙은 자동이다: 발행(PUBLISHED)된 콘텐츠를 publishedAt DESC로. 발행만 하면 HOME이 갱신되고,
    별도의 홈 편집은 없다. 초안 포함 미리보기는 관리자(또는 로컬 개발)만 /?preview=drafts로 본다.
@@ -35,8 +35,11 @@ export default async function EditorialHome({ admin, previewDrafts }: { admin: b
         {/* ── BRAND / INTRO — 한 줄 수준으로 압축. 첫 화면의 주인공은 아래 LATEST 콘텐츠 ── */}
         <section className="ed-container pt-6 pb-1 md:pt-10 md:pb-2">
           <h1 className="text-xl leading-[1.3] md:text-[32px] md:leading-[1.2] font-bold tracking-[-0.03em] break-keep">
-            공간을 알면, 머무는 시간이 달라집니다.
+            공간을 발견하는 시간도 경험이 될 수 있도록.
           </h1>
+          <p className="mt-1.5 text-[13px] md:text-base leading-relaxed break-keep" style={{ color: "var(--ed-dim)" }}>
+            사람과 공간의 이야기를 읽고, 언젠가 가보고 싶은 장소를 발견합니다.
+          </p>
         </section>
 
         {/* ── LATEST ── */}
@@ -65,16 +68,16 @@ export default async function EditorialHome({ admin, previewDrafts }: { admin: b
               <div className="space-y-2">
                 <p className="ed-label" style={{ color: "var(--ed-dim)" }}>Gonggancube Experience</p>
                 <h2 className="text-xl md:text-[32px] font-bold leading-[1.3] tracking-[-0.03em] break-keep">
-                  온라인에서 공간을 발견하고,
+                  좋은 공간을 발견했다면,
                   <br />
-                  현장에서는 공간을 더 깊게 이해합니다.
+                  언젠가 직접 만나보세요.
                 </h2>
               </div>
               <ol className="grid grid-cols-5" style={{ borderTop: "1px solid var(--ed-fg)" }}>
-                {["SPACE", "VISIT", "CUBE", "STORY", "RECORD"].map((en, i) => (
+                {["DISCOVER", "VISIT", "CUBE", "STORY", "RECORD"].map((en, i) => (
                   <li key={en} className="pt-3 pr-1 space-y-0.5">
                     <span className="block tabular-nums text-[10px]" style={{ color: "var(--ed-dim)" }}>{String(i + 1).padStart(2, "0")}</span>
-                    <span className="block text-[10px] md:text-xs font-bold tracking-[0.04em]">{en}</span>
+                    <span className="block text-[10px] md:text-xs font-bold tracking-[0.02em]">{en}</span>
                   </li>
                 ))}
               </ol>

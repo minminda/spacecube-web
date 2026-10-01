@@ -189,6 +189,8 @@ export async function listContentStream(v?: Visibility): Promise<ContentItem[]> 
 
   const sortTime = (r: { publishedAt: Date | null; updatedAt: Date }) => (r.publishedAt ?? r.updatedAt).getTime();
   const rows: { t: number; created: number; item: ContentItem }[] = [];
+  const FRESH_MS = 7 * 24 * 60 * 60 * 1000;
+  const isFresh = (d: Date | null) => !!d && Date.now() - d.getTime() < FRESH_MS;
 
   for (const r of curations) {
     const c = toCurationView(r, v);
@@ -197,7 +199,7 @@ export async function listContentStream(v?: Visibility): Promise<ContentItem[]> 
       item: {
         key: `curation-${c.id}`, kind: "curation", eyebrow: curationLabel(c), title: c.title, summary: c.summary,
         meta: c.spaces.length ? (c.area ? `${c.area}에서 발견한 ${c.spaces.length}개의 공간` : `공간 ${c.spaces.length}곳`) : undefined,
-        href: `/curation/${c.slug}`, image: c.cover, date: formatEditorialDate(c.publishedAt), status: c.status,
+        href: `/curation/${c.slug}`, image: c.cover, date: formatEditorialDate(c.publishedAt), fresh: isFresh(r.publishedAt), status: c.status,
       },
     });
   }
@@ -207,7 +209,7 @@ export async function listContentStream(v?: Visibility): Promise<ContentItem[]> 
       t: sortTime(r), created: r.createdAt.getTime(),
       item: {
         key: `person-${p.id}`, kind: "person", eyebrow: p.subject ? `${formatPeopleNumber(p.number)} · ${p.subject}` : formatPeopleNumber(p.number),
-        title: p.title, summary: p.summary, href: `/people/${p.slug}`, image: p.cover, date: formatEditorialDate(p.publishedAt), status: p.status,
+        title: p.title, summary: p.summary, href: `/people/${p.slug}`, image: p.cover, date: formatEditorialDate(p.publishedAt), fresh: isFresh(r.publishedAt), status: p.status,
       },
     });
   }
@@ -216,8 +218,8 @@ export async function listContentStream(v?: Visibility): Promise<ContentItem[]> 
     rows.push({
       t: sortTime(r), created: r.createdAt.getTime(),
       item: {
-        key: `space-${s.id}`, kind: "space", eyebrow: [s.area, s.category].filter(Boolean).join(" · "), title: s.name, summary: s.summary,
-        href: spaceHref(s.slug), image: spaceCoverImage(s), date: formatEditorialDate(r.publishedAt), status: s.status,
+        key: `space-${s.id}`, kind: "space", eyebrow: [s.area, s.category, s.cubeAvailable ? "CUBE" : ""].filter(Boolean).join(" · "), title: s.name, summary: s.summary,
+        href: spaceHref(s.slug), image: spaceCoverImage(s), date: formatEditorialDate(r.publishedAt), fresh: isFresh(r.publishedAt), status: s.status,
       },
     });
   }

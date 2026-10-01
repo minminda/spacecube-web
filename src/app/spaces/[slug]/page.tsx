@@ -25,7 +25,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 /**
  * 공개 SPACE 상세 — Editorial CMS의 공간 콘텐츠(발행된 것만, 관리자는 미리보기 가능).
  * Cube 운영 DB·Episode/Scene·방명록(/space/[slug]/**)으로는 어떤 링크도 두지 않는다.
- * cubeAvailable이면 "공간에서 Cube를 찾아보라"는 안내만 한다 — 온라인에서 이야기를 미리 열지 않는다.
+ * cubeAvailable이면 "방문하게 된다면 Cube를 찾아보라"는 조용한 안내만 한다(방문 강요·예약 CTA 없음) — 온라인에서 이야기를 미리 열지 않는다.
  */
 export default async function SpaceDetailPage({ params }: Props) {
   const [{ slug }, viewer] = await Promise.all([params, getEditorialViewer()]);
@@ -44,7 +44,6 @@ export default async function SpaceDetailPage({ params }: Props) {
     { label: "운영", value: space.hours },
   ].filter((r): r is { label: string; value: string } => !!r.value);
   const links = [
-    { label: "지도 보기", href: space.mapUrl },
     { label: "Instagram", href: space.instagram },
     { label: "Website", href: space.website },
   ].filter((l): l is { label: string; href: string } => !!l.href);
@@ -57,11 +56,18 @@ export default async function SpaceDetailPage({ params }: Props) {
           <Link href="/spaces" className="text-xs hover:underline underline-offset-4" style={{ color: "var(--ed-dim)" }}>← SPACE</Link>
           <div className="mt-8 md:mt-12 grid gap-6 md:grid-cols-12 md:items-end">
             <div className="md:col-span-7 space-y-5">
-              <p className="ed-label" style={{ color: "var(--ed-dim)" }}>{space.area} · {space.category}</p>
+              <p className="ed-label" style={{ color: "var(--ed-dim)" }}>{space.area} · {space.category}{space.cubeAvailable && " · CUBE"}</p>
               <h1 className="text-[48px] md:text-[88px] font-bold leading-[0.98] tracking-[-0.045em]">{space.name}</h1>
             </div>
             {space.summary && (
               <p className="md:col-span-5 text-lg md:text-xl leading-relaxed">{space.summary}</p>
+            )}
+            {space.mapUrl && (
+              <p className="md:col-span-12">
+                <a href={space.mapUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-sm font-semibold underline underline-offset-[6px] decoration-1">
+                  지도에서 보기 ↗
+                </a>
+              </p>
             )}
           </div>
         </header>
@@ -123,7 +129,8 @@ export default async function SpaceDetailPage({ params }: Props) {
                 </div>
                 <p className="text-base font-bold leading-snug">GONGGANCUBE가 있는 공간입니다.</p>
                 <p className="text-sm leading-relaxed" style={{ color: "var(--ed-dim)" }}>
-                  공간에서 Cube를 찾아 이야기를 만나보세요. 공간을 만든 사람의 더 깊은 이야기는 현장에서만 열립니다.
+                  직접 방문하게 된다면, 공간에서 Cube를 찾아보세요.
+                  <br />만든 사람의 이야기를 만나고 당신의 기록을 남길 수 있습니다.
                 </p>
               </div>
             )}

@@ -186,6 +186,7 @@ function FeedCard({ item, ratio, sizes }: { item: ContentItem; ratio: string; si
       <div className="pt-3 space-y-1">
         <p className="ed-label flex items-center gap-2" style={{ color: "var(--ed-fg)" }}>
           {CONTENT_KIND_LABEL[item.kind]}
+          {item.fresh && <span style={{ color: "var(--ed-dim)" }}>New</span>}
           {item.status !== "PUBLISHED" && <span className="px-1.5 py-0.5 text-[9px]" style={{ background: "#fff6e6", color: "#8a5a00" }}>DRAFT</span>}
         </p>
         <p className="text-base md:text-lg font-bold leading-snug tracking-tight line-clamp-2 break-keep group-hover:underline underline-offset-4">{item.title}</p>
