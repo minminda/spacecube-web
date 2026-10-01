@@ -132,13 +132,18 @@ export default function Navbar() {
 
         <button
           type="button"
-          className="md:hidden -mr-2 px-2 h-11 flex items-center text-xs font-semibold tracking-[0.14em]"
-          style={{ color: "#fff" }}
+          className="md:hidden -mr-3 w-12 h-12 flex items-center justify-center"
           aria-label={menuOpen ? "메뉴 닫기" : "메뉴 열기"}
           aria-expanded={menuOpen}
           onClick={() => setMenuOpenPath(menuOpen ? null : pathname)}
         >
-          {menuOpen ? "CLOSE" : "MENU"}
+          <svg viewBox="0 0 24 24" className="w-6 h-6" style={{ color: "#fff" }} aria-hidden>
+            {menuOpen ? (
+              <path d="M6 6 L18 18 M18 6 L6 18" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+            ) : (
+              <path d="M4 7 H20 M4 12 H20 M4 17 H20" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+            )}
+          </svg>
         </button>
       </div>
 
