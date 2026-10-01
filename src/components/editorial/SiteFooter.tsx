@@ -20,40 +20,25 @@ const EXPLORE = [
 export default function SiteFooter({ admin }: Props) {
   return (
     <footer className="editorial-bleed" style={{ background: "#000", color: "#fff" }}>
-      <div className="ed-container py-14 md:py-20">
-        <div className="grid gap-12 md:grid-cols-[1.4fr_1fr_1fr]">
-          <div className="space-y-3">
-            <p className="text-lg font-bold tracking-[0.08em]">{BRAND_NAME}</p>
-            <p className="text-sm" style={{ color: "#a8a8a8" }}>{BRAND_MESSAGE}</p>
+      <div className="ed-container py-8 md:py-12">
+        <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between md:gap-12">
+          <div className="space-y-1.5">
+            <p className="text-base font-bold tracking-[0.08em]">{BRAND_NAME}</p>
+            <p className="text-xs" style={{ color: "#a8a8a8" }}>{BRAND_MESSAGE}</p>
           </div>
-          <div className="space-y-3">
-            <p className="ed-label" style={{ color: "#777" }}>Explore</p>
-            <ul className="space-y-2">
-              {EXPLORE.map((l) => (
-                <li key={l.href}>
-                  <Link href={l.href} className="text-sm hover:underline underline-offset-4">{l.label}</Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-          <div className="space-y-3">
-            <p className="ed-label" style={{ color: "#777" }}>Contact</p>
-            <ul className="space-y-2">
-              <li>
-                <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer" className="text-sm hover:underline underline-offset-4">
-                  Instagram
-                </a>
-              </li>
-              <li>
-                <a href={`mailto:${CONTACT_EMAIL}`} className="text-sm hover:underline underline-offset-4">{CONTACT_EMAIL}</a>
-              </li>
-              <li>
-                <Link href="/#participate" className="text-sm hover:underline underline-offset-4">공간 제안・제보・협업</Link>
-              </li>
-            </ul>
-          </div>
+          <ul className="flex flex-wrap gap-x-5 gap-y-2 text-sm">
+            {EXPLORE.map((l) => (
+              <li key={l.href}><Link href={l.href} className="hover:underline underline-offset-4">{l.label}</Link></li>
+            ))}
+            <li>
+              <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer" className="hover:underline underline-offset-4">Instagram</a>
+            </li>
+            <li>
+              <a href={`mailto:${CONTACT_EMAIL}`} className="hover:underline underline-offset-4">Contact</a>
+            </li>
+          </ul>
         </div>
-        <div className="mt-14 pt-6 flex flex-wrap items-center justify-between gap-3" style={{ borderTop: "1px solid #262626" }}>
+        <div className="mt-6 pt-4 flex flex-wrap items-center justify-between gap-3" style={{ borderTop: "1px solid #262626" }}>
           <p className="text-xs" style={{ color: "#777" }}>© {BRAND_NAME}. 현재 파일럿 운영 중입니다.</p>
           {admin && (
             <Link href="/admin" className="text-xs" style={{ color: "#555" }}>관리자</Link>

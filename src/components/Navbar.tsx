@@ -37,16 +37,6 @@ function fetchViewer(): Promise<Viewer | null> {
   return viewerPromise;
 }
 
-function CubeMark({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} style={{ color: "#fff" }} aria-hidden>
-      <polygon points="12,3 20,7.5 20,16.5 12,21 4,16.5 4,7.5" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
-      <polyline points="4,7.5 12,12 20,7.5" fill="none" stroke="currentColor" strokeWidth="1.1" strokeLinejoin="round" />
-      <line x1="12" y1="12" x2="12" y2="21" stroke="currentColor" strokeWidth="1.1" />
-    </svg>
-  );
-}
-
 export default function Navbar() {
   const pathname = usePathname();
   const [viewer, setViewer] = useState<Viewer | null>(null);
@@ -82,8 +72,8 @@ export default function Navbar() {
     return (
       <nav className="sticky top-0 z-50 w-full" style={{ background: "#000", borderBottom: "1px solid #1a1a1a" }}>
         <div className="max-w-2xl mx-auto px-6 flex items-center h-14 gap-8">
-          <Link href="/" aria-label="홈으로 이동" className="mr-auto p-2 -m-2 flex items-center transition-opacity" style={{ opacity: isHome ? 1 : 0.5 }}>
-            <CubeMark className="w-4 h-4" />
+          <Link href="/" aria-label="홈으로 이동" className="mr-auto p-2 -m-2 text-[13px] font-bold tracking-[0.14em] transition-opacity" style={{ color: "#fff", opacity: isHome ? 1 : 0.6 }}>
+            {BRAND_NAME}
           </Link>
           {LEGACY_NAV_ITEMS.map(({ label, href, match }) => {
             const active = match(pathname);
@@ -109,9 +99,8 @@ export default function Navbar() {
   return (
     <nav className="sticky top-0 z-50 w-full" style={{ background: "#000", borderBottom: "1px solid #1a1a1a" }}>
       <div className="ed-container flex items-center h-14 gap-8">
-        <Link href="/" aria-label="GONGGANCUBE 홈" className="mr-auto flex items-center gap-2.5 py-2">
-          <CubeMark className="w-4 h-4" />
-          <span className="text-[13px] font-bold tracking-[0.14em]" style={{ color: "#fff" }}>{BRAND_NAME}</span>
+        <Link href="/" aria-label="GONGGANCUBE 홈" className="mr-auto py-2 text-[13px] font-bold tracking-[0.14em]" style={{ color: "#fff" }}>
+          {BRAND_NAME}
         </Link>
 
         <div className="hidden md:flex items-center gap-8">
@@ -143,18 +132,13 @@ export default function Navbar() {
 
         <button
           type="button"
-          className="md:hidden -mr-2 w-11 h-11 flex items-center justify-center"
+          className="md:hidden -mr-2 px-2 h-11 flex items-center text-xs font-semibold tracking-[0.14em]"
+          style={{ color: "#fff" }}
           aria-label={menuOpen ? "메뉴 닫기" : "메뉴 열기"}
           aria-expanded={menuOpen}
           onClick={() => setMenuOpenPath(menuOpen ? null : pathname)}
         >
-          <svg viewBox="0 0 24 24" className="w-5 h-5" style={{ color: "#fff" }} aria-hidden>
-            {menuOpen ? (
-              <path d="M6 6 L18 18 M18 6 L6 18" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-            ) : (
-              <path d="M4 8 H20 M4 16 H20" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-            )}
-          </svg>
+          {menuOpen ? "CLOSE" : "MENU"}
         </button>
       </div>
 

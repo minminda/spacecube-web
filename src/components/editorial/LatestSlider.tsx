@@ -82,7 +82,7 @@ export default function LatestSlider({ items }: { items: ContentItem[] }) {
     <section
       aria-roledescription="carousel"
       aria-label="최신 콘텐츠"
-      className="ed-container pt-6 pb-14 md:pt-10 md:pb-20"
+      className="ed-container pt-4 pb-8 md:pt-8 md:pb-12"
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       onFocus={() => setFocused(true)}
@@ -100,7 +100,7 @@ export default function LatestSlider({ items }: { items: ContentItem[] }) {
         if (Math.abs(dx) > 48) go(index + (dx < 0 ? 1 : -1));
       }}
     >
-      <div className="flex items-center justify-between pb-5 md:pb-8" style={{ borderBottom: "1px solid var(--ed-fg)" }}>
+      <div className="flex items-center justify-between pb-3 md:pb-6" style={{ borderBottom: "1px solid var(--ed-fg)" }}>
         <p className="ed-label">Latest</p>
         {multi && (
           <p className="ed-label tabular-nums" style={{ color: "var(--ed-dim)" }}>
@@ -109,11 +109,11 @@ export default function LatestSlider({ items }: { items: ContentItem[] }) {
         )}
       </div>
 
-      <div className="relative pt-6 md:pt-10">
+      <div className="relative pt-4 md:pt-8">
         {/* 이미지 — 모든 슬라이드를 겹쳐 두고 opacity만 바꾼다(첫 장만 priority, 나머지 lazy) */}
-        <div className="grid gap-6 md:grid-cols-12 md:gap-12 md:items-stretch">
+        <div className="grid gap-4 md:grid-cols-12 md:gap-12 md:items-stretch">
           <div className="md:col-span-5 md:order-1 order-2 flex flex-col">
-            <div className="relative flex-1 min-h-[260px] md:min-h-0" aria-live={paused ? "polite" : "off"}>
+            <div className="relative flex-1 md:min-h-0" aria-live={paused ? "polite" : "off"}>
               {items.map((it, i) => (
                 <div
                   key={it.key}
@@ -127,15 +127,15 @@ export default function LatestSlider({ items }: { items: ContentItem[] }) {
                     {CONTENT_KIND_LABEL[it.kind]}
                     {it.date && <span className="ml-3 tabular-nums">{it.date}</span>}
                   </p>
-                  <p className="ed-label md:mt-6" style={{ color: "var(--ed-dim)" }}>{it.eyebrow}</p>
-                  <h2 className="mt-3 md:mt-4 text-[28px] leading-[1.22] md:text-[44px] md:leading-[1.15] font-bold tracking-[-0.03em]">
+                  <p className="ed-label md:mt-6 line-clamp-1" style={{ color: "var(--ed-dim)" }}>{it.eyebrow}</p>
+                  <h2 className="mt-1.5 md:mt-4 text-[22px] leading-[1.25] line-clamp-2 md:line-clamp-none md:text-[44px] md:leading-[1.15] font-bold tracking-[-0.03em]">
                     <Link href={it.href} tabIndex={i === index ? 0 : -1} className="hover:underline underline-offset-[6px] decoration-2">
                       {it.title}
                     </Link>
                   </h2>
-                  {it.summary && <p className="mt-4 text-base md:text-lg leading-relaxed" style={{ color: "var(--ed-dim)" }}>{it.summary}</p>}
-                  {it.meta && <p className="mt-4 text-sm" style={{ color: "var(--ed-dim)" }}>{it.meta}</p>}
-                  <div className="mt-6 md:mt-auto md:pt-10">
+                  {it.summary && <p className="mt-2 md:mt-4 text-sm md:text-lg leading-relaxed line-clamp-2 md:line-clamp-none" style={{ color: "var(--ed-dim)" }}>{it.summary}</p>}
+                  {it.meta && <p className="hidden md:block mt-4 text-sm" style={{ color: "var(--ed-dim)" }}>{it.meta}</p>}
+                  <div className="hidden md:block md:mt-auto md:pt-10">
                     <Link href={it.href} tabIndex={i === index ? 0 : -1} className="inline-flex items-center gap-2 text-sm font-semibold hover:underline underline-offset-4">
                       {CTA[it.kind]} <span aria-hidden>→</span>
                     </Link>
@@ -147,11 +147,11 @@ export default function LatestSlider({ items }: { items: ContentItem[] }) {
 
           <div className="md:col-span-7 md:order-2 order-1">
             {/* 모바일: 이미지 위에 유형·날짜 */}
-            <p className="ed-label pb-3 md:hidden" style={{ color: "var(--ed-dim)" }}>
+            <p className="ed-label pb-2 md:hidden" style={{ color: "var(--ed-dim)" }}>
               {CONTENT_KIND_LABEL[current.kind]}
               {current.date && <span className="ml-3 tabular-nums">{current.date}</span>}
             </p>
-            <Link href={current.href} tabIndex={-1} aria-hidden className="block relative w-full overflow-hidden" style={{ aspectRatio: "4 / 3", background: "var(--ed-soft)" }}>
+            <Link href={current.href} tabIndex={-1} aria-hidden className="block relative w-full overflow-hidden aspect-[16/10] md:aspect-[4/3]" style={{ background: "var(--ed-soft)" }}>
               {items.map((it, i) => (
                 <div key={it.key} className={`absolute inset-0 ${fade} ${i === index ? "opacity-100" : "opacity-0"}`}>
                   {it.image.src && state.seen.has(i) ? (
@@ -179,7 +179,7 @@ export default function LatestSlider({ items }: { items: ContentItem[] }) {
         </div>
 
         {multi && (
-          <div className="mt-6 md:mt-8 flex items-center justify-between gap-4">
+          <div className="mt-3 md:mt-8 flex items-center justify-between gap-4">
             <div className="flex items-center gap-2" role="tablist" aria-label="슬라이드 선택">
               {items.map((it, i) => (
                 <button
@@ -195,7 +195,7 @@ export default function LatestSlider({ items }: { items: ContentItem[] }) {
                 </button>
               ))}
             </div>
-            <div className="flex items-center gap-2">
+            <div className="hidden md:flex items-center gap-2">
               <button type="button" aria-label="이전 콘텐츠" onClick={() => go(index - 1)} className="w-11 h-11 flex items-center justify-center border transition-colors hover:bg-[var(--ed-fg)] hover:text-white" style={{ borderColor: "var(--ed-line)" }}>
                 ←
               </button>
