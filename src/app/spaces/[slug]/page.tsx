@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import type { Metadata } from "next";
-import CubeGlyph from "@/components/CubeGlyph";
+import PartnerMark from "@/components/editorial/PartnerMark";
 import EdImage from "@/components/editorial/EdImage";
 import SpaceCard from "@/components/editorial/SpaceCard";
 import SiteFooter from "@/components/editorial/SiteFooter";
@@ -9,7 +9,7 @@ import { getEditorialViewer } from "@/lib/editorial/viewer";
 import PreviewBanner from "@/components/editorial/PreviewBanner";
 import { getSpaceBySlug, getStoriesForSpace, listSpaces } from "@/lib/editorial/queries";
 import { curationLabel, formatPeopleNumber, spaceCoverImage } from "@/lib/editorial/types";
-import { BRAND_NAME, INSTAGRAM_URL } from "@/content/site";
+import { INSTAGRAM_URL } from "@/content/site";
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -56,7 +56,7 @@ export default async function SpaceDetailPage({ params }: Props) {
           <Link href="/spaces" className="text-xs hover:underline underline-offset-4" style={{ color: "var(--ed-dim)" }}>← SPACE</Link>
           <div className="mt-8 md:mt-12 grid gap-6 md:grid-cols-12 md:items-end">
             <div className="md:col-span-7 space-y-5">
-              <p className="ed-label" style={{ color: "var(--ed-dim)" }}>{space.area} · {space.category}{space.cubeAvailable && " · CUBE"}</p>
+              <p className="ed-label" style={{ color: "var(--ed-dim)" }}>{space.area} · {space.category}</p>
               <h1 className="text-[48px] md:text-[88px] font-bold leading-[0.98] tracking-[-0.045em]">{space.name}</h1>
             </div>
             {space.summary && (
@@ -121,16 +121,11 @@ export default async function SpaceDetailPage({ params }: Props) {
 
             {space.cubeAvailable && (
               <div className="p-6 space-y-3" style={{ background: "var(--ed-soft)" }}>
-                <div className="flex items-center gap-2.5">
-                  <svg viewBox="0 0 24 24" className="w-5 h-5" style={{ color: "var(--ed-fg)" }} aria-hidden>
-                    <CubeGlyph outlineWidth={1.2} edgeWidth={1} />
-                  </svg>
-                  <p className="ed-label">{BRAND_NAME}</p>
-                </div>
-                <p className="text-base font-bold leading-snug">GONGGANCUBE가 있는 공간입니다.</p>
+                <PartnerMark size={20} label />
+                <p className="text-base font-bold leading-snug">이 공간에서는 GONGGANCUBE를 만날 수 있습니다.</p>
                 <p className="text-sm leading-relaxed" style={{ color: "var(--ed-dim)" }}>
-                  직접 방문하게 된다면, 공간에서 Cube를 찾아보세요.
-                  <br />만든 사람의 이야기를 만나고 당신의 기록을 남길 수 있습니다.
+                  직접 방문하게 된다면, 공간에서 Cube를 찾아
+                  <br />이곳의 이야기를 만나보세요.
                 </p>
               </div>
             )}

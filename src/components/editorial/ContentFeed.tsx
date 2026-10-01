@@ -3,6 +3,7 @@
 import { useCallback, useRef, useState } from "react";
 import Link from "next/link";
 import EdImage from "./EdImage";
+import PartnerMark from "./PartnerMark";
 import { CONTENT_KIND_LABEL, type ContentItem, type ContentKind } from "@/lib/editorial/types";
 
 /* ── HOME STORIES ─────────────────────────────────────────────────────────
@@ -184,10 +185,12 @@ function FeedCard({ item, ratio, sizes }: { item: ContentItem; ratio: string; si
     <Link href={item.href} className="group block">
       <EdImage image={item.image} ratio={ratio} sizes={sizes} />
       <div className="pt-3 space-y-1">
-        <p className="ed-label flex items-center gap-2" style={{ color: "var(--ed-fg)" }}>
-          {CONTENT_KIND_LABEL[item.kind]}
-          {item.fresh && <span style={{ color: "var(--ed-dim)" }}>New</span>}
-          {item.status !== "PUBLISHED" && <span className="px-1.5 py-0.5 text-[9px]" style={{ background: "#fff6e6", color: "#8a5a00" }}>DRAFT</span>}
+        <p className="ed-label flex items-center justify-between gap-2" style={{ color: "var(--ed-fg)" }}>
+          <span className="flex items-center gap-2">
+            {CONTENT_KIND_LABEL[item.kind]}
+            {item.status !== "PUBLISHED" && <span className="px-1.5 py-0.5 text-[9px]" style={{ background: "#fff6e6", color: "#8a5a00" }}>DRAFT</span>}
+          </span>
+          {item.partner && <PartnerMark size={15} />}
         </p>
         <p className="text-base md:text-lg font-bold leading-snug tracking-tight line-clamp-2 break-keep group-hover:underline underline-offset-4">{item.title}</p>
         {sub && <p className="text-xs line-clamp-1" style={{ color: "var(--ed-dim)" }}>{sub}</p>}

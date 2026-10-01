@@ -167,7 +167,7 @@ export interface ContentItem {
   image: ResolvedImage;
   /** 표시용 발행일(KST, "2026.09.30") — 초안 미리보기는 빈 문자열 */
   date: string;
-  /** 최근 7일 이내 발행 — 작은 "NEW" 표시용(publishedAt만 사용) */
-  fresh?: boolean;
+  /** SPACE이면서 cubeAvailable — GONGGANCUBE PARTNER 마크 표시용 */
+  partner?: boolean;
   status: EditorialStatusValue;
 }

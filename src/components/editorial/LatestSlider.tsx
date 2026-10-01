@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import CubeGlyph from "@/components/CubeGlyph";
+import PartnerMark from "./PartnerMark";
 import { CONTENT_KIND_LABEL, type ContentItem } from "@/lib/editorial/types";
 
 /* ── HOME LATEST — Editorial Hero Slider ─────────────────────────────────
@@ -125,8 +126,7 @@ export default function LatestSlider({ items }: { items: ContentItem[] }) {
                 >
                   <p className="ed-label hidden md:block" style={{ color: "var(--ed-dim)" }}>
                     {CONTENT_KIND_LABEL[it.kind]}
-                    {it.fresh && <span className="ml-3" style={{ color: "var(--ed-fg)" }}>New</span>}
-                    {it.date && <span className="ml-3 tabular-nums">{it.date}</span>}
+                    {it.partner && <PartnerMark size={14} className="ml-3 align-[-3px]" />}
                   </p>
                   <p className="ed-label md:mt-6 line-clamp-1" style={{ color: "var(--ed-dim)" }}>{it.eyebrow}</p>
                   <h2 className="mt-1.5 md:mt-4 text-[22px] leading-[1.25] line-clamp-2 md:line-clamp-none md:text-[44px] md:leading-[1.15] font-bold tracking-[-0.03em]">
@@ -150,8 +150,7 @@ export default function LatestSlider({ items }: { items: ContentItem[] }) {
             {/* 모바일: 이미지 위에 유형·날짜 */}
             <p className="ed-label pb-2 md:hidden" style={{ color: "var(--ed-dim)" }}>
               {CONTENT_KIND_LABEL[current.kind]}
-              {current.fresh && <span className="ml-3" style={{ color: "var(--ed-fg)" }}>New</span>}
-              {current.date && <span className="ml-3 tabular-nums">{current.date}</span>}
+              {current.partner && <PartnerMark size={14} className="ml-3 align-[-3px]" />}
             </p>
             <Link href={current.href} tabIndex={-1} aria-hidden className="block relative w-full overflow-hidden aspect-[16/10] md:aspect-[4/3]" style={{ background: "var(--ed-soft)" }}>
               {items.map((it, i) => (

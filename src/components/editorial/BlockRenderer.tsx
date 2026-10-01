@@ -1,5 +1,6 @@
 import Link from "next/link";
 import EdImage from "./EdImage";
+import PartnerMark from "./PartnerMark";
 import { spaceCoverImage, spaceHref, type BlockImage, type EditorialBlock, type ResolvedImage, type SpaceView } from "@/lib/editorial/types";
 
 interface Props {
@@ -112,7 +113,7 @@ function Block({ block, spaces }: { block: EditorialBlock; spaces: Map<string, S
           <EdImage image={spaceCoverImage(space)} ratio="4 / 5" sizes="(min-width: 768px) 280px, 112px" />
           <div className="space-y-2">
             <p className="ed-label" style={{ color: "var(--ed-dim)" }}>SPACE</p>
-            <p className="text-lg md:text-2xl font-bold leading-snug group-hover:underline underline-offset-4">{space.name}</p>
+            <p className="flex items-center gap-2.5 text-lg md:text-2xl font-bold leading-snug"><span className="group-hover:underline underline-offset-4">{space.name}</span>{space.cubeAvailable && <PartnerMark size={16} />}</p>
             {meta && <p className="text-xs" style={{ color: "var(--ed-dim)" }}>{meta}</p>}
             {(block.note ?? space.summary) && (
               <p className="text-sm md:text-base leading-relaxed pt-1">{block.note ?? space.summary}</p>

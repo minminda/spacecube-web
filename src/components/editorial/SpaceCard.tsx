@@ -1,5 +1,6 @@
 import Link from "next/link";
 import EdImage from "./EdImage";
+import PartnerMark from "./PartnerMark";
 import { spaceCoverImage, spaceHref, type SpaceView } from "@/lib/editorial/types";
 
 interface Props {
@@ -20,9 +21,7 @@ export default function SpaceCard({ space, ratio = "4 / 5", sizes = "(min-width:
       <div className="pt-3 space-y-1">
         <div className="flex items-baseline justify-between gap-3">
           <p className="text-base font-semibold leading-snug group-hover:underline underline-offset-4">{space.name}</p>
-          {space.cubeAvailable && (
-            <span className="ed-label shrink-0" style={{ color: "var(--ed-dim)", fontSize: 10 }} title="GONGGANCUBE가 있는 공간">CUBE</span>
-          )}
+          {space.cubeAvailable && <PartnerMark size={15} />}
         </div>
         {meta && <p className="text-xs" style={{ color: "var(--ed-dim)" }}>{meta}</p>}
         {showSummary && space.summary && (
