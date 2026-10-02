@@ -9,9 +9,11 @@
  * 2) 큐레이션·PEOPLE 테스트 콘텐츠 — src/content/ 의 임시 원고(실제 공간 연결, 사실 서술 없음) → DRAFT.
  *
  * - 안전: editorial_* 테이블에만 쓴다. 운영 테이블은 조회만 한다(쓰기·삭제 없음).
- * - idempotent: slug 기준 upsert, 이미 있으면 덮어쓰지 않는다(update: {}) — CMS에서 수정한 내용 보존.
- *   연결 공간은 큐레이션/피플을 이번 실행에서 새로 만들 때만 넣는다.
- * - 마지막에 운영 DB·정적 원고와 CMS 데이터를 대조해 다르면 비정상 종료한다.
+ * - 최초 이관 전용: 각 유형(공간/큐레이션/피플)은 해당 테이블이 비어 있을 때만 만든다. 한 번이라도 데이터가
+ *   생긴 뒤에는 그 유형을 건너뛴다 — 재실행해도 CMS에서 slug를 바꾼 공간이 옛 slug로 중복 생성되거나,
+ *   영구 삭제한 공간이 PUBLISHED로 되살아나거나, 새 운영 공간이 검토 없이 자동 발행되는 일이 없다.
+ * - 같은 실행 안에서는 slug 기준 upsert(update: {})라 중복 생성되지 않는다.
+ * - 이번 실행에서 만든 유형만 운영 DB·정적 원고와 대조해 다르면 비정상 종료한다.
  *
  * 실행: npm run db:seed-editorial
  */
@@ -63,6 +65,11 @@ async function main() {
   const now = new Date();
   const log: string[] = [];
   const opsSpaceCountBefore = await prisma.space.count();
+  const [spacesInitial, curationsInitial, peopleInitial] = await Promise.all([
+    prisma.editorialSpace.count().then((n) => n === 0),
+    prisma.editorialCuration.count().then((n) => n === 0),
+    prisma.editorialPerson.count().then((n) => n === 0),
+  ]);
 
   // ── 1. 운영 공간 → 공간 콘텐츠 (PUBLISHED, 복사본)
   const opsSpaces = await prisma.space.findMany({
@@ -76,7 +83,8 @@ async function main() {
     },
   });
   const eligible = opsSpaces.filter((s) => !EXCLUDED_SPACE_SLUGS.has(s.slug));
-  for (const s of eligible) {
+  if (!spacesInitial) log.push("space    건너뜀 — 공간 콘텐츠가 이미 있음(최초 이관 전용). 새 공간은 CMS에서 직접 만드세요.");
+  for (const s of spacesInitial ? eligible : []) {
     const existed = await prisma.editorialSpace.findUnique({ where: { slug: s.slug }, select: { id: true } });
     await prisma.editorialSpace.upsert({
       where: { slug: s.slug },
@@ -106,7 +114,8 @@ async function main() {
   const coverBySlug = new Map(edSpaces.map((r) => [r.slug, r.coverImage]));
 
   // ── 2. 큐레이션 테스트 콘텐츠 (DRAFT)
-  for (const c of CURATIONS) {
+  if (!curationsInitial) log.push("curation 건너뜀 — 큐레이션이 이미 있음(최초 이관 전용)");
+  for (const c of curationsInitial ? CURATIONS : []) {
     const existed = await prisma.editorialCuration.findUnique({ where: { slug: c.slug }, select: { id: true } });
     if (existed) { log.push(`curation 유지  ${c.slug}`); continue; }
     const numberTaken = await prisma.editorialCuration.findUnique({ where: { number: c.number }, select: { slug: true } });
@@ -124,7 +133,8 @@ async function main() {
   }
 
   // ── 3. PEOPLE 테스트 콘텐츠 (DRAFT, 실존 인물 서술 없음)
-  for (const p of PEOPLE) {
+  if (!peopleInitial) log.push("person   건너뜀 — 피플이 이미 있음(최초 이관 전용)");
+  for (const p of peopleInitial ? PEOPLE : []) {
     const existed = await prisma.editorialPerson.findUnique({ where: { slug: p.slug }, select: { id: true } });
     if (existed) { log.push(`person   유지  ${p.slug}`); continue; }
     const numberTaken = await prisma.editorialPerson.findUnique({ where: { number: p.number }, select: { slug: true } });
@@ -145,21 +155,21 @@ async function main() {
   // ── 4. 검증
   const problems: string[] = [];
   const dbSpaces = await prisma.editorialSpace.findMany();
-  for (const s of eligible) {
+  for (const s of spacesInitial ? eligible : []) {
     const d = dbSpaces.find((x) => x.slug === s.slug);
     if (!d) { problems.push(`공간 콘텐츠 누락: ${s.slug}`); continue; }
     if (d.name !== s.name) problems.push(`공간 ${s.slug} 이름 다름: 운영="${s.name}" CMS="${d.name}" (CMS에서 수정했다면 정상)`);
     if (d.coverImage !== s.imageUrl) problems.push(`공간 ${s.slug} 대표 이미지 다름 (CMS에서 수정했다면 정상)`);
   }
   const dbCurations = await prisma.editorialCuration.findMany({ include: { spaces: { orderBy: { order: "asc" }, include: { space: { select: { slug: true } } } } } });
-  for (const c of CURATIONS) {
+  for (const c of curationsInitial ? CURATIONS : []) {
     const d = dbCurations.find((x) => x.slug === c.slug);
     if (!d) { problems.push(`큐레이션 누락: ${c.slug}`); continue; }
     const linkSlugs = d.spaces.map((l) => l.space.slug).join(",");
     if (linkSlugs !== c.spaceSlugs.join(",")) problems.push(`큐레이션 ${c.slug} 연결 공간: 정적=${c.spaceSlugs.join(",")} CMS=${linkSlugs} (CMS에서 수정했다면 정상)`);
   }
   const dbPeople = await prisma.editorialPerson.findMany();
-  for (const p of PEOPLE) if (!dbPeople.some((x) => x.slug === p.slug)) problems.push(`피플 누락: ${p.slug}`);
+  for (const p of peopleInitial ? PEOPLE : []) if (!dbPeople.some((x) => x.slug === p.slug)) problems.push(`피플 누락: ${p.slug}`);
   if ((await prisma.space.count()) !== opsSpaceCountBefore) problems.push("운영 Space 개수가 바뀌었습니다(있어서는 안 됨)");
 
   console.log("\n── 검증 ──");

@@ -1,7 +1,7 @@
 /* ── 에디토리얼 홈 서버 헬퍼 ─────────────────────────────────────────────
    공개 여부 판정(ENABLE_EDITORIAL_HOME 또는 관리자 미리보기)만 담당한다.
-   홈페이지 콘텐츠(SPACE/CURATION/PEOPLE)는 src/content/의 정적 데이터이며, Cube 운영 DB
-   (Space/Episode/Scene 등)를 조회하지 않는다. ── */
+   홈페이지 콘텐츠(SPACE/CURATION/PEOPLE)는 Editorial CMS(editorial_* 테이블, queries.ts)에서 읽으며,
+   Cube 운영 DB(Space/Episode/Scene 등)를 조회하지 않는다. ── */
 
 import { auth } from "@/auth";
 import { isAdmin } from "@/lib/admin";

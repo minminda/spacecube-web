@@ -36,7 +36,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className="min-h-screen flex flex-col" style={{ background: "var(--bg)", color: "var(--fg)" }}>
         <Navbar />
-        <div className="max-w-sm md:max-w-2xl mx-auto w-full flex-1">
+        <div className="app-shell max-w-sm md:max-w-2xl mx-auto w-full flex-1">
           {children}
         </div>
         {ENABLE_INITIAL_ONBOARDING && <OnboardingOverlay />}

@@ -45,9 +45,6 @@ body {
   /* .full-bleed(아래)가 뷰포트 폭 기준으로 확장되는 동안 실수로 가로 스크롤이 생기지 않도록
      하는 안전장치 — 이 규칙 하나로 화면에 보이는 레이아웃은 바뀌지 않는다. */
   overflow-x: hidden;
-  /* 100vw는 세로 스크롤바 폭을 포함해 bleed 요소가 뷰포트보다 넓어진다 — body를 inline-size 컨테이너로 두고
-     bleed 요소는 100cqw(스크롤바 제외 실제 폭)를 쓴다. cqw 미지원 브라우저는 100vw fallback. */
-  container-type: inline-size;
 }
 
 /* ── 모바일 전용 Full Bleed 이미지 — 공용 레이아웃(layout.tsx)의 max-w-sm 중앙 정렬 wrapper를
@@ -127,9 +124,7 @@ body {
    fixed/sticky 요소 기준이 바뀌지 않게 한다. 색은 흰 바탕 + 검정 + 라이트 그레이. */
 .editorial-bleed {
   width: 100vw;
-  width: 100cqw;
   margin-left: calc(50% - 50vw);
-  margin-left: calc(50% - 50cqw);
   --ed-bg: #ffffff;
   --ed-fg: #111111;
   --ed-dim: #6f6f6f;
@@ -191,10 +186,19 @@ body {
 /* 공용 레이아웃(layout.tsx)의 max-w 래퍼 밖으로 관리자 화면을 확장한다(.editorial-bleed와 동일한 방식). */
 .admin-bleed {
   width: 100vw;
-  width: 100cqw;
   margin-left: calc(50% - 50vw);
-  margin-left: calc(50% - 50cqw);
   min-height: 100vh;
+}
+/* 100vw는 세로 스크롤바 폭까지 포함해 데스크톱에서 문서가 뷰포트보다 몇 px 넓어진다. 페이지 루트가
+   bleed 요소인 경우(에디토리얼·관리자·운영자 화면)에는 공용 래퍼의 폭 제한을 풀고 bleed 요소를 일반
+   블록 폭으로 되돌려 vw를 아예 쓰지 않는다. body에 container-type 등 containment를 걸지 않으므로
+   position:fixed 요소(바텀시트·메뉴 등)의 기준은 바뀌지 않는다. :has 미지원 브라우저는 위 100vw 방식 그대로. */
+.app-shell:has(> .editorial-bleed, > .admin-bleed) {
+  max-width: none;
+}
+.app-shell:has(> .editorial-bleed, > .admin-bleed) :is(.editorial-bleed, .admin-bleed) {
+  width: auto;
+  margin-left: 0;
 }
 .a-eyebrow {
   font-size: 11px;
