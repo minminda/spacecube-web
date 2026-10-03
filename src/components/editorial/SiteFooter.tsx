@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BRAND_NAME, BRAND_MESSAGE, CONTACT_EMAIL, INSTAGRAM_URL } from "@/content/site";
+import { BRAND_NAME, BRAND_MESSAGE, CONTACT_EMAIL, INSTAGRAM_URL, PARTICIPATION } from "@/content/site";
 
 interface Props {
   admin?: boolean;
@@ -7,6 +7,7 @@ interface Props {
 
 // 하단 보조 내비게이션 — 브랜드·유틸리티만. 스토리·큐레이션·함께한 공간을 별도 서비스처럼 묶지 않는다
 // (그 콘텐츠는 홈과 상단 메뉴, /spacecube 브랜드 허브에서 함께 보여준다). 관리자는 관리자에게만.
+// 공간 제안하기는 상단 CTA에서 빠져 여기(와 모바일 메뉴 하단 보조 영역)에서만 접근한다.
 const LINKS = [
   { label: "공간큐브", href: "/spacecube" },
   { label: "공간큐브 소개", href: "/about" },
@@ -30,6 +31,9 @@ export default function SiteFooter({ admin }: Props) {
             {LINKS.map((l) => (
               <li key={l.href}><Link href={l.href} className="hover:underline underline-offset-4">{l.label}</Link></li>
             ))}
+            <li>
+              <a href={PARTICIPATION[0].href} className="hover:underline underline-offset-4">{PARTICIPATION[0].cta}</a>
+            </li>
             <li>
               <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer" className="hover:underline underline-offset-4">Instagram</a>
             </li>

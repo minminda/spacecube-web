@@ -1,18 +1,8 @@
 import Link from "next/link";
-import { FINDER_MOODS, FINDER_PURPOSES } from "@/lib/finder/spaceFinder";
-import { attrKey } from "@/lib/discoveryRecommend";
 import { AFFINITY_LABEL } from "@/lib/curators/affinity";
 import type { ViewerCuratorContext } from "@/lib/curators/viewerTaste";
 
 const AREAS = ["연남", "망원", "서촌"];
-
-/** 내 취향 → 빠른 찾기 조건(찾기 화면의 어휘에 있는 것만, 느낌 1 · 목적 1). */
-function finderParams(topTaste: string[]): string {
-  const keys = topTaste.map(attrKey);
-  const feel = FINDER_MOODS.find((m) => m.match.some((x) => keys.includes(x)))?.key;
-  const purpose = FINDER_PURPOSES.find((p) => keys.some((k) => p.match.some((m) => k.includes(m))));
-  return [feel ? `feel=${encodeURIComponent(feel)}` : "", purpose ? `for=${encodeURIComponent(purpose.key)}` : ""].filter(Boolean).join("&");
-}
 
 /**
  * 아카이브의 큐레이터 미리보기(프로토타입) — 아카이브는 여전히 "내가 경험하고 저장한 공간"이 중심이고,
@@ -21,7 +11,6 @@ function finderParams(topTaste: string[]): string {
 export default function ArchiveCuratorBlock({ ctx }: { ctx: ViewerCuratorContext }) {
   if (ctx.empty) return null;
   const matched = ctx.affinities.filter((a) => a.level !== "new").slice(0, 2);
-  const params = finderParams(ctx.topTaste);
   return (
     <section className="ed-container pb-10">
       <div className="py-5 space-y-4" style={{ borderTop: "1px solid var(--ed-line)", borderBottom: "1px solid var(--ed-line)" }}>
@@ -40,9 +29,9 @@ export default function ArchiveCuratorBlock({ ctx }: { ctx: ViewerCuratorContext
           </p>
         )}
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs" style={{ color: "var(--ed-dim)" }}>이 취향으로 다른 지역 찾기</span>
+          <span className="text-xs" style={{ color: "var(--ed-dim)" }}>이 취향으로 추천받기</span>
           {AREAS.map((a) => (
-            <Link key={a} href={`/find?area=${encodeURIComponent(a)}${params ? `&${params}` : ""}`} className="inline-flex items-center h-8 px-3 text-xs font-semibold" style={{ border: "1px solid var(--ed-fg)" }}>
+            <Link key={a} href={`/find?area=${encodeURIComponent(a)}`} className="inline-flex items-center h-8 px-3 text-xs font-semibold" style={{ border: "1px solid var(--ed-fg)" }}>
               {a}
             </Link>
           ))}

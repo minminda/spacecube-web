@@ -58,7 +58,7 @@ export default async function CuratorsPage() {
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
               <p className="text-lg md:text-xl font-bold">오늘 갈 곳을 찾고 있나요?</p>
-              <p className="pt-1 text-sm" style={{ color: "var(--ed-dim)" }}>지역을 고르고, 느낌을 하나만 더 고르면 돼요.</p>
+              <p className="pt-1 text-sm" style={{ color: "var(--ed-dim)" }}>지역만 고르면 내 취향에 맞는 순서로 보여드려요.</p>
             </div>
             <div className="flex flex-wrap gap-2">
               {areas.map((a) => (
@@ -66,7 +66,7 @@ export default async function CuratorsPage() {
                   {a} →
                 </Link>
               ))}
-              <Link href="/find" className="inline-flex items-center h-10 px-4 text-sm" style={{ border: "1px solid var(--ed-line)", background: "var(--ed-bg)" }}>조건으로 찾기</Link>
+              <Link href="/find" className="inline-flex items-center h-10 px-4 text-sm" style={{ border: "1px solid var(--ed-line)", background: "var(--ed-bg)" }}>전체 추천</Link>
             </div>
           </div>
         </section>
@@ -112,7 +112,7 @@ export default async function CuratorsPage() {
             {viewer.loggedIn && (
               <>
                 {" "}
-                <Link href="/find" className="underline underline-offset-4">공간 찾기</Link>는 나와 취향이 맞는 큐레이터가 고른 공간을 조금 더 앞에 보여줘요.
+                <Link href="/find" className="underline underline-offset-4">추천</Link>은 나와 취향이 맞는 큐레이터가 고른 공간을 조금 더 앞에 보여줘요.
               </>
             )}
           </p>

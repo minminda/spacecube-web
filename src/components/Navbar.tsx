@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ENABLE_NAV_DISCOVER_LINK, ENABLE_NAV_RECOMMENDATION_LINK, ENABLE_EDITORIAL_HOME } from "@/lib/features";
-import { BRAND_NAME } from "@/content/site";
+import { BRAND_NAME, PARTICIPATION } from "@/content/site";
 
 const LEGACY_NAV_ITEMS = [
   { label: "공간들", href: "/discover", match: (p: string) => p.startsWith("/discover") || p.startsWith("/stories") || p.startsWith("/story"), enabled: ENABLE_NAV_DISCOVER_LINK },
@@ -12,29 +12,24 @@ const LEGACY_NAV_ITEMS = [
   { label: "추천 방식", href: "/recommendation", match: (p: string) => p.startsWith("/recommendation"), enabled: ENABLE_NAV_RECOMMENDATION_LINK },
 ].filter((item) => item.enabled);
 
-/* ── 상단 내비게이션(2026-10) ─────────────────────────────────────────────
-   핵심은 "공간 찾기" 하나 — 추천은 별도 메뉴가 아니라 공간 찾기의 정렬 순서다(/recommend는 /find로 이어진다).
-   큐레이터 미리보기 권한이 있으면: 공간 찾기 · 큐레이터 (+ 내 아카이브).
-   아직 없으면: 공간 찾기 · 스토리 · 큐레이션 · 함께한 공간 (+ 내 아카이브) — 준비되지 않은 메뉴를 먼저 공개하지 않는다.
-   스토리·큐레이션·함께한 공간은 별도 서비스로 떼지 않고 홈과 /spacecube(브랜드 허브)에서 함께 보여준다. ── */
-const FIND_ITEM = { label: "공간 찾기", href: "/find", match: (p: string) => p.startsWith("/find") || p.startsWith("/recommend") };
-const CONTENT_NAV_ITEMS = [
+/* ── 상단 내비게이션(2026-10 최종) ────────────────────────────────────────
+   LATEST · 추천 · 스토리 · 큐레이션 + 오른쪽 [내 아카이브](흰색 Filled 버튼).
+   - 추천 = /find(지역만 고르면 내 취향 데이터로 정렬). /recommend는 /find로 이어진다.
+   - 큐레이터는 프로토타입이라 상단에 넣지 않는다(ENABLE_CURATOR_PROTOTYPE 검증 후 확장).
+   - 공간 제안하기는 핵심 행동이 아니므로 상단에서 빼고 푸터·모바일 하단 보조 영역에만 둔다.
+   - 함께한 공간은 홈과 /spacecube에서 보여준다. ── */
+const EDITORIAL_NAV_ITEMS = [
+  { label: "LATEST", href: "/latest", match: (p: string) => p.startsWith("/latest") },
+  { label: "추천", href: "/find", match: (p: string) => p.startsWith("/find") || p.startsWith("/recommend") },
   { label: "스토리", href: "/story", match: (p: string) => p === "/story" || p.startsWith("/people") || p.startsWith("/thought") },
   { label: "큐레이션", href: "/curation", match: (p: string) => p.startsWith("/curation") },
-  // 공개 공간 상세(/spaces/[slug])는 일반·파트너 공용이라 활성 표시하지 않는다. Cube 운영 라우트(/space/**)와도 분리.
-  { label: "함께한 공간", href: "/cube-spaces", match: (p: string) => p.startsWith("/cube-spaces") },
 ];
-const PLATFORM_NAV_ITEMS = [
-  FIND_ITEM,
-  { label: "큐레이터", href: "/curators", match: (p: string) => p.startsWith("/curators") || p.startsWith("/collections") },
-];
-const EDITORIAL_NAV_ITEMS = [FIND_ITEM, ...CONTENT_NAV_ITEMS];
 
 interface Viewer {
   loggedIn: boolean;
   admin: boolean;
   editorial: boolean;
-  /** 큐레이터 프로토타입 표시 여부(ENABLE_CURATOR_PROTOTYPE 또는 관리자·로컬 미리보기) */
+  /** 큐레이터 프로토타입 표시 여부(ENABLE_CURATOR_PROTOTYPE 또는 관리자·로컬 미리보기) — 상단 메뉴에는 쓰지 않는다 */
   curators?: boolean;
 }
 
@@ -106,12 +101,11 @@ export default function Navbar() {
     );
   }
 
-  // 큐레이터 미리보기 권한이 있으면 상단 = 공간 찾기 · 큐레이터, 아니면 공간 찾기 · 스토리 · 큐레이션 · 함께한 공간.
-  const platform = !!viewer?.curators;
-  const navItems = platform ? PLATFORM_NAV_ITEMS : EDITORIAL_NAV_ITEMS;
-  const accountHref = viewer?.loggedIn ? "/archive" : "/login";
-  const accountActive = pathname.startsWith("/archive");
-  const accountLabel = viewer?.loggedIn ? "내 아카이브" : "로그인";
+  const navItems = EDITORIAL_NAV_ITEMS;
+  // 비로그인이면 기존 로그인 화면을 거쳐 아카이브로 돌아온다(새 인증 흐름 없음).
+  const archiveHref = viewer && !viewer.loggedIn ? "/login?callbackUrl=%2Farchive" : "/archive";
+  const archiveActive = pathname.startsWith("/archive");
+  const suggestHref = PARTICIPATION[0].href;
 
   return (
     <nav className="sticky top-0 z-50 w-full" style={{ background: "#000", borderBottom: "1px solid #1a1a1a" }}>
@@ -136,15 +130,16 @@ export default function Navbar() {
           })}
         </div>
 
-        <div className="hidden md:flex items-center gap-5">
-          <Link href="/#participate" className="hidden lg:inline-block text-xs font-semibold px-3.5 py-2 whitespace-nowrap transition-colors hover:bg-white hover:text-black" style={{ color: "#fff", border: "1px solid #fff" }}>
-            공간 제안하기
+        <div className="hidden md:flex items-center">
+          {/* 기존 상단 CTA(공간 제안하기) 자리·크기를 그대로 이어받은 흰색 Filled 버튼 */}
+          <Link
+            href={archiveHref}
+            aria-current={archiveActive ? "page" : undefined}
+            className="inline-block text-xs font-semibold px-3.5 py-2 whitespace-nowrap transition-opacity hover:opacity-85"
+            style={{ background: "#fff", color: "#000", border: "1px solid #fff" }}
+          >
+            내 아카이브
           </Link>
-          {viewer && (
-            <Link href={accountHref} className="text-[13px] whitespace-nowrap transition-opacity hover:opacity-100" style={{ color: "#fff", opacity: accountActive ? 1 : 0.55, fontWeight: accountActive ? 600 : 400 }}>
-              {accountLabel}
-            </Link>
-          )}
         </div>
 
         <button
@@ -167,10 +162,7 @@ export default function Navbar() {
       {menuOpen && (
         <div className="md:hidden fixed inset-x-0 top-14 bottom-0 z-50 flex flex-col overflow-y-auto" style={{ background: "#000" }}>
           <ul className="px-5 pt-6">
-            {[
-              ...navItems,
-              ...(viewer?.loggedIn ? [{ label: "내 아카이브", href: "/archive", match: (p: string) => p.startsWith("/archive") }] : []),
-            ].map(({ label, href, match }) => (
+            {navItems.map(({ label, href, match }) => (
               <li key={href} style={{ borderBottom: "1px solid #222" }}>
                 <Link
                   href={href}
@@ -186,18 +178,18 @@ export default function Navbar() {
           </ul>
           <div className="px-5 pt-8 pb-10 mt-auto space-y-4" style={{ paddingBottom: "calc(2.5rem + env(safe-area-inset-bottom))" }}>
             <Link
-              href="/#participate"
+              href={archiveHref}
               onClick={() => setMenuOpenPath(null)}
               className="tap-target flex items-center justify-center w-full text-sm font-semibold"
               style={{ background: "#fff", color: "#000" }}
             >
-              공간 제안하기
+              내 아카이브
             </Link>
-            {/* 하단 보조 영역 — 계정 · 공간큐브(브랜드 허브) · 소개 · 관리자(관리자에게만) */}
+            {/* 하단 보조 영역 — 공간큐브 · 소개 · 공간 제안하기 · 관리자(관리자에게만) */}
             <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm" style={{ color: "#999" }}>
-              <Link href={accountHref} onClick={() => setMenuOpenPath(null)}>{accountLabel}</Link>
               <Link href="/spacecube" onClick={() => setMenuOpenPath(null)} style={{ color: "#fff" }}>공간큐브</Link>
               <Link href="/about" onClick={() => setMenuOpenPath(null)}>공간큐브 소개</Link>
+              <a href={suggestHref}>공간 제안하기</a>
               {viewer?.admin && <Link href="/admin" onClick={() => setMenuOpenPath(null)}>관리자</Link>}
             </div>
           </div>

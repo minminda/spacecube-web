@@ -76,7 +76,7 @@ export default async function ArchivePage({ searchParams }: Props) {
   if (sp.space) redirect(`/archive/space/${encodeURIComponent(sp.space)}`);
 
   const session = await auth();
-  if (!session?.user?.id) redirect("/login");
+  if (!session?.user?.id) redirect("/login?callbackUrl=%2Farchive");
 
   const user = await prisma.user.findUnique({ where: { id: session.user.id } });
   if (!user) redirect("/login");
@@ -202,12 +202,12 @@ export default async function ArchivePage({ searchParams }: Props) {
           <section className="ed-container pt-14">
             <div className="py-6 flex flex-wrap items-end justify-between gap-4" style={{ borderTop: "1px solid var(--ed-fg)" }}>
               <div className="space-y-1">
-                <p className="ed-label" style={{ color: "var(--ed-dim)" }}>이 취향으로 다른 지역의 공간 찾기</p>
+                <p className="ed-label" style={{ color: "var(--ed-dim)" }}>이 취향으로 추천받기</p>
                 <p className="text-base md:text-lg">
                   최근 내 공간에서는 <strong>{tasteWords.join(" · ")}</strong> 특징이 자주 나타나요.
                 </p>
               </div>
-              <Link href="/find" className="tap-target inline-flex items-center px-5 text-sm font-semibold" style={{ border: "1px solid var(--ed-fg)" }}>공간 찾기 →</Link>
+              <Link href="/find" className="tap-target inline-flex items-center px-5 text-sm font-semibold" style={{ border: "1px solid var(--ed-fg)" }}>나에게 맞는 공간 보기 →</Link>
             </div>
           </section>
         )}

@@ -31,7 +31,7 @@ function pad(n: number) {
   return String(n).padStart(2, "0");
 }
 
-export default function LatestSlider({ items }: { items: ContentItem[] }) {
+export default function LatestSlider({ items, allHref }: { items: ContentItem[]; /** 전체 피드(/latest) 링크 — 있으면 머리줄 오른쪽에 표시 */ allHref?: string }) {
   const count = items.length;
   // index와 "이미지를 한 번이라도 띄운 슬라이드"를 함께 관리 — 현재·다음 슬라이드 이미지만 렌더해
   // 첫 화면에서 큰 이미지 5장을 한꺼번에 받지 않는다(한 번 본 이미지는 유지해 되돌아갈 때 깜빡임 없음).
@@ -103,11 +103,14 @@ export default function LatestSlider({ items }: { items: ContentItem[] }) {
     >
       <div className="flex items-center justify-between pb-3 md:pb-6" style={{ borderBottom: "1px solid var(--ed-fg)" }}>
         <p className="ed-label">Latest</p>
-        {multi && (
-          <p className="ed-label tabular-nums" style={{ color: "var(--ed-dim)" }}>
-            <span style={{ color: "var(--ed-fg)" }}>{pad(index + 1)}</span> / {pad(count)}
-          </p>
-        )}
+        <div className="flex items-center gap-4 md:gap-6">
+          {multi && (
+            <p className="ed-label tabular-nums" style={{ color: "var(--ed-dim)" }}>
+              <span style={{ color: "var(--ed-fg)" }}>{pad(index + 1)}</span> / {pad(count)}
+            </p>
+          )}
+          {allHref && <Link href={allHref} className="text-xs md:text-sm font-semibold hover:underline underline-offset-4">전체 보기 →</Link>}
+        </div>
       </div>
 
       <div className="relative pt-4 md:pt-8">
