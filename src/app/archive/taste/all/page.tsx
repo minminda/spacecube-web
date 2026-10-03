@@ -51,9 +51,9 @@ function shuffle<T>(items: T[]): T[] {
 export default async function ArchiveTasteAllPage() {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
-  // 새 정보 구조(2026-10)에서는 추천이 아카이브에서 분리돼 /recommend가 맡는다. 공개 전(ENABLE_EDITORIAL_HOME=false)
+  // 새 정보 구조(2026-10)에서는 추천은 공간 찾기(/find)의 정렬 순서가 맡는다. 공개 전(ENABLE_EDITORIAL_HOME=false)
   // 일반 사용자에게는 이 기존 화면을 그대로 둔다(/recommend도 그 동안은 여기로 보낸다).
-  if (ENABLE_EDITORIAL_HOME || isAdmin(session.user.email)) redirect("/recommend");
+  if (ENABLE_EDITORIAL_HOME || isAdmin(session.user.email)) redirect("/find");
 
   const user = await prisma.user.findUnique({ where: { id: session.user.id } });
   if (!user) redirect("/login");

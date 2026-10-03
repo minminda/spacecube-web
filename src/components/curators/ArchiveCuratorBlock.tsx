@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { FINDER_FEELS, FINDER_PURPOSES } from "@/lib/curators/finder";
+import { FINDER_MOODS, FINDER_PURPOSES } from "@/lib/finder/spaceFinder";
 import { attrKey } from "@/lib/discoveryRecommend";
 import { AFFINITY_LABEL } from "@/lib/curators/affinity";
 import type { ViewerCuratorContext } from "@/lib/curators/viewerTaste";
@@ -9,7 +9,7 @@ const AREAS = ["연남", "망원", "서촌"];
 /** 내 취향 → 빠른 찾기 조건(찾기 화면의 어휘에 있는 것만, 느낌 1 · 목적 1). */
 function finderParams(topTaste: string[]): string {
   const keys = topTaste.map(attrKey);
-  const feel = FINDER_FEELS.find((f) => keys.includes(attrKey(f)));
+  const feel = FINDER_MOODS.find((m) => m.match.some((x) => keys.includes(x)))?.key;
   const purpose = FINDER_PURPOSES.find((p) => keys.some((k) => p.match.some((m) => k.includes(m))));
   return [feel ? `feel=${encodeURIComponent(feel)}` : "", purpose ? `for=${encodeURIComponent(purpose.key)}` : ""].filter(Boolean).join("&");
 }

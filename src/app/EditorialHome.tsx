@@ -5,12 +5,12 @@ import LatestSlider from "@/components/editorial/LatestSlider";
 import EdImage from "@/components/editorial/EdImage";
 import CurationCard from "@/components/editorial/CurationCard";
 import SpaceCard from "@/components/editorial/SpaceCard";
-import { listContentStream, listCubeSpaces, listCurations, listStoryItems } from "@/lib/editorial/queries";
+import { listAreas, listContentStream, listCubeSpaces, listCurations, listStoryItems } from "@/lib/editorial/queries";
 import { getSavedEditorialSpaceIds } from "@/lib/editorial/saves";
 import QrScanSheet from "./QrScanSheet";
 
 /* ── 에디토리얼 홈 ───────────────────────────────────────────────────────
-   INTRO(브랜드 한 줄) → LATEST(최신 발행 5개 Hero Slider) → STORY · CURATION · 함께한 공간 미리보기(각 2~4개)
+   INTRO(브랜드 한 줄) → LATEST(최신 발행 5개 Hero Slider) → 공간 찾기 입구(지역) → STORY · CURATION · 함께한 공간 미리보기(각 2~4개)
    → GONGGANCUBE EXPERIENCE → PARTICIPATE → FOOTER.
    각 영역은 자기 허브(/story, /curation, /cube-spaces)로 넘어가는 입구일 뿐 — 홈에 전부 넣지 않는다.
    노출 규칙은 자동이다: 발행(PUBLISHED)된 콘텐츠를 최신 순으로. 초안 포함 미리보기는 /?preview=drafts(관리자·로컬).
@@ -33,12 +33,13 @@ function SectionHead({ label, title, href, cta }: { label: string; title: string
 
 export default async function EditorialHome({ admin, previewDrafts, userId }: { admin: boolean; previewDrafts: boolean; userId: string | null }) {
   const v = { preview: previewDrafts };
-  const [stream, stories, curations, cubeSpaces, savedIds] = await Promise.all([
+  const [stream, stories, curations, cubeSpaces, savedIds, areas] = await Promise.all([
     listContentStream(v),
     listStoryItems(v),
     listCurations(v),
     listCubeSpaces(v),
     getSavedEditorialSpaceIds(userId),
+    listAreas(),
   ]);
   // 보관(ARCHIVED)은 홈에서 항상 제외 — 미리보기도 발행·초안까지만(listContentStream과 같은 규칙).
   const visible = <T extends { status: string }>(rows: T[]) => rows.filter((r) => r.status !== "ARCHIVED");
@@ -75,6 +76,27 @@ export default async function EditorialHome({ admin, previewDrafts, userId }: { 
         ) : (
           <section className="ed-container py-16">
             <p className="text-base" style={{ color: "var(--ed-dim)" }}>첫 번째 이야기를 준비하고 있습니다.</p>
+          </section>
+        )}
+
+        {/* ── 공간 찾기 — 지역을 고르면 나에게 맞는 순서로(추천은 찾기의 정렬 순서) ── */}
+        {areas.length > 0 && (
+          <section style={{ borderTop: "1px solid var(--ed-line)" }}>
+            <div className="ed-container py-8 md:py-10 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div className="space-y-1">
+                <p className="ed-label" style={{ color: "var(--ed-dim)" }}>Find</p>
+                <h2 className="text-xl md:text-[28px] font-bold leading-[1.25] tracking-[-0.03em] break-keep">어디에서 찾으세요?</h2>
+                <p className="text-[13px] md:text-sm" style={{ color: "var(--ed-dim)" }}>지역을 고르면 나에게 맞을 가능성이 높은 공간부터 보여드려요.</p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {areas.slice(0, 5).map((a) => (
+                  <Link key={a.area} href={`/find?area=${encodeURIComponent(a.area)}`} className="inline-flex items-center h-10 px-4 text-sm font-semibold" style={{ border: "1px solid var(--ed-fg)" }}>
+                    {a.area}
+                  </Link>
+                ))}
+                <Link href="/find" className="inline-flex items-center h-10 px-4 text-sm" style={{ border: "1px solid var(--ed-line)" }}>공간 찾기 →</Link>
+              </div>
+            </div>
           </section>
         )}
 

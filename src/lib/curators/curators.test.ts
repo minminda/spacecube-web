@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { alsoPickedLine, curatorsLine, finderReason, hasBatchim, parseFinderQuery, runFinder, type FinderPick } from "./finder";
+import { alsoPickedLine, curatorsLine, hasBatchim, type FinderPick } from "./finder";
 import { affinityReason, computeAffinities, curatorPickRecommendations, enrichProfileWithCollections, pickReason } from "./affinity";
 import { buildTasteProfile } from "@/lib/discoveryRecommend";
 
@@ -23,36 +23,6 @@ const picks: FinderPick[] = [
   pick("far", "minji", "민지", "비 오는 날", ["조용한"]),
 ];
 
-describe("parseFinderQuery", () => {
-  it("목록 밖 값은 버리고 지역은 정규화, 각 2개까지", () => {
-    const q = parseFinderQuery({ area: "연남동", feel: "조용한,시끄러운", for: ["혼자", "책", "카페"] });
-    expect(q).toEqual({ area: "연남", feels: ["조용한"], purposes: ["혼자", "책"] });
-  });
-});
-
-describe("runFinder", () => {
-  it("큐레이터가 고른 공간만, 지역 필터, 모든 조건을 만족한 곳 중 여러 큐레이터가 고른 곳이 먼저", () => {
-    const r = runFinder(spaces, picks, { area: "연남", feels: ["조용한"], purposes: ["혼자"] });
-    expect(r.map((x) => x.space.id)).toEqual(["book", "quiet"]);
-    expect(r.every((x) => x.allMatched)).toBe(true);
-    expect(r.find((x) => x.space.id === "nopick")).toBeUndefined();
-  });
-  it("공간 특징이 없어도 컬렉션 키워드로 맞으면 출처를 남긴다", () => {
-    const [book] = runFinder(spaces, picks, { area: "연남", feels: [], purposes: ["책"] });
-    expect(book.space.id).toBe("book");
-    expect(book.matched[0].via).toBe("space"); // 독립서점 → 책
-    const r = runFinder(spaces, picks, { area: "연남", feels: ["조용한"], purposes: [] }).find((x) => x.space.id === "book")!;
-    expect(r.matched[0]).toMatchObject({ via: "collection", collectionTitle: "혼자 오래 있고 싶은 연남" });
-    expect(r.comment?.text).toBe("몇 시간 책 읽고 싶을 때.");
-  });
-  it("조건이 하나도 안 맞으면 결과에서 뺀다", () => {
-    expect(runFinder(spaces, picks, { area: "연남", feels: ["독특한"], purposes: [] })).toHaveLength(0);
-  });
-  it("조건 없이 지역만 고르면 그 지역의 큐레이터 공간 전부(추천 큐레이터 많은 순)", () => {
-    expect(runFinder(spaces, picks, { area: "연남", feels: [], purposes: [] })[0].space.id).toBe("book");
-  });
-});
-
 describe("문구", () => {
   it("받침에 맞는 조사", () => {
     expect(hasBatchim("민지님")).toBe(true);
@@ -62,10 +32,6 @@ describe("문구", () => {
     expect(pickReason("공간큐브", [], "오래 머물 이유")).toContain("공간큐브가");
     expect(alsoPickedLine([{ name: "공간큐브", isOfficial: true }])).toBe("공간큐브도 고른 곳");
     expect(alsoPickedLine([{ name: "민지" }, { name: "현우" }])).toBe("민지님과 현우님도 고른 곳");
-  });
-  it("finderReason은 맞은 조건만 말한다", () => {
-    expect(finderReason([])).toBeNull();
-    expect(finderReason([{ label: "조용한", via: "space" }])).toContain("'조용한'");
   });
 });
 

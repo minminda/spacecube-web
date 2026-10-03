@@ -13,10 +13,10 @@
 | Guestbook | 현재 구현 | 비로그인 작성·공감·답글, 운영자 숨김 |
 | Story(PEOPLE/THOUGHT) · 공식 Curation · 함께한 공간 | 현재 구현(공개 스위치 꺼짐) | `ENABLE_EDITORIAL_HOME=false` — 관리자 미리보기. 발행 STORY 0편, 큐레이션 초안 2편 |
 | Save | 현재 구현 | 공개 공간 저장(SavedEditorialSpace) + Cube 상세 저장(SavedSpace) |
-| Recommendation V1 | 현재 구현 | 방문·저장·아카이브 신호의 태그 이름 매칭, 설명 가능한 이유만 |
+| 공간 찾기(= 개인화 추천) | 현재 구현(공개 스위치 따름) | `/find` — 지역 Pool → 검색·필터로 후보 축소 → 취향 정렬("나에게 맞는 순"). 별도 추천 페이지 없음, `/recommend`는 `/find`로 이동 |
 | Archive V1 + 개인 공간 아카이브 | 현재 구현 | 사진·링크로 추가, 기존 공간 자동 매칭, 방문 여러 번, PRIVATE |
 | Demo data 격리 | 현재 구현 | `Space/User/EditorialSpace.isDemo`, 공개 쿼리 전부 제외 |
-| SpaceCube Original 허브 | 현재 구현(공개 스위치 따름) | `/spacecube` — STORY · CURATION · 함께한 공간 · Cube 경험 |
+| 공간큐브 브랜드 허브 | 현재 구현(공개 스위치 따름) | `/spacecube` — 공간큐브가 하는 일(STORY · CURATION · 함께한 공간 · Cube 경험). 별도 서비스가 아님 |
 
 ## 다음 핵심 실험
 
@@ -26,14 +26,14 @@
 - 지금 있는 것: 가상 큐레이터 4명·컬렉션 11개·가상 공간 23곳(isDemo), `/curators` `/collections/[slug]` `/find`, 추천·아카이브의 Prototype 블록. 스위치 `ENABLE_CURATOR_PROTOTYPE=false`.
 - 검증 질문: 취향 있는 사람들의 공간 선택을 따라가는 방식이 실제 공간 탐색에 도움이 되는가?
 
-### 2. 공간 취향 플랫폼 IA — Prototype
-- 상단(플랫폼): 공간 찾기 · 큐레이터 · 추천 · 내 아카이브 — 큐레이터 미리보기 권한이 있을 때만 이 구성으로 바뀐다.
-- 하단(Original): "공간큐브" → `/spacecube` 허브(스토리 · 큐레이션 · 함께한 공간 · Cube 경험).
-- 미리보기가 아닌 방문자에게는 기존 상단 구성(스토리 · 큐레이션 · 함께한 공간 · 추천)이 유지된다.
+### 2. 정보 구조 — 찾기 자체가 추천 (2026-10-03 수정 반영)
+- 상단: **공간 찾기** 중심. 큐레이터 미리보기 권한이 있으면 공간 찾기 · 큐레이터 · 내 아카이브, 없으면 공간 찾기 · 스토리 · 큐레이션 · 함께한 공간 · 내 아카이브.
+- 추천은 별도 메뉴·페이지가 아니라 공간 찾기의 정렬 순서다. 핵심 루프: FIND → SAVE → VISIT → ARCHIVE → TASTE → BETTER FIND.
+- 정렬 근거(현재 데이터만): 방문 Record·저장·아카이브·직접 고른 태그(+ 미리보기에서 취향 맞는 큐레이터의 공간 가산). 데이터가 없으면 공간큐브 큐레이션·컬렉션에 담긴 정도 → 공개 순서.
 
-### 3. SpaceCube Original — 현재 구현(유지)
-공간큐브가 직접 만드는 STORY · 공식 CURATION · 함께한 공간 · Cube Experience를 플랫폼 안의 공식 브랜드 영역으로 유지한다.
-경로(`/story` `/curation` `/cube-spaces`)는 바꾸지 않는다.
+### 3. 공간큐브 자체 콘텐츠 — 현재 구현(한 서비스 안에서 함께)
+STORY · 공식 CURATION · 함께한 공간 · Cube Experience는 별도 "Original" 서비스로 떼지 않는다. 홈 미리보기와 상단 메뉴에 그대로 있고,
+푸터·모바일 하단의 "공간큐브"(`/spacecube`)는 브랜드 허브일 뿐이다. 경로(`/story` `/curation` `/cube-spaces`)는 바꾸지 않는다.
 
 ### 4. 실제 큐레이터 검증 — Future
 - 실제 큐레이터 후보 조사 → 3~5명 접촉 → 컬렉션 데이터 확보 가능성 검증
@@ -49,7 +49,7 @@
 ## Curator Prototype을 다시 시작할 때 볼 곳
 - 접근·공개: `src/lib/features.ts`(`ENABLE_CURATOR_PROTOTYPE`), `src/lib/curators/access.ts`
 - 데이터: `prisma/schema.prisma`의 CuratorProfile/CuratorCollection/CuratorCollectionSpace, `prisma/seed-curator-prototype.ts`
-- 조회·로직: `src/lib/curators/{queries,finder,affinity,viewerTaste}.ts`
-- 화면: `src/app/{curators,collections,find}/`, `src/components/curators/`, `/recommend`·`/archive`의 Prototype 블록
-- 내비: `src/components/Navbar.tsx`(PLATFORM_NAV_ITEMS / ORIGINAL_NAV_ITEMS), `src/components/editorial/SiteFooter.tsx`
+- 조회·로직: `src/lib/curators/{queries,affinity,viewerTaste}.ts`, 공간 찾기 정렬 `src/lib/finder/{spaceFinder,finderData}.ts`
+- 화면: `src/app/{curators,collections,find}/`, `src/components/curators/`, `/archive`의 Prototype 블록
+- 내비: `src/components/Navbar.tsx`(PLATFORM_NAV_ITEMS / EDITORIAL_NAV_ITEMS), `src/components/editorial/SiteFooter.tsx`
 - 설계 노트: `docs/curator-prototype-2026-10-03.md`, `docs/personal-archive-2026-10-03.md`

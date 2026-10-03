@@ -112,7 +112,7 @@ export default async function CuratorsPage() {
             {viewer.loggedIn && (
               <>
                 {" "}
-                나와 취향이 맞는 큐레이터는 <Link href="/recommend" className="underline underline-offset-4">추천</Link>에서 볼 수 있어요.
+                <Link href="/find" className="underline underline-offset-4">공간 찾기</Link>는 나와 취향이 맞는 큐레이터가 고른 공간을 조금 더 앞에 보여줘요.
               </>
             )}
           </p>

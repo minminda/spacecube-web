@@ -38,7 +38,7 @@ export default async function AdminCuratorsPage() {
         </p>
         <p>가상 큐레이터·컬렉션·공간(가상 공간 {demoSpaceCount}곳)은 스위치와 무관하게 관리자·로컬에서만 보이며, 공개 목록·큐레이션·추천·홈에는 섞이지 않습니다. 정리: <code>npm run db:cleanup-curator-prototype</code></p>
         <p>
-          사용자 화면: <Link href="/curators" className="underline underline-offset-4">/curators</Link> · <Link href="/find" className="underline underline-offset-4">/find</Link> · 추천·아카이브의 Prototype 블록
+          사용자 화면: <Link href="/curators" className="underline underline-offset-4">/curators</Link> · <Link href="/find" className="underline underline-offset-4">/find</Link> · 아카이브의 Prototype 블록 · 공간 찾기의 큐레이터 관계 표시
         </p>
       </div>
 

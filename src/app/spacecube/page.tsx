@@ -10,7 +10,7 @@ import { listCubeSpaces, listCurations, listStoryItems } from "@/lib/editorial/q
 import { getSavedEditorialSpaceIds } from "@/lib/editorial/saves";
 
 export const metadata: Metadata = {
-  title: "공간큐브 — SpaceCube Original",
+  title: "공간큐브가 하는 일 — 공간큐브",
   description: "공간과 사람의 이야기를 기록하고, 직접 경험할 수 있는 방법을 만듭니다.",
 };
 
@@ -34,11 +34,12 @@ function Empty({ text }: { text: string }) {
 }
 
 /**
- * SpaceCube Original 허브 — 공간큐브가 직접 만들고 기록하는 영역(STORY · 공식 CURATION · 함께한 공간 · Cube 경험)을
- * 한곳에서 보여준다. 기존 경로(/story, /curation, /cube-spaces)는 그대로이고 이 페이지는 묶어서 보여주는 입구일 뿐이다.
+ * 공간큐브 브랜드 허브 — 공간큐브가 직접 하는 일(STORY · 공식 CURATION · 함께한 공간 · Cube 경험)을 한곳에서 보여준다.
+ * 별도 서비스가 아니다 — 같은 콘텐츠가 홈과 상단 메뉴에도 그대로 있고, 이 페이지는 브랜드 입장에서 모아 보여줄 뿐이다.
+ * 기존 경로(/story, /curation, /cube-spaces)는 그대로다.
  * 공개 정책은 다른 새 정보구조 페이지와 같다(ENABLE_EDITORIAL_HOME 또는 관리자 미리보기). 그 전에는 기존 소개(/about)로.
  */
-export default async function SpaceCubeOriginalPage() {
+export default async function SpaceCubeBrandHubPage() {
   const viewer = await getEditorialViewer();
   if (!viewer.editorial) redirect("/about");
 
@@ -59,7 +60,7 @@ export default async function SpaceCubeOriginalPage() {
         <header className="ed-container pt-12 pb-10 md:pt-20 md:pb-16" style={{ borderBottom: "1px solid var(--ed-fg)" }}>
           <div className="grid gap-6 md:grid-cols-12 md:items-end">
             <div className="md:col-span-7 space-y-4">
-              <p className="ed-label" style={{ color: "var(--ed-dim)" }}>SpaceCube Original</p>
+              <p className="ed-label" style={{ color: "var(--ed-dim)" }}>About Gonggancube</p>
               <h1 className="text-[44px] md:text-[72px] font-bold leading-none tracking-[-0.04em]">공간큐브</h1>
             </div>
             <p className="md:col-span-5 text-base md:text-lg leading-relaxed break-keep" style={{ color: "var(--ed-dim)" }}>
