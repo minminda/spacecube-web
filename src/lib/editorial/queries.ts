@@ -15,8 +15,12 @@ export interface Visibility {
   preview?: boolean;
 }
 
+/**
+ * 공간 콘텐츠 공개 필터. 큐레이터 프로토타입의 가상 공간(isDemo)은 관리자 미리보기(preview)를 포함해
+ * 이 모듈의 어떤 조회에도 섞이지 않는다 — 가상 공간은 src/lib/curators/queries.ts에서만 읽는다.
+ */
 function statusFilter(v?: Visibility): Prisma.EditorialSpaceWhereInput {
-  return v?.preview ? {} : { status: "PUBLISHED" };
+  return v?.preview ? { isDemo: false } : { status: "PUBLISHED", isDemo: false };
 }
 
 export function toSpaceView(row: EditorialSpace): SpaceView {
@@ -41,6 +45,7 @@ export function toSpaceView(row: EditorialSpace): SpaceView {
     instagram: row.instagram ?? undefined,
     website: row.website ?? undefined,
     cubeAvailable: row.cubeAvailable,
+    isDemo: row.isDemo || undefined,
     story: readStoredBlocks(row.story),
     status: row.status,
   };
@@ -57,9 +62,11 @@ export async function listSpaces(v?: Visibility): Promise<SpaceView[]> {
   return rows.map(toSpaceView);
 }
 
-export async function getSpaceBySlug(slug: string, v?: Visibility): Promise<SpaceView | null> {
+export async function getSpaceBySlug(slug: string, v?: Visibility & { allowDemo?: boolean }): Promise<SpaceView | null> {
   const row = await prisma.editorialSpace.findUnique({ where: { slug } });
   if (!row) return null;
+  // 가상 공간은 큐레이터 프로토타입 미리보기 권한이 있을 때만(호출부가 allowDemo로 판단).
+  if (row.isDemo && !v?.allowDemo) return null;
   if (!v?.preview && row.status !== "PUBLISHED") return null;
   return toSpaceView(row);
 }
@@ -86,7 +93,7 @@ type LinkRow = { note: string | null; space: EditorialSpace };
 
 function linked(rows: LinkRow[], v?: Visibility): LinkedSpace[] {
   return rows
-    .filter((l) => v?.preview || l.space.status === "PUBLISHED")
+    .filter((l) => !l.space.isDemo && (v?.preview || l.space.status === "PUBLISHED"))
     .map((l) => ({ space: toSpaceView(l.space), note: l.note ?? undefined }));
 }
 
@@ -263,7 +270,7 @@ export async function getStoriesForSpace(spaceId: string) {
 export async function listContentStream(v?: Visibility): Promise<ContentItem[]> {
   const where = v?.preview ? { status: { in: ["PUBLISHED" as const, "DRAFT" as const] } } : { status: "PUBLISHED" as const };
   const [spaces, curations, people, thoughts] = await Promise.all([
-    prisma.editorialSpace.findMany({ where }),
+    prisma.editorialSpace.findMany({ where: { ...where, isDemo: false } }),
     prisma.editorialCuration.findMany({ where, include: { spaces: linkInclude } }),
     prisma.editorialPerson.findMany({ where, include: { spaces: linkInclude } }),
     prisma.editorialThought.findMany({ where, include: { spaces: linkInclude } }),

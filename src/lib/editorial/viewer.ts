@@ -6,6 +6,7 @@
 import { auth } from "@/auth";
 import { isAdmin } from "@/lib/admin";
 import { ENABLE_EDITORIAL_HOME } from "@/lib/features";
+import { curatorAccess } from "@/lib/curators/access";
 
 export interface EditorialViewer {
   loggedIn: boolean;
@@ -14,10 +15,16 @@ export interface EditorialViewer {
   admin: boolean;
   /** 새 정보구조(홈/CURATION/PEOPLE/SPACE)를 볼 수 있는지 */
   editorial: boolean;
+  /** 큐레이터 프로토타입을 볼 수 있는지(내비게이션 표시용) */
+  curators: boolean;
 }
 
 export async function getEditorialViewer(): Promise<EditorialViewer> {
   const session = await auth();
   const admin = isAdmin(session?.user?.email);
-  return { loggedIn: !!session?.user, userId: session?.user?.id ?? null, admin, editorial: ENABLE_EDITORIAL_HOME || admin };
+  const editorial = ENABLE_EDITORIAL_HOME || admin;
+  return {
+    loggedIn: !!session?.user, userId: session?.user?.id ?? null, admin, editorial,
+    curators: curatorAccess({ admin, editorial }).enabled,
+  };
 }

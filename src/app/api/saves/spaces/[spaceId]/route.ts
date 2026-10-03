@@ -16,8 +16,11 @@ export async function POST(_req: Request, { params }: Ctx) {
   if (!session?.user?.id) return NextResponse.json({ error: "로그인이 필요해요." }, { status: 401 });
   const { spaceId } = await params;
 
-  const space = await prisma.editorialSpace.findUnique({ where: { id: spaceId }, select: { status: true } });
-  if (!space || (space.status !== "PUBLISHED" && !isAdmin(session.user.email))) {
+  const space = await prisma.editorialSpace.findUnique({ where: { id: spaceId }, select: { status: true, isDemo: true } });
+  const preview = isAdmin(session.user.email);
+  // 큐레이터 프로토타입 가상 공간은 미리보기 권한(관리자·로컬 개발)이 있을 때만 저장할 수 있다.
+  const demoBlocked = !!space?.isDemo && !(preview || process.env.NODE_ENV === "development");
+  if (!space || demoBlocked || (space.status !== "PUBLISHED" && !preview)) {
     return NextResponse.json({ error: "공간을 찾을 수 없어요." }, { status: 404 });
   }
 

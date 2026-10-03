@@ -10,12 +10,13 @@ import { resolveSpaceTypeLabel } from "@/lib/spaceType";
 import { formatDotDate } from "@/lib/time";
 import type { ArchiveTileData } from "@/components/archive/ArchiveTile";
 
-export async function getArchiveSavedTiles(userId: string, opts: { visitedSpaceIds: Set<string>; editorial: boolean }): Promise<ArchiveTileData[]> {
+export async function getArchiveSavedTiles(userId: string, opts: { visitedSpaceIds: Set<string>; editorial: boolean; includeDemo?: boolean }): Promise<ArchiveTileData[]> {
   const [eds, ops] = await Promise.all([
     prisma.savedEditorialSpace.findMany({
-      where: { userId, space: { status: "PUBLISHED" } },
+      // 큐레이터 프로토타입 가상 공간은 미리보기 권한(includeDemo)이 있을 때만
+      where: { userId, space: { status: "PUBLISHED", ...(opts.includeDemo ? {} : { isDemo: false }) } },
       orderBy: { createdAt: "desc" },
-      select: { createdAt: true, space: { select: { slug: true, name: true, area: true, category: true, coverImage: true, cubeAvailable: true } } },
+      select: { createdAt: true, space: { select: { slug: true, name: true, area: true, category: true, coverImage: true, cubeAvailable: true, isDemo: true } } },
     }),
     prisma.savedSpace.findMany({
       where: { userId, space: LISTED_SPACE_WHERE },
@@ -50,7 +51,7 @@ export async function getArchiveSavedTiles(userId: string, opts: { visitedSpaceI
       name: s.space.name,
       imageUrl: s.space.coverImage,
       meta: [s.space.area, s.space.category].filter(Boolean).join(" · "),
-      note: `${formatDotDate(s.createdAt)} 저장`,
+      note: s.space.isDemo ? `${formatDotDate(s.createdAt)} 저장 · 가상 공간(프로토타입)` : `${formatDotDate(s.createdAt)} 저장`,
       partner: s.space.cubeAvailable,
       at: s.createdAt.getTime(),
     });

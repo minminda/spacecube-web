@@ -26,7 +26,12 @@ interface Viewer {
   loggedIn: boolean;
   admin: boolean;
   editorial: boolean;
+  /** 큐레이터 프로토타입 표시 여부(ENABLE_CURATOR_PROTOTYPE 또는 관리자·로컬 미리보기) */
+  curators?: boolean;
 }
+
+// 큐레이터 프로토타입 — 볼 수 있는 사람에게만 "큐레이션" 다음에 끼워 넣는다.
+const CURATORS_ITEM = { label: "큐레이터", href: "/curators", match: (p: string) => p.startsWith("/curators") || p.startsWith("/collections") || p.startsWith("/find") };
 
 // 페이지 이동마다 다시 묻지 않도록 탭 단위로 한 번만 조회한다(로그인/로그아웃은 전체 리로드를 동반).
 let viewerPromise: Promise<Viewer | null> | null = null;
@@ -95,6 +100,9 @@ export default function Navbar() {
     );
   }
 
+  const navItems = viewer?.curators
+    ? [...EDITORIAL_NAV_ITEMS.slice(0, 2), CURATORS_ITEM, ...EDITORIAL_NAV_ITEMS.slice(2)]
+    : EDITORIAL_NAV_ITEMS;
   const accountHref = viewer?.loggedIn ? "/archive" : "/login";
   const accountActive = pathname.startsWith("/archive");
   const accountLabel = viewer?.loggedIn ? "내 아카이브" : "로그인";
@@ -107,7 +115,7 @@ export default function Navbar() {
         </Link>
 
         <div className="hidden md:flex items-center gap-7">
-          {EDITORIAL_NAV_ITEMS.map(({ label, href, match }) => {
+          {navItems.map(({ label, href, match }) => {
             const active = match(pathname);
             return (
               <Link
@@ -154,7 +162,7 @@ export default function Navbar() {
         <div className="md:hidden fixed inset-x-0 top-14 bottom-0 z-50 flex flex-col overflow-y-auto" style={{ background: "#000" }}>
           <ul className="px-5 pt-6">
             {[
-              ...EDITORIAL_NAV_ITEMS,
+              ...navItems,
               ...(viewer?.loggedIn ? [{ label: "내 아카이브", href: "/archive", match: (p: string) => p.startsWith("/archive") }] : []),
             ].map(({ label, href, match }) => (
               <li key={href} style={{ borderBottom: "1px solid #222" }}>

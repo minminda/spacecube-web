@@ -15,6 +15,10 @@ import { getSavedEditorialSpaceIds } from "@/lib/editorial/saves";
 import { countPartnerGuestbookTraces } from "@/lib/editorial/partnerTrace";
 import { normalizeArea } from "@/lib/editorial/area";
 import { INSTAGRAM_URL } from "@/content/site";
+import { curatorAccess } from "@/lib/curators/access";
+import { getPicksForSpace } from "@/lib/curators/queries";
+import { curatorDisplayName } from "@/lib/curators/finder";
+import { PrototypeBanner } from "@/components/curators/CuratorBits";
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -38,14 +42,17 @@ export default async function SpaceDetailPage({ params }: Props) {
   const [{ slug }, viewer] = await Promise.all([params, getEditorialViewer()]);
   if (!viewer.editorial) redirect("/");
 
-  const space = await getSpaceBySlug(slug, { preview: viewer.admin });
+  const access = curatorAccess(viewer);
+  // 큐레이터 프로토타입 가상 공간은 미리보기 권한(관리자·로컬)이 있을 때만 열린다.
+  const space = await getSpaceBySlug(slug, { preview: viewer.admin, allowDemo: access.includeDemo });
   if (!space) notFound();
 
-  const [{ curations, people, thoughts }, published, savedIds, traces] = await Promise.all([
+  const [{ curations, people, thoughts }, published, savedIds, traces, curatorPicks] = await Promise.all([
     getStoriesForSpace(space.id),
     listSpaces(),
     getSavedEditorialSpaceIds(viewer.userId),
     space.cubeAvailable ? countPartnerGuestbookTraces(space.slug) : Promise.resolve(0),
+    access.enabled ? getPicksForSpace(space.id, access) : Promise.resolve([]),
   ]);
   const area = normalizeArea(space.area);
   const nearby = published.filter((s) => s.id !== space.id && normalizeArea(s.area) === area).slice(0, 3);
@@ -70,7 +77,7 @@ export default async function SpaceDetailPage({ params }: Props) {
 
   return (
     <div className="editorial-bleed">
-      <PreviewBanner status={space.status} editHref={`/admin/content/spaces/${space.id}`} />
+      {space.isDemo ? <PrototypeBanner demo /> : <PreviewBanner status={space.status} editHref={`/admin/content/spaces/${space.id}`} />}
       <main>
         <header className="ed-container pt-10 md:pt-16">
           <Link href={back.href} className="text-xs hover:underline underline-offset-4" style={{ color: "var(--ed-dim)" }}>← {back.label}</Link>
@@ -167,6 +174,27 @@ export default async function SpaceDetailPage({ params }: Props) {
             <article className="ed-container py-12 md:py-16">
               <BlockRenderer blocks={story} spaces={new Map()} />
             </article>
+          </section>
+        )}
+
+        {/* 이 공간을 고른 큐레이터(프로토타입) — 한 공간을 여러 사람이 각자의 이유로 고른다 */}
+        {curatorPicks.length > 0 && (
+          <section style={{ borderTop: "1px solid var(--ed-line)" }}>
+            <div className="ed-container py-14 md:py-20">
+              <p className="ed-label pb-6" style={{ color: "var(--ed-dim)" }}>이 공간을 고른 큐레이터 · Prototype</p>
+              <ul className="grid gap-x-10 md:grid-cols-2">
+                {curatorPicks.map((p) => (
+                  <li key={`${p.curator.slug}-${p.collection.slug}`} className="py-5" style={{ borderBottom: "1px solid var(--ed-line)" }}>
+                    {p.comment && <p className="text-base leading-relaxed break-keep">“{p.comment}”</p>}
+                    <p className="pt-2 text-xs" style={{ color: "var(--ed-dim)" }}>
+                      <Link href={`/curators/${p.curator.slug}`} className="font-semibold hover:underline underline-offset-4" style={{ color: "var(--ed-fg)" }}>{curatorDisplayName(p.curator)}</Link>
+                      {" · "}
+                      <Link href={`/collections/${p.collection.slug}`} className="hover:underline underline-offset-4">{p.collection.title}</Link>
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            </div>
           </section>
         )}
 

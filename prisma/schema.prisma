@@ -45,6 +45,8 @@ model User {
   guestbookFunnelEvents GuestbookFunnelEvent[]
   sceneReaches          SceneReach[]
   savedEditorialSpaces  SavedEditorialSpace[]
+  // 큐레이터 역할(선택) — 모든 큐레이터는 일반 사용자이고, 일부 사용자만 공개 큐레이터 프로필을 추가로 가진다.
+  curatorProfile        CuratorProfile?
 }
 
 model Account {
@@ -1166,6 +1168,9 @@ model EditorialSpace {
   // 함께한 공간(cubeAvailable)의 "운영자 전체 이야기" — 웹 정본. 블록 JSON(curation/people과 같은 형식).
   // 현장 Cube의 Episode(1~2분 현장 디테일)와는 별개이며 서로 참조하지 않는다.
   story         Json            @default("[]")
+  // 큐레이터 프로토타입용 가상 공간 — 공개 화면·검색·큐레이션·추천·홈에서 항상 제외되고, 관리자/로컬
+  // 미리보기의 큐레이터 프로토타입 화면에서만 보인다(src/lib/curators/access.ts). 데모 정책(Space.isDemo)과 같은 원칙.
+  isDemo        Boolean         @default(false)
   status        EditorialStatus @default(DRAFT)
   publishedAt   DateTime?
   createdAt     DateTime        @default(now())
@@ -1176,6 +1181,7 @@ model EditorialSpace {
   thoughtLinks  EditorialThoughtSpace[]
   homeHeroOf    EditorialHomeSettings[]  @relation("EditorialHomeHero")
   saves         SavedEditorialSpace[]
+  curatorPicks  CuratorCollectionSpace[]
 
   @@index([status])
   @@map("editorial_spaces")
@@ -1296,6 +1302,94 @@ model EditorialThoughtSpace {
   @@unique([thoughtId, spaceId])
   @@index([spaceId])
   @@map("editorial_thought_spaces")
+}
+
+// ─── 큐레이터 프로토타입 ───────────────────────────────────────────────
+// User → (선택) CuratorProfile → CuratorCollection → (canonical) EditorialSpace.
+// 큐레이터는 별도 계정 유형이 아니다 — 저장·방문·아카이브·추천을 똑같이 쓰는 User가 공개 프로필과 컬렉션을
+// 추가로 가질 뿐이다("모든 사람은 공간을 찾는 사용자이고, 그중 일부가 취향을 공개적으로 공유한다"). 공간은 복제하지 않고 연결만 한다 —
+// 한 공간을 여러 큐레이터·컬렉션이 함께 고를 수 있다. 공간큐브 공식 CURATION(EditorialCuration)과는
+// 출처가 다른 별개 데이터다(합치지 않음). ENABLE_CURATOR_PROTOTYPE 꺼짐 = 관리자/로컬 미리보기 전용.
+// 향후 Instagram 가져오기: 게시물 → 공간 매칭 → CuratorCollectionSpace(sourceUrl) 로 붙이면 된다.
+
+enum CuratorSourceType {
+  MANUAL
+  INSTAGRAM
+}
+
+model CuratorProfile {
+  id              String            @id @default(cuid())
+  // 이 프로필의 주인(일반 User). 사용자 1명당 프로필 1개.
+  userId          String            @unique
+  slug            String            @unique
+  name            String
+  // 한 줄 소개("혼자 오래 머무를 수 있는 작은 카페와 서점을 기록합니다")
+  bio             String            @db.Text
+  imageUrl        String?
+  // 대표 취향(큐레이터 스스로/운영자가 정한 단어) — 분석 수치가 아니라 선언된 취향
+  tasteTags       String[]          @default([])
+  instagramHandle String?
+  instagramUrl    String?
+  websiteUrl      String?
+  sourceType      CuratorSourceType @default(MANUAL)
+  // 공간큐브 공식 큐레이터 계정
+  isOfficial      Boolean           @default(false)
+  displayOrder    Int               @default(0)
+  status          EditorialStatus   @default(DRAFT)
+  // 가상의 프로토타입 큐레이터 — 관리자/로컬 미리보기에서만 보인다
+  isDemo          Boolean           @default(false)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  user        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  collections CuratorCollection[]
+
+  @@index([status])
+  @@map("curator_profiles")
+}
+
+model CuratorCollection {
+  id           String          @id @default(cuid())
+  curatorId    String
+  slug         String          @unique
+  title        String
+  description  String          @db.Text
+  // 지역(선택) — "연남", "서울" 등. 지역 무관 컬렉션도 가능
+  area         String?
+  // 상황·목적 키워드(예: 혼자, 비 오는 날, 책) — 찾기·설명에 쓰인다
+  keywords     String[]        @default([])
+  coverImage   String?
+  displayOrder Int             @default(0)
+  status       EditorialStatus @default(DRAFT)
+  isDemo       Boolean         @default(false)
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  curator CuratorProfile           @relation(fields: [curatorId], references: [id], onDelete: Cascade)
+  spaces  CuratorCollectionSpace[]
+
+  @@index([curatorId])
+  @@index([status])
+  @@map("curator_collections")
+}
+
+// 컬렉션 ↔ 공간(canonical EditorialSpace) — 큐레이터가 왜 골랐는지 한 줄 코멘트와 순서.
+model CuratorCollectionSpace {
+  id           String   @id @default(cuid())
+  collectionId String
+  spaceId      String
+  comment      String?  @db.Text
+  displayOrder Int      @default(0)
+  // 향후 Instagram 가져오기 시 원본 게시물 주소(지금은 쓰지 않음)
+  sourceUrl    String?
+  createdAt    DateTime @default(now())
+
+  collection CuratorCollection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  space      EditorialSpace    @relation(fields: [spaceId], references: [id], onDelete: Restrict)
+
+  @@unique([collectionId, spaceId])
+  @@index([spaceId])
+  @@map("curator_collection_spaces")
 }
 
 // 공개 공간(EditorialSpace) 저장 — "나중에 가보고 싶은 공간". 운영 공간 저장(SavedSpace)과 별개이며

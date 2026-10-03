@@ -86,3 +86,11 @@ export const ENABLE_PUBLIC_SPACE_BROWSER = false;
  * 준비되기 전까지 공개하지 않는다. QR 진입(/c/[code])·공간 상세·방명록 흐름과는 무관하다.
  */
 export const ENABLE_EDITORIAL_HOME = false;
+
+/**
+ * 큐레이터 프로토타입(CURATORS · 컬렉션 · 빠른 공간 찾기 · 추천/아카이브의 큐레이터 블록) 공개 여부.
+ * - false(현재): 관리자 계정과 로컬 개발(NODE_ENV=development)에서만 보인다. 일반 방문자 경험은 그대로.
+ * - true: 새 정보구조(ENABLE_EDITORIAL_HOME)를 보는 모든 방문자에게 공개 — 단, 가상 큐레이터·가상 공간(isDemo)은
+ *   true여도 관리자/로컬 미리보기에서만 보인다(src/lib/curators/access.ts). 실제 큐레이터 데이터가 준비된 뒤에만 켤 것.
+ */
+export const ENABLE_CURATOR_PROTOTYPE = false;

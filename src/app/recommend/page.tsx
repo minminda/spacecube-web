@@ -9,6 +9,11 @@ import { listSpaces } from "@/lib/editorial/queries";
 import { normalizeArea } from "@/lib/editorial/area";
 import { getUserDiscoveryContext } from "@/lib/discoverySignals";
 import { buildTasteProfile, discoveryReason, isEmptyProfile, profileSummary, rankDiscovery } from "@/lib/discoveryRecommend";
+import { prisma } from "@/lib/prisma";
+import { curatorAccess } from "@/lib/curators/access";
+import { getViewerCuratorContext } from "@/lib/curators/viewerTaste";
+import { getSavedEditorialSpaceIds } from "@/lib/editorial/saves";
+import CuratorTasteBlock from "@/components/curators/CuratorTasteBlock";
 
 export const metadata: Metadata = {
   title: "나에게 맞는 공간 — 공간큐브",
@@ -17,7 +22,8 @@ export const metadata: Metadata = {
 };
 
 interface Props {
-  searchParams: Promise<{ area?: string }>;
+  /** pa: 큐레이터 블록(프로토타입)의 지역 — 기존 추천 지역(area)과 분리 */
+  searchParams: Promise<{ area?: string; pa?: string }>;
 }
 
 const LIMIT = 12;
@@ -91,14 +97,27 @@ export default async function RecommendPage({ searchParams }: Props) {
     );
   }
 
-  const [context, spaces] = await Promise.all([getUserDiscoveryContext(viewer.userId), listSpaces()]);
+  const access = curatorAccess(viewer);
+  const [context, spaces, curatorCtx, savedIds, me] = await Promise.all([
+    getUserDiscoveryContext(viewer.userId),
+    listSpaces(),
+    access.enabled ? getViewerCuratorContext(viewer.userId, access) : Promise.resolve(null),
+    access.enabled ? getSavedEditorialSpaceIds(viewer.userId) : Promise.resolve(new Set<string>()),
+    access.enabled ? prisma.user.findUnique({ where: { id: viewer.userId }, select: { nickname: true } }) : Promise.resolve(null),
+  ]);
   const profile = buildTasteProfile(context.signals);
+  // 큐레이터 프로토타입 블록 — 기존 추천 계산과 독립(별도 프로필·별도 지역 파라미터 pa)
+  const baseHref = area ? `/recommend?area=${encodeURIComponent(area)}` : "/recommend";
+  const curatorBlock = curatorCtx ? (
+    <CuratorTasteBlock ctx={curatorCtx} area={normalizeArea(sp.pa)} baseHref={baseHref} savedIds={savedIds} nickname={me?.nickname ?? null} />
+  ) : null;
 
   if (isEmptyProfile(profile)) {
     return (
       <div className="editorial-bleed">
         <main>
           <Header />
+          {curatorBlock}
           <Empty
             title="아직 추천의 단서가 없어요"
             body="마음에 드는 공간을 저장하거나, Cube가 있는 공간에 다녀와 기록을 남기면 그 결을 따라 다른 지역의 공간을 찾아드려요."
@@ -138,6 +157,7 @@ export default async function RecommendPage({ searchParams }: Props) {
     <div className="editorial-bleed">
       <main className="pb-20 md:pb-28">
         <Header />
+        {curatorBlock}
         {summary && (
           <p className="ed-container pt-6 text-sm md:text-base leading-relaxed break-keep">{summary}</p>
         )}

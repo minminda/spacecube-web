@@ -14,6 +14,9 @@ import { getArchiveSavedTiles } from "@/lib/archiveSaved";
 import { getUserDiscoveryContext } from "@/lib/discoverySignals";
 import { buildTasteProfile, topAttributes } from "@/lib/discoveryRecommend";
 import { formatDotDate } from "@/lib/time";
+import { curatorAccess } from "@/lib/curators/access";
+import { getViewerCuratorContext } from "@/lib/curators/viewerTaste";
+import ArchiveCuratorBlock from "@/components/curators/ArchiveCuratorBlock";
 
 interface Props {
   searchParams: Promise<{ space?: string }>;
@@ -53,13 +56,16 @@ export default async function ArchivePage({ searchParams }: Props) {
 
   const user = await prisma.user.findUnique({ where: { id: session.user.id } });
   if (!user) redirect("/login");
-  const editorial = ENABLE_EDITORIAL_HOME || isAdmin(session.user.email);
+  const admin = isAdmin(session.user.email);
+  const editorial = ENABLE_EDITORIAL_HOME || admin;
+  // 큐레이터 프로토타입(관리자·로컬 미리보기) — 가상 공간 저장도 이 화면에서만 보인다.
+  const access = curatorAccess({ admin, editorial });
 
   const unreadNotificationCount = ENABLE_NOTIFICATIONS
     ? await prisma.notification.count({ where: { receiverId: user.id, isRead: false } })
     : 0;
 
-  const [records, guestbookNotesRaw, discovery] = await Promise.all([
+  const [records, guestbookNotesRaw, discovery, curatorCtx] = await Promise.all([
     prisma.record.findMany({
       where: { userId: user.id },
       select: {
@@ -82,6 +88,7 @@ export default async function ArchivePage({ searchParams }: Props) {
       },
     }),
     getUserDiscoveryContext(user.id),
+    access.enabled ? getViewerCuratorContext(user.id, access) : Promise.resolve(null),
   ]);
 
   const guestbookNotes: (ArchiveGuestbookNoteInput & { spaceName: string })[] = guestbookNotesRaw.map((n) => ({
@@ -99,7 +106,7 @@ export default async function ArchivePage({ searchParams }: Props) {
     note: e.visitCount > 1 ? `${e.visitCount}번 방문 · 마지막 ${formatDotDate(e.visitedAt)}` : formatDotDate(e.visitedAt),
     partner: true,
   }));
-  const savedTiles = await getArchiveSavedTiles(user.id, { visitedSpaceIds: new Set(entries.map((e) => e.spaceId)), editorial });
+  const savedTiles = await getArchiveSavedTiles(user.id, { visitedSpaceIds: new Set(entries.map((e) => e.spaceId)), editorial, includeDemo: access.includeDemo });
   const profile = buildTasteProfile(discovery.signals);
   const tasteWords = topAttributes(profile, 3);
 
@@ -129,6 +136,8 @@ export default async function ArchivePage({ searchParams }: Props) {
             </Link>
           </section>
         )}
+
+        {curatorCtx && <ArchiveCuratorBlock ctx={curatorCtx} />}
 
         {/* 1. 다녀온 공간 */}
         <section className="ed-container pt-4">

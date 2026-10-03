@@ -19,9 +19,10 @@ export default async function AdminContentSpacesPage({ searchParams }: Props) {
   const q = qRaw?.trim() ?? "";
   const filter = parseStatusFilter(statusRaw);
 
+  // 큐레이터 프로토타입 가상 공간(isDemo)은 공식 공간 콘텐츠 목록에 섞지 않는다 — /admin/curators에서 관리.
   const search: Prisma.EditorialSpaceWhereInput = q
-    ? { OR: [{ name: { contains: q, mode: "insensitive" } }, { area: { contains: q, mode: "insensitive" } }, { category: { contains: q, mode: "insensitive" } }, { slug: { contains: q, mode: "insensitive" } }] }
-    : {};
+    ? { isDemo: false, OR: [{ name: { contains: q, mode: "insensitive" } }, { area: { contains: q, mode: "insensitive" } }, { category: { contains: q, mode: "insensitive" } }, { slug: { contains: q, mode: "insensitive" } }] }
+    : { isDemo: false };
 
   const [rows, groups] = await Promise.all([
     prisma.editorialSpace.findMany({

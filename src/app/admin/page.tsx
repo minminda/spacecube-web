@@ -67,7 +67,7 @@ export default async function AdminOverviewPage() {
 
   // CONTENT — Editorial CMS(읽기 전용 집계)
   const [edSpaces, edCurations, edPeople] = await Promise.all([
-    prisma.editorialSpace.findMany({ select: { status: true, cubeAvailable: true } }),
+    prisma.editorialSpace.findMany({ where: { isDemo: false }, select: { status: true, cubeAvailable: true } }),
     prisma.editorialCuration.findMany({ select: { id: true, number: true, area: true, title: true, status: true, updatedAt: true } }),
     prisma.editorialPerson.findMany({ select: { id: true, number: true, title: true, status: true, updatedAt: true } }),
   ]);

@@ -20,7 +20,8 @@ export interface UserDiscoveryContext {
   savedSlugs: Set<string>;
 }
 
-export async function getUserDiscoveryContext(userId: string): Promise<UserDiscoveryContext> {
+/** includeDemo: 큐레이터 프로토타입 미리보기에서 가상 공간 저장도 취향 신호로 쓴다(일반 화면은 항상 false). */
+export async function getUserDiscoveryContext(userId: string, opts: { includeDemo?: boolean } = {}): Promise<UserDiscoveryContext> {
   const [records, savedOps, savedEds] = await Promise.all([
     prisma.record.findMany({
       where: { userId, ...TASTE_SIGNAL_RECORD_WHERE },
@@ -31,7 +32,7 @@ export async function getUserDiscoveryContext(userId: string): Promise<UserDisco
       select: { space: { select: { slug: true, spaceTagLinks: TAG_LINKS } } },
     }),
     prisma.savedEditorialSpace.findMany({
-      where: { userId, space: { status: "PUBLISHED" } },
+      where: { userId, space: { status: "PUBLISHED", ...(opts.includeDemo ? {} : { isDemo: false }) } },
       select: { spaceId: true, space: { select: { slug: true, category: true, tags: true } } },
     }),
   ]);

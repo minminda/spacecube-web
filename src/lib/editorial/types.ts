@@ -74,6 +74,8 @@ export interface SpaceView {
   instagram?: string;
   website?: string;
   cubeAvailable: boolean;
+  /** 큐레이터 프로토타입 가상 공간(관리자/로컬 미리보기 전용) */
+  isDemo?: boolean;
   /** 함께한 공간의 운영자 전체 이야기(블록) */
   story?: EditorialBlock[];
   status: EditorialStatusValue;
