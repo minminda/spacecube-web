@@ -17,7 +17,7 @@ export interface DocRow {
 }
 
 interface Props {
-  kind: "curations" | "people";
+  kind: "curations" | "people" | "thoughts";
   title: string;
   description: string;
   newLabel: string;

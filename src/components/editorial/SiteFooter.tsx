@@ -6,10 +6,11 @@ interface Props {
 }
 
 const EXPLORE = [
-  { label: "Curation", href: "/curation" },
-  { label: "People", href: "/people" },
-  { label: "Space", href: "/spaces" },
-  { label: "About", href: "/about" },
+  { label: "스토리", href: "/story" },
+  { label: "큐레이션", href: "/curation" },
+  { label: "함께한 공간", href: "/cube-spaces" },
+  { label: "추천", href: "/recommend" },
+  { label: "공간큐브 소개", href: "/about" },
 ];
 
 /**

@@ -1,45 +1,10 @@
 import { redirect } from "next/navigation";
-import type { Metadata } from "next";
-import PageHeader from "@/components/editorial/PageHeader";
-import SpaceCard from "@/components/editorial/SpaceCard";
-import SiteFooter from "@/components/editorial/SiteFooter";
-import { getEditorialViewer } from "@/lib/editorial/viewer";
-import { listSpaces } from "@/lib/editorial/queries";
-
-export const metadata: Metadata = {
-  title: "SPACE — 공간큐브",
-  description: "공간큐브가 발견하고 기록한 공간들.",
-};
 
 /**
- * 공개 SPACE 목록 — 공간큐브가 발견하고 기록한 공간(Editorial CMS, 발행된 공간 콘텐츠만).
- * Cube 운영 DB의 공간 목록이 아니며, 각 카드는 공개 SPACE 상세(/spaces/[slug])로만 연결된다.
+ * 공개 SPACE 전체 목록은 정보 구조 개편(2026-10)으로 두 갈래가 됐다 — 일반 공간 발견은 지역 기반
+ * CURATION(/curation), 실제 Cube 파트너 공간은 함께한 공간(/cube-spaces). 기존 /spaces 링크는
+ * 지역부터 고르는 CURATION으로 보낸다. 공간 상세(/spaces/[slug])는 그대로.
  */
-export default async function SpaceListPage() {
-  const viewer = await getEditorialViewer();
-  if (!viewer.editorial) redirect("/");
-
-  const spaces = await listSpaces();
-
-  return (
-    <div className="editorial-bleed">
-      <main className="pb-20 md:pb-28">
-        <PageHeader
-          label="Space"
-          title="SPACE"
-          description="이 공간은 누가, 왜, 어떤 생각으로 만들었을까요. 공간큐브가 발견하고 기록한 공간들을 소개합니다."
-        />
-        <section className="ed-container pt-12 md:pt-16">
-          <div className="grid grid-cols-2 gap-x-4 gap-y-10 md:grid-cols-3 md:gap-x-10 md:gap-y-16">
-            {spaces.map((s, i) => (
-              <div key={s.id} className={i % 3 === 1 ? "md:mt-16" : ""}>
-                <SpaceCard space={s} ratio={i % 2 === 0 ? "4 / 5" : "1 / 1"} sizes="(min-width: 768px) 33vw, 50vw" showSummary />
-              </div>
-            ))}
-          </div>
-        </section>
-      </main>
-      <SiteFooter admin={viewer.admin} />
-    </div>
-  );
+export default function SpaceListPage() {
+  redirect("/curation");
 }

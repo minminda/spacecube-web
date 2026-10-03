@@ -9,6 +9,8 @@ import { ENABLE_EDITORIAL_HOME } from "@/lib/features";
 
 export interface EditorialViewer {
   loggedIn: boolean;
+  /** 로그인 사용자 id(저장 상태 조회용) */
+  userId: string | null;
   admin: boolean;
   /** 새 정보구조(홈/CURATION/PEOPLE/SPACE)를 볼 수 있는지 */
   editorial: boolean;
@@ -17,5 +19,5 @@ export interface EditorialViewer {
 export async function getEditorialViewer(): Promise<EditorialViewer> {
   const session = await auth();
   const admin = isAdmin(session?.user?.email);
-  return { loggedIn: !!session?.user, admin, editorial: ENABLE_EDITORIAL_HOME || admin };
+  return { loggedIn: !!session?.user, userId: session?.user?.id ?? null, admin, editorial: ENABLE_EDITORIAL_HOME || admin };
 }

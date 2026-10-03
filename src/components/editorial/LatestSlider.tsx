@@ -17,7 +17,7 @@ import { CONTENT_KIND_LABEL, type ContentItem } from "@/lib/editorial/types";
    슬라이더만 클라이언트 컴포넌트다 — HOME 나머지는 서버 컴포넌트. ── */
 
 const INTERVAL_MS = 6000;
-const CTA: Record<ContentItem["kind"], string> = { curation: "Explore", person: "Read", space: "View" };
+const CTA: Record<ContentItem["kind"], string> = { curation: "Explore", person: "Read", thought: "Read", space: "View" };
 
 function advance(s: { index: number; seen: Set<number> }, next: number, count: number) {
   const index = ((next % count) + count) % count;

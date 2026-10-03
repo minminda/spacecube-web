@@ -17,7 +17,7 @@ export default async function NewCurationPage() {
       <EditorialDocForm
         kind="curations"
         spaceOptions={spaceOptions}
-        initial={{ number: String(number), slug: "", label: "", title: "", summary: "", coverImage: null, coverPosition: null, spaces: [], blocks: [] }}
+        initial={{ number: String(number), slug: "", label: "", perspective: "", title: "", summary: "", coverImage: null, coverPosition: null, spaces: [], blocks: [] }}
       />
     </>
   );

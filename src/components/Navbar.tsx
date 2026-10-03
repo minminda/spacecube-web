@@ -12,12 +12,14 @@ const LEGACY_NAV_ITEMS = [
   { label: "추천 방식", href: "/recommendation", match: (p: string) => p.startsWith("/recommendation"), enabled: ENABLE_NAV_RECOMMENDATION_LINK },
 ].filter((item) => item.enabled);
 
+// 새 정보 구조(2026-10): 스토리 · 큐레이션 · 함께한 공간 · 추천. 내 아카이브는 계정 영역에 둔다.
+// "공간큐브"(브랜드 소개 /about)와 "함께한 공간"(실제 Cube 파트너 공간 /cube-spaces)은 이름으로 구분한다.
 const EDITORIAL_NAV_ITEMS = [
-  { label: "CURATION", href: "/curation", match: (p: string) => p.startsWith("/curation") },
-  { label: "PEOPLE", href: "/people", match: (p: string) => p.startsWith("/people") },
-  // 공개 SPACE는 /spaces — Cube 운영 라우트(/space/[slug]/**)와 분리돼 있어 거기서는 활성 표시하지 않는다.
-  { label: "SPACE", href: "/spaces", match: (p: string) => p === "/spaces" || p.startsWith("/spaces/") },
-  { label: "ABOUT", href: "/about", match: (p: string) => p.startsWith("/about") },
+  { label: "스토리", href: "/story", match: (p: string) => p === "/story" || p.startsWith("/people") || p.startsWith("/thought") },
+  { label: "큐레이션", href: "/curation", match: (p: string) => p.startsWith("/curation") },
+  // 공개 공간 상세(/spaces/[slug])는 일반·파트너 공용이라 활성 표시하지 않는다. Cube 운영 라우트(/space/**)와도 분리.
+  { label: "함께한 공간", href: "/cube-spaces", match: (p: string) => p.startsWith("/cube-spaces") },
+  { label: "추천", href: "/recommend", match: (p: string) => p.startsWith("/recommend") },
 ];
 
 interface Viewer {
@@ -94,6 +96,7 @@ export default function Navbar() {
   }
 
   const accountHref = viewer?.loggedIn ? "/archive" : "/login";
+  const accountActive = pathname.startsWith("/archive");
   const accountLabel = viewer?.loggedIn ? "내 아카이브" : "로그인";
 
   return (
@@ -103,14 +106,14 @@ export default function Navbar() {
           {BRAND_NAME}
         </Link>
 
-        <div className="hidden md:flex items-center gap-8">
+        <div className="hidden md:flex items-center gap-7">
           {EDITORIAL_NAV_ITEMS.map(({ label, href, match }) => {
             const active = match(pathname);
             return (
               <Link
                 key={href}
                 href={href}
-                className="text-xs tracking-[0.12em] whitespace-nowrap transition-opacity hover:opacity-100"
+                className="text-[13px] tracking-[0.02em] whitespace-nowrap transition-opacity hover:opacity-100"
                 style={{ color: "#fff", opacity: active ? 1 : 0.55, fontWeight: active ? 600 : 500 }}
               >
                 {label}
@@ -120,11 +123,11 @@ export default function Navbar() {
         </div>
 
         <div className="hidden md:flex items-center gap-5">
-          <Link href="/#participate" className="text-xs font-semibold px-3.5 py-2 whitespace-nowrap transition-colors hover:bg-white hover:text-black" style={{ color: "#fff", border: "1px solid #fff" }}>
+          <Link href="/#participate" className="hidden lg:inline-block text-xs font-semibold px-3.5 py-2 whitespace-nowrap transition-colors hover:bg-white hover:text-black" style={{ color: "#fff", border: "1px solid #fff" }}>
             공간 제안하기
           </Link>
           {viewer && (
-            <Link href={accountHref} className="text-xs whitespace-nowrap transition-opacity hover:opacity-100" style={{ color: "#fff", opacity: 0.55 }}>
+            <Link href={accountHref} className="text-[13px] whitespace-nowrap transition-opacity hover:opacity-100" style={{ color: "#fff", opacity: accountActive ? 1 : 0.55, fontWeight: accountActive ? 600 : 400 }}>
               {accountLabel}
             </Link>
           )}
@@ -150,12 +153,15 @@ export default function Navbar() {
       {menuOpen && (
         <div className="md:hidden fixed inset-x-0 top-14 bottom-0 z-50 flex flex-col overflow-y-auto" style={{ background: "#000" }}>
           <ul className="px-5 pt-6">
-            {EDITORIAL_NAV_ITEMS.map(({ label, href, match }) => (
+            {[
+              ...EDITORIAL_NAV_ITEMS,
+              ...(viewer?.loggedIn ? [{ label: "내 아카이브", href: "/archive", match: (p: string) => p.startsWith("/archive") }] : []),
+            ].map(({ label, href, match }) => (
               <li key={href} style={{ borderBottom: "1px solid #222" }}>
                 <Link
                   href={href}
                   onClick={() => setMenuOpenPath(null)}
-                  className="flex items-center justify-between py-5 text-2xl font-bold tracking-[0.06em]"
+                  className="flex items-center justify-between py-5 text-2xl font-bold tracking-[-0.01em]"
                   style={{ color: "#fff", opacity: match(pathname) ? 1 : 0.85 }}
                 >
                   {label}
@@ -175,6 +181,7 @@ export default function Navbar() {
             </Link>
             <div className="flex items-center justify-between text-sm" style={{ color: "#999" }}>
               <Link href={accountHref} onClick={() => setMenuOpenPath(null)}>{accountLabel}</Link>
+              <Link href="/about" onClick={() => setMenuOpenPath(null)}>공간큐브 소개</Link>
               {viewer?.admin && <Link href="/admin" onClick={() => setMenuOpenPath(null)}>관리자</Link>}
             </div>
           </div>

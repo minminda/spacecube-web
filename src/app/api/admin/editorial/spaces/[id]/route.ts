@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { parseSpaceInput } from "@/lib/editorial/input";
 import { findSpaceReferences } from "@/lib/editorial/references";
@@ -18,7 +19,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
   if (!parsed.ok) return badRequest(parsed.error);
 
   try {
-    await prisma.editorialSpace.update({ where: { id }, data: parsed.data });
+    await prisma.editorialSpace.update({ where: { id }, data: { ...parsed.data, story: parsed.data.story as unknown as Prisma.InputJsonValue } });
     return NextResponse.json({ ok: true });
   } catch (e) {
     const res = prismaErrorResponse(e);

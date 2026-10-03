@@ -4,11 +4,12 @@
    연결된 공간이라도 공간 자체가 발행 상태가 아니면 공개 화면에서는 빠진다.
    Cube 운영 모델(Space/Episode/...)은 조회하지 않는다. ── */
 
-import type { EditorialCuration, EditorialPerson, EditorialSpace, Prisma } from "@prisma/client";
+import type { EditorialCuration, EditorialPerson, EditorialSpace, EditorialThought, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { readStoredBlocks, collectBlockSpaceIds } from "./input";
-import type { ContentItem, CurationView, LinkedSpace, PersonView, ResolvedImage, SpaceView, EditorialBlock } from "./types";
-import { curationLabel, formatEditorialDate, formatPeopleNumber, spaceCoverImage, spaceHref } from "./types";
+import type { ContentItem, CurationView, LinkedSpace, PersonView, ResolvedImage, SpaceView, EditorialBlock, StoryItem, ThoughtView } from "./types";
+import { curationLabel, formatEditorialDate, formatPeopleNumber, formatThoughtNumber, spaceCoverImage, spaceHref } from "./types";
+import { normalizeArea } from "./area";
 
 export interface Visibility {
   preview?: boolean;
@@ -40,6 +41,7 @@ export function toSpaceView(row: EditorialSpace): SpaceView {
     instagram: row.instagram ?? undefined,
     website: row.website ?? undefined,
     cubeAvailable: row.cubeAvailable,
+    story: readStoredBlocks(row.story),
     status: row.status,
   };
 }
@@ -94,6 +96,7 @@ function toCurationView(row: EditorialCuration & { spaces: LinkRow[] }, v?: Visi
     slug: row.slug,
     number: row.number,
     area: row.area ?? undefined,
+    perspective: row.perspective ?? undefined,
     title: row.title,
     summary: row.summary,
     cover: cover(row.coverImage, row.coverPosition, row.area ? `${row.area} — ${row.title}` : row.title),
@@ -118,6 +121,75 @@ function toPersonView(row: EditorialPerson & { spaces: LinkRow[] }, v?: Visibili
     status: row.status,
     publishedAt: row.publishedAt,
   };
+}
+
+function toThoughtView(row: EditorialThought & { spaces: LinkRow[] }, v?: Visibility): ThoughtView {
+  return {
+    id: row.id,
+    slug: row.slug,
+    number: row.number,
+    title: row.title,
+    scene: row.scene ?? undefined,
+    summary: row.summary,
+    cover: cover(row.coverImage, row.coverPosition, row.title),
+    spaces: linked(row.spaces, v),
+    blocks: readStoredBlocks(row.blocks),
+    status: row.status,
+    publishedAt: row.publishedAt,
+  };
+}
+
+export async function listThoughts(v?: Visibility): Promise<ThoughtView[]> {
+  const rows = await prisma.editorialThought.findMany({
+    where: v?.preview ? {} : { status: "PUBLISHED" },
+    orderBy: { number: "desc" },
+    include: { spaces: linkInclude },
+  });
+  return rows.map((r) => toThoughtView(r, v));
+}
+
+export async function getThoughtBySlug(slug: string, v?: Visibility): Promise<ThoughtView | null> {
+  const row = await prisma.editorialThought.findUnique({ where: { slug }, include: { spaces: linkInclude } });
+  if (!row || (!v?.preview && row.status !== "PUBLISHED")) return null;
+  return toThoughtView(row, v);
+}
+
+/** 함께한 공간 — 실제 GONGGANCUBE가 설치됐거나 공식 협업한 공간(cubeAvailable)만. */
+export async function listCubeSpaces(v?: Visibility): Promise<SpaceView[]> {
+  const rows = await prisma.editorialSpace.findMany({
+    where: { ...statusFilter(v), cubeAvailable: true },
+    orderBy: [{ publishedAt: "desc" }, { createdAt: "asc" }],
+  });
+  return rows.map(toSpaceView);
+}
+
+export interface AreaSummary {
+  /** 정규화된 지역명(표시·URL 공용) */
+  area: string;
+  curationCount: number;
+  spaceCount: number;
+}
+
+/**
+ * CURATION 허브 첫 화면의 지역 목록 — 발행된 큐레이션·공간이 있는 지역만. DB의 지역 표기가 섞여 있어도
+ * normalizeArea로 하나로 묶는다. 큐레이션이 많은 지역 → 공간이 많은 지역 → 이름 순.
+ */
+export async function listAreas(v?: Visibility): Promise<AreaSummary[]> {
+  const [spaces, curations] = await Promise.all([
+    prisma.editorialSpace.findMany({ where: statusFilter(v), select: { area: true } }),
+    prisma.editorialCuration.findMany({ where: v?.preview ? {} : { status: "PUBLISHED" }, select: { area: true } }),
+  ]);
+  const map = new Map<string, AreaSummary>();
+  const bump = (raw: string | null, key: "curationCount" | "spaceCount") => {
+    const area = normalizeArea(raw);
+    if (!area) return;
+    const row = map.get(area) ?? { area, curationCount: 0, spaceCount: 0 };
+    row[key] += 1;
+    map.set(area, row);
+  };
+  spaces.forEach((s) => bump(s.area, "spaceCount"));
+  curations.forEach((c) => bump(c.area, "curationCount"));
+  return [...map.values()].sort((a, b) => b.curationCount - a.curationCount || b.spaceCount - a.spaceCount || a.area.localeCompare(b.area, "ko"));
 }
 
 export async function listCurations(v?: Visibility): Promise<CurationView[]> {
@@ -169,7 +241,16 @@ export async function getStoriesForSpace(spaceId: string) {
       include: { spaces: linkInclude },
     }),
   ]);
-  return { curations: curations.map((c) => toCurationView(c)), people: people.map((p) => toPersonView(p)) };
+  const thoughts = await prisma.editorialThought.findMany({
+    where: { status: "PUBLISHED", spaces: { some: { spaceId } } },
+    orderBy: { number: "desc" },
+    include: { spaces: linkInclude },
+  });
+  return {
+    curations: curations.map((c) => toCurationView(c)),
+    people: people.map((p) => toPersonView(p)),
+    thoughts: thoughts.map((t) => toThoughtView(t)),
+  };
 }
 
 /* ── HOME 콘텐츠 스트림 ─────────────────────────────────────────────────
@@ -181,10 +262,11 @@ export async function getStoriesForSpace(spaceId: string) {
 
 export async function listContentStream(v?: Visibility): Promise<ContentItem[]> {
   const where = v?.preview ? { status: { in: ["PUBLISHED" as const, "DRAFT" as const] } } : { status: "PUBLISHED" as const };
-  const [spaces, curations, people] = await Promise.all([
+  const [spaces, curations, people, thoughts] = await Promise.all([
     prisma.editorialSpace.findMany({ where }),
     prisma.editorialCuration.findMany({ where, include: { spaces: linkInclude } }),
     prisma.editorialPerson.findMany({ where, include: { spaces: linkInclude } }),
+    prisma.editorialThought.findMany({ where, include: { spaces: linkInclude } }),
   ]);
 
   const sortTime = (r: { publishedAt: Date | null; updatedAt: Date }) => (r.publishedAt ?? r.updatedAt).getTime();
@@ -211,6 +293,16 @@ export async function listContentStream(v?: Visibility): Promise<ContentItem[]> 
       },
     });
   }
+  for (const r of thoughts) {
+    const t = toThoughtView(r, v);
+    rows.push({
+      t: sortTime(r), created: r.createdAt.getTime(),
+      item: {
+        key: `thought-${t.id}`, kind: "thought", eyebrow: t.scene ? `${formatThoughtNumber(t.number)} · ${t.scene}` : formatThoughtNumber(t.number),
+        title: t.title, summary: t.summary, href: `/thought/${t.slug}`, image: t.cover, date: formatEditorialDate(t.publishedAt), status: t.status,
+      },
+    });
+  }
   for (const r of spaces) {
     const s = toSpaceView(r);
     rows.push({
@@ -224,4 +316,31 @@ export async function listContentStream(v?: Visibility): Promise<ContentItem[]> 
   // 최신 발행 순, 같은 시각이면 먼저 만든 것이 앞(등록 순서 유지)
   rows.sort((a, b) => b.t - a.t || a.created - b.created);
   return rows.map((r) => r.item);
+}
+
+/* ── STORY(PEOPLE + THOUGHT) ── */
+
+export function personStoryItem(p: PersonView): StoryItem {
+  return {
+    key: `people-${p.id}`, type: "people",
+    eyebrow: p.subject ? `${formatPeopleNumber(p.number)} · ${p.subject}` : formatPeopleNumber(p.number),
+    title: p.title, summary: p.summary, href: `/people/${p.slug}`, cover: p.cover,
+    date: formatEditorialDate(p.publishedAt), publishedAt: p.publishedAt, status: p.status,
+  };
+}
+
+export function thoughtStoryItem(t: ThoughtView): StoryItem {
+  return {
+    key: `thought-${t.id}`, type: "thought",
+    eyebrow: t.scene ? `${formatThoughtNumber(t.number)} · ${t.scene}` : formatThoughtNumber(t.number),
+    title: t.title, summary: t.summary, href: `/thought/${t.slug}`, cover: t.cover,
+    date: formatEditorialDate(t.publishedAt), publishedAt: t.publishedAt, status: t.status,
+  };
+}
+
+/** STORY 허브 — PEOPLE·THOUGHT를 최신 발행 순으로 합친다(초안 미리보기는 관리자만). */
+export async function listStoryItems(v?: Visibility): Promise<StoryItem[]> {
+  const [people, thoughts] = await Promise.all([listPeople(v), listThoughts(v)]);
+  const items = [...people.map(personStoryItem), ...thoughts.map(thoughtStoryItem)];
+  return items.sort((a, b) => (b.publishedAt?.getTime() ?? 0) - (a.publishedAt?.getTime() ?? 0));
 }

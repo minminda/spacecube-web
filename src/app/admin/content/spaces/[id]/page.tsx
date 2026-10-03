@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireAdminPage } from "@/lib/adminGuard";
 import { findSpaceReferences } from "@/lib/editorial/references";
+import { getTagSuggestions, storedBlocks } from "@/lib/editorial/admin";
 import { AdminPageHeader, AdminSection } from "@/components/admin/ui";
 import EditorialSpaceForm from "@/components/admin/editorial/EditorialSpaceForm";
 import { EditorialDangerZone } from "@/components/admin/editorial/EditorialControls";
@@ -16,7 +17,7 @@ export default async function EditEditorialSpacePage({ params }: Props) {
   const { id } = await params;
   const s = await prisma.editorialSpace.findUnique({ where: { id } });
   if (!s) notFound();
-  const references = await findSpaceReferences(s.id);
+  const [references, tagSuggestions] = await Promise.all([findSpaceReferences(s.id), getTagSuggestions()]);
 
   return (
     <>
@@ -30,17 +31,18 @@ export default async function EditEditorialSpacePage({ params }: Props) {
         <EditorialSpaceForm
           id={s.id}
           status={s.status}
+          tagSuggestions={tagSuggestions}
           initial={{
             slug: s.slug, name: s.name, area: s.area, category: s.category,
             summary: s.summary ?? "", description: s.description ?? "",
             coverImage: s.coverImage, coverPosition: s.coverPosition, images: s.images,
             tags: s.tags.join(", "), address: s.address ?? "", openingHours: s.openingHours ?? "",
             mapUrl: s.mapUrl ?? "", instagram: s.instagram ?? "", website: s.website ?? "",
-            cubeAvailable: s.cubeAvailable,
+            cubeAvailable: s.cubeAvailable, story: storedBlocks(s.story),
           }}
         />
         <div className="max-w-3xl space-y-8">
-          <AdminSection title="이 공간이 쓰인 곳" description="큐레이션·피플 연결, 본문 공간 카드, 홈페이지 설정을 모두 확인합니다.">
+          <AdminSection title="이 공간이 쓰인 곳" description="큐레이션·피플·생각 연결, 본문 공간 카드, 사용자 저장을 모두 확인합니다.">
             {references.length === 0 ? (
               <p className="text-xs" style={{ color: "var(--a-dim)" }}>아직 어디에서도 쓰이지 않아요.</p>
             ) : (

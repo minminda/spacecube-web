@@ -7,7 +7,7 @@ import AdminModal from "@/components/admin/ui/AdminModal";
 import { StatusBadge, adminButtonClass } from "@/components/admin/ui";
 import { STATUS_LABEL, type EditorialStatusValue } from "@/lib/editorial/types";
 
-export type EditorialKind = "spaces" | "curations" | "people";
+export type EditorialKind = "spaces" | "curations" | "people" | "thoughts";
 
 const TONE = { DRAFT: "draft", PUBLISHED: "live", ARCHIVED: "off" } as const;
 

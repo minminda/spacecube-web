@@ -22,7 +22,7 @@ export default async function Home({ searchParams }: Props) {
 
   if (editorial && !(admin && legacy === "1")) {
     const previewDrafts = preview === "drafts" && (admin || process.env.NODE_ENV === "development");
-    return <EditorialHome admin={admin} previewDrafts={previewDrafts} />;
+    return <EditorialHome admin={admin} previewDrafts={previewDrafts} userId={session?.user?.id ?? null} />;
   }
   return <LegacyHome session={session} />;
 }

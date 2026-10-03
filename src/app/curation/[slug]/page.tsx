@@ -8,7 +8,9 @@ import BlockRenderer from "@/components/editorial/BlockRenderer";
 import PreviewBanner from "@/components/editorial/PreviewBanner";
 import { getEditorialViewer } from "@/lib/editorial/viewer";
 import { getBlockSpaces, getCurationBySlug, listCurations } from "@/lib/editorial/queries";
-import { curationLabel, formatCurationNumber, formatEditorialDate } from "@/lib/editorial/types";
+import { curationEyebrow, formatCurationNumber, formatEditorialDate, PERSPECTIVE_LABEL } from "@/lib/editorial/types";
+import { getSavedEditorialSpaceIds } from "@/lib/editorial/saves";
+import { normalizeArea } from "@/lib/editorial/area";
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -30,8 +32,16 @@ export default async function CurationDetailPage({ params }: Props) {
   const curation = await getCurationBySlug(slug, { preview });
   if (!curation) notFound();
 
-  const [blockSpaces, all] = await Promise.all([getBlockSpaces(curation.blocks, { preview }), listCurations()]);
-  const related = all.filter((c) => c.id !== curation.id).slice(0, 2);
+  const [blockSpaces, all, savedIds] = await Promise.all([
+    getBlockSpaces(curation.blocks, { preview }),
+    listCurations(),
+    getSavedEditorialSpaceIds(viewer.userId),
+  ]);
+  const area = normalizeArea(curation.area);
+  // 같은 지역 큐레이션을 먼저, 모자라면 다른 지역으로 채운다.
+  const others = all.filter((c) => c.id !== curation.id);
+  const related = [...others.filter((c) => area && normalizeArea(c.area) === area), ...others.filter((c) => !area || normalizeArea(c.area) !== area)].slice(0, 2);
+  const saveState = { savedIds, loggedIn: viewer.loggedIn };
   const spaces = curation.spaces;
   // 본문에 SPACE_CARD 블록이 없으면 선정 공간을 별도 섹션으로 보여준다.
   const bodyHasSpaceCards = curation.blocks.some((b) => b.type === "SPACE_CARD");
@@ -43,10 +53,13 @@ export default async function CurationDetailPage({ params }: Props) {
       <PreviewBanner status={curation.status} editHref={`/admin/content/curations/${curation.id}`} />
       <main>
         <header className="ed-container pt-10 md:pt-16">
-          <Link href="/curation" className="text-xs hover:underline underline-offset-4" style={{ color: "var(--ed-dim)" }}>← CURATION</Link>
+          <Link href={area ? `/curation?area=${encodeURIComponent(area)}` : "/curation"} className="text-xs hover:underline underline-offset-4" style={{ color: "var(--ed-dim)" }}>← {area ? `${area} 큐레이션` : "CURATION"}</Link>
           <div className="mt-8 md:mt-12 grid gap-6 md:grid-cols-12 md:items-end">
             <div className="md:col-span-7 space-y-5">
-              <p className="ed-label" style={{ color: "var(--ed-dim)" }}>{formatCurationNumber(curation.number)}</p>
+              <p className="ed-label" style={{ color: "var(--ed-dim)" }}>
+                {formatCurationNumber(curation.number)}
+                {curation.perspective ? ` · ${PERSPECTIVE_LABEL[curation.perspective].en} · ${PERSPECTIVE_LABEL[curation.perspective].ko}` : ""}
+              </p>
               {curation.area ? (
                 <>
                   <h1 className="text-[64px] md:text-[112px] font-bold leading-[0.95] tracking-[-0.05em]">{curation.area}</h1>
@@ -72,7 +85,7 @@ export default async function CurationDetailPage({ params }: Props) {
 
         {curation.blocks.length > 0 && (
           <article className="ed-container py-16 md:py-24">
-            <BlockRenderer blocks={curation.blocks} spaces={blockSpaces} />
+            <BlockRenderer blocks={curation.blocks} spaces={blockSpaces} saveState={saveState} />
           </article>
         )}
 
@@ -80,7 +93,9 @@ export default async function CurationDetailPage({ params }: Props) {
           <section className="ed-container py-16 md:pb-20" style={{ borderTop: "1px solid var(--ed-line)" }}>
             <p className="ed-label pb-8" style={{ color: "var(--ed-dim)" }}>선정된 공간</p>
             <div className="grid gap-10 grid-cols-1 md:grid-cols-3">
-              {spaces.map((l) => <SpaceCard key={l.space.id} space={l.space} note={l.note} showSummary={!l.note} />)}
+              {spaces.map((l) => (
+                <SpaceCard key={l.space.id} space={l.space} note={l.note} showSummary={!l.note} save={{ saved: savedIds.has(l.space.id), loggedIn: viewer.loggedIn }} />
+              ))}
             </div>
           </section>
         )}
@@ -94,7 +109,7 @@ export default async function CurationDetailPage({ params }: Props) {
                   <Link key={c.id} href={`/curation/${c.slug}`} className="group grid grid-cols-[120px_1fr] md:grid-cols-[200px_1fr] gap-5 items-center">
                     <EdImage image={c.cover} ratio="1 / 1" sizes="200px" />
                     <div className="space-y-2">
-                      <p className="ed-label" style={{ color: "var(--ed-dim)" }}>{curationLabel(c)}</p>
+                      <p className="ed-label" style={{ color: "var(--ed-dim)" }}>{curationEyebrow(c)}</p>
                       <p className="text-lg md:text-xl font-bold leading-snug group-hover:underline underline-offset-4">{c.title}</p>
                     </div>
                   </Link>

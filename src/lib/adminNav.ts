@@ -37,6 +37,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
       { key: "content-spaces", label: "공간 콘텐츠", href: "/admin/content/spaces" },
       { key: "content-curations", label: "큐레이션", href: "/admin/content/curations" },
       { key: "content-people", label: "피플", href: "/admin/content/people" },
+      { key: "content-thoughts", label: "생각(THOUGHT)", href: "/admin/content/thoughts" },
       { key: "content-media", label: "미디어", href: "/admin/content/media" },
     ],
   },

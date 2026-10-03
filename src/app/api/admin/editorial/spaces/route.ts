@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { parseSpaceInput } from "@/lib/editorial/input";
 import { badRequest, prismaErrorResponse, readJson, requireAdminApi } from "@/lib/editorial/adminApi";
@@ -14,7 +15,7 @@ export async function POST(req: Request) {
   if (!parsed.ok) return badRequest(parsed.error);
 
   try {
-    const space = await prisma.editorialSpace.create({ data: { ...parsed.data, status: "DRAFT" }, select: { id: true } });
+    const space = await prisma.editorialSpace.create({ data: { ...parsed.data, story: parsed.data.story as unknown as Prisma.InputJsonValue, status: "DRAFT" }, select: { id: true } });
     return NextResponse.json({ id: space.id }, { status: 201 });
   } catch (e) {
     const res = prismaErrorResponse(e);

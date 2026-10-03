@@ -1,23 +1,31 @@
 import Link from "next/link";
 import EdImage from "./EdImage";
 import PartnerMark from "./PartnerMark";
+import SaveButton from "./SaveButton";
 import { spaceCoverImage, spaceHref, type BlockImage, type EditorialBlock, type ResolvedImage, type SpaceView } from "@/lib/editorial/types";
 
 interface Props {
   blocks: EditorialBlock[];
   /** SPACE_CARD 블록이 가리키는 공간(페이지가 공개 규칙에 맞춰 미리 조회) — 없는 공간 카드는 표시하지 않는다 */
   spaces: Map<string, SpaceView>;
+  /** 공간 카드 저장 버튼 — 넘기면 표시(서버가 저장 상태를 알 때만) */
+  saveState?: SaveState;
+}
+
+export interface SaveState {
+  savedIds: Set<string>;
+  loggedIn: boolean;
 }
 
 /**
  * 에디토리얼 본문 블록 렌더러(Editorial CMS 블록) — 텍스트는 읽기 폭(640px), 이미지는 넓게 써서 리듬을 만든다.
  * 공간 카드는 공개 SPACE 상세(/spaces/[slug])로만 연결한다.
  */
-export default function BlockRenderer({ blocks, spaces }: Props) {
+export default function BlockRenderer({ blocks, spaces, saveState }: Props) {
   return (
     <div className="space-y-10 md:space-y-14">
       {blocks.map((block, i) => (
-        <Block key={i} block={block} spaces={spaces} />
+        <Block key={i} block={block} spaces={spaces} saveState={saveState} />
       ))}
     </div>
   );
@@ -37,7 +45,7 @@ function paragraphs(text: string): string[] {
   return text.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
 }
 
-function Block({ block, spaces }: { block: EditorialBlock; spaces: Map<string, SpaceView> }) {
+function Block({ block, spaces, saveState }: { block: EditorialBlock; spaces: Map<string, SpaceView>; saveState?: SaveState }) {
   switch (block.type) {
     case "HEADING":
       return <h2 className={`${READ} text-xl md:text-2xl font-bold leading-snug tracking-tight`}>{block.text}</h2>;
@@ -109,18 +117,25 @@ function Block({ block, spaces }: { block: EditorialBlock; spaces: Map<string, S
       if (!space) return null;
       const meta = [space.area, space.category].filter(Boolean).join(" · ");
       return (
-        <Link href={spaceHref(space.slug)} className="group max-w-[900px] mx-auto grid grid-cols-[112px_1fr] md:grid-cols-[280px_1fr] gap-5 md:gap-10 items-center">
-          <EdImage image={spaceCoverImage(space)} ratio="4 / 5" sizes="(min-width: 768px) 280px, 112px" />
+        <div className="group max-w-[900px] mx-auto grid grid-cols-[112px_1fr] md:grid-cols-[280px_1fr] gap-5 md:gap-10 items-center">
+          <Link href={spaceHref(space.slug)} tabIndex={-1} aria-hidden>
+            <EdImage image={spaceCoverImage(space)} ratio="4 / 5" sizes="(min-width: 768px) 280px, 112px" />
+          </Link>
           <div className="space-y-2">
             <p className="ed-label" style={{ color: "var(--ed-dim)" }}>SPACE</p>
-            <p className="flex items-center gap-2.5 text-lg md:text-2xl font-bold leading-snug"><span className="group-hover:underline underline-offset-4">{space.name}</span>{space.cubeAvailable && <PartnerMark size={16} />}</p>
+            <div className="flex items-start justify-between gap-3">
+              <Link href={spaceHref(space.slug)} className="flex items-center gap-2.5 text-lg md:text-2xl font-bold leading-snug">
+                <span className="group-hover:underline underline-offset-4">{space.name}</span>{space.cubeAvailable && <PartnerMark size={16} />}
+              </Link>
+              {saveState && <SaveButton spaceId={space.id} spaceName={space.name} initialSaved={saveState.savedIds.has(space.id)} loggedIn={saveState.loggedIn} />}
+            </div>
             {meta && <p className="text-xs" style={{ color: "var(--ed-dim)" }}>{meta}</p>}
             {(block.note ?? space.summary) && (
               <p className="text-sm md:text-base leading-relaxed pt-1">{block.note ?? space.summary}</p>
             )}
-            <p className="text-xs pt-1" style={{ color: "var(--ed-dim)" }}>공간 보기 →</p>
+            <Link href={spaceHref(space.slug)} className="inline-block text-xs pt-1" style={{ color: "var(--ed-dim)" }}>공간 보기 →</Link>
           </div>
-        </Link>
+        </div>
       );
     }
   }

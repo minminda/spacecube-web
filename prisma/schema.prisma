@@ -44,6 +44,7 @@ model User {
   notificationsSent     Notification[]         @relation("NotificationSender")
   guestbookFunnelEvents GuestbookFunnelEvent[]
   sceneReaches          SceneReach[]
+  savedEditorialSpaces  SavedEditorialSpace[]
 }
 
 model Account {
@@ -1138,6 +1139,11 @@ enum EditorialStatus {
   ARCHIVED
 }
 
+enum EditorialCurationPerspective {
+  SITUATION
+  PURPOSE
+}
+
 model EditorialSpace {
   id            String          @id @default(cuid())
   slug          String          @unique
@@ -1157,6 +1163,9 @@ model EditorialSpace {
   website       String?
   // 실제 GONGGANCUBE 설치 여부 — 안내 문구 표시용 boolean일 뿐, 운영 공간(Space)/Cube와 연결하지 않는다.
   cubeAvailable Boolean         @default(false)
+  // 함께한 공간(cubeAvailable)의 "운영자 전체 이야기" — 웹 정본. 블록 JSON(curation/people과 같은 형식).
+  // 현장 Cube의 Episode(1~2분 현장 디테일)와는 별개이며 서로 참조하지 않는다.
+  story         Json            @default("[]")
   status        EditorialStatus @default(DRAFT)
   publishedAt   DateTime?
   createdAt     DateTime        @default(now())
@@ -1164,7 +1173,9 @@ model EditorialSpace {
 
   curationLinks EditorialCurationSpace[]
   personLinks   EditorialPersonSpace[]
+  thoughtLinks  EditorialThoughtSpace[]
   homeHeroOf    EditorialHomeSettings[]  @relation("EditorialHomeHero")
+  saves         SavedEditorialSpace[]
 
   @@index([status])
   @@map("editorial_spaces")
@@ -1177,6 +1188,8 @@ model EditorialCuration {
   // 지역(예: "문래") — 현재 주 운영 방식은 "지역 × 하나의 관점"이지만, 지역과 무관한 주제형
   // 큐레이션도 가능하도록 선택값으로 둔다.
   area          String?
+  // 큐레이션 관점 — 지역 × 상황(SITUATION) 또는 지역 × 취향·목적(PURPOSE). null은 아직 미지정.
+  perspective   EditorialCurationPerspective?
   title         String
   summary       String          @db.Text
   coverImage    String?
@@ -1244,6 +1257,61 @@ model EditorialPersonSpace {
   @@unique([personId, spaceId])
   @@index([spaceId])
   @@map("editorial_person_spaces")
+}
+
+// STORY › THOUGHT — 실제 장면에서 시작해 하나의 질문·생각으로 넓혀 가는 에디토리얼.
+// PEOPLE(EditorialPerson)과 같은 형태지만 번호 체계("THOUGHT 001")가 따로라 별도 모델로 둔다.
+model EditorialThought {
+  id            String          @id @default(cuid())
+  slug          String          @unique
+  number        Int             @unique // "THOUGHT 001"
+  title         String
+  // 이야기가 시작된 장면·장소(선택) — 예: "비 오는 오후의 서점"
+  scene         String?
+  summary       String          @db.Text
+  coverImage    String?
+  coverPosition String?
+  blocks        Json            @default("[]")
+  status        EditorialStatus @default(DRAFT)
+  publishedAt   DateTime?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  spaces EditorialThoughtSpace[]
+
+  @@index([status])
+  @@map("editorial_thoughts")
+}
+
+model EditorialThoughtSpace {
+  id        String  @id @default(cuid())
+  thoughtId String
+  spaceId   String
+  order     Int     @default(0)
+  note      String?
+
+  thought EditorialThought @relation(fields: [thoughtId], references: [id], onDelete: Cascade)
+  space   EditorialSpace   @relation(fields: [spaceId], references: [id], onDelete: Restrict)
+
+  @@unique([thoughtId, spaceId])
+  @@index([spaceId])
+  @@map("editorial_thought_spaces")
+}
+
+// 공개 공간(EditorialSpace) 저장 — "나중에 가보고 싶은 공간". 운영 공간 저장(SavedSpace)과 별개이며
+// 아카이브·추천에서 slug로 함께 보여준다. 공간 콘텐츠는 영구 삭제 전 참조 검사에서 저장 여부도 본다.
+model SavedEditorialSpace {
+  id        String   @id @default(cuid())
+  userId    String
+  spaceId   String
+  createdAt DateTime @default(now())
+
+  user  User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  space EditorialSpace @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, spaceId])
+  @@index([spaceId])
+  @@map("saved_editorial_spaces")
 }
 
 // 홈 노출 설정(단일 행, id = "home"). 홈 레이아웃은 코드에 두고 "무엇을 노출할지"만 관리한다.

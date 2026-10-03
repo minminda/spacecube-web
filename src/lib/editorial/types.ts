@@ -7,6 +7,14 @@
 export const EDITORIAL_STATUSES = ["DRAFT", "PUBLISHED", "ARCHIVED"] as const;
 export type EditorialStatusValue = (typeof EDITORIAL_STATUSES)[number];
 
+/** CURATION 관점 — 항상 "지역 + 상황" 또는 "지역 + 취향·목적"으로 운영한다. */
+export const CURATION_PERSPECTIVES = ["SITUATION", "PURPOSE"] as const;
+export type CurationPerspectiveValue = (typeof CURATION_PERSPECTIVES)[number];
+export const PERSPECTIVE_LABEL: Record<CurationPerspectiveValue, { en: string; ko: string; description: string }> = {
+  SITUATION: { en: "SITUATION", ko: "상황", description: "어떤 날, 어떤 시간에서 출발하는 큐레이션" },
+  PURPOSE: { en: "PURPOSE", ko: "취향 · 목적", description: "공간에서 하고 싶은 것에서 출발하는 큐레이션" },
+};
+
 export interface BlockImage {
   url: string;
   alt?: string;
@@ -66,6 +74,8 @@ export interface SpaceView {
   instagram?: string;
   website?: string;
   cubeAvailable: boolean;
+  /** 함께한 공간의 운영자 전체 이야기(블록) */
+  story?: EditorialBlock[];
   status: EditorialStatusValue;
 }
 
@@ -80,6 +90,7 @@ export interface CurationView {
   number: number;
   /** 지역(선택) — 없으면 주제형 큐레이션 */
   area?: string;
+  perspective?: CurationPerspectiveValue;
   title: string;
   summary: string;
   cover: ResolvedImage;
@@ -87,6 +98,11 @@ export interface CurationView {
   blocks: EditorialBlock[];
   status: EditorialStatusValue;
   publishedAt: Date | null;
+}
+
+/** "CURATION 001 · 연남 · 상황" — 관점이 지정된 큐레이션은 관점까지. */
+export function curationEyebrow(c: { number: number; area?: string | null; perspective?: CurationPerspectiveValue | null }): string {
+  return c.perspective ? `${curationLabel(c)} · ${PERSPECTIVE_LABEL[c.perspective].ko}` : curationLabel(c);
 }
 
 /** "CURATION 001 · 문래" (지역이 없으면 번호만) */
@@ -100,6 +116,20 @@ export interface PersonView {
   number: number;
   title: string;
   subject?: string;
+  summary: string;
+  cover: ResolvedImage;
+  spaces: LinkedSpace[];
+  blocks: EditorialBlock[];
+  status: EditorialStatusValue;
+  publishedAt: Date | null;
+}
+
+export interface ThoughtView {
+  id: string;
+  slug: string;
+  number: number;
+  title: string;
+  scene?: string;
   summary: string;
   cover: ResolvedImage;
   spaces: LinkedSpace[];
@@ -129,6 +159,10 @@ export function formatPeopleNumber(n: number): string {
   return `PEOPLE ${String(n).padStart(3, "0")}`;
 }
 
+export function formatThoughtNumber(n: number): string {
+  return `THOUGHT ${String(n).padStart(3, "0")}`;
+}
+
 export const STATUS_LABEL: Record<EditorialStatusValue, string> = {
   DRAFT: "초안",
   PUBLISHED: "발행",
@@ -145,11 +179,12 @@ export function formatEditorialDate(d: Date | string | null | undefined): string
 
 /* ── HOME 콘텐츠 스트림(CURATION / PEOPLE / SPACE 통합) ── */
 
-export type ContentKind = "curation" | "person" | "space";
+export type ContentKind = "curation" | "person" | "thought" | "space";
 
 export const CONTENT_KIND_LABEL: Record<ContentKind, string> = {
   curation: "CURATION",
   person: "PEOPLE",
+  thought: "THOUGHT",
   space: "SPACE",
 };
 
@@ -170,4 +205,32 @@ export interface ContentItem {
   /** SPACE이면서 cubeAvailable — GONGGANCUBE PARTNER 마크 표시용 */
   partner?: boolean;
   status: EditorialStatusValue;
+}
+
+/* ── STORY(PEOPLE + THOUGHT) ── */
+
+export type StoryType = "people" | "thought";
+
+export const STORY_TYPE_LABEL: Record<StoryType, { en: string; ko: string; description: string }> = {
+  people: { en: "PEOPLE", ko: "피플", description: "한 사람을, 그 사람이 좋아하고 머무는 공간을 통해 알아갑니다." },
+  thought: { en: "THOUGHT", ko: "생각", description: "실제 장면에서 시작해 하나의 질문과 생각으로 넓혀 갑니다." },
+};
+
+/** STORY 목록 공용 카드 데이터. */
+export interface StoryItem {
+  key: string;
+  type: StoryType;
+  /** 예: "PEOPLE 001 · 이름", "THOUGHT 002 · 비 오는 오후의 서점" */
+  eyebrow: string;
+  title: string;
+  summary: string;
+  href: string;
+  cover: ResolvedImage;
+  date: string;
+  publishedAt: Date | null;
+  status: EditorialStatusValue;
+}
+
+export function parseStoryType(raw: string | undefined | null): StoryType | null {
+  return raw === "people" || raw === "thought" ? raw : null;
 }

@@ -33,3 +33,18 @@ export async function nextPersonNumber(): Promise<number> {
 export function storedBlocks(raw: unknown): EditorialBlock[] {
   return readStoredBlocks(raw);
 }
+
+export async function nextThoughtNumber(): Promise<number> {
+  const agg = await prisma.editorialThought.aggregate({ _max: { number: true } });
+  return (agg._max.number ?? 0) + 1;
+}
+
+/** 공간 콘텐츠 태그 제안 — 추천에 쓰이는 활성 운영 태그 이름(공개 공간과 운영 공간이 같은 어휘를 쓰도록). */
+export async function getTagSuggestions(): Promise<string[]> {
+  const rows = await prisma.tag.findMany({
+    where: { isActive: true, useForRecommendation: true },
+    orderBy: [{ categoryId: "asc" }, { displayOrder: "asc" }, { name: "asc" }],
+    select: { name: true },
+  });
+  return [...new Set(rows.map((r) => r.name))];
+}

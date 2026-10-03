@@ -31,7 +31,7 @@ export default async function EditCurationPage({ params }: { params: Promise<{ i
           status={c.status}
           spaceOptions={spaceOptions}
           initial={{
-            number: String(c.number), slug: c.slug, label: c.area ?? "", title: c.title, summary: c.summary,
+            number: String(c.number), slug: c.slug, label: c.area ?? "", perspective: c.perspective ?? "", title: c.title, summary: c.summary,
             coverImage: c.coverImage, coverPosition: c.coverPosition,
             spaces: c.spaces.map((l) => ({ spaceId: l.spaceId, note: l.note ?? "" })),
             blocks: storedBlocks(c.blocks),

@@ -3,8 +3,8 @@
    여기서 블록 종류별 필드를 엄격히 검증·정규화한다(모르는 필드는 버림). ── */
 
 import { isValidSlug, normalizeSlug } from "@/lib/slug";
-import type { BlockImage, EditorialBlock, EditorialStatusValue, HomeFeedItem } from "./types";
-import { EDITORIAL_STATUSES } from "./types";
+import type { BlockImage, CurationPerspectiveValue, EditorialBlock, EditorialStatusValue, HomeFeedItem } from "./types";
+import { CURATION_PERSPECTIVES, EDITORIAL_STATUSES } from "./types";
 
 export type ParseResult<T> = { ok: true; data: T } | { ok: false; error: string };
 
@@ -96,6 +96,8 @@ export interface SpaceInput {
   instagram: string | null;
   website: string | null;
   cubeAvailable: boolean;
+  /** 함께한 공간의 운영자 전체 이야기(블록) — 일반 공간은 보통 비어 있다 */
+  story: EditorialBlock[];
 }
 
 export function parseSpaceInput(raw: unknown): ParseResult<SpaceInput> {
@@ -119,6 +121,7 @@ export function parseSpaceInput(raw: unknown): ParseResult<SpaceInput> {
       instagram: optUrl(o.instagram, "Instagram"),
       website: optUrl(o.website, "웹사이트"),
       cubeAvailable: o.cubeAvailable === true,
+      story: parseBlockList(o.story),
     };
   });
 }
@@ -264,9 +267,15 @@ interface DocBase {
 export interface CurationInput extends DocBase {
   /** 지역(선택) — 지역 × 관점 큐레이션이면 입력, 주제형이면 비움 */
   area: string | null;
+  /** 관점(선택) — SITUATION(상황) / PURPOSE(취향·목적) */
+  perspective: CurationPerspectiveValue | null;
 }
 export interface PersonInput extends DocBase {
   subject: string | null;
+}
+export interface ThoughtInput extends DocBase {
+  /** 이야기가 시작된 장면·장소(선택) */
+  scene: string | null;
 }
 
 function docBase(o: Record<string, unknown>): DocBase {
@@ -285,7 +294,10 @@ function docBase(o: Record<string, unknown>): DocBase {
 export function parseCurationInput(raw: unknown): ParseResult<CurationInput> {
   return wrap(() => {
     const o = obj(raw);
-    return { ...docBase(o), area: optStr(o.area, "지역", 60) };
+    const p = o.perspective;
+    if (p !== undefined && p !== null && p !== "" && !(CURATION_PERSPECTIVES as readonly unknown[]).includes(p)) fail("큐레이션 관점 값이 올바르지 않아요.");
+    const perspective = typeof p === "string" && p ? (p as CurationPerspectiveValue) : null;
+    return { ...docBase(o), area: optStr(o.area, "지역", 60), perspective };
   });
 }
 
@@ -293,6 +305,13 @@ export function parsePersonInput(raw: unknown): ParseResult<PersonInput> {
   return wrap(() => {
     const o = obj(raw);
     return { ...docBase(o), subject: optStr(o.subject, "소개 대상", 60) };
+  });
+}
+
+export function parseThoughtInput(raw: unknown): ParseResult<ThoughtInput> {
+  return wrap(() => {
+    const o = obj(raw);
+    return { ...docBase(o), scene: optStr(o.scene, "시작 장면", 80) };
   });
 }
 

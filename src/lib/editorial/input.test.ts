@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseSpaceInput, parseBlocks, parseCurationInput, parsePersonInput, parseStatus, parseHomeInput, collectBlockSpaceIds, readStoredBlocks, readStoredFeed } from "./input";
+import { parseSpaceInput, parseBlocks, parseCurationInput, parsePersonInput, parseThoughtInput, parseStatus, parseHomeInput, collectBlockSpaceIds, readStoredBlocks, readStoredFeed } from "./input";
 
 const IMG = "https://res.cloudinary.com/demo/image/upload/a.jpg";
 
@@ -94,5 +94,30 @@ describe("상태/홈", () => {
     expect(r.data.feed).toHaveLength(2);
     expect(parseHomeInput({ featuredSpaceIds: ["a", "a"] }).ok).toBe(false);
     expect(readStoredFeed([{ kind: "nope", id: "x" }])).toEqual([]);
+  });
+});
+
+describe("정보 구조 개편(2026-10) 입력", () => {
+  const doc = { slug: "a", number: 1, title: "제목", summary: "요약" };
+  it("큐레이션 관점 — SITUATION/PURPOSE만, 비우면 null", () => {
+    const ok = parseCurationInput({ ...doc, area: "연남", perspective: "SITUATION" });
+    expect(ok.ok && ok.data.perspective).toBe("SITUATION");
+    const empty = parseCurationInput({ ...doc, perspective: "" });
+    expect(empty.ok && empty.data.perspective).toBeNull();
+    expect(parseCurationInput({ ...doc, perspective: "RANKING" }).ok).toBe(false);
+  });
+  it("THOUGHT — 시작 장면은 선택", () => {
+    const r = parseThoughtInput({ ...doc, scene: " 비 오는 오후의 서점 " });
+    expect(r.ok && r.data.scene).toBe("비 오는 오후의 서점");
+    const none = parseThoughtInput(doc);
+    expect(none.ok && none.data.scene).toBeNull();
+  });
+  it("공간 운영자 이야기(story)는 블록으로 검증하고, 없으면 빈 배열", () => {
+    const base = { slug: "s", name: "S", area: "연남동", category: "카페" };
+    const r = parseSpaceInput({ ...base, story: [{ type: "TEXT", text: "시작" }] });
+    expect(r.ok && r.data.story).toEqual([{ type: "TEXT", text: "시작" }]);
+    const none = parseSpaceInput(base);
+    expect(none.ok && none.data.story).toEqual([]);
+    expect(parseSpaceInput({ ...base, story: [{ type: "NOPE" }] }).ok).toBe(false);
   });
 });
