@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { prisma } from "@/lib/prisma";
+import { LISTED_SPACE_WHERE } from "@/lib/demoData";
 import type { Metadata } from "next";
 import { resolveSpaceTypeLabel } from "@/lib/spaceType";
 
@@ -30,6 +31,8 @@ export default async function StoryPage({ params }: Props) {
     where: { slug, isActive: true },
     include: {
       storySpaces: {
+        // 시연·비공개 공간은 스토리의 연결 공간 목록에서 뺀다(src/lib/demoData.ts).
+        where: { space: LISTED_SPACE_WHERE },
         orderBy: { order: "asc" },
         include: {
           space: {

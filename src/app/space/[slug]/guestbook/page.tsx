@@ -4,6 +4,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
+import { guestbookAuthorFilter } from "@/lib/demoData";
 import { auth } from "@/auth";
 import { GuestbookSessionStatus, GuestbookFunnelStep } from "@prisma/client";
 import { getVisibleClusters } from "@/lib/guestbookSession";
@@ -68,7 +69,7 @@ export default async function GuestbookPage({ params }: Props) {
 
   const space = await prisma.space.findUnique({
     where: { slug, isActive: true },
-    select: { id: true, name: true, slug: true, ownerId: true, naverMapUrl: true },
+    select: { id: true, name: true, slug: true, ownerId: true, naverMapUrl: true, isDemo: true },
   });
   if (!space) notFound();
 
@@ -169,7 +170,8 @@ export default async function GuestbookPage({ params }: Props) {
 
   const [dbNotes, settingsRow, commentedThisVisitCount] = await Promise.all([
     prisma.guestbookNote.findMany({
-      where: { guestbookSessionId: activeSession.id, isHidden: false, deletedAt: null },
+      // 더미 계정 흔적은 시연 공간에서만 보인다(src/lib/demoData.ts).
+      where: { guestbookSessionId: activeSession.id, isHidden: false, deletedAt: null, ...guestbookAuthorFilter(space.isDemo) },
       orderBy: { createdAt: "asc" },
       select: {
         id: true, userId: true, anonId: true, recordId: true, content: true, nickname: true, imageUrl: true,

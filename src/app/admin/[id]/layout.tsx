@@ -22,7 +22,7 @@ export default async function AdminSpaceLayout({ children, params }: Props) {
 
   const space = await prisma.space.findUnique({
     where: { id },
-    select: { id: true, name: true, slug: true, isActive: true, district: true, cube: { select: { code: true } } },
+    select: { id: true, name: true, slug: true, isActive: true, isDemo: true, district: true, cube: { select: { code: true } } },
   });
   if (!space) return <>{children}</>;
 
@@ -50,6 +50,7 @@ export default async function AdminSpaceLayout({ children, params }: Props) {
           <div className="flex flex-wrap items-center gap-3 min-w-0">
             <p className="text-[22px] md:text-[26px] font-bold tracking-tight leading-tight">{space.name}</p>
             {space.isActive ? <StatusBadge tone="live">공개</StatusBadge> : <StatusBadge tone="off">비공개</StatusBadge>}
+            {space.isDemo && <Link href="/admin/demo-data"><StatusBadge tone="draft">시연 · 서비스 제외</StatusBadge></Link>}
             <span className="text-xs" style={{ color: "var(--a-dim)" }}>
               {space.district ?? "지역 미입력"} · 큐브 {space.cube?.code ?? "미배정"}
             </span>

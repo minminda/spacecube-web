@@ -18,6 +18,7 @@ import {
 import RecommendationPlaylist, { type PlaylistCard } from "@/components/RecommendationPlaylist";
 import ArchiveBottomNav from "@/components/archive/ArchiveBottomNav";
 import Divider from "@/components/Divider";
+import { LISTED_SPACE_WHERE } from "@/lib/demoData";
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return <p className="text-xs uppercase tracking-widest mb-5" style={{ color: "var(--dim)" }}>{children}</p>;
@@ -75,9 +76,12 @@ export default async function ArchiveTastePage() {
     );
   }
 
+  // 시연 공간(Space.isDemo)에서 남긴 기록은 취향 신호에서 뺀다(src/lib/demoData.ts) — 기록 자체는 그대로 둔다.
+  const signalRecords = allRecords.filter((r) => !r.space.isDemo);
+
   // 취향 프로파일: tasteScore × 태그 가중치 벡터(신규, Tag.id 기준) 또는 태그 빈도(레거시 TagKey, 플래그 복구용 보존)
-  const tasteVector = ENABLE_TASTE_SCORE_RECOMMENDATION ? buildWeightedTasteVector(allRecords) : null;
-  const allTags: [string, number][] = tasteVector ? vectorTopTags(tasteVector) : aggregateTags(allRecords);
+  const tasteVector = ENABLE_TASTE_SCORE_RECOMMENDATION ? buildWeightedTasteVector(signalRecords) : null;
+  const allTags: [string, number][] = tasteVector ? vectorTopTags(tasteVector) : aggregateTags(signalRecords);
   const topTags = allTags.slice(0, 5);
   const myTopTagList = topTags.slice(0, 3).map(([t]) => t);
 
@@ -94,9 +98,9 @@ export default async function ArchiveTastePage() {
   const savedTargetIds = new Set(user.savedTastes.map((st) => st.targetUserId));
 
   const [recommendCandidates, similarCandidates] = await Promise.all([
-    allRecords.length >= 3 && myTopTagList.length > 0
+    signalRecords.length >= 3 && myTopTagList.length > 0
       ? prisma.space.findMany({
-          where: { isActive: true, id: { notIn: [...visitedIds] } },
+          where: { ...LISTED_SPACE_WHERE, id: { notIn: [...visitedIds] } },
           select: {
             id: true, name: true, slug: true, tagline: true, imageUrl: true, type: true, district: true,
             spaceTagLinks: { include: { tag: true } },
@@ -104,9 +108,9 @@ export default async function ArchiveTastePage() {
           take: 30,
         })
       : Promise.resolve([]),
-    ENABLE_SIMILAR_TASTE_PEOPLE_UI && allRecords.length >= 3
+    ENABLE_SIMILAR_TASTE_PEOPLE_UI && signalRecords.length >= 3
       ? prisma.user.findMany({
-          where: { visibility: "PARTIAL", id: { not: user.id, notIn: [...savedTargetIds] }, records: { some: {} } },
+          where: { visibility: "PARTIAL", isDemo: false, id: { not: user.id, notIn: [...savedTargetIds] }, records: { some: {} } },
           select: {
             id: true,
             nickname: true,
@@ -191,14 +195,14 @@ export default async function ArchiveTastePage() {
         <p className="text-xs pt-1" style={{ color: "var(--border)" }}>{tastePhrase}</p>
       </section>
 
-      {allRecords.length < 3 ? (
+      {signalRecords.length < 3 ? (
         <section className="mb-10 space-y-2 pl-4 border-l" style={{ borderColor: "var(--border)" }}>
           <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>
             아직 취향을 파악하는 중입니다<br />
             공간 3곳을 기록하면<br />
             당신의 취향과 닮은 공간을 보여드립니다
           </p>
-          <p className="text-xs" style={{ color: "var(--border)" }}>{allRecords.length} / 3 기록됨</p>
+          <p className="text-xs" style={{ color: "var(--border)" }}>{signalRecords.length} / 3 기록됨</p>
         </section>
       ) : (
         <>

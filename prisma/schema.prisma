@@ -20,6 +20,10 @@ model User {
   // null이면 아직 한 번도 변경(최초 설정 포함)한 적 없다는 뜻으로, 쿨다운 없이 즉시 설정 가능하다.
   nicknameUpdatedAt DateTime?
   visibility        Visibility @default(PRIVATE)
+  // 발표·시연용 더미 계정 — 삭제하지 않고 실제 서비스에서만 제외한다(src/lib/demoData.ts).
+  // true면 KPI 집계·다른 사용자 목록에서 빠지고, 이 계정의 방명록 흔적은 시연 공간 안에서만 보인다.
+  // 관리자 /admin/demo-data에서 해제(false)하면 일반 계정으로 즉시 되돌아간다.
+  isDemo            Boolean    @default(false)
   createdAt         DateTime   @default(now())
 
   accounts              Account[]
@@ -116,6 +120,10 @@ model Space {
   lat              Float?
   lng              Float?
   isActive         Boolean  @default(true)
+  // 시연·테스트 공간 — 삭제·비공개(isActive=false) 없이 실제 서비스에서만 제외한다(src/lib/demoData.ts).
+  // isActive와 독립: isActive=false는 "완전히 닫힘"(QR·직접 링크도 막힘), isDemo=true는 "목록에서만 빠짐"
+  // (QR·직접 링크로는 시연 가능, 공개 목록·검색·추천 후보·추천 취향 신호·전체 KPI 합계에서는 제외).
+  isDemo           Boolean  @default(false)
   isFullyBooked    Boolean  @default(false)
   currentMood      String?
   createdAt        DateTime @default(now())

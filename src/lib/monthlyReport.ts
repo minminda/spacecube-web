@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { Prisma, MonthlyReportStatus, type ClusterType } from "@prisma/client";
 import { getSpaceMonthlyKpi, type PeriodKpiStats } from "@/lib/kpi";
 import { getExtendedPeriodStats, type ExtendedPeriodStats } from "@/lib/reportMetrics";
-import { getAdminUserIds } from "@/lib/kpiEligibility";
+import { getKpiExcludedUserIds } from "@/lib/demoData";
 
 /* ── 월간 리포트 콘텐츠 조립 ────────────────────────────────────────────
    ReportEmail.tsx(관리자 Preview + 메일 렌더링 공용 컴포넌트)이 그대로 소비하는
@@ -295,7 +295,7 @@ export interface ReportQuestionParticipation {
  * 관리자가 콘텐츠 검수 중 세 군집을 전부 눌러보며 남긴 흔적은 참여율을 왜곡하므로 제외한다.
  */
 async function getQuestionParticipation(spaceId: string, periodStart: Date, periodEnd: Date): Promise<ReportQuestionParticipation[]> {
-  const adminUserIds = await getAdminUserIds();
+  const adminUserIds = await getKpiExcludedUserIds();
   const [session, noteCounts] = await Promise.all([
     prisma.guestbookSession.findFirst({
       where: { spaceId, startsAt: { lt: periodEnd }, OR: [{ endsAt: null }, { endsAt: { gt: periodStart } }] },
@@ -415,7 +415,7 @@ export async function computeMonthlyReportContent(
   previousStoryStats: StoryReadStats | null = null,
 ): Promise<ReportEmailData> {
   const space = await prisma.space.findUnique({ where: { id: spaceId }, select: { name: true } });
-  const adminUserIds = await getAdminUserIds();
+  const adminUserIds = await getKpiExcludedUserIds();
   const notAdmin = { notIn: [...adminUserIds] };
   // GuestbookNote/GuestbookReaction의 userId는 비로그인 작성자/반응자에서 null일 수 있다 —
   // `notIn`만 쓰면 익명 행이 조용히 빠진다(kpi.ts/reportMetrics.ts와 동일한 함정/해법).
@@ -497,7 +497,7 @@ export async function generateOrGetMonthlyReport(spaceId: string, periodStart: D
   });
   if (existing) return existing;
 
-  const adminUserIds = await getAdminUserIds();
+  const adminUserIds = await getKpiExcludedUserIds();
   const notAdmin = { notIn: [...adminUserIds] };
   // GuestbookNote/GuestbookReaction의 userId는 비로그인 작성자/반응자에서 null일 수 있다 —
   // `notIn`만 쓰면 익명 행이 조용히 빠진다.

@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { buildDailyVisitTrend, type DailyCount } from "@/lib/reportDateRange";
-import { getAdminUserIds } from "@/lib/kpiEligibility";
+import { getKpiExcludedUserIds } from "@/lib/demoData";
 
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
 
@@ -40,7 +40,7 @@ export async function recomputeSpaceKPI(spaceId: string, at: Date = new Date()):
   // 관리자 계정의 방문/방명록은 실제 방문자 지표가 아니라 콘텐츠 검수 목적의 행동이므로 제외한다.
   // 매번 원본 테이블에서 다시 계산하는 구조라, 과거에 관리자가 남긴 데이터도 다음 재계산부터
   // 자동으로 빠진다(백필/삭제 불필요).
-  const adminUserIds = await getAdminUserIds();
+  const adminUserIds = await getKpiExcludedUserIds();
   // guestbookNote.userId는 비로그인 작성자에서 null일 수 있다 — `notIn`만 쓰면 SQL이
   // `NULL NOT IN (...)`을 거짓으로 평가해 익명 작성 행 전체가 조용히 빠진다
   // (src/lib/reportMetrics.ts의 notAdminOrAnonymous와 동일한 함정/해법).
@@ -175,7 +175,7 @@ export function computePeriodStats(
 
 /** 공간의 원본 Record/GuestbookNote를 가져와 기간 한정 KPI를 계산한다. 관리자 계정의 방문/방명록은 제외. */
 export async function getSpaceMonthlyKpi(spaceId: string, periodStart: Date, periodEnd: Date): Promise<PeriodKpiStats> {
-  const adminUserIds = await getAdminUserIds();
+  const adminUserIds = await getKpiExcludedUserIds();
   const [records, guestbookNotes] = await Promise.all([
     prisma.record.findMany({
       where: { spaceId, userId: { notIn: [...adminUserIds] } },
@@ -195,7 +195,7 @@ export async function getSpaceMonthlyKpi(spaceId: string, periodStart: Date, per
  *  방문 기록이 아직 없으면 null(호출부가 Space.createdAt 등으로 대체). 관리자의 초기 테스트 방문이
  *  "전체" 시작일을 실제보다 앞당기지 않도록 관리자 Record는 제외한다. */
 export async function getEarliestRecordDate(spaceId: string): Promise<Date | null> {
-  const adminUserIds = await getAdminUserIds();
+  const adminUserIds = await getKpiExcludedUserIds();
   const earliest = await prisma.record.findFirst({
     where: { spaceId, userId: { notIn: [...adminUserIds] } },
     orderBy: { visitedAt: "asc" },
@@ -207,7 +207,7 @@ export async function getEarliestRecordDate(spaceId: string): Promise<Date | nul
 /** 관리자 기간 조회 화면의 "일별 방문 추이"(§10) — Record.visitedAt을 KST 달력일 단위로 집계한다.
  *  집계 정의를 새로 만들지 않는다: computePeriodStats의 "QR 이용자"와 동일하게 Record 기준(관리자 제외). */
 export async function getDailyVisitTrend(spaceId: string, start: Date, end: Date): Promise<DailyCount[]> {
-  const adminUserIds = await getAdminUserIds();
+  const adminUserIds = await getKpiExcludedUserIds();
   const records = await prisma.record.findMany({
     where: { spaceId, visitedAt: { gte: start, lt: end }, userId: { notIn: [...adminUserIds] } },
     select: { visitedAt: true },

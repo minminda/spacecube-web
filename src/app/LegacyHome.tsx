@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Session } from "next-auth";
 import { isAdmin } from "@/lib/admin";
 import { prisma } from "@/lib/prisma";
+import { LISTED_SPACE_WHERE } from "@/lib/demoData";
 import { ENABLE_REGION_STORIES, ENABLE_TASTE_STORIES, ENABLE_PUBLIC_SPACE_BROWSER } from "@/lib/features";
 import HomeStoryCard from "./HomeStoryCard";
 import QrScanSheet from "./QrScanSheet";
@@ -35,6 +36,8 @@ export default async function LegacyHome({ session }: { session: Session | null 
           orderBy: { publishedAt: "desc" },
           include: {
             storySpaces: {
+              // 시연·비공개 공간은 스토리의 연결 공간 목록에서 뺀다(src/lib/demoData.ts).
+              where: { space: LISTED_SPACE_WHERE },
               orderBy: { order: "asc" },
               take: 3,
               include: { space: { select: { name: true, slug: true } } },
@@ -48,6 +51,8 @@ export default async function LegacyHome({ session }: { session: Session | null 
           orderBy: { publishedAt: "desc" },
           include: {
             storySpaces: {
+              // 시연·비공개 공간은 스토리의 연결 공간 목록에서 뺀다(src/lib/demoData.ts).
+              where: { space: LISTED_SPACE_WHERE },
               orderBy: { order: "asc" },
               take: 3,
               include: { space: { select: { name: true, slug: true } } },

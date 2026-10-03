@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
+import { LISTED_SPACE_WHERE, TASTE_SIGNAL_RECORD_WHERE } from "@/lib/demoData";
 import { auth } from "@/auth";
 import { buildWeightedTasteVector, rankSpacesByVector, getVectorReason, getMatchPercent } from "@/lib/recommend";
 import { getUserUnlockSets } from "@/lib/spaceUnlock";
@@ -52,8 +53,9 @@ export default async function ArchiveTasteAllPage() {
   const user = await prisma.user.findUnique({ where: { id: session.user.id } });
   if (!user) redirect("/login");
 
+  // 시연 공간 기록은 취향 신호에서 제외(src/lib/demoData.ts).
   const records = await prisma.record.findMany({
-    where: { userId: user.id },
+    where: { userId: user.id, ...TASTE_SIGNAL_RECORD_WHERE },
     select: {
       id: true,
       spaceId: true,
@@ -79,7 +81,7 @@ export default async function ArchiveTasteAllPage() {
 
   const [candidates, unlockSets] = await Promise.all([
     prisma.space.findMany({
-      where: { isActive: true, id: { notIn: [...visitedIds] } },
+      where: { ...LISTED_SPACE_WHERE, id: { notIn: [...visitedIds] } },
       select: CANDIDATE_SELECT,
       take: 500,
     }),

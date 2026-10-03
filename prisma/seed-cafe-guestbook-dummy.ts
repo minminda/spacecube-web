@@ -173,7 +173,7 @@ async function main() {
   for (let i = 0; i < userCount; i++) {
     const email = `${DUMMY_EMAIL_PREFIX}${String(i + 1).padStart(2, "0")}@${DUMMY_EMAIL_DOMAIN}`;
     const nickname = NICKNAMES[i];
-    const user = await prisma.user.create({ data: { email, name: nickname, nickname } });
+    const user = await prisma.user.create({ data: { email, name: nickname, nickname, isDemo: true } });
     users.push(user);
   }
   console.log(`더미 작성자 ${users.length}명 생성 완료`);

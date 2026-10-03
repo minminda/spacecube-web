@@ -79,7 +79,12 @@ export default async function AdminSpacesPage({ searchParams }: Props) {
                       {published}<span style={{ color: "var(--a-faint)" }}> / {space.episodes.length}</span>
                     </Link>
                   </td>
-                  <td>{space.isActive ? <StatusBadge tone="live">공개</StatusBadge> : <StatusBadge tone="off">비공개</StatusBadge>}</td>
+                  <td>
+                    <div className="flex flex-wrap gap-1">
+                      {space.isActive ? <StatusBadge tone="live">공개</StatusBadge> : <StatusBadge tone="off">비공개</StatusBadge>}
+                      {space.isDemo && <Link href="/admin/demo-data"><StatusBadge tone="draft">시연</StatusBadge></Link>}
+                    </div>
+                  </td>
                   <td className="text-xs tabular-nums" style={{ color: "var(--a-dim)" }}>{formatAdminDate(space.createdAt)}</td>
                   <td>
                     <div className="flex items-center justify-end gap-1">

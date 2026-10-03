@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { getAdminUserIds } from "@/lib/kpiEligibility";
+import { getKpiExcludedUserIds } from "@/lib/demoData";
 import { buildHourlyTrend } from "@/lib/reportDateRange";
 
 /* ── 리포트 확장 지표 ────────────────────────────────────────────────
@@ -85,7 +85,7 @@ export async function getExtendedPeriodStats(
   periodStart: Date,
   periodEnd: Date,
 ): Promise<ExtendedPeriodStats> {
-  const adminUserIds = await getAdminUserIds();
+  const adminUserIds = await getKpiExcludedUserIds();
   const notAdmin = { notIn: [...adminUserIds] };
   // GuestbookReaction.userId는 비로그인 반응자에서 null일 수 있다 — `notIn`만 쓰면 익명 반응이
   // 조용히 빠진다(NULL NOT IN(...) 함정, 아래 notAdminOrAnonymous와 동일한 이유).
@@ -142,7 +142,7 @@ export interface HourlyCountSet {
  * 하루 전체 합계(getExtendedPeriodStats)와 시간별 합계가 모든 지표에서 정확히 일치한다.
  */
 export async function getHourlyPeriodStats(spaceId: string, dayStart: Date, dayEnd: Date): Promise<HourlyCountSet[]> {
-  const adminUserIds = await getAdminUserIds();
+  const adminUserIds = await getKpiExcludedUserIds();
   const notAdmin = { notIn: [...adminUserIds] };
 
   const [scans, reads, records, notes] = await Promise.all([
@@ -235,7 +235,7 @@ export function pairScansWithReads(
  * 계정의 스캔/조회는 다른 지표와 동일하게 제외한다.
  */
 export async function getRecentVisitLog(spaceId: string, periodStart: Date, periodEnd: Date, limit = 50): Promise<VisitLogEntry[]> {
-  const adminUserIds = await getAdminUserIds();
+  const adminUserIds = await getKpiExcludedUserIds();
   const adminSet = new Set(adminUserIds);
 
   const [scans, reads] = await Promise.all([
@@ -308,7 +308,7 @@ export async function getGuestbookConversionFunnel(
   periodStart: Date,
   periodEnd: Date,
 ): Promise<GuestbookConversionFunnel> {
-  const adminUserIds = await getAdminUserIds();
+  const adminUserIds = await getKpiExcludedUserIds();
   const adminSet = new Set(adminUserIds);
   const notAdmin = { notIn: [...adminUserIds] };
   const notAdminOrAnonymous = { OR: [{ userId: null }, { userId: { notIn: [...adminUserIds] } }] };

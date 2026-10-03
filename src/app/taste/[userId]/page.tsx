@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
+import { LISTED_SPACE_WHERE } from "@/lib/demoData";
 import { auth } from "@/auth";
 import { TAG_LABELS } from "@/lib/tags";
 import { aggregateTags, getTastePhrase, getLatestRecordPerSpace } from "@/lib/taste";
@@ -26,6 +27,8 @@ export default async function TasteJourneyPage({ params }: Props) {
     where: { id: userId },
     include: {
       records: {
+        // 다른 사용자에게 보여주는 화면 — 비공개·시연 공간의 기록은 목록에 섞지 않는다(src/lib/demoData.ts).
+        where: { space: LISTED_SPACE_WHERE },
         orderBy: { visitedAt: "desc" },
         include: {
           space: {
@@ -105,7 +108,7 @@ export default async function TasteJourneyPage({ params }: Props) {
   // 경우에만 채운다. 잠긴 공간의 흔적은 서버에서부터 아예 content를 내려보내지 않는다 —
   // 클라이언트에서 숨기는 게 아니라 애초에 응답(HTML)에 담기지 않아야 하기 때문.
   const targetNotesRaw = await prisma.guestbookNote.findMany({
-    where: { userId: target.id, isHidden: false, deletedAt: null },
+    where: { userId: target.id, isHidden: false, deletedAt: null, space: LISTED_SPACE_WHERE },
     orderBy: { createdAt: "desc" },
     select: { id: true, content: true, imageUrl: true, spaceId: true, space: { select: { name: true, slug: true } } },
   });

@@ -60,6 +60,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     items: [
       { key: "tags", label: "태그 · 카테고리", href: "/admin/tags" },
       { key: "districts", label: "지역", href: "/admin/districts" },
+      { key: "demo-data", label: "시연 데이터", href: "/admin/demo-data" },
     ],
   },
 ];
@@ -67,7 +68,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
 /** /admin 바로 아래의 고정 세그먼트 — 이 외의 세그먼트는 운영 공간 id(/admin/[id]/...)다. */
 const STATIC_SEGMENTS = new Set([
   "spaces", "new", "content", "cubes", "content-status", "interview", "materials",
-  "tags", "districts", "stories", "handwriting-test", "guestbook", "reports",
+  "tags", "districts", "stories", "handwriting-test", "guestbook", "reports", "demo-data",
 ]);
 
 /** 현재 경로에 해당하는 사이드바 항목 key. */

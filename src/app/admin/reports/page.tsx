@@ -3,7 +3,7 @@ import Link from "next/link";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { isAdmin } from "@/lib/admin";
-import { getAdminUserIds } from "@/lib/kpiEligibility";
+import { getKpiExcludedUserIds } from "@/lib/demoData";
 import { AdminPageHeader, AdminTable, EmptyState, StatusBadge, adminButtonClass } from "@/components/admin/ui";
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -24,11 +24,11 @@ export default async function AdminReportsIndexPage() {
   if (!isAdmin(session.user.email)) redirect("/");
 
   const since = daysAgo(30);
-  const adminIds = [...(await getAdminUserIds())];
+  const adminIds = [...(await getKpiExcludedUserIds())];
   const notAdmin = adminIds.length > 0 ? { OR: [{ userId: null }, { userId: { notIn: adminIds } }] } : {};
 
   const [spaces, scanGroups] = await Promise.all([
-    prisma.space.findMany({ orderBy: { createdAt: "desc" }, select: { id: true, name: true, isActive: true, district: true } }),
+    prisma.space.findMany({ orderBy: { createdAt: "desc" }, select: { id: true, name: true, isActive: true, isDemo: true, district: true } }),
     prisma.spaceScan.groupBy({ by: ["spaceId"], where: { scannedAt: { gte: since }, ...notAdmin }, _count: { _all: true } }),
   ]);
   const scansBySpace = new Map(scanGroups.map((g) => [g.spaceId, g._count._all]));
@@ -49,6 +49,7 @@ export default async function AdminReportsIndexPage() {
               <td>
                 <Link href={`/admin/${s.id}/report`} className="font-semibold hover:underline underline-offset-4">{s.name}</Link>
                 {!s.isActive && <span className="ml-2"><StatusBadge tone="off">비공개</StatusBadge></span>}
+                {s.isDemo && <span className="ml-2"><StatusBadge tone="draft">시연</StatusBadge></span>}
               </td>
               <td style={{ color: "var(--a-dim)" }}>{s.district ?? "—"}</td>
               <td className="tabular-nums">{scansBySpace.get(s.id) ?? 0}</td>
@@ -60,7 +61,7 @@ export default async function AdminReportsIndexPage() {
           ))}
         </AdminTable>
       )}
-      <p className="mt-3 text-[11px]" style={{ color: "var(--a-faint)" }}>QR 스캔 수는 원시 스캔 기준이며 로그인한 관리자 계정만 제외됩니다. 정식 지표는 각 리포트의 방문자 퍼널을 기준으로 하세요.</p>
+      <p className="mt-3 text-[11px]" style={{ color: "var(--a-faint)" }}>QR 스캔 수는 원시 스캔 기준이며 로그인한 관리자 계정·더미 계정만 제외됩니다. 시연 공간은 Overview 합계에서 빠집니다. 정식 지표는 각 리포트의 방문자 퍼널을 기준으로 하세요.</p>
     </>
   );
 }

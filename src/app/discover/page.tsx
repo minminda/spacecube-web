@@ -10,6 +10,7 @@ import { isAdmin } from "@/lib/admin";
 import { getUserUnlockSets } from "@/lib/spaceUnlock";
 import { ENABLE_TASTE_SCORE_RECOMMENDATION, ENABLE_PUBLIC_SPACE_BROWSER } from "@/lib/features";
 import { resolveSpaceTypeLabel } from "@/lib/spaceType";
+import { LISTED_SPACE_WHERE, TASTE_SIGNAL_RECORD_WHERE } from "@/lib/demoData";
 import DiscoverEntry, { type DiscoverDistrict } from "../DiscoverEntry";
 import SpaceCards from "./SpaceCards";
 import SpaceDiscoveryCard from "./SpaceDiscoveryCard";
@@ -18,12 +19,6 @@ interface Props {
   searchParams: Promise<{ district?: string }>;
 }
 
-// ── 소개서/시연용 임시 처리 ──────────────────────────────────────────
-// 망원 지역 TOP3 데모(prisma/seed-mangwon-demo.ts로 만든 isActive:false 공간 3개)를 이
-// 계정으로 로그인했을 때만 추천 후보에 포함시킨다. 다른 계정·비로그인·다른 지역에는 절대
-// 영향을 주지 않는다(공개 목록 spacesRaw는 항상 isActive:true만 조회). 촬영이 끝나면 아래
-// 상수와 이 상수를 참조하는 두 블록, 그리고 `npm run db:cleanup-mangwon-demo`로 정리한다.
-const DEMO_MANGWON_EMAIL = "alsehd0516@gmail.com";
 
 export default async function DiscoverPage({ searchParams }: Props) {
   // TEMP: Pilot period — hide public space browsing until official launch (src/lib/features.ts).
@@ -62,7 +57,8 @@ export default async function DiscoverPage({ searchParams }: Props) {
 
   // ── 공간 목록 조회 (spaceTags, district 포함) ──────────────────────
   const spacesRaw = await prisma.space.findMany({
-    where: { district, isActive: true },
+    // 시연 공간(Space.isDemo)은 QR·직접 링크로만 열리고 공개 목록에는 나오지 않는다(src/lib/demoData.ts).
+    where: { district, ...LISTED_SPACE_WHERE },
     orderBy: { createdAt: "desc" },
     select: {
       id: true, slug: true, name: true, tagline: true,
@@ -91,7 +87,8 @@ export default async function DiscoverPage({ searchParams }: Props) {
     if (user) {
       const [userRecords, unlockSets] = await Promise.all([
         prisma.record.findMany({
-          where: { userId: user.id },
+          // 시연 공간 기록은 취향 신호에서 제외 — 추천에 시연 데이터가 섞이지 않게 한다.
+          where: { userId: user.id, ...TASTE_SIGNAL_RECORD_WHERE },
           include: { space: { select: { spaceTagLinks: { include: { tag: true } } } } },
         }),
         getUserUnlockSets(user.id),
@@ -117,27 +114,12 @@ export default async function DiscoverPage({ searchParams }: Props) {
     score: hasEnoughRecords ? scoreSpaceWeighted(s, userTagCountMap) : 0,
   }));
 
-  // 망원 TOP3 데모 전용 후보 — 공개 목록(spacesRaw/spacesForCards)에는 절대 섞지 않고
-  // TOP3 추천 계산에만 별도로 합류시킨다. 위 DEMO_MANGWON_EMAIL 계정 + 망원 지역일 때만 조회.
-  const demoCandidates = hasEnoughRecords && district === "망원" && session?.user?.email === DEMO_MANGWON_EMAIL
-    ? await prisma.space.findMany({
-        where: { slug: { startsWith: "demo-mangwon-" }, isActive: false },
-        orderBy: { createdAt: "asc" },
-        select: {
-          id: true, slug: true, name: true, tagline: true,
-          type: true, openingHours: true, imageUrl: true,
-          district: true, spaceTags: true, naverMapUrl: true,
-          spaceTagLinks: { include: { tag: { include: { categoryRef: true } } } },
-        },
-      })
-    : [];
-  const demoCandidatesWithScore = demoCandidates.map((s) => ({ ...s, score: scoreSpaceWeighted(s, userTagCountMap) }));
 
   // ── 추천 섹션: 방문하지 않은 공간, 점수 > 0, 상위 3개 ─────────────
   const visitedSet = new Set(visitedSpaceIds);
   const unlockedSet = new Set(unlockedSpaceIds);
   const recommendedSpaces = hasEnoughRecords
-    ? [...spacesWithScore, ...demoCandidatesWithScore]
+    ? [...spacesWithScore]
         .filter((s) => !visitedSet.has(s.id) && s.score > 0)
         .sort((a, b) => b.score - a.score)
         .slice(0, 3)

@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
+import { guestbookAuthorFilter } from "@/lib/demoData";
 import { auth } from "@/auth";
 import { GuestbookSessionStatus } from "@prisma/client";
 import { formatDotDate as formatDate } from "@/lib/time";
@@ -20,7 +21,7 @@ export const metadata: Metadata = { title: "이전 방명록 — 공간큐브" }
 export default async function GuestbookArchiveSessionPage({ params, searchParams }: Props) {
   const { slug, sessionId } = await params;
   const { highlight } = await searchParams;
-  const space = await prisma.space.findUnique({ where: { slug, isActive: true }, select: { id: true, name: true, slug: true } });
+  const space = await prisma.space.findUnique({ where: { slug, isActive: true }, select: { id: true, name: true, slug: true, isDemo: true } });
   if (!space) notFound();
 
   const guestbookSession = await prisma.guestbookSession.findUnique({ where: { id: sessionId } });
@@ -50,7 +51,8 @@ export default async function GuestbookArchiveSessionPage({ params, searchParams
   }
 
   const notes = await prisma.guestbookNote.findMany({
-    where: { guestbookSessionId: guestbookSession.id, isHidden: false, deletedAt: null },
+    // 더미 계정 흔적은 시연 공간에서만 보인다(src/lib/demoData.ts).
+    where: { guestbookSessionId: guestbookSession.id, isHidden: false, deletedAt: null, ...guestbookAuthorFilter(space.isDemo) },
     orderBy: { createdAt: "asc" },
     select: {
       id: true,

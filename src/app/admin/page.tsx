@@ -3,7 +3,7 @@ import Link from "next/link";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { isAdmin } from "@/lib/admin";
-import { getAdminUserIds } from "@/lib/kpiEligibility";
+import { getKpiExcludedUserIds } from "@/lib/demoData";
 import { ENABLE_EDITORIAL_HOME } from "@/lib/features";
 import { curationLabel, formatPeopleNumber } from "@/lib/editorial/types";
 import { EditorialStatusBadge } from "@/components/admin/editorial/EditorialControls";
@@ -31,13 +31,18 @@ export default async function AdminOverviewPage() {
   if (!isAdmin(session.user.email)) redirect("/");
 
   const since = daysAgo(7);
-  const adminIds = [...(await getAdminUserIds())];
-  // 로그인한 관리자 계정의 테스트 행동은 제외(비로그인 상태의 관리자 스캔은 구분 불가 — 기존 KPI와 동일한 한계).
-  const notAdmin = adminIds.length > 0 ? { OR: [{ userId: null }, { userId: { notIn: adminIds } }] } : {};
+  const adminIds = [...(await getKpiExcludedUserIds())];
+  // 로그인한 관리자 계정의 테스트 행동·더미 계정은 제외(비로그인 상태의 관리자 스캔은 구분 불가 — 기존 KPI와 동일한 한계).
+  // 여러 공간을 합친 숫자이므로 시연 공간(Space.isDemo)의 스캔·방명록도 뺀다.
+  const notAdmin = {
+    space: { isDemo: false },
+    ...(adminIds.length > 0 ? { OR: [{ userId: null }, { userId: { notIn: adminIds } }] } : {}),
+  };
 
-  const [spaceTotal, spaceActive, cubeGroups, episodeTotal, episodePublished, scans7d, notes7d, recentScans, recentNotes] = await Promise.all([
+  const [spaceTotal, spaceActive, spaceDemo, cubeGroups, episodeTotal, episodePublished, scans7d, notes7d, recentScans, recentNotes] = await Promise.all([
     prisma.space.count(),
-    prisma.space.count({ where: { isActive: true } }),
+    prisma.space.count({ where: { isActive: true, isDemo: false } }),
+    prisma.space.count({ where: { isDemo: true } }),
     prisma.cube.groupBy({ by: ["status"], _count: { _all: true } }),
     prisma.episode.count(),
     prisma.episode.count({ where: { published: true } }),
@@ -121,11 +126,11 @@ export default async function AdminOverviewPage() {
             <p className="text-xs" style={{ color: "var(--a-dim)" }}>실제 공간의 큐브 · 에피소드 · 방명록</p>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            <AdminStat label="운영 공간" value={spaceTotal} hint={`공개 ${spaceActive}`} href="/admin/spaces" />
+            <AdminStat label="운영 공간" value={spaceTotal} hint={`공개 ${spaceActive}${spaceDemo > 0 ? ` · 시연 ${spaceDemo}` : ""}`} href="/admin/spaces" />
             <AdminStat label="큐브" value={cubeTotal} hint={`배정 ${cubeCount("ASSIGNED")} · 미배정 ${cubeCount("UNASSIGNED")}`} href="/admin/cubes" />
             <AdminStat label="에피소드" value={episodeTotal} hint={`발행 ${episodePublished}`} href="/admin/content-status" />
-            <AdminStat label="QR 스캔 · 7일" value={scans7d} hint="로그인한 관리자 제외" href="/admin/reports" />
-            <AdminStat label="방명록 · 7일" value={notes7d} hint="삭제 제외 · 관리자 제외" href="/admin/guestbook" />
+            <AdminStat label="QR 스캔 · 7일" value={scans7d} hint="관리자 · 시연 데이터 제외" href="/admin/reports" />
+            <AdminStat label="방명록 · 7일" value={notes7d} hint="삭제 · 관리자 · 시연 제외" href="/admin/guestbook" />
           </div>
 
           <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">

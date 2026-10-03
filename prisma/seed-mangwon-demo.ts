@@ -73,7 +73,8 @@ async function main() {
         description: def.description,
         philosophy: def.philosophy,
         imageUrl: DEMO_IMAGES[i % DEMO_IMAGES.length],
-        isActive: false, // 공개 목록에 절대 노출되지 않음 — 데모 계정 전용 병합 경로에서만 조회
+        isActive: false, // 공개 목록에 절대 노출되지 않음
+        isDemo: true, // 시연 데이터 표시(src/lib/demoData.ts) — discover의 데모 계정 전용 병합 경로는 2026-10 제거됨
       },
     });
 

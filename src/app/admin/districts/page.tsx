@@ -14,7 +14,8 @@ export default async function DistrictsAdminPage() {
     prisma.district.findMany({ orderBy: { order: "asc" } }),
     prisma.space.groupBy({
       by: ["district"],
-      where: { isActive: true, district: { not: null } },
+      // 사용자 지도에 실제로 보이는 공간 수 — 시연 공간(isDemo)은 공개 목록에서 빠지므로 세지 않는다.
+      where: { isActive: true, isDemo: false, district: { not: null } },
       _count: { _all: true },
     }),
   ]);

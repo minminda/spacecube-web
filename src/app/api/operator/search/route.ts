@@ -13,7 +13,13 @@ export async function GET(req: NextRequest) {
   if (q.length < 2) return NextResponse.json({ spaces: [] });
 
   const spaces = await prisma.space.findMany({
-    where: { name: { contains: q, mode: "insensitive" } },
+    // 시연·테스트 공간(isDemo)은 부분 검색 결과에 섞이지 않고, 이름을 정확히 입력했을 때만 나온다 —
+    // 운영자 화면 시연은 계속 가능(src/lib/demoData.ts). 잠시 비공개(isActive=false)인 실제 공간의
+    // 운영자는 계속 로그인할 수 있어야 하므로 isActive로는 거르지 않는다.
+    where: {
+      name: { contains: q, mode: "insensitive" },
+      OR: [{ isDemo: false }, { name: { equals: q, mode: "insensitive" } }],
+    },
     select: {
       slug: true, name: true, district: true, type: true,
       spaceTagLinks: { include: { tag: { include: { categoryRef: true } } } },

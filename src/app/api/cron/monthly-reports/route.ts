@@ -41,7 +41,8 @@ export async function POST(req: NextRequest) {
   }
 
   const spaces = await prisma.space.findMany({
-    where: { reportEnabled: true, reportStartDate: { not: null } },
+    // 시연 공간(isDemo)은 실제 운영자에게 보내는 자동 리포트 대상에서 뺀다(src/lib/demoData.ts).
+    where: { reportEnabled: true, reportStartDate: { not: null }, isDemo: false },
     include: { owner: { select: { email: true } } },
   });
 

@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { buildWeightedTasteVector, rankSpacesByVector, getVectorReason, vectorTopTags } from "@/lib/recommend";
 import { getUserUnlockSets } from "@/lib/spaceUnlock";
 import { resolveSpaceTypeLabel } from "@/lib/spaceType";
+import { LISTED_SPACE_WHERE, TASTE_SIGNAL_RECORD_WHERE } from "@/lib/demoData";
 
 export interface RewardTag {
   label: string;
@@ -58,7 +59,9 @@ export async function buildRewardSummary(userId: string, spaceId: string): Promi
     prisma.guestbookNote.count({ where: { spaceId } }),
     prisma.space.findUnique({ where: { id: spaceId }, select: { district: true } }),
     prisma.record.findMany({
-      where: { userId },
+      // 시연 공간 기록은 취향 신호에서 빼되(src/lib/demoData.ts), 지금 막 경험한 이 공간의 기록은
+      // 이 보상 화면에 한해 반영한다 — 시연 공간에서도 "이번 기록" 흐름이 그대로 시연되도록.
+      where: { userId, OR: [TASTE_SIGNAL_RECORD_WHERE, { spaceId }] },
       select: {
         id: true,
         spaceId: true,
@@ -79,14 +82,14 @@ export async function buildRewardSummary(userId: string, spaceId: string): Promi
 
   const visitedIds = new Set(userRecords.map((r) => r.spaceId));
   let candidates = await prisma.space.findMany({
-    where: { isActive: true, id: { notIn: [...visitedIds] }, ...(space?.district ? { district: space.district } : {}) },
+    where: { ...LISTED_SPACE_WHERE, id: { notIn: [...visitedIds] }, ...(space?.district ? { district: space.district } : {}) },
     select: CANDIDATE_SELECT,
     take: 30,
   });
   let ranked = rankSpacesByVector(candidates, vector, 3);
   if (ranked.length === 0 && space?.district) {
     candidates = await prisma.space.findMany({
-      where: { isActive: true, id: { notIn: [...visitedIds] } },
+      where: { ...LISTED_SPACE_WHERE, id: { notIn: [...visitedIds] } },
       select: CANDIDATE_SELECT,
       take: 30,
     });
