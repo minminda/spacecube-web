@@ -12,15 +12,25 @@ const LEGACY_NAV_ITEMS = [
   { label: "추천 방식", href: "/recommendation", match: (p: string) => p.startsWith("/recommendation"), enabled: ENABLE_NAV_RECOMMENDATION_LINK },
 ].filter((item) => item.enabled);
 
-// 새 정보 구조(2026-10): 스토리 · 큐레이션 · 함께한 공간 · 추천. 내 아카이브는 계정 영역에 둔다.
-// "공간큐브"(브랜드 소개 /about)와 "함께한 공간"(실제 Cube 파트너 공간 /cube-spaces)은 이름으로 구분한다.
-const EDITORIAL_NAV_ITEMS = [
+/* ── 두 레이어 내비게이션(2026-10) ──────────────────────────────────────────
+   A. SpaceCube Platform — 공간을 찾고 내 취향을 만드는 기능: 공간 찾기 · 큐레이터 · 추천 · 내 아카이브
+   B. SpaceCube Original — 공간큐브가 직접 만드는 영역: 스토리 · 큐레이션 · 함께한 공간 · Cube 경험(/spacecube 허브)
+   플랫폼 기능(공간 찾기·큐레이터)이 보이는 사람에게는 상단을 플랫폼으로 채우고 Original은 하단 "공간큐브"로 모은다.
+   아직 플랫폼 기능을 볼 수 없는 방문자에게는 기존 상단 구성을 그대로 둔다 — 준비되지 않은 메뉴를 먼저 공개하지 않는다.
+   기존 경로(/story, /curation, /cube-spaces)는 그대로이고 어디서도 리다이렉트하지 않는다. ── */
+const ORIGINAL_NAV_ITEMS = [
   { label: "스토리", href: "/story", match: (p: string) => p === "/story" || p.startsWith("/people") || p.startsWith("/thought") },
   { label: "큐레이션", href: "/curation", match: (p: string) => p.startsWith("/curation") },
   // 공개 공간 상세(/spaces/[slug])는 일반·파트너 공용이라 활성 표시하지 않는다. Cube 운영 라우트(/space/**)와도 분리.
   { label: "함께한 공간", href: "/cube-spaces", match: (p: string) => p.startsWith("/cube-spaces") },
-  { label: "추천", href: "/recommend", match: (p: string) => p.startsWith("/recommend") },
 ];
+const RECOMMEND_ITEM = { label: "추천", href: "/recommend", match: (p: string) => p.startsWith("/recommend") };
+const PLATFORM_NAV_ITEMS = [
+  { label: "공간 찾기", href: "/find", match: (p: string) => p.startsWith("/find") },
+  { label: "큐레이터", href: "/curators", match: (p: string) => p.startsWith("/curators") || p.startsWith("/collections") },
+  RECOMMEND_ITEM,
+];
+const EDITORIAL_NAV_ITEMS = [...ORIGINAL_NAV_ITEMS, RECOMMEND_ITEM];
 
 interface Viewer {
   loggedIn: boolean;
@@ -30,8 +40,6 @@ interface Viewer {
   curators?: boolean;
 }
 
-// 큐레이터 프로토타입 — 볼 수 있는 사람에게만 "큐레이션" 다음에 끼워 넣는다.
-const CURATORS_ITEM = { label: "큐레이터", href: "/curators", match: (p: string) => p.startsWith("/curators") || p.startsWith("/collections") || p.startsWith("/find") };
 
 // 페이지 이동마다 다시 묻지 않도록 탭 단위로 한 번만 조회한다(로그인/로그아웃은 전체 리로드를 동반).
 let viewerPromise: Promise<Viewer | null> | null = null;
@@ -100,9 +108,9 @@ export default function Navbar() {
     );
   }
 
-  const navItems = viewer?.curators
-    ? [...EDITORIAL_NAV_ITEMS.slice(0, 2), CURATORS_ITEM, ...EDITORIAL_NAV_ITEMS.slice(2)]
-    : EDITORIAL_NAV_ITEMS;
+  // 플랫폼 기능을 볼 수 있으면 상단 = 플랫폼, 아니면 기존 구성(Original + 추천) 그대로.
+  const platform = !!viewer?.curators;
+  const navItems = platform ? PLATFORM_NAV_ITEMS : EDITORIAL_NAV_ITEMS;
   const accountHref = viewer?.loggedIn ? "/archive" : "/login";
   const accountActive = pathname.startsWith("/archive");
   const accountLabel = viewer?.loggedIn ? "내 아카이브" : "로그인";
@@ -187,8 +195,10 @@ export default function Navbar() {
             >
               공간 제안하기
             </Link>
-            <div className="flex items-center justify-between text-sm" style={{ color: "#999" }}>
+            {/* 하단 보조 영역 — 계정 · 공간큐브(Original 허브) · 소개 · 관리자(관리자에게만) */}
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm" style={{ color: "#999" }}>
               <Link href={accountHref} onClick={() => setMenuOpenPath(null)}>{accountLabel}</Link>
+              <Link href="/spacecube" onClick={() => setMenuOpenPath(null)} style={{ color: "#fff" }}>공간큐브</Link>
               <Link href="/about" onClick={() => setMenuOpenPath(null)}>공간큐브 소개</Link>
               {viewer?.admin && <Link href="/admin" onClick={() => setMenuOpenPath(null)}>관리자</Link>}
             </div>

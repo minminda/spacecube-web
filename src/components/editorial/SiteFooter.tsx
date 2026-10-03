@@ -5,12 +5,19 @@ interface Props {
   admin?: boolean;
 }
 
-const EXPLORE = [
+// 하단 보조 내비게이션 — 두 레이어를 나눠 보여준다.
+// 공간큐브(SpaceCube Original): 공간큐브가 직접 만드는 영역의 허브(/spacecube)와 그 하위.
+const ORIGINAL = [
+  { label: "공간큐브", href: "/spacecube" },
   { label: "스토리", href: "/story" },
   { label: "큐레이션", href: "/curation" },
   { label: "함께한 공간", href: "/cube-spaces" },
-  { label: "추천", href: "/recommend" },
   { label: "공간큐브 소개", href: "/about" },
+];
+// 플랫폼: 내 취향으로 공간을 찾는 기능(공개된 것만 — 공간 찾기·큐레이터는 아직 미리보기라 넣지 않는다).
+const PLATFORM = [
+  { label: "추천", href: "/recommend" },
+  { label: "내 아카이브", href: "/archive" },
 ];
 
 /**
@@ -27,17 +34,30 @@ export default function SiteFooter({ admin }: Props) {
             <p className="text-base font-bold tracking-[0.08em]">{BRAND_NAME}</p>
             <p className="text-xs" style={{ color: "#a8a8a8" }}>{BRAND_MESSAGE}</p>
           </div>
-          <ul className="flex flex-wrap gap-x-5 gap-y-2 text-sm">
-            {EXPLORE.map((l) => (
-              <li key={l.href}><Link href={l.href} className="hover:underline underline-offset-4">{l.label}</Link></li>
-            ))}
-            <li>
-              <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer" className="hover:underline underline-offset-4">Instagram</a>
-            </li>
-            <li>
-              <a href={`mailto:${CONTACT_EMAIL}`} className="hover:underline underline-offset-4">Contact</a>
-            </li>
-          </ul>
+          <div className="flex flex-wrap gap-x-12 gap-y-5 text-sm">
+            <nav aria-label="공간큐브">
+              <p className="pb-2 text-[11px] tracking-[0.12em] uppercase" style={{ color: "#777" }}>SpaceCube Original</p>
+              <ul className="flex flex-wrap gap-x-5 gap-y-2">
+                {ORIGINAL.map((l) => (
+                  <li key={l.href}><Link href={l.href} className="hover:underline underline-offset-4">{l.label}</Link></li>
+                ))}
+                <li>
+                  <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer" className="hover:underline underline-offset-4">Instagram</a>
+                </li>
+                <li>
+                  <a href={`mailto:${CONTACT_EMAIL}`} className="hover:underline underline-offset-4">Contact</a>
+                </li>
+              </ul>
+            </nav>
+            <nav aria-label="플랫폼">
+              <p className="pb-2 text-[11px] tracking-[0.12em] uppercase" style={{ color: "#777" }}>Platform</p>
+              <ul className="flex flex-wrap gap-x-5 gap-y-2">
+                {PLATFORM.map((l) => (
+                  <li key={l.href}><Link href={l.href} className="hover:underline underline-offset-4">{l.label}</Link></li>
+                ))}
+              </ul>
+            </nav>
+          </div>
         </div>
         <div className="mt-6 pt-4 flex flex-wrap items-center justify-between gap-3" style={{ borderTop: "1px solid #262626" }}>
           <p className="text-xs" style={{ color: "#777" }}>© {BRAND_NAME}. 현재 파일럿 운영 중입니다.</p>
