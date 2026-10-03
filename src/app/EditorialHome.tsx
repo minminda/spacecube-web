@@ -4,13 +4,16 @@ import LatestSlider from "@/components/editorial/LatestSlider";
 import EdImage from "@/components/editorial/EdImage";
 import CurationCard from "@/components/editorial/CurationCard";
 import SpaceCard from "@/components/editorial/SpaceCard";
-import { listAreas, listContentStream, listCubeSpaces, listCurations, listStoryItems } from "@/lib/editorial/queries";
+import { listContentStream, listCubeSpaces, listCurations, listStoryItems } from "@/lib/editorial/queries";
 import { getSavedEditorialSpaceIds } from "@/lib/editorial/saves";
 import QrScanSheet from "./QrScanSheet";
 
 /* ── 에디토리얼 홈 ───────────────────────────────────────────────────────
-   INTRO(브랜드 한 줄) → LATEST(최신 발행 5개 Hero Slider, 전체는 /latest) → 추천 입구(지역만 고른다) → STORY · CURATION · 함께한 공간 미리보기(각 2~4개)
-   → GONGGANCUBE EXPERIENCE → FOOTER. 공간 제안하기는 푸터(유틸리티)에서만 받는다.
+   INTRO(브랜드 한 줄) → LATEST(최신 발행 5개 Hero Slider, 전체는 /latest) → CURATION → STORY → 함께한 공간
+   → GONGGANCUBE EXPERIENCE → FOOTER.
+   홈은 "공간큐브가 지금 무엇을 발견하고 기록하는지" 보여주는 콘텐츠 중심 — 추천(/find)·내 아카이브는 홈 섹션이 아니라
+   Navbar의 핵심 Action이다. 공간 제안하기는 푸터(유틸리티)에서만 받는다.
+   LATEST · CURATION · STORY는 발행 콘텐츠가 0편이어도 섹션 자체는 남기고 준비 중 문구를 보여준다(홈의 뼈대).
    각 영역은 자기 허브(/story, /curation, /cube-spaces)로 넘어가는 입구일 뿐 — 홈에 전부 넣지 않는다.
    노출 규칙은 자동이다: 발행(PUBLISHED)된 콘텐츠를 최신 순으로. 초안 포함 미리보기는 /?preview=drafts(관리자·로컬).
    Cube 운영 DB·라우트(/space/[slug]/** 의 Episode/Scene/방명록)로는 연결하지 않는다.
@@ -32,13 +35,12 @@ function SectionHead({ label, title, href, cta }: { label: string; title: string
 
 export default async function EditorialHome({ admin, previewDrafts, userId }: { admin: boolean; previewDrafts: boolean; userId: string | null }) {
   const v = { preview: previewDrafts };
-  const [stream, stories, curations, cubeSpaces, savedIds, areas] = await Promise.all([
+  const [stream, stories, curations, cubeSpaces, savedIds] = await Promise.all([
     listContentStream(v),
     listStoryItems(v),
     listCurations(v),
     listCubeSpaces(v),
     getSavedEditorialSpaceIds(userId),
-    listAreas(),
   ]);
   // 보관(ARCHIVED)은 홈에서 항상 제외 — 미리보기도 발행·초안까지만(listContentStream과 같은 규칙).
   const visible = <T extends { status: string }>(rows: T[]) => rows.filter((r) => r.status !== "ARCHIVED");
@@ -73,37 +75,37 @@ export default async function EditorialHome({ admin, previewDrafts, userId }: { 
         {latest.length > 0 ? (
           <LatestSlider items={latest} allHref="/latest" />
         ) : (
-          <section className="ed-container py-16">
-            <p className="text-base" style={{ color: "var(--ed-dim)" }}>첫 번째 이야기를 준비하고 있습니다.</p>
+          <section className="ed-container py-10">
+            <p className="ed-label pb-3" style={{ borderBottom: "1px solid var(--ed-fg)" }}>Latest</p>
+            <p className="pt-6 text-base" style={{ color: "var(--ed-dim)" }}>첫 번째 이야기를 준비하고 있습니다.</p>
           </section>
         )}
 
-        {/* ── 추천 — 홈에서 가장 실용적인 입구. 지역만 고르면 /find가 내 취향 데이터로 정렬한다(분위기·목적은 묻지 않는다) ── */}
-        {areas.length > 0 && (
-          <section style={{ borderTop: "1px solid var(--ed-line)" }}>
-            <div className="ed-container py-8 md:py-10 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-              <div className="space-y-1">
-                <p className="ed-label" style={{ color: "var(--ed-dim)" }}>추천</p>
-                <h2 className="text-xl md:text-[28px] font-bold leading-[1.25] tracking-[-0.03em] break-keep">어디에서 찾고 있나요?</h2>
-                <p className="text-[13px] md:text-sm break-keep" style={{ color: "var(--ed-dim)" }}>지역만 고르면, 저장하고 다녀온 공간을 바탕으로 나에게 맞는 순서로 보여드려요.</p>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {areas.slice(0, 5).map((a) => (
-                  <Link key={a.area} href={`/find?area=${encodeURIComponent(a.area)}`} className="inline-flex items-center h-10 px-4 text-sm font-semibold" style={{ border: "1px solid var(--ed-fg)" }}>
-                    {a.area}
-                  </Link>
+        {/* ── CURATION — 공간큐브가 지역 × 상황/목적으로 직접 고른 공간 ── */}
+        <section style={{ borderTop: "1px solid var(--ed-line)" }}>
+          <div className="ed-container py-10 md:py-14">
+            <SectionHead label="CURATION" title="지역에서, 어떤 날과 어떤 마음으로 고른 공간" href="/curation" cta="큐레이션 보기" />
+            {curationPreview.length === 0 ? (
+              <p className="py-4 text-sm" style={{ color: "var(--ed-dim)" }}>첫 번째 큐레이션을 준비하고 있습니다.</p>
+            ) : (
+              <ul className="ed-scroll-x -mx-5 px-5 scroll-px-5 md:mx-0 md:px-0 md:scroll-px-0 flex md:grid md:grid-cols-3 gap-4 md:gap-8 overflow-x-auto snap-x snap-mandatory">
+                {curationPreview.map((c) => (
+                  <li key={c.id} className="snap-start shrink-0 w-[78%] md:w-auto">
+                    <CurationCard c={c} ratio="1 / 1" sizes="(min-width: 768px) 33vw, 78vw" />
+                  </li>
                 ))}
-                <Link href="/find" className="inline-flex items-center h-10 px-4 text-sm" style={{ border: "1px solid var(--ed-line)" }}>전체 →</Link>
-              </div>
-            </div>
-          </section>
-        )}
+              </ul>
+            )}
+          </div>
+        </section>
 
-        {/* ── STORY — 사람과 생각을 읽는다 ── */}
-        {storyPreview.length > 0 && (
-          <section style={{ borderTop: "1px solid var(--ed-line)" }}>
-            <div className="ed-container py-10 md:py-14">
-              <SectionHead label="Story · People / Thought" title="공간을 통해 사람과 생각을 읽습니다" href="/story" cta="스토리 보기" />
+        {/* ── STORY — PEOPLE / THOUGHT, 공간을 통해 사람과 생각을 읽는다 ── */}
+        <section style={{ borderTop: "1px solid var(--ed-line)" }}>
+          <div className="ed-container py-10 md:py-14">
+            <SectionHead label="STORY · PEOPLE / THOUGHT" title="공간을 통해 사람과 생각을 읽습니다" href="/story" cta="스토리 보기" />
+            {storyPreview.length === 0 ? (
+              <p className="py-4 text-sm" style={{ color: "var(--ed-dim)" }}>첫 번째 이야기를 준비하고 있습니다.</p>
+            ) : (
               <ul className="ed-scroll-x -mx-5 px-5 scroll-px-5 md:mx-0 md:px-0 md:scroll-px-0 flex md:grid md:grid-cols-3 gap-4 md:gap-8 overflow-x-auto snap-x snap-mandatory">
                 {storyPreview.map((s) => (
                   <li key={s.key} className="snap-start shrink-0 w-[78%] md:w-auto">
@@ -115,25 +117,9 @@ export default async function EditorialHome({ admin, previewDrafts, userId }: { 
                   </li>
                 ))}
               </ul>
-            </div>
-          </section>
-        )}
-
-        {/* ── CURATION — 지역을 기본으로 공간을 발견한다 ── */}
-        {curationPreview.length > 0 && (
-          <section style={{ borderTop: "1px solid var(--ed-line)" }}>
-            <div className="ed-container py-10 md:py-14">
-              <SectionHead label="Curation" title="지역에서, 어떤 날과 어떤 마음으로 고른 공간" href="/curation" cta="큐레이션 보기" />
-              <ul className="ed-scroll-x -mx-5 px-5 scroll-px-5 md:mx-0 md:px-0 md:scroll-px-0 flex md:grid md:grid-cols-3 gap-4 md:gap-8 overflow-x-auto snap-x snap-mandatory">
-                {curationPreview.map((c) => (
-                  <li key={c.id} className="snap-start shrink-0 w-[78%] md:w-auto">
-                    <CurationCard c={c} ratio="1 / 1" sizes="(min-width: 768px) 33vw, 78vw" />
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </section>
-        )}
+            )}
+          </div>
+        </section>
 
         {/* ── 공간큐브와 함께한 공간 — 실제 Cube 파트너 공간 ── */}
         {cubePreview.length > 0 && (

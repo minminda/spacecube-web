@@ -13,17 +13,23 @@ const LEGACY_NAV_ITEMS = [
 ].filter((item) => item.enabled);
 
 /* ── 상단 내비게이션(2026-10 최종) ────────────────────────────────────────
-   LATEST · 추천 · 스토리 · 큐레이션 + 오른쪽 [내 아카이브](흰색 Filled 버튼).
+   큐레이션 · 스토리(텍스트 링크) + [추천](검정) [내 아카이브](흰색) — 두 CTA는 서로 흑백 반전된 한 쌍.
    - 추천 = /find(지역만 고르면 내 취향 데이터로 정렬). /recommend는 /find로 이어진다.
-   - 큐레이터는 프로토타입이라 상단에 넣지 않는다(ENABLE_CURATOR_PROTOTYPE 검증 후 확장).
-   - 공간 제안하기는 핵심 행동이 아니므로 상단에서 빼고 푸터·모바일 하단 보조 영역에만 둔다.
-   - 함께한 공간은 홈과 /spacecube에서 보여준다. ── */
+   - LATEST는 홈 섹션 + /latest 피드일 뿐 상단 메뉴가 아니다.
+   - 큐레이터(프로토타입)·함께한 공간·공간 제안하기는 상단에 두지 않는다(제안은 푸터·모바일 하단 보조 영역).
+   - 홈은 콘텐츠(LATEST · CURATION · STORY) 중심 — 추천·아카이브는 홈 섹션이 아니라 여기의 핵심 Action이다. ── */
 const EDITORIAL_NAV_ITEMS = [
-  { label: "LATEST", href: "/latest", match: (p: string) => p.startsWith("/latest") },
-  { label: "추천", href: "/find", match: (p: string) => p.startsWith("/find") || p.startsWith("/recommend") },
-  { label: "스토리", href: "/story", match: (p: string) => p === "/story" || p.startsWith("/people") || p.startsWith("/thought") },
   { label: "큐레이션", href: "/curation", match: (p: string) => p.startsWith("/curation") },
+  { label: "스토리", href: "/story", match: (p: string) => p === "/story" || p.startsWith("/people") || p.startsWith("/thought") },
 ];
+const RECOMMEND_HREF = "/find";
+const isRecommendPath = (p: string) => p.startsWith("/find") || p.startsWith("/recommend");
+
+// 두 CTA 공용 치수 — 예전 상단 "공간 제안하기" 버튼(text-xs · px-3.5 · py-2 · 1px 테두리 · 각진 모서리)을 그대로 쓴다.
+// 추천은 검정 Navbar 위에서도 버튼으로 읽히도록 흰 1px 테두리만 최소로 둔다. 아카이브도 같은 두께의 흰 테두리라 높이가 같다.
+const CTA_CLASS = "inline-flex items-center justify-center min-w-[88px] text-xs font-semibold px-3.5 py-2 whitespace-nowrap transition-opacity hover:opacity-85";
+const CTA_RECOMMEND = { background: "#000", color: "#fff", border: "1px solid #fff" } as const;
+const CTA_ARCHIVE = { background: "#fff", color: "#000", border: "1px solid #fff" } as const;
 
 interface Viewer {
   loggedIn: boolean;
@@ -130,14 +136,11 @@ export default function Navbar() {
           })}
         </div>
 
-        <div className="hidden md:flex items-center">
-          {/* 기존 상단 CTA(공간 제안하기) 자리·크기를 그대로 이어받은 흰색 Filled 버튼 */}
-          <Link
-            href={archiveHref}
-            aria-current={archiveActive ? "page" : undefined}
-            className="inline-block text-xs font-semibold px-3.5 py-2 whitespace-nowrap transition-opacity hover:opacity-85"
-            style={{ background: "#fff", color: "#000", border: "1px solid #fff" }}
-          >
+        <div className="hidden md:flex items-center gap-2">
+          <Link href={RECOMMEND_HREF} aria-current={isRecommendPath(pathname) ? "page" : undefined} className={CTA_CLASS} style={CTA_RECOMMEND}>
+            추천
+          </Link>
+          <Link href={archiveHref} aria-current={archiveActive ? "page" : undefined} className={CTA_CLASS} style={CTA_ARCHIVE}>
             내 아카이브
           </Link>
         </div>
@@ -176,15 +179,18 @@ export default function Navbar() {
               </li>
             ))}
           </ul>
+          <div className="px-5 pt-6">
+            {/* 핵심 Action 한 쌍 — 데스크톱과 같은 흑백 반전, 모바일 터치 크기(tap-target)로 같은 높이 */}
+            <div className="grid grid-cols-2 gap-2">
+              <Link href={RECOMMEND_HREF} onClick={() => setMenuOpenPath(null)} className="tap-target flex items-center justify-center text-sm font-semibold" style={CTA_RECOMMEND}>
+                추천
+              </Link>
+              <Link href={archiveHref} onClick={() => setMenuOpenPath(null)} className="tap-target flex items-center justify-center text-sm font-semibold" style={CTA_ARCHIVE}>
+                내 아카이브
+              </Link>
+            </div>
+          </div>
           <div className="px-5 pt-8 pb-10 mt-auto space-y-4" style={{ paddingBottom: "calc(2.5rem + env(safe-area-inset-bottom))" }}>
-            <Link
-              href={archiveHref}
-              onClick={() => setMenuOpenPath(null)}
-              className="tap-target flex items-center justify-center w-full text-sm font-semibold"
-              style={{ background: "#fff", color: "#000" }}
-            >
-              내 아카이브
-            </Link>
             {/* 하단 보조 영역 — 공간큐브 · 소개 · 공간 제안하기 · 관리자(관리자에게만) */}
             <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm" style={{ color: "#999" }}>
               <Link href="/spacecube" onClick={() => setMenuOpenPath(null)} style={{ color: "#fff" }}>공간큐브</Link>
