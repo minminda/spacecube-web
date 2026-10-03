@@ -5,7 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import type { SpaceNoteCardData } from "./SpaceNoteCard";
 
-/** 방문한 공간 전체를 검색하고, 고르면 공간 노트의 해당 페이지로 바로 이동한다. */
+/** 방문한 공간 전체를 검색하고, 고르면 그 공간의 자세히 보기(/archive/space/[id])로 이동한다. */
 export default function AllRecordsList({ entries }: { entries: SpaceNoteCardData[] }) {
   const [query, setQuery] = useState("");
   const q = query.trim().toLowerCase();
@@ -32,7 +32,7 @@ export default function AllRecordsList({ entries }: { entries: SpaceNoteCardData
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
           {filtered.map((e) => (
-            <Link key={e.spaceId} href={`/archive?space=${e.spaceId}`} className="block space-y-1.5 group">
+            <Link key={e.spaceId} href={`/archive/space/${e.spaceId}`} className="block space-y-1.5 group">
               <div className="relative w-full overflow-hidden" style={{ aspectRatio: "4 / 3", background: "var(--tag-bg)" }}>
                 {e.imageUrl && (
                   <Image

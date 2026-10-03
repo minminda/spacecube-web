@@ -70,7 +70,7 @@ export default async function ArchiveSpaceDetailPage({ params }: Props) {
   return (
     <main className="flex flex-col min-h-screen px-6 pt-8 pb-16 gap-8">
       <nav className="flex justify-between items-center">
-        <Link href={`/archive?space=${space.id}`} className="text-xs" style={{ color: "var(--dim)" }}>← 공간 노트</Link>
+        <Link href="/archive" className="text-xs" style={{ color: "var(--dim)" }}>← 내 아카이브</Link>
         <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>자세히 보기</p>
       </nav>
 

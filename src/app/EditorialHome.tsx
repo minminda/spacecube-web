@@ -83,7 +83,7 @@ export default async function EditorialHome({ admin, previewDrafts, userId }: { 
           <section style={{ borderTop: "1px solid var(--ed-line)" }}>
             <div className="ed-container py-10 md:py-14">
               <SectionHead label="Story · People / Thought" title="공간을 통해 사람과 생각을 읽습니다" href="/story" cta="스토리 더보기" />
-              <ul className="ed-scroll-x -mx-5 px-5 md:mx-0 md:px-0 flex md:grid md:grid-cols-3 gap-4 md:gap-8 overflow-x-auto snap-x snap-mandatory">
+              <ul className="ed-scroll-x -mx-5 px-5 scroll-px-5 md:mx-0 md:px-0 md:scroll-px-0 flex md:grid md:grid-cols-3 gap-4 md:gap-8 overflow-x-auto snap-x snap-mandatory">
                 {storyPreview.map((s) => (
                   <li key={s.key} className="snap-start shrink-0 w-[78%] md:w-auto">
                     <Link href={s.href} className="group block">
@@ -103,7 +103,7 @@ export default async function EditorialHome({ admin, previewDrafts, userId }: { 
           <section style={{ borderTop: "1px solid var(--ed-line)" }}>
             <div className="ed-container py-10 md:py-14">
               <SectionHead label="Curation" title="지역에서, 어떤 날과 어떤 마음으로 고른 공간" href="/curation" cta="큐레이션 둘러보기" />
-              <ul className="ed-scroll-x -mx-5 px-5 md:mx-0 md:px-0 flex md:grid md:grid-cols-3 gap-4 md:gap-8 overflow-x-auto snap-x snap-mandatory">
+              <ul className="ed-scroll-x -mx-5 px-5 scroll-px-5 md:mx-0 md:px-0 md:scroll-px-0 flex md:grid md:grid-cols-3 gap-4 md:gap-8 overflow-x-auto snap-x snap-mandatory">
                 {curationPreview.map((c) => (
                   <li key={c.id} className="snap-start shrink-0 w-[78%] md:w-auto">
                     <CurationCard c={c} ratio="1 / 1" sizes="(min-width: 768px) 33vw, 78vw" />
@@ -119,7 +119,7 @@ export default async function EditorialHome({ admin, previewDrafts, userId }: { 
           <section style={{ borderTop: "1px solid var(--ed-line)" }}>
             <div className="ed-container py-10 md:py-14">
               <SectionHead label="With Gonggancube" title="공간큐브와 함께한 공간" href="/cube-spaces" cta="함께한 공간 보기" />
-              <ul className="ed-scroll-x -mx-5 px-5 md:mx-0 md:px-0 flex md:grid md:grid-cols-4 gap-4 md:gap-6 overflow-x-auto snap-x snap-mandatory">
+              <ul className="ed-scroll-x -mx-5 px-5 scroll-px-5 md:mx-0 md:px-0 md:scroll-px-0 flex md:grid md:grid-cols-4 gap-4 md:gap-6 overflow-x-auto snap-x snap-mandatory">
                 {cubePreview.map((s) => (
                   <li key={s.id} className="snap-start shrink-0 w-[60%] md:w-auto">
                     <SpaceCard space={s} sizes="(min-width: 768px) 25vw, 60vw" save={{ saved: savedIds.has(s.id), loggedIn: !!userId }} />

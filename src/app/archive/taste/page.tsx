@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
+import { isAdmin } from "@/lib/admin";
 import { TAG_LABELS } from "@/lib/tags";
 import TasteProfileCard from "@/components/TasteProfileCard";
 import { aggregateTags, getTastePhrase } from "@/lib/taste";
@@ -14,6 +15,7 @@ import {
   ENABLE_TASTE_SCORE_RECOMMENDATION,
   ENABLE_RECOMMENDATION_PLAYLIST_UI,
   ENABLE_SIMILAR_TASTE_PEOPLE_UI,
+  ENABLE_EDITORIAL_HOME,
 } from "@/lib/features";
 import RecommendationPlaylist, { type PlaylistCard } from "@/components/RecommendationPlaylist";
 import ArchiveBottomNav from "@/components/archive/ArchiveBottomNav";
@@ -29,6 +31,9 @@ const MIN_RECORDS_FOR_SIMILARITY = 2; // 취향 데이터가 지나치게 부족
 export default async function ArchiveTastePage() {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
+  // 새 정보 구조(2026-10)에서는 추천이 아카이브에서 분리돼 /recommend가 맡는다. 공개 전(ENABLE_EDITORIAL_HOME=false)
+  // 일반 사용자에게는 이 기존 화면을 그대로 둔다(/recommend도 그 동안은 여기로 보낸다).
+  if (ENABLE_EDITORIAL_HOME || isAdmin(session.user.email)) redirect("/recommend");
 
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
@@ -58,7 +63,7 @@ export default async function ArchiveTastePage() {
 
   const header = (
     <nav className="flex justify-between items-center mb-10">
-      <Link href="/archive" className="text-xs" style={{ color: "var(--dim)" }}>← 공간 노트</Link>
+      <Link href="/archive" className="text-xs" style={{ color: "var(--dim)" }}>← 내 아카이브</Link>
       <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>내 취향</p>
     </nav>
   );
@@ -68,7 +73,7 @@ export default async function ArchiveTastePage() {
       <main className="flex flex-col min-h-screen px-6 pt-8 pb-16">
         {header}
         <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>
-          아직 기록이 없어요. 공간 노트에서 첫 기록을 남기면 취향 분석이 시작됩니다
+          아직 기록이 없어요. 공간에서 첫 기록을 남기면 취향 분석이 시작됩니다
         </p>
         <div className="flex-1" />
         <ArchiveBottomNav />

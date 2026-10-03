@@ -49,7 +49,7 @@ export default async function ArchiveAllPage() {
   return (
     <main className="flex flex-col min-h-screen px-6 pt-8 pb-16">
       <nav className="flex justify-between items-center mb-10">
-        <Link href="/archive" className="text-xs" style={{ color: "var(--dim)" }}>← 공간 노트</Link>
+        <Link href="/archive" className="text-xs" style={{ color: "var(--dim)" }}>← 내 아카이브</Link>
         <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>전체 기록</p>
       </nav>
 

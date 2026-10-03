@@ -3,11 +3,12 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 import CollectionManager from "@/components/CollectionManager";
-import RecommendationPlaylist, { type PlaylistCard } from "@/components/RecommendationPlaylist";
+import ArchiveTile from "@/components/archive/ArchiveTile";
 import ArchiveBottomNav from "@/components/archive/ArchiveBottomNav";
 import Divider from "@/components/Divider";
-import { resolveSpaceTypeLabel } from "@/lib/spaceType";
-import { visibleTagNames } from "@/lib/recommend";
+import { isAdmin } from "@/lib/admin";
+import { ENABLE_EDITORIAL_HOME } from "@/lib/features";
+import { getArchiveSavedTiles } from "@/lib/archiveSaved";
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return <p className="text-xs uppercase tracking-widest mb-5" style={{ color: "var(--dim)" }}>{children}</p>;
@@ -20,19 +21,7 @@ export default async function ArchiveSavedPage() {
   const user = await prisma.user.findUnique({ where: { id: session.user.id } });
   if (!user) redirect("/login");
 
-  const [savedSpaces, collections, visitedSpaceRows, wantAgainRecords] = await Promise.all([
-    prisma.savedSpace.findMany({
-      where: { userId: user.id },
-      orderBy: { createdAt: "desc" },
-      include: {
-        space: {
-          select: {
-            id: true, name: true, slug: true, type: true, district: true, imageUrl: true, tagline: true,
-            spaceTagLinks: { include: { tag: { include: { categoryRef: true } } } },
-          },
-        },
-      },
-    }),
+  const [collections, visitedSpaceRows, wantAgainRecords] = await Promise.all([
     prisma.collection.findMany({
       where: { userId: user.id },
       orderBy: { createdAt: "asc" },
@@ -54,15 +43,11 @@ export default async function ArchiveSavedPage() {
 
   const visitedSpaces = visitedSpaceRows.map((r) => r.space);
 
-  const savedSpaceCards: PlaylistCard[] = savedSpaces.map((s) => ({
-    id: s.space.id,
-    slug: s.space.slug,
-    name: s.space.name,
-    district: s.space.district,
-    imageUrl: s.space.imageUrl,
-    tagLabels: visibleTagNames(s.space.spaceTagLinks),
-    reason: s.space.tagline ?? [resolveSpaceTypeLabel(s.space.spaceTagLinks, s.space.type), s.space.district].filter(Boolean).join(" · "),
-  }));
+  // 공개 공간 저장 + Cube 상세 저장을 하나의 목록으로(src/lib/archiveSaved.ts).
+  const savedTiles = await getArchiveSavedTiles(user.id, {
+    visitedSpaceIds: new Set(visitedSpaces.map((v) => v.id)),
+    editorial: ENABLE_EDITORIAL_HOME || isAdmin(session.user.email),
+  });
 
   const wantAgainMap = new Map<string, (typeof wantAgainRecords)[number]>();
   for (const r of wantAgainRecords) {
@@ -71,16 +56,19 @@ export default async function ArchiveSavedPage() {
   const wantAgain = [...wantAgainMap.values()];
 
   return (
-    <main className="flex flex-col min-h-screen px-6 pt-8 pb-16">
+    <div className="editorial-bleed">
+    <main className="ed-container flex flex-col pt-8 pb-16" style={{ maxWidth: 960 }}>
       <nav className="flex justify-between items-center mb-10">
-        <Link href="/archive" className="text-xs" style={{ color: "var(--dim)" }}>← 공간 노트</Link>
+        <Link href="/archive" className="text-xs" style={{ color: "var(--dim)" }}>← 내 아카이브</Link>
         <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>저장한 공간</p>
       </nav>
 
       <section className="mb-10">
         <SectionLabel>저장한 공간</SectionLabel>
-        {savedSpaceCards.length > 0 ? (
-          <RecommendationPlaylist cards={savedSpaceCards} />
+        {savedTiles.length > 0 ? (
+          <div className="grid grid-cols-2 gap-x-4 gap-y-10 md:grid-cols-4 md:gap-x-6">
+            {savedTiles.map((t) => <ArchiveTile key={t.key} t={t} />)}
+          </div>
         ) : (
           <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>
             아직 저장한 공간이 없습니다<br />마음에 남는 공간을 저장해보세요
@@ -113,5 +101,6 @@ export default async function ArchiveSavedPage() {
 
       <ArchiveBottomNav />
     </main>
+    </div>
   );
 }

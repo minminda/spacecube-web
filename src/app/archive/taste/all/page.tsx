@@ -3,6 +3,8 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { LISTED_SPACE_WHERE, TASTE_SIGNAL_RECORD_WHERE } from "@/lib/demoData";
 import { auth } from "@/auth";
+import { isAdmin } from "@/lib/admin";
+import { ENABLE_EDITORIAL_HOME } from "@/lib/features";
 import { buildWeightedTasteVector, rankSpacesByVector, getVectorReason, getMatchPercent } from "@/lib/recommend";
 import { getUserUnlockSets } from "@/lib/spaceUnlock";
 import { resolveSpaceTypeLabel } from "@/lib/spaceType";
@@ -49,6 +51,9 @@ function shuffle<T>(items: T[]): T[] {
 export default async function ArchiveTasteAllPage() {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
+  // 새 정보 구조(2026-10)에서는 추천이 아카이브에서 분리돼 /recommend가 맡는다. 공개 전(ENABLE_EDITORIAL_HOME=false)
+  // 일반 사용자에게는 이 기존 화면을 그대로 둔다(/recommend도 그 동안은 여기로 보낸다).
+  if (ENABLE_EDITORIAL_HOME || isAdmin(session.user.email)) redirect("/recommend");
 
   const user = await prisma.user.findUnique({ where: { id: session.user.id } });
   if (!user) redirect("/login");

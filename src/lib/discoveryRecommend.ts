@@ -112,7 +112,7 @@ export function rankDiscovery<T extends DiscoveryCandidate>(
 /** 카드 한 줄 이유 — 겹친 속성 최대 2개. 겹친 게 없으면 null(문구를 지어내지 않음). */
 export function discoveryReason(matched: string[]): string | null {
   if (matched.length === 0) return null;
-  return `자주 찾은 '${matched.slice(0, 2).join(" · ")}' 결과 닮은 공간이에요`;
+  return `자주 찾은 '${matched.slice(0, 2).join(" · ")}' 공간과 결이 닮았어요`;
 }
 
 /** 페이지 상단 요약 — 실제 신호가 있을 때만. */
