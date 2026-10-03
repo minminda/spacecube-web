@@ -47,6 +47,7 @@ model User {
   savedEditorialSpaces  SavedEditorialSpace[]
   // 큐레이터 역할(선택) — 모든 큐레이터는 일반 사용자이고, 일부 사용자만 공개 큐레이터 프로필을 추가로 가진다.
   curatorProfile        CuratorProfile?
+  archiveEntries        ArchiveEntry[]
 }
 
 model Account {
@@ -1182,6 +1183,7 @@ model EditorialSpace {
   homeHeroOf    EditorialHomeSettings[]  @relation("EditorialHomeHero")
   saves         SavedEditorialSpace[]
   curatorPicks  CuratorCollectionSpace[]
+  archiveEntries ArchiveEntry[]
 
   @@index([status])
   @@map("editorial_spaces")
@@ -1302,6 +1304,96 @@ model EditorialThoughtSpace {
   @@unique([thoughtId, spaceId])
   @@index([spaceId])
   @@map("editorial_thought_spaces")
+}
+
+// ─── 개인 공간 아카이브 ────────────────────────────────────────────────
+// User → ArchiveEntry(사용자 × 공간 하나) → ArchiveVisit(방문 여러 번) / ArchivePhoto(사진 여러 장).
+// 사진·링크로 "이 공간 좋았는데"를 몇 초 만에 남기는 개인 기록. 전부 PRIVATE — 다른 사용자·공개 화면에 나가지 않는다.
+// - 공간큐브에 있는 공간이면 canonical EditorialSpace(spaceId)에 연결하고 새 공간을 만들지 않는다(사용자당 공간당 1개).
+// - 없는 공간은 공개 공간으로 등록하지 않고 이 행에만 이름·지역·링크로 남긴다(spaceId=null). placeKey(정규화한
+//   이름+지역)로 여러 사용자의 같은 장소를 나중에 묶고, 관리자 검수·외부 장소 매칭 후 spaceId를 채워 승격한다.
+// - 공개 저장(SavedEditorialSpace)·Cube 방문(Record)은 그대로 두고, 아카이브 화면에서 공간 기준으로 합쳐 보여준다.
+
+enum ArchiveEntryStatus {
+  SAVED // 가보고 싶어요
+  VISITED // 다녀왔어요
+}
+
+enum ArchiveSourceKind {
+  PHOTO // 사진에서 추가
+  NAVER_PLACE
+  INSTAGRAM
+  KAKAO_MAP
+  GOOGLE_MAPS
+  WEB // 기타 링크
+  MANUAL // 이름만 / 공간큐브 안에서
+}
+
+model ArchiveEntry {
+  id         String             @id @default(cuid())
+  userId     String
+  // 공간큐브 공개 공간과 연결된 경우(없으면 개인 기록 전용 공간)
+  spaceId    String?
+  // 표시용 이름·지역 — 연결된 공간이 있어도 사용자가 입력한 값을 남긴다(공간이 보관·삭제돼도 기록은 남도록)
+  placeName  String
+  placeArea  String?
+  // 같은 장소 병합 키(normalizePlaceKey) — 미연결 기록끼리 묶거나 canonical 공간으로 승격할 때 쓴다
+  placeKey   String
+  status     ArchiveEntryStatus @default(SAVED)
+  sourceKind ArchiveSourceKind  @default(MANUAL)
+  // 붙여넣은 외부 링크(네이버 플레이스·인스타그램 등) — 내용은 가져오지 않고 주소만 저장
+  sourceUrl  String?
+  // 나의 한 줄
+  memo       String?            @db.VarChar(200)
+  // 사용자가 직접 고른 취향 태그(기존 공통 태그 이름) — 명시적 취향 신호
+  tags       String[]           @default([])
+  wantAgain  Boolean?
+  createdAt  DateTime           @default(now())
+  updatedAt  DateTime           @updatedAt
+
+  user   User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  space  EditorialSpace? @relation(fields: [spaceId], references: [id], onDelete: SetNull)
+  visits ArchiveVisit[]
+  photos ArchivePhoto[]
+
+  // 같은 공개 공간은 사용자당 하나의 기록(방문은 ArchiveVisit으로 쌓는다). spaceId가 null인 개인 기록은 제약 없음.
+  @@unique([userId, spaceId])
+  @@index([userId, updatedAt])
+  @@index([placeKey])
+  @@map("archive_entries")
+}
+
+model ArchiveVisit {
+  id        String    @id @default(cuid())
+  entryId   String
+  // 방문 날짜(모르면 null — 기록한 날짜만 남는다)
+  visitedOn DateTime?
+  memo      String?   @db.VarChar(200)
+  createdAt DateTime  @default(now())
+
+  entry  ArchiveEntry   @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  photos ArchivePhoto[]
+
+  @@index([entryId])
+  @@map("archive_visits")
+}
+
+// 사용자가 직접 올린 사진 — 기본 PRIVATE(소유자 화면에서만 표시). 서버 서명 업로드로 사용자 폴더에만 올라간다.
+model ArchivePhoto {
+  id        String   @id @default(cuid())
+  entryId   String
+  visitId   String?
+  url       String
+  width     Int?
+  height    Int?
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+
+  entry ArchiveEntry  @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  visit ArchiveVisit? @relation(fields: [visitId], references: [id], onDelete: SetNull)
+
+  @@index([entryId])
+  @@map("archive_photos")
 }
 
 // ─── 큐레이터 프로토타입 ───────────────────────────────────────────────

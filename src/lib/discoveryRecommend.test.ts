@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+  ARCHIVE_VISITED_WEIGHT, EXPLICIT_TAG_BONUS,
   SAVE_WEIGHT, attrKey, buildTasteProfile, candidateAttributes, discoveryReason, isEmptyProfile,
   profileSummary, rankDiscovery, topAttributes,
 } from "./discoveryRecommend";
@@ -57,5 +58,21 @@ describe("문구", () => {
     const p = buildTasteProfile({ visits: [{ name: "음악", weight: 1 }, { name: "조용한", weight: 3 }], visitCount: 1, saves: [] });
     expect(topAttributes(p, 1)).toEqual(["조용한"]);
     expect(candidateAttributes({ category: "카페", tags: ["카페", "조용한"] })).toEqual(["카페", "조용한"]);
+  });
+});
+
+describe("개인 아카이브 신호", () => {
+  it("무게가 다른 기록을 더하고, 비어 있는 기록은 신호가 아니다", () => {
+    const p = buildTasteProfile({
+      visits: [], visitCount: 0, saves: [],
+      weighted: [
+        { names: ["독립서점", "조용한"], weight: ARCHIVE_VISITED_WEIGHT, kind: "visit" },
+        { names: ["조용한"], weight: EXPLICIT_TAG_BONUS, kind: "bonus" },
+        { names: [], weight: 3, kind: "save" },
+      ],
+    });
+    expect(p.weights.get("조용한")).toBe(ARCHIVE_VISITED_WEIGHT + EXPLICIT_TAG_BONUS);
+    expect(p.visitCount).toBe(1);
+    expect(p.saveCount).toBe(0);
   });
 });

@@ -10,6 +10,17 @@
 /** 방문 1건(취향 점수 반영) 대비 저장 1건의 무게 — 저장은 "가보고 싶다"는 중간 신호. */
 export const SAVE_WEIGHT = 2;
 
+/**
+ * 개인 아카이브 신호 무게(단순 고정값). 기준: Cube 방문 Record는 취향 점수(1~5) × 태그 가중치(보통 1)라 3~5.
+ * - 직접 추가(가보고 싶어요): 공간큐브 안에서 저장(2)보다 조금 강한 관심 → 2.5
+ * - 다녀왔어요(직접 기록한 실제 경험): 점수 없는 방문의 중립값 → 3 (Cube로 검증된 방문은 점수 반영으로 더 클 수 있음)
+ * - 사용자가 직접 고른 태그: 명시적 취향 신호 → 기록 무게 위에 +1을 더 얹는다
+ * 연결된 공간이 없는 개인 기록은 사용자가 고른 태그만 쓴다(공간 특징을 추측하지 않음).
+ */
+export const ARCHIVE_SAVED_WEIGHT = 2.5;
+export const ARCHIVE_VISITED_WEIGHT = 3;
+export const EXPLICIT_TAG_BONUS = 1;
+
 export function attrKey(name: string): string {
   return name.trim().toLowerCase().replace(/\s+/g, "");
 }
@@ -30,6 +41,8 @@ export interface TasteSignals {
   visitCount: number;
   /** 저장한 공간마다 그 공간의 속성 이름 목록 */
   saves: string[][];
+  /** 무게가 다른 기타 신호(개인 아카이브 기록 등) — 항목마다 이름 목록과 무게 */
+  weighted?: { names: string[]; weight: number; kind: "visit" | "save" | "bonus" }[];
 }
 
 export function buildTasteProfile(signals: TasteSignals): TasteProfile {
@@ -48,7 +61,16 @@ export function buildTasteProfile(signals: TasteSignals): TasteProfile {
       add(name, SAVE_WEIGHT);
     }
   }
-  return { weights, labels, visitCount: signals.visitCount, saveCount: signals.saves.length };
+  let extraVisits = 0;
+  let extraSaves = 0;
+  for (const item of signals.weighted ?? []) {
+    const unique = [...new Set(item.names.map(attrKey))].filter(Boolean);
+    if (unique.length === 0) continue;
+    for (const key of unique) add(item.names.find((n) => attrKey(n) === key) ?? key, item.weight);
+    if (item.kind === "visit") extraVisits++;
+    else if (item.kind === "save") extraSaves++;
+  }
+  return { weights, labels, visitCount: signals.visitCount + extraVisits, saveCount: signals.saves.length + extraSaves };
 }
 
 export function isEmptyProfile(p: TasteProfile): boolean {
