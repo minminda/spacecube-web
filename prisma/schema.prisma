@@ -25,6 +25,16 @@ model User {
   // 관리자 /admin/demo-data에서 해제(false)하면 일반 계정으로 즉시 되돌아간다.
   isDemo            Boolean    @default(false)
   createdAt         DateTime   @default(now())
+  // ── 공개 취향 프로필(/@handle) — 내 아카이브(개인 기록)와 같은 데이터를 쓰되, 사용자가 켠 것만 보여준다.
+  // 기본은 전부 비공개: 기존 사용자도 자동 공개되지 않는다. 공간은 ProfileSpace로 하나씩 공개한다.
+  // (레거시 visibility와 별개 — visibility는 기존 "취향 닮은 사람" 추천에만 쓰인다.)
+  profilePublic     Boolean    @default(false)
+  // 공유 주소용 고정 핸들(영문 소문자·숫자·._-) — 닉네임(한글, 30일마다 변경 가능)과 분리해 링크가 안정적이다.
+  profileHandle     String?    @unique
+  profileBio        String?    @db.VarChar(120)
+  // 자동 계산된 대표 취향 · 자주 찾는 지역을 프로필에 보일지(숨길 수 있음)
+  profileShowTaste  Boolean    @default(true)
+  profileShowAreas  Boolean    @default(true)
 
   accounts              Account[]
   sessions              Session[]
@@ -48,6 +58,7 @@ model User {
   // 큐레이터 역할(선택) — 모든 큐레이터는 일반 사용자이고, 일부 사용자만 공개 큐레이터 프로필을 추가로 가진다.
   curatorProfile        CuratorProfile?
   archiveEntries        ArchiveEntry[]
+  profileSpaces         ProfileSpace[]
 }
 
 model Account {
@@ -661,6 +672,8 @@ model CollectionItem {
   @@unique([collectionId, spaceId])
 }
 
+// 취향 따라가기(user-facing: "취향 따라가기" / "따라가는 취향") — userId가 targetUserId의 공간 취향을 계속 참고한다.
+// 기존 "이 취향 저장하기"(/taste/[userId])와 같은 관계라 새 모델을 만들지 않고 재사용한다. 일반 사용자·큐레이터 공통.
 model SavedTaste {
   id           String   @id @default(cuid())
   userId       String
@@ -1202,6 +1215,7 @@ model EditorialSpace {
   saves          SavedEditorialSpace[]
   curatorPicks   CuratorCollectionSpace[]
   archiveEntries ArchiveEntry[]
+  profileSpaces  ProfileSpace[]
 
   @@index([status])
   @@map("editorial_spaces")
@@ -1560,4 +1574,23 @@ model EditorialHomeSettings {
   featuredCuration EditorialCuration? @relation("EditorialHomeCuration", fields: [featuredCurationId], references: [id], onDelete: SetNull)
 
   @@map("editorial_home_settings")
+}
+
+// ─── 공개 취향 프로필: 공개한 공간 ─────────────────────────────────────────
+// 사용자가 "공개 프로필에 보이기"를 켠 canonical 공간(EditorialSpace) 하나. 공간을 복제하지 않는다.
+// 내 아카이브에 실제로 있는 공간(저장·방문)일 때만 공개 화면에 나온다(아카이브에서 지우면 자동으로 안 보임).
+// 개인 기록(공간큐브에 없는 장소)은 공개할 수 없다. 메모·방문 날짜는 공개하지 않고, 사진은 showPhotos일 때만.
+model ProfileSpace {
+  id         String   @id @default(cuid())
+  userId     String
+  spaceId    String
+  showPhotos Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  user  User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  space EditorialSpace @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, spaceId])
+  @@index([spaceId])
+  @@map("profile_spaces")
 }

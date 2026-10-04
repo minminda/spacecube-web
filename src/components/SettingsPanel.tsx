@@ -5,14 +5,17 @@ import { signOut } from "next-auth/react";
 import SettingsIcon from "@/components/SettingsIcon";
 import { canChangeNickname, nextNicknameChangeAt } from "@/lib/nickname";
 import { formatDotDate } from "@/lib/time";
+import ProfileSettingsSection, { type ProfileSettingsValue } from "@/components/profile/ProfileSettingsSection";
 
 interface Props {
   nickname: string | null;
   /** 마지막 닉네임 변경 시각(ISO) — 30일 쿨다운 판정·표시에 쓴다. 없으면 즉시 변경 가능. */
   nicknameUpdatedAt: string | null;
+  /** 공개 취향 프로필 설정 — 넘기면 "공개 프로필" 구획을 보여준다(새 정보구조를 볼 수 있을 때만) */
+  profile?: ProfileSettingsValue;
 }
 
-export default function SettingsPanel({ nickname, nicknameUpdatedAt }: Props) {
+export default function SettingsPanel({ nickname, nicknameUpdatedAt, profile }: Props) {
   const [open, setOpen] = useState(false);
   const [nickValue, setNickValue] = useState(nickname ?? "");
   const [saving, setSaving] = useState(false);
@@ -62,7 +65,7 @@ export default function SettingsPanel({ nickname, nicknameUpdatedAt }: Props) {
           style={{ background: "rgba(0,0,0,0.6)" }}
           onClick={(e) => { if (e.target === e.currentTarget) setOpen(false); }}
         >
-          <div className="w-full max-w-sm p-6 space-y-6" style={{ background: "var(--bg)", borderTop: "1px solid var(--border)" }}>
+          <div className="w-full max-w-sm p-6 space-y-6 overflow-y-auto" style={{ maxHeight: "88dvh", background: "var(--bg)", borderTop: "1px solid var(--border)" }}>
             <div className="flex justify-between items-center">
               <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>설정</p>
               <button onClick={() => setOpen(false)} className="text-lg leading-none" style={{ color: "var(--dim)" }}>×</button>
@@ -102,6 +105,8 @@ export default function SettingsPanel({ nickname, nicknameUpdatedAt }: Props) {
               </button>
               {error && <p className="text-xs" style={{ color: "var(--dim)" }}>{error}</p>}
             </div>
+
+            {profile && <ProfileSettingsSection initial={profile} />}
 
             <div className="space-y-2 pt-2" style={{ borderTop: "1px solid var(--border)" }}>
               <p className="text-xs uppercase tracking-widest" style={{ color: "var(--fg)" }}>계정</p>

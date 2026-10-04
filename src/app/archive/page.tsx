@@ -20,6 +20,8 @@ import { filterLibrary, getLibrary, libraryHref, parseLibraryFilter, type Librar
 import { curatorAccess } from "@/lib/curators/access";
 import { getViewerCuratorContext } from "@/lib/curators/viewerTaste";
 import ArchiveCuratorBlock from "@/components/curators/ArchiveCuratorBlock";
+import { profilePath } from "@/lib/profile/publicProfile";
+import { previewTasteWords } from "@/lib/profile/profileData";
 
 interface Props {
   searchParams: Promise<{ space?: string; view?: string; q?: string; area?: string; tag?: string; n?: string }>;
@@ -41,7 +43,7 @@ function hrefWith(f: LibraryFilter, patch: Partial<LibraryFilter> & { n?: number
 }
 
 /** 컨택트 시트 한 칸 — 정사각 사진 + 아주 작은 캡션. 사진이 없으면 이름만 놓인 회색 칸. */
-function Cell({ it, priority }: { it: LibraryItem; priority: boolean }) {
+function Cell({ it, priority, isPublic }: { it: LibraryItem; priority: boolean; isPublic: boolean }) {
   const status = it.visited ? (it.visitCount > 1 ? `다녀옴 ${it.visitCount}` : "다녀옴") : "가보고 싶음";
   return (
     <Link href={libraryHref(it.key)} className="group block min-w-0">
@@ -58,7 +60,7 @@ function Cell({ it, priority }: { it: LibraryItem; priority: boolean }) {
       </div>
       <p className="pt-1.5 text-[12px] font-semibold leading-tight truncate">{it.name}</p>
       <p className="text-[10px] leading-tight truncate tabular-nums" style={{ color: "var(--ed-dim)" }}>
-        {[status, it.photoCount ? `사진 ${it.photoCount}` : null, it.personal ? "개인 기록" : null, it.demo ? "가상" : null].filter(Boolean).join(" · ")}
+        {[status, it.photoCount ? `사진 ${it.photoCount}` : null, it.personal ? "개인 기록" : null, it.demo ? "가상" : null, isPublic ? "공개" : null].filter(Boolean).join(" · ")}
       </p>
     </Link>
   );
@@ -91,7 +93,7 @@ export default async function ArchivePage({ searchParams }: Props) {
     ? await prisma.notification.count({ where: { receiverId: user.id, isRead: false } })
     : 0;
 
-  const [library, guestbookNotes, discovery, tagOptions, curatorCtx] = await Promise.all([
+  const [library, guestbookNotes, discovery, tagOptions, curatorCtx, profileSpaces, followingCount, profileTasteWords] = await Promise.all([
     getLibrary(user.id, { includeDemo }),
     prisma.guestbookNote.findMany({
       where: { userId: user.id, deletedAt: null },
@@ -102,7 +104,12 @@ export default async function ArchivePage({ searchParams }: Props) {
     getUserDiscoveryContext(user.id, { includeDemo: access.includeDemo }),
     getArchiveTagOptions(),
     access.enabled ? getViewerCuratorContext(user.id, access) : Promise.resolve(null),
+    // 공개 취향 프로필 — 내가 공개로 고른 공간(칸에 "공개" 표시)과 따라가는 취향 수(새 정보구조를 볼 때만)
+    editorial ? prisma.profileSpace.findMany({ where: { userId: user.id }, select: { space: { select: { slug: true } } } }) : Promise.resolve([]),
+    editorial ? prisma.savedTaste.count({ where: { userId: user.id } }) : Promise.resolve(0),
+    editorial ? previewTasteWords(user.id) : Promise.resolve([] as string[]),
   ]);
+  const publicKeys = new Set(profileSpaces.map((p) => `s-${p.space.slug}`));
 
   const shown = filterLibrary(library, filter);
   const counts = {
@@ -122,13 +129,33 @@ export default async function ArchivePage({ searchParams }: Props) {
           <div className="flex items-center justify-end gap-4 pb-5">
             {ENABLE_NOTIFICATIONS && <NotificationBell initialUnreadCount={unreadNotificationCount} />}
             <ShareArchiveButton userId={user.id} />
-            <SettingsPanel nickname={user.nickname} nicknameUpdatedAt={user.nicknameUpdatedAt?.toISOString() ?? null} />
+            <SettingsPanel
+              nickname={user.nickname}
+              nicknameUpdatedAt={user.nicknameUpdatedAt?.toISOString() ?? null}
+              profile={editorial ? {
+                public: user.profilePublic, handle: user.profileHandle, bio: user.profileBio, showTaste: user.profileShowTaste, showAreas: user.profileShowAreas,
+                tasteWords: profileTasteWords,
+              } : undefined}
+            />
           </div>
           <div className="flex flex-wrap items-end justify-between gap-5">
             <div>
               <p className="ed-label" style={{ color: "var(--ed-dim)" }}>Archive{user.nickname ? ` · ${user.nickname}` : ""}</p>
               <h1 className="pt-3 text-[40px] md:text-[64px] font-bold leading-none tracking-[-0.04em]">내 아카이브</h1>
-              <p className="pt-3 text-base md:text-lg leading-relaxed" style={{ color: "var(--ed-dim)" }}>내가 발견하고 머물렀던 공간들.</p>
+              <p className="pt-3 text-base md:text-lg leading-relaxed" style={{ color: "var(--ed-dim)" }}>내가 발견하고 머물렀던 공간들. 나만 보는 기록이에요.</p>
+              {editorial && (
+                // 아카이브(나의 기록)와 공개 프로필(다른 사람이 보는 나의 취향)을 구분하는 입구
+                <p className="pt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm">
+                  {user.profileHandle ? (
+                    <Link href={profilePath(user.profileHandle)} className="font-semibold underline underline-offset-4">
+                      {user.profilePublic ? "내 공개 프로필 보기 →" : "공개 프로필 미리보기(비공개) →"}
+                    </Link>
+                  ) : (
+                    <span style={{ color: "var(--ed-dim)" }}>공개 프로필은 설정(⚙)에서 만들 수 있어요</span>
+                  )}
+                  <Link href="/archive/following" className="underline underline-offset-4" style={{ color: "var(--ed-dim)" }}>따라가는 취향 {followingCount}</Link>
+                </p>
+              )}
             </div>
             <ArchiveAddSheet tagOptions={tagOptions} />
           </div>
@@ -183,7 +210,7 @@ export default async function ArchivePage({ searchParams }: Props) {
             <>
               <ul className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-x-1.5 gap-y-4 md:gap-x-3 md:gap-y-6">
                 {shown.slice(0, limit).map((it, i) => (
-                  <li key={it.key} className="min-w-0"><Cell it={it} priority={i < 6} /></li>
+                  <li key={it.key} className="min-w-0"><Cell it={it} priority={i < 6} isPublic={publicKeys.has(it.key)} /></li>
                 ))}
               </ul>
               {shown.length > limit && (

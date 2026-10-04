@@ -13,6 +13,9 @@ import { curatorAccess } from "@/lib/curators/access";
 import { getPicksForSpace } from "@/lib/curators/queries";
 import { curatorDisplayName } from "@/lib/curators/finder";
 import EntryActions, { PhotoGrid } from "@/components/archive/EntryActions";
+import { ProfileSpaceToggle } from "@/components/profile/ProfileActions";
+import { prisma } from "@/lib/prisma";
+import { profilePath } from "@/lib/profile/publicProfile";
 
 export const metadata: Metadata = { title: "내 아카이브 — 공간큐브", robots: { index: false } };
 
@@ -38,9 +41,17 @@ export default async function ArchiveDetailPage({ params }: Props) {
   const d = result.data;
 
   const access = curatorAccess({ admin, editorial: editorialViewer });
-  const [tagOptions, picks] = await Promise.all([
+  // 공개 프로필에 보이기 — 공간큐브 실공간(canonical)만, 새 정보구조를 볼 때만. 개인 기록·가상 공간은 공개할 수 없다.
+  const publishable = !!d.editorial && !d.editorial.isDemo && editorialViewer;
+  const [tagOptions, picks, profileState] = await Promise.all([
     getArchiveTagOptions(),
     d.editorial && access.enabled ? getPicksForSpace(d.editorial.id, access) : Promise.resolve([]),
+    publishable
+      ? prisma.user.findUnique({
+          where: { id: session.user.id },
+          select: { profilePublic: true, profileHandle: true, profileSpaces: { where: { spaceId: d.editorial!.id }, select: { showPhotos: true } } },
+        })
+      : Promise.resolve(null),
   ]);
   const curators = [...new Map(picks.map((p) => [p.curator.slug, p])).values()];
   const visitCount = d.timeline.length;
@@ -85,6 +96,17 @@ export default async function ArchiveDetailPage({ params }: Props) {
                 {d.entry?.memo && <p className="text-lg leading-relaxed break-keep">“{d.entry.memo}”</p>}
                 {d.entry && d.entry.tags.length > 0 && <p className="text-sm" style={{ color: "var(--ed-dim)" }}>{d.entry.tags.map((t) => `#${t}`).join("  ")}</p>}
               </div>
+            )}
+
+            {publishable && profileState && (
+              <ProfileSpaceToggle
+                spaceId={d.editorial!.id}
+                initialPublic={profileState.profileSpaces.length > 0}
+                initialShowPhotos={profileState.profileSpaces[0]?.showPhotos ?? false}
+                hasPhotos={d.photos.length > 0}
+                profilePublic={profileState.profilePublic}
+                profileHref={profileState.profileHandle ? profilePath(profileState.profileHandle) : null}
+              />
             )}
 
             <EntryActions

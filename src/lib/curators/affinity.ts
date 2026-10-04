@@ -61,7 +61,8 @@ export function enrichProfileWithCollections(base: TasteProfile, mySpaceIds: Set
   return { ...base, weights, labels };
 }
 
-function levelOf(sharedSpaces: number, sharedAttrs: number): AffinityLevel {
+/** 공통 공간 수 · 겹치는 취향 단어 수 → 겹침 단계(퍼센트 없이). 공개 취향 프로필 비교에도 같은 기준을 쓴다. */
+export function levelOf(sharedSpaces: number, sharedAttrs: number): AffinityLevel {
   if (sharedSpaces >= 2 || (sharedSpaces >= 1 && sharedAttrs >= 2) || sharedAttrs >= 4) return "very";
   if (sharedSpaces >= 1 || sharedAttrs >= 2) return "many";
   if (sharedAttrs >= 1) return "some";
