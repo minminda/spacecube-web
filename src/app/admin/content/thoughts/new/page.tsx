@@ -12,7 +12,7 @@ export default async function NewThoughtPage() {
         area="content"
         breadcrumb={[{ label: "생각", href: "/admin/content/thoughts" }]}
         title="새 THOUGHT"
-        description="초안으로 저장되며, 발행해야 공개 페이지에 나옵니다."
+        description="초안으로 저장"
       />
       <EditorialDocForm
         kind="thoughts"

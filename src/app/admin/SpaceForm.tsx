@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
 import ImageCropDialog from "@/components/ImageCropDialog";
 import { normalizeSlug, isValidSlug } from "@/lib/slug";
 import { AdminPageHeader, AdminFormField, adminButtonClass } from "@/components/admin/ui";
@@ -266,16 +265,16 @@ export default function SpaceForm({ mode, space, categories, existingTagLinks }:
           area="cube"
           breadcrumb={[{ label: "운영 공간", href: "/admin/spaces" }]}
           title="운영 공간 등록"
-          description="실제 GONGGANCUBE가 설치될 공간을 등록합니다. 등록 후 큐브를 연결하고 에피소드를 만들 수 있어요."
+          description=""
         />
       ) : (
-        <AdminPageHeader title="정보" description="운영 공간의 기본 정보·분류·운영자 접근 비밀번호를 관리합니다." />
+        <AdminPageHeader title="정보" description="" />
       )}
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-8 max-w-2xl">
 
         {/* 대표 이미지 — 파일 선택 직후 가로 Hero 비율(16:11) crop box로 실제 잘라내기 */}
-        <FormSection title="대표 이미지" description="현장 공간 페이지 상단에 보이는 사진입니다(16:11로 잘라서 올라갑니다). 선택 항목이에요.">
+        <FormSection title="대표 이미지" description="현장 페이지 상단 · 16:11">
         <div className="space-y-2">
           {heroImageUrl && (
             <div className="relative w-full overflow-hidden border" style={{ borderColor: "var(--border)", aspectRatio: "16 / 11" }}>

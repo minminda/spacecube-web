@@ -61,7 +61,7 @@ export default async function StoryAnalyticsPage({ params, searchParams }: Props
 
       <AdminPageHeader
         title="스토리 분석"
-        description="방문자가 이 공간의 이야기(Episode)를 어느 Scene까지 읽고, 어느 구간에서 이탈하는지 확인합니다."
+        description=""
       />
 
       <ReportTabs spaceId={space.id} active="story" from={range.from} to={range.to} />

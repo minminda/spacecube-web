@@ -115,7 +115,7 @@ export default function EditorialSpaceForm({ id, status, initial, tagSuggestions
         </AdminFormField>
       </FormSection>
 
-      <FormSection title="소개" description="공간 상세 페이지 본문입니다. 빈 줄로 문단을 나눕니다. 공간에 대한 사실은 직접 확인한 내용만 적어주세요.">
+      <FormSection title="소개" description="빈 줄로 문단 구분 · 확인한 사실만">
         <AdminFormField label="공간 소개" optional>
           <TextArea value={v.description} onChange={(x) => set("description", x)} rows={8} />
         </AdminFormField>
@@ -175,7 +175,7 @@ export default function EditorialSpaceForm({ id, status, initial, tagSuggestions
       {v.cubeAvailable && (
         <FormSection
           title="운영자의 이야기"
-          description="웹에서 읽는 전체 이야기 — 시작, 선택, 고민, 기억. 현장 Cube의 에피소드(그 자리에서만 의미 있는 1~2분 디테일)와 겹치지 않게 써주세요. 인스타그램에는 이 중 한 장면·한 문장만."
+          description="웹 정본 · 현장 에피소드와 겹치지 않게"
         >
           <BlockEditor value={storyItems} onChange={setStoryItems} spaceOptions={[]} />
         </FormSection>

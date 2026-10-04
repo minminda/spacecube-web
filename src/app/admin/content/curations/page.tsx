@@ -33,7 +33,7 @@ export default async function AdminContentCurationsPage({ searchParams }: Props)
     <DocListPage
       kind="curations"
       title="큐레이션"
-      description="공간 콘텐츠 여러 곳을 하나의 관점으로 묶는 홈페이지 콘텐츠입니다. 주 운영 방식은 '지역 × 하나의 관점'이고, 지역 없는 주제형도 만들 수 있어요."
+      description=""
       newLabel="+ 새 큐레이션"
       searchPlaceholder="제목, 지역, slug"
       publicBase="/curation"

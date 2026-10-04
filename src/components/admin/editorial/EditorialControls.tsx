@@ -37,19 +37,28 @@ interface SaveBarProps {
   /** 저장 성공 여부 */
   onSave: () => Promise<boolean>;
   error?: string | null;
+  /** 저장 버튼 앞에 둘 보조 동작(휴대폰의 [미리보기] 등) */
+  leading?: React.ReactNode;
+}
+
+/** 공개 상태를 바꾸기 전 확인 — 발행은 즉시 공개, 발행 취소는 즉시 내려감(실수 방지). */
+export function confirmPublishChange(next: "publish" | "unpublish"): boolean {
+  return window.confirm(next === "publish" ? "발행하면 바로 공개돼요. 발행할까요?" : "공개 화면에서 내릴까요?");
 }
 
 /**
  * 하단 고정 저장 바 — [미리보기 ↗] [저장] [발행하기 / 발행 취소]. 발행할 때 저장하지 않은 변경이 있으면
  * 먼저 저장한 뒤 발행한다. 새 콘텐츠는 항상 초안으로 만들어진다.
  */
-export function EditorialSaveBar({ kind, id, status, publicHref, dirty, saving, onSave, error }: SaveBarProps) {
+export function EditorialSaveBar({ kind, id, status, publicHref, dirty, saving, onSave, error, leading }: SaveBarProps) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [statusError, setStatusError] = useState<string | null>(null);
 
   async function changeStatus(next: EditorialStatusValue) {
     if (!id) return;
+    if (next === "PUBLISHED" && !confirmPublishChange("publish")) return;
+    if (next === "DRAFT" && status === "PUBLISHED" && !confirmPublishChange("unpublish")) return;
     setBusy(true);
     setStatusError(null);
     try {
@@ -74,10 +83,14 @@ export function EditorialSaveBar({ kind, id, status, publicHref, dirty, saving, 
           {dirty && <span>· 저장하지 않은 변경사항</span>}
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          {leading}
           {id && publicHref && (
-            <a href={publicHref} target="_blank" rel="noopener noreferrer" className={adminButtonClass("ghost")}>
-              {status === "PUBLISHED" ? "공개 페이지 ↗" : "미리보기 ↗"}
-            </a>
+            // 실제 페이지를 새 탭으로 — 휴대폰에서는 [미리보기](실시간)와 겹쳐 숨긴다(버튼 자체의 inline-flex보다 우선하도록 감싼다)
+            <span className="hidden lg:inline-flex">
+              <a href={publicHref} target="_blank" rel="noopener noreferrer" className={adminButtonClass("ghost")}>
+                {status === "PUBLISHED" ? "공개 페이지 ↗" : "새 탭 ↗"}
+              </a>
+            </span>
           )}
           <button type="button" onClick={() => onSave()} disabled={disabled || (!!id && !dirty)} className={adminButtonClass("secondary")}>
             {saving ? "저장 중..." : id ? "저장" : "초안 저장"}

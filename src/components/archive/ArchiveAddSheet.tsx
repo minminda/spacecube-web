@@ -35,8 +35,9 @@ function suggestHref(q: string) {
  * 공간 추가 — 누르는 순간 검색 하나만(사진/링크 선택 화면 없음). canonical 공간 우선 + 개인 기록 fallback:
  * A. 공간 검색 → 공간큐브 공간 선택 → 가보고 싶어요 / 다녀왔어요 → (선택) 사진 · 방문 날짜 · 짧은 메모 → 저장.
  *    이미 담은 공간이면 새 기록 대신 "이미 저장한 공간이에요"로 이어 간다(방문 추가 · 메모 고치기).
- * B. 검색 결과가 없을 때만 "직접 등록하기" — 이름(필수) · 사진 · 링크(선택)를 한 폼에서. 나만 보는 개인 기록이며 공용 공간이 아니다.
- * C. "공간 제안하기" — 공간큐브에 정식 공간으로 알리기(기존 제안 메일).
+ * B. "직접 등록하기" — 검색창 바로 아래 항상 보인다(검색 전·결과 있음·결과 없음 모두). 이름(필수) · 사진 · 링크(선택)를 한 폼에서.
+ *    나만 보는 개인 기록이며 공용 공간이 아니다.
+ * C. "공간 제안하기" — 공용 공간 검토 요청(기존 제안 메일). 직접 등록 폼 아래 작은 링크로만.
  */
 export default function ArchiveAddSheet() {
   const router = useRouter();
@@ -49,7 +50,7 @@ export default function ArchiveAddSheet() {
   const [files, setFiles] = useState<File[]>([]);
   const [date, setDate] = useState("");
   const [memo, setMemo] = useState("");
-  // 직접 등록(검색 실패 뒤 fallback) — 이름 · 링크. 사진은 아래 files를 같이 쓴다(대표 사진 = 방문 사진, 한 번만 저장)
+  // 직접 등록 — 이름 · 링크. 사진은 아래 files를 같이 쓴다(대표 사진 = 방문 사진, 한 번만 저장)
   const [direct, setDirect] = useState(false);
   const [directName, setDirectName] = useState("");
   const [link, setLink] = useState("");
@@ -239,17 +240,23 @@ export default function ArchiveAddSheet() {
                 <button type="button" onClick={() => !busy && close()} className="-mr-2 p-2 text-sm" style={{ color: "var(--ed-dim)" }}>닫기</button>
               </div>
               {!picked && !direct && (
-                <input
-                  ref={searchInput}
-                  value={q}
-                  onChange={(e) => setQ(e.target.value)}
-                  placeholder="공간을 검색해보세요"
-                  aria-label="공간 검색"
-                  className={inputCls}
-                  style={{ ...inputStyle, border: "1px solid var(--ed-fg)" }}
-                  enterKeyHint="search"
-                  autoComplete="off"
-                />
+                <>
+                  <input
+                    ref={searchInput}
+                    value={q}
+                    onChange={(e) => setQ(e.target.value)}
+                    placeholder="공간 이름 검색"
+                    aria-label="공간 검색"
+                    className={inputCls}
+                    style={{ ...inputStyle, border: "1px solid var(--ed-fg)" }}
+                    enterKeyHint="search"
+                    autoComplete="off"
+                  />
+                  {/* 검색과 함께 처음부터 보이는 두 번째 방법(보조 버튼) */}
+                  <button type="button" onClick={startDirect} className="w-full h-11 text-sm font-semibold" style={{ border: "1px solid var(--ed-line)" }}>
+                    직접 등록하기
+                  </button>
+                </>
               )}
             </div>
 
@@ -257,7 +264,6 @@ export default function ArchiveAddSheet() {
               {/* ── 1. 검색 결과 ── */}
               {!picked && !direct && (
                 <>
-                  {!term && <p className="py-2 text-sm leading-relaxed" style={{ color: "var(--ed-dim)" }}>공간 이름, 지역, 유형으로 찾을 수 있어요. 예: 북눅, 연남, 서점</p>}
                   {term && results && results.length > 0 && (
                     <ul aria-label="검색 결과">
                       {results.map((r) => (
@@ -270,7 +276,6 @@ export default function ArchiveAddSheet() {
                             <span className="min-w-0 flex-1">
                               <span className="block text-[15px] font-semibold truncate">{r.name}</span>
                               <span className="block text-xs truncate" style={{ color: "var(--ed-dim)" }}>{[r.area, r.category].filter(Boolean).join(" · ")}</span>
-                              {r.addressHint && <span className="block text-[11px] truncate" style={{ color: "var(--ed-dim)" }}>{r.addressHint}</span>}
                             </span>
                             <span className="shrink-0 text-xs font-semibold">
                               {r.mine.kind === "visited" ? "다녀온 곳" : r.mine.kind === "saved" ? "저장한 곳" : "선택"}
@@ -278,23 +283,10 @@ export default function ArchiveAddSheet() {
                           </button>
                         </li>
                       ))}
-                      <li className="pt-4">
-                        <button type="button" onClick={startDirect} className="text-xs underline underline-offset-4" style={{ color: "var(--ed-dim)" }}>찾는 공간이 목록에 없나요? 직접 등록하기</button>
-                      </li>
                     </ul>
                   )}
                   {term && results && results.length === 0 && !loading && (
-                    <div className="py-8 space-y-6">
-                      <div className="space-y-3">
-                        <p className="text-base font-semibold">찾는 공간이 없어요.</p>
-                        <p className="text-sm leading-relaxed break-keep" style={{ color: "var(--ed-dim)" }}>직접 등록해서 내 아카이브에 남길 수 있어요. 나만 보는 기록이에요.</p>
-                        <button type="button" onClick={startDirect} className="inline-flex items-center h-11 px-5 text-sm font-semibold" style={{ border: "1px solid var(--ed-fg)" }}>직접 등록하기</button>
-                      </div>
-                      <div className="space-y-2 pt-5" style={{ borderTop: "1px solid var(--ed-line)" }}>
-                        <p className="text-xs" style={{ color: "var(--ed-dim)" }}>공간큐브에 정식 공간으로 알려주고 싶다면</p>
-                        <a href={suggestHref(term)} className="text-sm underline underline-offset-4">공간 제안하기</a>
-                      </div>
-                    </div>
+                    <p className="py-6 text-sm" style={{ color: "var(--ed-dim)" }}>“{term}” 검색 결과가 없어요.</p>
                   )}
                   {term && loading && !results?.length && <p className="py-2 text-sm" style={{ color: "var(--ed-dim)" }}>찾는 중…</p>}
                 </>
@@ -304,12 +296,12 @@ export default function ArchiveAddSheet() {
               {direct && (
                 <div className="space-y-6">
                   <div className="space-y-1">
-                    <p className="text-lg font-bold">직접 등록하기</p>
-                    <p className="text-xs leading-relaxed" style={{ color: "var(--ed-dim)" }}>공간큐브에 없는 공간을 내 아카이브에만 남겨요. 다른 사람에게는 보이지 않아요.</p>
+                    <p className="text-lg font-bold">직접 등록</p>
+                    <p className="text-xs" style={{ color: "var(--ed-dim)" }}>나만 보는 기록이에요.</p>
                   </div>
                   <label className="block space-y-1.5">
                     <span className="text-sm font-semibold">공간 이름 <span style={{ color: "#a1271b" }}>*</span></span>
-                    <input value={directName} maxLength={80} onChange={(e) => setDirectName(e.target.value)} placeholder="예: 오후의 온실" className={inputCls} style={inputStyle} autoFocus />
+                    <input value={directName} maxLength={80} onChange={(e) => setDirectName(e.target.value)} placeholder="오후의 온실" className={inputCls} style={inputStyle} autoFocus />
                   </label>
                   <div className="space-y-1.5">
                     <p className="text-sm font-semibold">사진 <span className="font-normal" style={{ color: "var(--ed-dim)" }}>선택</span></p>
@@ -328,7 +320,7 @@ export default function ArchiveAddSheet() {
                   </div>
                   <label className="block space-y-1.5">
                     <span className="text-sm font-semibold">링크 <span className="font-normal" style={{ color: "var(--ed-dim)" }}>선택</span></span>
-                    <input value={link} onChange={(e) => setLink(e.target.value)} inputMode="url" placeholder="Instagram · 네이버 지도 · 웹사이트 주소" className={inputCls} style={inputStyle} />
+                    <input value={link} onChange={(e) => setLink(e.target.value)} inputMode="url" placeholder="https://" className={inputCls} style={inputStyle} />
                   </label>
 
                   <div className="space-y-2">
@@ -353,11 +345,11 @@ export default function ArchiveAddSheet() {
                       <input value={memo} maxLength={200} onChange={(e) => setMemo(e.target.value)} placeholder={choice === "VISITED" ? "이 공간이 좋았던 이유" : "가보고 싶은 이유"} className={inputCls} style={inputStyle} />
                     </label>
                   )}
-                  <p className="text-xs" style={{ color: "var(--ed-dim)" }}>올린 사진과 링크는 나만 볼 수 있어요.</p>
                   {error && <p className="text-sm" style={{ color: "#a1271b" }} role="alert">{error}</p>}
                   <button type="button" disabled={!choice || !directName.trim() || !!busy} onClick={save} className="w-full h-12 text-base font-semibold disabled:opacity-40" style={{ background: "var(--ed-fg)", color: "var(--ed-bg)" }}>
                     {busy ?? "저장"}
                   </button>
+                  <a href={suggestHref(directName.trim() || q.trim())} className="block text-center text-xs underline underline-offset-4" style={{ color: "var(--ed-dim)" }}>공간 제안하기</a>
                 </div>
               )}
 
@@ -378,7 +370,7 @@ export default function ArchiveAddSheet() {
                   {mine.kind !== "none" && (
                     <p className="text-sm py-3 px-4 leading-relaxed" style={{ background: "var(--ed-soft)" }}>
                       {mine.kind === "visited" ? `이미 다녀온 공간이에요 · ${mine.visits}번` : "이미 저장한 공간이에요"}
-                      <span style={{ color: "var(--ed-dim)" }}> — 새로 만들지 않고 이 기록에 더해요. </span>
+                      <span style={{ color: "var(--ed-dim)" }}> · </span>
                       <Link href={`/archive/p/s-${picked.slug}`} onClick={close} className="underline underline-offset-4">기록 보기</Link>
                     </p>
                   )}
@@ -410,7 +402,6 @@ export default function ArchiveAddSheet() {
                             <button type="button" onClick={() => fileInput.current?.click()} className="shrink-0 w-20 h-20 text-sm" style={{ border: "1px dashed var(--ed-line)", color: "var(--ed-dim)" }}>+ 사진</button>
                           )}
                         </div>
-                        <p className="text-xs" style={{ color: "var(--ed-dim)" }}>올린 사진은 나만 볼 수 있어요.</p>
                       </div>
                       <label className="block space-y-1.5">
                         <span className="text-sm font-semibold">방문 날짜 <span className="font-normal" style={{ color: "var(--ed-dim)" }}>선택</span></span>

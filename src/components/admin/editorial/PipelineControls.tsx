@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { StatusBadge } from "@/components/admin/ui";
+import { confirmPublishChange } from "./EditorialControls";
 import {
   EDITORIAL_STAGES, PRIORITY_LABEL, STAGE_LABEL,
   type EditorialPriorityValue, type EditorialStageValue, type PipelineKind,
@@ -42,6 +43,8 @@ export function StageControl({ kind, id, stage, archived, dirty, onSave }: {
 
   async function move(target: EditorialStageValue) {
     if (!id || target === stage) return;
+    if (target === "PUBLISHED" && !confirmPublishChange("publish")) return;
+    if (stage === "PUBLISHED" && !confirmPublishChange("unpublish")) return;
     setBusy(target);
     setError(null);
     try {
@@ -62,10 +65,10 @@ export function StageControl({ kind, id, stage, archived, dirty, onSave }: {
   }
 
   if (!id) {
-    return <p className="text-xs" style={{ color: "var(--a-dim)" }}>저장하면 제작 단계를 관리할 수 있어요. 새 콘텐츠는 “제작” 단계로 시작합니다.</p>;
+    return <p className="text-xs" style={{ color: "var(--a-dim)" }}>저장 후 변경 가능</p>;
   }
   if (archived) {
-    return <p className="text-xs" style={{ color: "var(--a-dim)" }}>보관된 콘텐츠예요. 아래 위험 영역에서 초안으로 복원하면 단계를 다시 옮길 수 있어요.</p>;
+    return <p className="text-xs" style={{ color: "var(--a-dim)" }}>보관됨 — 복원 후 변경 가능</p>;
   }
 
   return (
@@ -90,10 +93,6 @@ export function StageControl({ kind, id, stage, archived, dirty, onSave }: {
           );
         })}
       </ol>
-      <p className="text-[11px] leading-relaxed" style={{ color: "var(--a-dim)" }}>
-        {stage ? `${STAGE_LABEL[stage].ko} — ${STAGE_LABEL[stage].description}. ` : ""}
-        단계는 건너뛸 수 있어요. “발행”을 누르면 바로 공개되고 LATEST·홈에 자동으로 나타나요. 발행 중에 다른 단계를 누르면 공개에서 내려가요.
-      </p>
       {error && <p className="text-xs" style={{ color: "var(--a-danger)" }}>{error}</p>}
     </div>
   );

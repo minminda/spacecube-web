@@ -275,6 +275,18 @@ body {
 }
 .a-table tr:hover td { background: #fafafa; }
 .a-card { border: 1px solid var(--a-line); border-radius: 8px; background: var(--a-bg); }
+/* 관리자 표 — 휴대폰(768px 미만)에서는 가로 스크롤 대신 행마다 세로로 쌓은 카드 목록으로 보여준다.
+   (표 머리줄은 숨기고, 각 칸은 한 줄씩. 빈 칸은 감춘다.) */
+@media (max-width: 767px) {
+  .admin-ui .a-table { min-width: 0 !important; display: block; }
+  .admin-ui .a-table thead { display: none; }
+  .admin-ui .a-table tbody, .admin-ui .a-table tr { display: block; }
+  .admin-ui .a-table tr { padding: 12px 14px; border-bottom: 1px solid var(--a-line); }
+  .admin-ui .a-table tr:last-child { border-bottom: 0; }
+  .admin-ui .a-table td { display: block; padding: 2px 0; border-bottom: 0; }
+  .admin-ui .a-table td:empty { display: none; }
+  .admin-ui .a-table tr:hover td { background: transparent; }
+}
 @media print {
   /* 사이드바/탭은 .no-print로 숨기고, 본문 컨테이너는 관리자 개편 이전과 같은 폭(max-w-2xl 중앙)으로
      되돌린다 — 스티커 인쇄(@page margin 0)와 리포트 PDF 배치가 이전과 동일하게 나오도록. */

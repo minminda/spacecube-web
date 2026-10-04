@@ -41,7 +41,7 @@ export default async function AdminDemoDataPage() {
       <AdminPageHeader
         area="system"
         title="시연 데이터"
-        description="발표·시연용으로 만든 공간과 더미 계정을 삭제하지 않고 실제 서비스에서만 제외합니다. 언제든 다시 되돌릴 수 있어요."
+        description="삭제 없이 서비스에서만 제외 · 되돌릴 수 있음"
       />
 
       <div className="a-card px-4 py-3 mb-8 text-xs leading-relaxed space-y-1" style={{ color: "var(--a-dim)" }}>

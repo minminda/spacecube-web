@@ -30,7 +30,7 @@ export default async function SpaceEpisodesPage({ params }: Props) {
 
       <AdminPageHeader
         title="에피소드"
-        description="QR로 이 공간에 들어온 방문자가 읽는 운영자의 이야기입니다. 순서·발행 여부·대표 에피소드를 관리합니다."
+        description=""
       />
 
       <EpisodeList

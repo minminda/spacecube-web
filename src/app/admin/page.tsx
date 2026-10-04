@@ -80,16 +80,16 @@ export default async function AdminOverviewPage() {
 
   return (
     <>
-      <AdminPageHeader title="Overview" description="오늘의 공간큐브 운영 상태를 확인하세요. 온라인에서 발견되는 공간큐브(Content)와 실제 공간에서 경험하는 공간큐브(Cube Operation)를 나눠 보여줍니다." />
+      <AdminPageHeader title="Overview" description="" />
 
       <div className="grid gap-10 xl:grid-cols-2">
         {/* CONTENT */}
-        <div className="space-y-6">
+        <div className="space-y-6 min-w-0">
           <div className="flex items-center gap-3">
             <AreaTag area="content" />
             <p className="text-xs" style={{ color: "var(--a-dim)" }}>홈페이지에서 발견되는 공개 콘텐츠</p>
           </div>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             <AdminStat label="공간 콘텐츠" value={edSpaces.length} hint={`발행 ${published(edSpaces)} · 초안 ${drafts(edSpaces)}`} href="/admin/content/spaces" />
             <AdminStat label="큐레이션" value={edCurations.length} hint={`발행 ${published(edCurations)} · 초안 ${drafts(edCurations)}`} href="/admin/content/curations" />
             <AdminStat label="피플" value={edPeople.length} hint={`발행 ${published(edPeople)} · 초안 ${drafts(edPeople)}`} href="/admin/content/people" />
@@ -120,7 +120,7 @@ export default async function AdminOverviewPage() {
         </div>
 
         {/* CUBE OPERATION */}
-        <div className="space-y-6">
+        <div className="space-y-6 min-w-0">
           <div className="flex items-center gap-3">
             <AreaTag area="cube" />
             <p className="text-xs" style={{ color: "var(--a-dim)" }}>실제 공간의 큐브 · 에피소드 · 방명록</p>

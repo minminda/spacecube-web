@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { adminButtonClass } from "@/components/admin/ui";
 import { PREVIEW_MESSAGE, PREVIEW_READY, type PreviewPayload } from "@/components/editorial/EditorialPreviewFrame";
 
@@ -118,8 +119,9 @@ export function LivePreviewSheet({ payload, published }: { payload: PreviewPaylo
   return (
     <div className="lg:hidden">
       <button type="button" onClick={() => setOpen(true)} className={adminButtonClass("secondary")}>미리보기</button>
-      {open && (
-        <div className="fixed inset-0 z-[70] flex flex-col" style={{ background: "var(--a-bg)" }} role="dialog" aria-modal="true" aria-label="공개 화면 미리보기">
+      {/* 전체 화면은 body로 portal — 하단 고정 저장 바(z-30) 안에서 열면 관리자 상단 바에 가려지기 때문 */}
+      {open && createPortal(
+        <div className="admin-ui fixed inset-0 z-[80] flex flex-col" style={{ background: "var(--a-bg)" }} role="dialog" aria-modal="true" aria-label="공개 화면 미리보기">
           <div className="flex items-center justify-between gap-2 px-3 h-12 shrink-0" style={{ borderBottom: "1px solid var(--a-line)" }}>
             <button type="button" onClick={() => setOpen(false)} className={adminButtonClass("ghost", "sm")}>← 편집으로 돌아가기</button>
             <DeviceToggle device={device} onChange={setDevice} />
@@ -128,7 +130,8 @@ export function LivePreviewSheet({ payload, published }: { payload: PreviewPaylo
           <div className="flex-1 min-h-0">
             <PreviewViewport key={device} payload={payload} device={device} label="공개 화면 미리보기" />
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );

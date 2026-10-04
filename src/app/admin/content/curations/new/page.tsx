@@ -12,7 +12,7 @@ export default async function NewCurationPage() {
         area="content"
         breadcrumb={[{ label: "큐레이션", href: "/admin/content/curations" }]}
         title="새 큐레이션"
-        description="초안으로 저장되며, 발행해야 공개 페이지에 나옵니다."
+        description="초안으로 저장"
       />
       <EditorialDocForm
         kind="curations"

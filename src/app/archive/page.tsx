@@ -216,7 +216,7 @@ export default async function ArchivePage({ searchParams }: Props) {
             <div className="py-14 max-w-[560px] space-y-2">
               <p className="text-lg font-bold">아직 아카이브가 비어 있어요.</p>
               <p className="text-sm leading-relaxed" style={{ color: "var(--ed-dim)" }}>
-                “공간 추가”에서 공간을 검색해 고르고, 가보고 싶은지 다녀왔는지만 남기면 시작할 수 있어요.
+                “공간 추가”에서 공간을 검색하거나 직접 등록해 시작해요.
                 Cube가 있는 공간에 다녀오면 그 기록도 여기에 쌓여요.
               </p>
             </div>

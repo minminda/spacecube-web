@@ -8,7 +8,7 @@ import { EDITORIAL_PRIORITIES, PIPELINE_KIND_LABEL, PRIORITY_LABEL, type Editori
 const KINDS: PipelineKind[] = ["people", "thoughts", "curations"];
 
 /**
- * 백로그 [아이디어 추가] — 유형 · 제목/아이디어 · 메모 · 참고 링크 · 우선순위 · 담당자만 받아 IDEA 단계 초안을 만든다.
+ * 백로그 [아이디어 추가] — 유형 · 제목/아이디어 · 참고 링크 · 우선순위 · 담당자만 받아 IDEA 단계 초안을 만든다.
  * 대표 이미지·본문·공간은 강제하지 않는다(제작을 시작할 때 전체 편집 화면에서 채운다).
  */
 export default function QuickIdeaForm({ assigneeOptions }: { assigneeOptions: string[] }) {
@@ -16,7 +16,6 @@ export default function QuickIdeaForm({ assigneeOptions }: { assigneeOptions: st
   const [open, setOpen] = useState(false);
   const [kind, setKind] = useState<PipelineKind>("people");
   const [title, setTitle] = useState("");
-  const [note, setNote] = useState("");
   const [links, setLinks] = useState("");
   const [priority, setPriority] = useState<EditorialPriorityValue>("MEDIUM");
   const [assignee, setAssignee] = useState("");
@@ -33,7 +32,7 @@ export default function QuickIdeaForm({ assigneeOptions }: { assigneeOptions: st
       const res = await fetch("/api/admin/editorial/ideas", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ kind, title, note, referenceLinks: links.split(/\s+/).filter(Boolean), priority, assignee }),
+        body: JSON.stringify({ kind, title, referenceLinks: links.split(/\s+/).filter(Boolean), priority, assignee }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -42,7 +41,6 @@ export default function QuickIdeaForm({ assigneeOptions }: { assigneeOptions: st
       }
       setDone(`“${title.trim()}” 아이디어를 ${PIPELINE_KIND_LABEL[kind]}로 추가했어요.`);
       setTitle("");
-      setNote("");
       setLinks("");
       setPriority("MEDIUM");
       router.refresh();
@@ -80,11 +78,8 @@ export default function QuickIdeaForm({ assigneeOptions }: { assigneeOptions: st
       <AdminFormField label="제목 / 아이디어" required>
         <input value={title} onChange={(e) => setTitle(e.target.value)} className="a-input" placeholder={kind === "curations" ? "혼자 오래 머물고 싶은 연남" : kind === "people" ? "북눅 연남 운영자 인터뷰" : "왜 어떤 공간은 오래 기억에 남을까"} required />
       </AdminFormField>
-      <AdminFormField label="메모" optional>
-        <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} className="a-input" style={{ height: "auto", padding: "10px 12px", resize: "vertical" }} />
-      </AdminFormField>
-      <AdminFormField label="참고 링크" optional help="한 줄에 하나 — Instagram, 웹사이트, 기사, 공간 홈페이지.">
-        <textarea value={links} onChange={(e) => setLinks(e.target.value)} rows={2} className="a-input" style={{ height: "auto", padding: "10px 12px", resize: "vertical" }} placeholder="https://" />
+      <AdminFormField label="참고 링크" optional>
+        <textarea value={links} onChange={(e) => setLinks(e.target.value)} rows={2} className="a-input" style={{ height: "auto", padding: "10px 12px", resize: "vertical" }} placeholder="https://… (한 줄에 하나)" />
       </AdminFormField>
       <div className="grid gap-4 sm:grid-cols-2">
         <AdminFormField label="우선순위">

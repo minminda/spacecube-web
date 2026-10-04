@@ -76,14 +76,18 @@ export default function SpacePicker({ options, value, onChange, notePlaceholder 
       )}
 
       <div className="space-y-2">
-        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="공간 이름 · 지역 · 유형으로 검색해서 추가" className="a-input max-w-sm" />
+        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="공간 검색 (이름 · 지역 · 유형)" className="a-input w-full" aria-label="연결할 공간 검색" />
         {candidates.length > 0 ? (
-          <ul className="flex flex-wrap gap-2">
+          // 검색 결과는 화면 폭 그대로의 목록(휴대폰에서도 드롭다운이 화면 밖으로 나가지 않게)
+          <ul className="a-card divide-y" aria-label="추가할 공간">
             {candidates.map((o) => (
-              <li key={o.id}>
-                <button type="button" onClick={() => { onChange([...value, { spaceId: o.id, note: "" }]); setQuery(""); }} className={adminButtonClass("secondary", "sm")}>
-                  + {o.name}
-                  <span className="text-[11px]" style={{ color: "var(--a-dim)" }}>{o.area}</span>
+              <li key={o.id} style={{ borderColor: "var(--a-line)" }}>
+                <button type="button" onClick={() => { onChange([...value, { spaceId: o.id, note: "" }]); setQuery(""); }} className="w-full flex items-center justify-between gap-3 px-3 py-2.5 text-left hover:bg-[var(--a-soft)]">
+                  <span className="min-w-0">
+                    <span className="block text-sm font-medium truncate">{o.name}</span>
+                    <span className="block text-[11px] truncate" style={{ color: "var(--a-dim)" }}>{[o.area, o.category].filter(Boolean).join(" · ")}</span>
+                  </span>
+                  <span className="shrink-0 text-xs font-semibold">+ 추가</span>
                 </button>
               </li>
             ))}

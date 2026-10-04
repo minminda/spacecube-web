@@ -6,10 +6,10 @@ export default async function AdminContentMediaPage() {
   await requireAdminPage();
   return (
     <>
-      <AdminPageHeader area="content" title="미디어" description="홈페이지 콘텐츠에 쓰는 이미지를 모아 관리하는 영역입니다." />
+      <AdminPageHeader area="content" title="미디어" description="" />
       <EmptyState
         title="미디어 관리 기능 준비 중"
-        description="현재 홈페이지 콘텐츠 이미지는 각 콘텐츠 편집 화면에서 업로드하며, 이미지 URL이 해당 콘텐츠에 함께 저장됩니다. 운영자에게 보내는 PDF는 Cube Operation › 운영 자료에서 관리합니다."
+        description="이미지는 각 콘텐츠 편집 화면에서 업로드"
       />
     </>
   );

@@ -67,7 +67,7 @@ export default async function CubesPage({ searchParams }: Props) {
       <AdminPageHeader
         area="cube"
         title="큐브"
-        description="운영 공간에 설치할 큐브의 QR을 미리 생성하고, 운영 공간과 연결합니다. 스티커 인쇄도 여기서 합니다."
+        description=""
       />
 
       <CubeManager cubes={cubeRows} spaceOptions={spaceOptions} baseUrl={baseUrl} initialFocusCode={code ?? null} />

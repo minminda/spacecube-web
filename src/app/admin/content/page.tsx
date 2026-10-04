@@ -55,7 +55,7 @@ export default async function AdminContentBacklogPage({ searchParams }: Props) {
       <AdminPageHeader
         area="content"
         title="콘텐츠 백로그"
-        description="STORY와 CURATION을 아이디어 → 섭외 → 제작 → 검수 → 발행 예정 → 발행으로 관리합니다. 발행하면 LATEST와 홈에 자동으로 나타나요."
+        description="발행하면 LATEST·홈에 자동 반영"
         actions={
           <div className="flex flex-wrap gap-2">
             <AdminButtonLink href="/admin/content/people/new" size="sm">+ PEOPLE</AdminButtonLink>
@@ -75,7 +75,7 @@ export default async function AdminContentBacklogPage({ searchParams }: Props) {
         <Pill href={hrefWith(f, { stage: "ALL" })} on={f.stage === "ALL"}>전체 <span className="tabular-nums text-[11px] opacity-70">{stageCount("ALL")}</span></Pill>
         {EDITORIAL_STAGES.map((s) => (
           <Pill key={s} href={hrefWith(f, { stage: s })} on={f.stage === s}>
-            {s} · {STAGE_LABEL[s].ko} <span className="tabular-nums text-[11px] opacity-70">{stageCount(s)}</span>
+            {STAGE_LABEL[s].ko} <span className="tabular-nums text-[11px] opacity-70">{stageCount(s)}</span>
           </Pill>
         ))}
       </nav>
@@ -84,8 +84,31 @@ export default async function AdminContentBacklogPage({ searchParams }: Props) {
       </nav>
 
       {rows.length === 0 ? (
-        <EmptyState title={all.length ? "조건에 맞는 항목이 없습니다" : "아직 백로그가 비어 있어요"} description="위의 [+ 아이디어 추가]로 첫 아이디어를 등록해보세요." />
+        <EmptyState title={all.length ? "조건에 맞는 항목이 없습니다" : "아직 백로그가 비어 있어요"} />
       ) : (
+        <>
+        {/* 휴대폰: 가로 스크롤 표 대신 짧은 카드 목록 — 유형 / 제목 / 단계 · 담당자 · 예정일 */}
+        <ul className="md:hidden a-card divide-y" style={{ borderColor: "var(--a-line)" }}>
+          {rows.map((r) => {
+            const overdue = isOverdue(r.stage, r.scheduledAt, now);
+            return (
+              <li key={`m-${r.kind}-${r.id}`} style={{ borderColor: "var(--a-line)" }}>
+                <Link href={`/admin/content/${r.kind}/${r.id}`} className="block px-4 py-3 space-y-1">
+                  <p className="text-[11px] font-semibold tracking-wide" style={{ color: "var(--a-dim)" }}>
+                    {PIPELINE_KIND_LABEL[r.kind]}{r.priority === "HIGH" && <span style={{ color: "var(--a-danger)" }}> · 높음</span>}
+                  </p>
+                  <p className="text-[15px] font-semibold leading-snug">{r.title}</p>
+                  <p className="text-xs flex flex-wrap items-center gap-x-1.5" style={{ color: overdue ? "var(--a-danger)" : "var(--a-dim)" }}>
+                    <StageBadge stage={r.stage} />
+                    {r.assignee && <span>· {r.assignee}</span>}
+                    {r.stage === "PUBLISHED" ? <span>· 발행 {formatAdminDate(r.publishedAt)}</span> : r.scheduledAt && <span>· {formatAdminDate(r.scheduledAt)}{overdue ? " 지남" : ""}</span>}
+                  </p>
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+        <div className="hidden md:block">
         <AdminTable head={["유형", "제목 / 아이디어", "상태", "우선순위", "담당자", "발행 예정일"]} minWidth={820}>
           {rows.map((r) => {
             const overdue = isOverdue(r.stage, r.scheduledAt, now);
@@ -112,6 +135,8 @@ export default async function AdminContentBacklogPage({ searchParams }: Props) {
             );
           })}
         </AdminTable>
+        </div>
+        </>
       )}
     </>
   );

@@ -40,7 +40,7 @@ export default async function AdminSpacesPage({ searchParams }: Props) {
       <AdminPageHeader
         area="cube"
         title="운영 공간"
-        description="실제 GONGGANCUBE가 설치되거나 운영되는 공간입니다. 에피소드·방명록·리포트가 이 공간에 연결됩니다. 홈페이지의 '공간 콘텐츠'와는 별개의 데이터예요."
+        description="Cube가 있는 현장 공간 · 공간 콘텐츠와 별개"
         actions={<AdminButtonLink href="/admin/new" variant="primary">+ 운영 공간 등록</AdminButtonLink>}
       />
 

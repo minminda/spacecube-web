@@ -106,7 +106,7 @@ export default async function GuestbookAdminRoutePage({ params }: Props) {
 
       <AdminPageHeader
         title="방명록"
-        description="실제 방문자가 남기는 방명록의 질문·화면 설정·기록을 관리합니다. 운영자 화면(/operator)과 같은 편집기를 사용합니다."
+        description=""
       />
 
       <GuestbookEditor

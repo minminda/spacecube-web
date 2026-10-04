@@ -107,7 +107,7 @@ export default async function ReportAdminPage({ params, searchParams }: Props) {
       {/* 인쇄(PDF) 시에는 관리자 개편 이전과 같은 여백(px-6 py-8)을 유지한다 */}
       <AdminPageHeader
         title="KPI / 운영 리포트"
-        description="기간을 선택해 방문자 퍼널과 KPI를 확인하고, 운영자에게 전달할 리포트를 PDF로 저장합니다."
+        description=""
       />
 
       <ReportTabs spaceId={space.id} active="core" from={range.from} to={range.to} />
@@ -293,8 +293,6 @@ function VisitLogSection({ entries }: { entries: VisitLogEntry[] }) {
     );
   }
 
-  let lastDateKey: string | null = null;
-
   return (
     <div className="space-y-2">
       <p className="text-xs" style={{ color: "var(--dim)" }}>
@@ -303,8 +301,8 @@ function VisitLogSection({ entries }: { entries: VisitLogEntry[] }) {
       <div className="flex flex-col border" style={{ borderColor: "var(--border)" }}>
         {entries.map((entry, i) => {
           const dateKey = formatKstDateParam(entry.scannedAt);
-          const showDateHeader = dateKey !== lastDateKey;
-          lastDateKey = dateKey;
+          // 바로 앞 항목과 날짜가 다르면 날짜 머리줄(렌더 중 변수 재할당 없이 이웃 비교)
+          const showDateHeader = i === 0 || dateKey !== formatKstDateParam(entries[i - 1].scannedAt);
           return (
             <div key={i}>
               {showDateHeader && (

@@ -16,10 +16,10 @@ export type EditorialPriorityValue = (typeof EDITORIAL_PRIORITIES)[number];
 
 export const STAGE_LABEL: Record<EditorialStageValue, { ko: string; description: string }> = {
   IDEA: { ko: "아이디어", description: "아이디어만 등록" },
-  CONTACTING: { ko: "섭외", description: "섭외·연락 진행(PEOPLE 중심, 필요 없으면 건너뛰기)" },
-  PRODUCING: { ko: "제작", description: "인터뷰·글 작성·사진 정리" },
-  REVIEW: { ko: "검수", description: "내부 또는 인터뷰이 검수" },
-  SCHEDULED: { ko: "발행 예정", description: "완성 · 발행일만 남음" },
+  CONTACTING: { ko: "섭외중", description: "섭외·연락 진행(필요 없으면 건너뛰기)" },
+  PRODUCING: { ko: "제작중", description: "인터뷰·글 작성·사진 정리" },
+  REVIEW: { ko: "검수중", description: "내부 또는 인터뷰이 검수" },
+  SCHEDULED: { ko: "예약", description: "완성 · 발행일만 남음" },
   PUBLISHED: { ko: "발행", description: "공개 중" },
 };
 

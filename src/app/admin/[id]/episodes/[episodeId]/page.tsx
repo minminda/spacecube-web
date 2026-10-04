@@ -34,7 +34,7 @@ export default async function EpisodeDetailPage({ params }: Props) {
       <AdminPageHeader
         breadcrumb={[{ label: "에피소드", href: `/admin/${spaceId}/episodes` }, { label: `EP.${episode.episodeNumber}` }]}
         title={episode.title}
-        description="에피소드 기본 정보와 Scene(본문 블록)을 편집합니다."
+        description=""
       />
 
       <EpisodeEditor

@@ -30,7 +30,7 @@ export default async function AdminContentHomePage() {
       <AdminPageHeader
         area="content"
         title="홈페이지"
-        description="HOME은 자동으로 구성됩니다. 공간 콘텐츠·큐레이션·STORY(PEOPLE·THOUGHT)를 발행하면 발행일 순으로 LATEST와 콘텐츠 피드에 바로 반영되고, 따로 홈을 편집할 필요가 없어요."
+        description="발행 콘텐츠가 발행일 순으로 자동 반영"
         actions={
           <>
             <AdminButtonLink href="/?preview=drafts" external>초안 포함 미리보기 ↗</AdminButtonLink>

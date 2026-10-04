@@ -33,7 +33,7 @@ export default async function AdminContentPeoplePage({ searchParams }: Props) {
     <DocListPage
       kind="people"
       title="피플"
-      description="공간을 통해 한 사람을 알아가는 홈페이지 콘텐츠입니다. 현장 Cube의 에피소드와는 별개예요."
+      description=""
       newLabel="+ 새 PEOPLE"
       searchPlaceholder="제목, 소개 대상, slug"
       publicBase="/people"

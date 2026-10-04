@@ -33,7 +33,7 @@ export default async function AdminContentThoughtsPage({ searchParams }: Props) 
     <DocListPage
       kind="thoughts"
       title="생각(THOUGHT)"
-      description="장면 → 경험 → 질문 → 생각의 순서로 쓰는 STORY 콘텐츠입니다. 현장 Cube의 에피소드와는 별개예요."
+      description=""
       newLabel="+ 새 THOUGHT"
       searchPlaceholder="제목, 시작 장면, slug"
       publicBase="/thought"

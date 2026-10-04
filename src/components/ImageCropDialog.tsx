@@ -48,8 +48,14 @@ const CORNER_STYLE: Record<Corner, React.CSSProperties> = {
 };
 
 export default function ImageCropDialog({ file, aspectOptions, fixedAspect, onConfirm, onCancel }: Props) {
-  const [objectUrl] = useState(() => URL.createObjectURL(file));
-  useEffect(() => () => URL.revokeObjectURL(objectUrl), [objectUrl]);
+  // 미리보기 주소는 effect 안에서 만들고 같은 effect의 정리에서 해제한다 — useState로 한 번 만들고 cleanup에서만 해제하면
+  // React 개발 모드(StrictMode의 effect 재실행)에서 주소가 먼저 해제돼 사진이 안 뜨고 "자르기"가 계속 비활성화된다.
+  const [objectUrl, setObjectUrl] = useState<string | null>(null);
+  useEffect(() => {
+    const url = URL.createObjectURL(file);
+    setObjectUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [file]);
 
   const [aspect, setAspect] = useState<number | null>(
     aspectOptions ? aspectOptions[0].value : fixedAspect ?? null,
@@ -105,7 +111,7 @@ export default function ImageCropDialog({ file, aspectOptions, fixedAspect, onCo
   }
 
   async function handleCrop() {
-    if (!box || !displaySize || !naturalSize) return;
+    if (!box || !displaySize || !naturalSize || !objectUrl) return;
     setProcessing(true);
     setError("");
     try {
@@ -154,7 +160,7 @@ export default function ImageCropDialog({ file, aspectOptions, fixedAspect, onCo
           <div className="flex-1 flex items-center justify-center px-4 min-h-0">
             <div className="relative touch-none select-none" onPointerMove={onDragMove} onPointerUp={endDrag} onPointerLeave={endDrag}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
+              {objectUrl && <img
                 ref={imgRef}
                 src={objectUrl}
                 onLoad={handleImageLoad}
@@ -162,7 +168,7 @@ export default function ImageCropDialog({ file, aspectOptions, fixedAspect, onCo
                 draggable={false}
                 className="block select-none"
                 style={{ maxWidth: "80vw", maxHeight: "55vh", width: "auto", height: "auto" }}
-              />
+              />}
               {box && displaySize && (
                 <>
                   {/* crop box 바깥을 어둡게 — 잘려나갈 영역을 한눈에 보여준다 */}

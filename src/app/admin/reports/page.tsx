@@ -38,7 +38,7 @@ export default async function AdminReportsIndexPage() {
       <AdminPageHeader
         area="cube"
         title="KPI / 리포트"
-        description="운영 공간을 선택하면 방문자 퍼널, 기간별 KPI, 스토리 분석, 운영자용 리포트(PDF)를 볼 수 있습니다."
+        description=""
       />
       {spaces.length === 0 ? (
         <EmptyState title="운영 공간이 없습니다" />

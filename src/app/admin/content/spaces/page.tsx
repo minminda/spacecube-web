@@ -40,7 +40,7 @@ export default async function AdminContentSpacesPage({ searchParams }: Props) {
       <AdminPageHeader
         area="content"
         title="공간 콘텐츠"
-        description="홈페이지에서 공개적으로 소개하고 탐색하는 공간입니다. Cube가 없는 공간도 등록할 수 있으며, 현장 운영 데이터인 '운영 공간'과는 별개예요."
+        description="홈페이지에 공개되는 공간 · 운영 공간과 별개"
         actions={<AdminButtonLink href="/admin/content/spaces/new" variant="primary">+ 새 공간 콘텐츠</AdminButtonLink>}
       />
       <FilterBar q={q} placeholder="이름, 지역, 종류, slug">

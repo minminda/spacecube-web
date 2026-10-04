@@ -27,7 +27,7 @@ export default async function InterviewLibraryPage() {
         area="cube"
         breadcrumb={[{ label: "에피소드", href: "/admin/content-status" }]}
         title="인터뷰 질문 라이브러리"
-        description="에피소드별로 Scene 소재와 운영자 질문을 관리합니다. 질문은 운영자 답변을 얻기 위한 제작 도구이며, 실제 Scene 제목은 답변을 바탕으로 별도로 작성합니다."
+        description=""
       />
 
       <InterviewLibrary

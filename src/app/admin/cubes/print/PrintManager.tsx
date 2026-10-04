@@ -56,7 +56,7 @@ export default function PrintManager({ cubes }: Props) {
         area="cube"
         breadcrumb={[{ label: "큐브", href: "/admin/cubes" }]}
         title="QR / GC 코드 스티커 인쇄"
-        description="선택한 큐브의 QR 스티커와 GC 코드 스티커를 A4로 인쇄하거나 PDF로 저장합니다."
+        description=""
       />
       <div className="flex flex-col gap-4 mb-8">
 

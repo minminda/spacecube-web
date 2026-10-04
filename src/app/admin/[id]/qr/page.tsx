@@ -25,7 +25,7 @@ export default async function QRPage({ params }: Props) {
   return (
     <main className="flex flex-col gap-6">
 
-      <AdminPageHeader title="QR" description="이 운영 공간에 연결된 큐브의 QR입니다. 연결 변경·해제는 큐브 관리에서 합니다." />
+      <AdminPageHeader title="QR" description="연결 변경은 큐브 관리에서" />
 
       {space.cube ? (
         <>

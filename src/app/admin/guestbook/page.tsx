@@ -29,7 +29,7 @@ export default async function AdminGuestbookIndexPage() {
       <AdminPageHeader
         area="cube"
         title="방명록"
-        description="실제 방문자가 현장에서 남긴 기록입니다. 운영 공간을 선택해 질문·화면 설정과 기록을 관리하세요."
+        description=""
       />
       {spaces.length === 0 ? (
         <EmptyState title="운영 공간이 없습니다" />
