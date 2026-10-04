@@ -32,11 +32,11 @@ function suggestHref(q: string) {
 }
 
 /**
- * 공간 추가 — 누르는 순간 검색 하나만. 공간을 새로 만들지 않는다:
- * 공간 검색 → 공간큐브 공간 선택 → 가보고 싶어요 / 다녀왔어요 → (선택) 사진 · 방문 날짜 · 짧은 메모 → 저장.
- * 사진은 공간을 찾는 입력이 아니라 고른 공간에 붙는 내 방문 기록이다. 이름·지역·주소·링크는 입력받지 않는다(공간 정보는 공간큐브 것).
- * 이미 담은 공간이면 새 기록 대신 "이미 저장한 공간이에요"로 이어 간다(방문 추가 · 메모 고치기).
- * 검색 결과가 없으면 "공간 제안하기"(즉석 생성 없음).
+ * 공간 추가 — 누르는 순간 검색 하나만(사진/링크 선택 화면 없음). canonical 공간 우선 + 개인 기록 fallback:
+ * A. 공간 검색 → 공간큐브 공간 선택 → 가보고 싶어요 / 다녀왔어요 → (선택) 사진 · 방문 날짜 · 짧은 메모 → 저장.
+ *    이미 담은 공간이면 새 기록 대신 "이미 저장한 공간이에요"로 이어 간다(방문 추가 · 메모 고치기).
+ * B. 검색 결과가 없을 때만 "직접 등록하기" — 이름(필수) · 사진 · 링크(선택)를 한 폼에서. 나만 보는 개인 기록이며 공용 공간이 아니다.
+ * C. "공간 제안하기" — 공간큐브에 정식 공간으로 알리기(기존 제안 메일).
  */
 export default function ArchiveAddSheet() {
   const router = useRouter();
@@ -49,6 +49,10 @@ export default function ArchiveAddSheet() {
   const [files, setFiles] = useState<File[]>([]);
   const [date, setDate] = useState("");
   const [memo, setMemo] = useState("");
+  // 직접 등록(검색 실패 뒤 fallback) — 이름 · 링크. 사진은 아래 files를 같이 쓴다(대표 사진 = 방문 사진, 한 번만 저장)
+  const [direct, setDirect] = useState(false);
+  const [directName, setDirectName] = useState("");
+  const [link, setLink] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const searchInput = useRef<HTMLInputElement>(null);
@@ -71,7 +75,7 @@ export default function ArchiveAddSheet() {
 
   // 검색(250ms 쉬었다가) — 공간큐브에 등록된 공간만
   useEffect(() => {
-    if (!open || picked) return;
+    if (!open || picked || direct) return;
     const term = q.trim();
     if (!term) { setResults(null); setLoading(false); return; }
     setLoading(true);
@@ -83,13 +87,13 @@ export default function ArchiveAddSheet() {
         .catch(() => {});
     }, 250);
     return () => { clearTimeout(t); ctrl.abort(); };
-  }, [q, open, picked]);
+  }, [q, open, picked, direct]);
 
   function resetRecord() {
-    setChoice(null); setFiles([]); setDate(""); setMemo(""); setError(null);
+    setChoice(null); setFiles([]); setDate(""); setMemo(""); setError(null); setLink("");
   }
   function close() {
-    setOpen(false); setQ(""); setResults(null); setPicked(null); resetRecord(); setBusy(null);
+    setOpen(false); setQ(""); setResults(null); setPicked(null); setDirect(false); setDirectName(""); resetRecord(); setBusy(null);
   }
   function pick(r: Result) {
     setPicked(r);
@@ -97,8 +101,14 @@ export default function ArchiveAddSheet() {
     // 이미 담은 공간: 기존 메모를 이어서 고칠 수 있게 채워 둔다
     if (r.mine.kind !== "none") setMemo(r.mine.memo ?? "");
   }
+  function startDirect() {
+    resetRecord();
+    setDirect(true);
+    setDirectName(q.trim().slice(0, 80));
+  }
   function backToSearch() {
     setPicked(null);
+    setDirect(false);
     resetRecord();
     setTimeout(() => searchInput.current?.focus(), 30);
   }
@@ -112,7 +122,37 @@ export default function ArchiveAddSheet() {
   const visitedLabel = mine.kind === "visited" ? "또 다녀왔어요" : "다녀왔어요";
   const savedLabel = mine.kind === "visited" ? "메모만 고칠게요" : mine.kind === "saved" ? "가보고 싶어요 (그대로)" : "가보고 싶어요";
 
+  async function saveDirect() {
+    if (!choice || !directName.trim()) return;
+    setError(null);
+    try {
+      let photos: { url: string; width?: number; height?: number }[] = [];
+      if (files.length) {
+        setBusy(`사진 올리는 중 0/${files.length}`);
+        photos = await uploadArchivePhotos(files, (d, t) => setBusy(`사진 올리는 중 ${d}/${t}`));
+      }
+      setBusy("저장 중…");
+      const res = await fetch("/api/archive/entries", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          personal: true, placeName: directName.trim(), sourceUrl: link.trim() || null, photos,
+          status: choice, visitedOn: choice === "VISITED" ? date || null : null, memo: memo.trim() || null,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(res.status === 401 ? "로그인이 만료되었어요. 다시 로그인해주세요." : data.error ?? "저장하지 못했어요.");
+      router.refresh();
+      close();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "저장하지 못했어요.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
   async function save() {
+    if (direct) return saveDirect();
     if (!picked || !choice) return;
     setError(null);
     try {
@@ -191,14 +231,14 @@ export default function ArchiveAddSheet() {
           >
             <div className="sticky top-0 z-10 px-5 pt-3 pb-3 space-y-3" style={{ background: "var(--ed-bg)", borderBottom: "1px solid var(--ed-line)" }}>
               <div className="flex items-center justify-between h-9">
-                {picked ? (
+                {picked || direct ? (
                   <button type="button" onClick={backToSearch} disabled={!!busy} className="-ml-1 text-sm" style={{ color: "var(--ed-dim)" }}>← 다른 공간 찾기</button>
                 ) : (
                   <p className="text-base font-bold">공간 추가</p>
                 )}
                 <button type="button" onClick={() => !busy && close()} className="-mr-2 p-2 text-sm" style={{ color: "var(--ed-dim)" }}>닫기</button>
               </div>
-              {!picked && (
+              {!picked && !direct && (
                 <input
                   ref={searchInput}
                   value={q}
@@ -215,7 +255,7 @@ export default function ArchiveAddSheet() {
 
             <div className="px-5 py-4 flex-1">
               {/* ── 1. 검색 결과 ── */}
-              {!picked && (
+              {!picked && !direct && (
                 <>
                   {!term && <p className="py-2 text-sm leading-relaxed" style={{ color: "var(--ed-dim)" }}>공간 이름, 지역, 유형으로 찾을 수 있어요. 예: 북눅, 연남, 서점</p>}
                   {term && results && results.length > 0 && (
@@ -238,19 +278,87 @@ export default function ArchiveAddSheet() {
                           </button>
                         </li>
                       ))}
+                      <li className="pt-4">
+                        <button type="button" onClick={startDirect} className="text-xs underline underline-offset-4" style={{ color: "var(--ed-dim)" }}>찾는 공간이 목록에 없나요? 직접 등록하기</button>
+                      </li>
                     </ul>
                   )}
                   {term && results && results.length === 0 && !loading && (
-                    <div className="py-8 space-y-3">
-                      <p className="text-base font-semibold">찾는 공간이 없나요?</p>
-                      <p className="text-sm leading-relaxed break-keep" style={{ color: "var(--ed-dim)" }}>
-                        공간큐브에 아직 없는 공간이에요. 알려주시면 확인한 뒤 등록할게요.
-                      </p>
-                      <a href={suggestHref(term)} className="inline-flex items-center h-11 px-5 text-sm font-semibold" style={{ border: "1px solid var(--ed-fg)" }}>공간 제안하기</a>
+                    <div className="py-8 space-y-6">
+                      <div className="space-y-3">
+                        <p className="text-base font-semibold">찾는 공간이 없어요.</p>
+                        <p className="text-sm leading-relaxed break-keep" style={{ color: "var(--ed-dim)" }}>직접 등록해서 내 아카이브에 남길 수 있어요. 나만 보는 기록이에요.</p>
+                        <button type="button" onClick={startDirect} className="inline-flex items-center h-11 px-5 text-sm font-semibold" style={{ border: "1px solid var(--ed-fg)" }}>직접 등록하기</button>
+                      </div>
+                      <div className="space-y-2 pt-5" style={{ borderTop: "1px solid var(--ed-line)" }}>
+                        <p className="text-xs" style={{ color: "var(--ed-dim)" }}>공간큐브에 정식 공간으로 알려주고 싶다면</p>
+                        <a href={suggestHref(term)} className="text-sm underline underline-offset-4">공간 제안하기</a>
+                      </div>
                     </div>
                   )}
                   {term && loading && !results?.length && <p className="py-2 text-sm" style={{ color: "var(--ed-dim)" }}>찾는 중…</p>}
                 </>
+              )}
+
+              {/* ── 2b. 직접 등록(검색 실패 fallback) — 이름 하나면 저장, 사진·링크는 선택 ── */}
+              {direct && (
+                <div className="space-y-6">
+                  <div className="space-y-1">
+                    <p className="text-lg font-bold">직접 등록하기</p>
+                    <p className="text-xs leading-relaxed" style={{ color: "var(--ed-dim)" }}>공간큐브에 없는 공간을 내 아카이브에만 남겨요. 다른 사람에게는 보이지 않아요.</p>
+                  </div>
+                  <label className="block space-y-1.5">
+                    <span className="text-sm font-semibold">공간 이름 <span style={{ color: "#a1271b" }}>*</span></span>
+                    <input value={directName} maxLength={80} onChange={(e) => setDirectName(e.target.value)} placeholder="예: 오후의 온실" className={inputCls} style={inputStyle} autoFocus />
+                  </label>
+                  <div className="space-y-1.5">
+                    <p className="text-sm font-semibold">사진 <span className="font-normal" style={{ color: "var(--ed-dim)" }}>선택</span></p>
+                    <div className="flex gap-2 overflow-x-auto ed-scroll-x">
+                      {previews.map((src, i) => (
+                        <div key={src} className="relative shrink-0 w-20 h-20" style={{ background: "var(--ed-soft)" }}>
+                          {/* eslint-disable-next-line @next/next/no-img-element -- 업로드 전 로컬 미리보기(blob:) */}
+                          <img src={src} alt={`선택한 사진 ${i + 1}`} className="w-full h-full object-cover" />
+                          <button type="button" aria-label={`사진 ${i + 1} 빼기`} onClick={() => setFiles((p) => p.filter((_, j) => j !== i))} className="absolute right-0 top-0 w-7 h-7 text-sm" style={{ background: "rgba(0,0,0,0.55)", color: "#fff" }}>×</button>
+                        </div>
+                      ))}
+                      {files.length < MAX_PHOTOS && (
+                        <button type="button" onClick={() => fileInput.current?.click()} className="shrink-0 w-20 h-20 text-sm" style={{ border: "1px dashed var(--ed-line)", color: "var(--ed-dim)" }}>+ 사진</button>
+                      )}
+                    </div>
+                  </div>
+                  <label className="block space-y-1.5">
+                    <span className="text-sm font-semibold">링크 <span className="font-normal" style={{ color: "var(--ed-dim)" }}>선택</span></span>
+                    <input value={link} onChange={(e) => setLink(e.target.value)} inputMode="url" placeholder="Instagram · 네이버 지도 · 웹사이트 주소" className={inputCls} style={inputStyle} />
+                  </label>
+
+                  <div className="space-y-2">
+                    <p className="text-sm font-semibold">이 공간을 어떻게 기록할까요?</p>
+                    <div className="grid grid-cols-2" role="radiogroup" aria-label="기록 방식">
+                      {([["SAVED", "가보고 싶어요"], ["VISITED", "다녀왔어요"]] as const).map(([v, label]) => (
+                        <button key={v} type="button" role="radio" aria-checked={choice === v} onClick={() => setChoice(v)} className="h-12 text-sm font-semibold" style={chip(choice === v)}>
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  {choice === "VISITED" && (
+                    <label className="block space-y-1.5">
+                      <span className="text-sm font-semibold">방문 날짜 <span className="font-normal" style={{ color: "var(--ed-dim)" }}>선택</span></span>
+                      <input type="date" value={date} max={new Date().toISOString().slice(0, 10)} onChange={(e) => setDate(e.target.value)} className={inputCls} style={inputStyle} />
+                    </label>
+                  )}
+                  {choice && (
+                    <label className="block space-y-1.5">
+                      <span className="text-sm font-semibold">짧은 메모 <span className="font-normal" style={{ color: "var(--ed-dim)" }}>선택</span></span>
+                      <input value={memo} maxLength={200} onChange={(e) => setMemo(e.target.value)} placeholder={choice === "VISITED" ? "이 공간이 좋았던 이유" : "가보고 싶은 이유"} className={inputCls} style={inputStyle} />
+                    </label>
+                  )}
+                  <p className="text-xs" style={{ color: "var(--ed-dim)" }}>올린 사진과 링크는 나만 볼 수 있어요.</p>
+                  {error && <p className="text-sm" style={{ color: "#a1271b" }} role="alert">{error}</p>}
+                  <button type="button" disabled={!choice || !directName.trim() || !!busy} onClick={save} className="w-full h-12 text-base font-semibold disabled:opacity-40" style={{ background: "var(--ed-fg)", color: "var(--ed-bg)" }}>
+                    {busy ?? "저장"}
+                  </button>
+                </div>
               )}
 
               {/* ── 2. 고른 공간에 내 기록 붙이기 ── */}
