@@ -1,7 +1,7 @@
 import Link from "next/link";
 import SiteFooter from "@/components/editorial/SiteFooter";
 import LatestSlider from "@/components/editorial/LatestSlider";
-import EdImage from "@/components/editorial/EdImage";
+import StoryCard from "@/components/editorial/StoryCard";
 import CurationCard from "@/components/editorial/CurationCard";
 import SpaceCard from "@/components/editorial/SpaceCard";
 import { listContentStream, listCubeSpaces, listCurations, listStoryItems } from "@/lib/editorial/queries";
@@ -109,11 +109,7 @@ export default async function EditorialHome({ admin, previewDrafts, userId }: { 
               <ul className="ed-scroll-x -mx-5 px-5 scroll-px-5 md:mx-0 md:px-0 md:scroll-px-0 flex md:grid md:grid-cols-3 gap-4 md:gap-8 overflow-x-auto snap-x snap-mandatory">
                 {storyPreview.map((s) => (
                   <li key={s.key} className="snap-start shrink-0 w-[78%] md:w-auto">
-                    <Link href={s.href} className="group block">
-                      <EdImage image={s.cover} ratio="4 / 5" sizes="(min-width: 768px) 33vw, 78vw" />
-                      <p className="pt-4 ed-label" style={{ color: "var(--ed-dim)" }}>{s.eyebrow}</p>
-                      <p className="pt-2 text-lg md:text-xl font-bold leading-snug break-keep group-hover:underline underline-offset-4">{s.title}</p>
-                    </Link>
+                    <StoryCard href={s.href} image={s.cover} eyebrow={s.eyebrow} title={s.title} line={s.summary} ratio="4 / 5" sizes="(min-width: 768px) 33vw, 78vw" />
                   </li>
                 ))}
               </ul>
@@ -128,8 +124,8 @@ export default async function EditorialHome({ admin, previewDrafts, userId }: { 
               <SectionHead label="With Gonggancube" title="공간큐브와 함께한 공간" href="/cube-spaces" cta="함께한 공간 보기" />
               <ul className="ed-scroll-x -mx-5 px-5 scroll-px-5 md:mx-0 md:px-0 md:scroll-px-0 flex md:grid md:grid-cols-4 gap-4 md:gap-6 overflow-x-auto snap-x snap-mandatory">
                 {cubePreview.map((s) => (
-                  <li key={s.id} className="snap-start shrink-0 w-[60%] md:w-auto">
-                    <SpaceCard space={s} sizes="(min-width: 768px) 25vw, 60vw" save={{ saved: savedIds.has(s.id), loggedIn: !!userId }} />
+                  <li key={s.id} className="snap-start shrink-0 w-[46%] md:w-auto">
+                    <SpaceCard space={s} sizes="(min-width: 768px) 25vw, 46vw" save={{ saved: savedIds.has(s.id), loggedIn: !!userId }} />
                   </li>
                 ))}
               </ul>

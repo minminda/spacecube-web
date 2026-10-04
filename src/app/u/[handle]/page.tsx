@@ -49,22 +49,20 @@ export default async function PublicProfilePage({ params }: Props) {
         </div>
       )}
       <main className="pb-24 md:pb-32">
-        <header className="ed-container pt-12 md:pt-20 pb-12 md:pb-16">
+        <header className="ed-container pt-8 md:pt-14 pb-10 md:pb-14">
           <p className="ed-label" style={{ color: "var(--ed-dim)" }}>@{p.handle}</p>
-          <div className="pt-5 flex items-end gap-4 md:gap-5">
-            <Initial name={p.name} image={p.image} size={56} />
-            <h1 className="text-[40px] md:text-[64px] font-bold leading-[0.95] tracking-[-0.04em] break-keep">{p.name}</h1>
+          <div className="pt-3 flex items-end gap-3 md:gap-4">
+            <Initial name={p.name} image={p.image} size={48} />
+            <h1 className="min-w-0 text-[36px] md:text-[56px] font-bold leading-none tracking-[-0.04em] break-keep">{p.name}</h1>
           </div>
-          {p.bio && <p className="pt-5 text-base md:text-lg leading-relaxed break-keep max-w-[560px]">{p.bio}</p>}
+          {p.bio && <p className="pt-4 text-base leading-relaxed break-keep max-w-[560px]">{p.bio}</p>}
 
           {self ? (
             <>
               <RelationLine path={path} followingCount={p.followingCount} followerCount={p.followerCount} common={0} />
-              <div className="pt-7 flex flex-wrap items-start gap-2">
-                <Link href="/archive/people" className="inline-flex items-center justify-center h-12 px-6 text-[15px] font-semibold" style={{ background: "var(--ed-fg)", color: "var(--ed-bg)" }}>
-                  사람 찾기
-                </Link>
-                {p.isPublic ? <ShareProfileButton path={path} name={p.name} label="내 아카이브 공유하기" /> : <ShareNeedsProfileButton label="내 아카이브 공유하기" />}
+              <div className="pt-6 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-start">
+                {p.isPublic ? <ShareProfileButton path={path} name={p.name} label="공유" variant="solid" /> : <ShareNeedsProfileButton label="공유" />}
+                <Link href="/archive/people" className="ed-btn">사람 찾기</Link>
               </div>
             </>
           ) : (
@@ -80,7 +78,7 @@ export default async function PublicProfilePage({ params }: Props) {
 
         {empty ? (
           <p className="ed-container py-14 text-sm" style={{ borderTop: "1px solid var(--ed-line)", color: "var(--ed-dim)" }}>
-            {self ? "아직 공개한 공간이 없어요. 내 아카이브의 공간에서 “공개 프로필에 보이기”를 켜보세요." : "아직 공개한 공간이 없어요."}
+            {self ? "아직 공개한 공간이 없어요. 공간 기록에서 “공개 프로필에 보이기”를 켜면 여기에 보여요." : "아직 공개한 공간이 없어요."}
           </p>
         ) : (
           <>
@@ -91,7 +89,7 @@ export default async function PublicProfilePage({ params }: Props) {
               </section>
             )}
             {p.wantToGo.length > 0 && (
-              <section className="ed-container pt-16 md:pt-24">
+              <section className={`ed-container ${p.visited.length > 0 ? "pt-14 md:pt-20" : ""}`}>
                 <h2 className="ed-label pt-6 pb-6 md:pb-8" style={{ borderTop: "1px solid var(--ed-line)" }}>가보고 싶은 공간</h2>
                 <ProfileGrid handle={p.handle} cards={p.wantToGo} savedIds={ctx.savedIds} loggedIn={viewer.loggedIn} common={common} priorityFirst={p.visited.length === 0} />
               </section>

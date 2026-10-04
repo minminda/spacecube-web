@@ -57,15 +57,14 @@ export function FollowTasteButton({ handle, initialFollowing, loggedIn, size = "
     }
   }
 
-  const sizeClass = size === "lg" ? "h-12 px-7 text-[15px] min-w-[168px]" : "h-9 px-4 text-[13px]";
+  const sizeClass = size === "lg" ? "w-full sm:w-auto sm:min-w-[168px]" : "ed-btn-sm";
   return (
     <span className="inline-flex flex-col gap-1">
       <button
         type="button"
         onClick={toggle}
         aria-pressed={following}
-        className={`inline-flex items-center justify-center font-semibold whitespace-nowrap transition-colors ${sizeClass}`}
-        style={following ? { border: "1px solid var(--ed-fg)", color: "var(--ed-fg)", background: "var(--ed-bg)" } : { background: "var(--ed-fg)", color: "var(--ed-bg)", border: "1px solid var(--ed-fg)" }}
+        className={`ed-btn ${following ? "" : "ed-btn-primary"} ${sizeClass}`}
       >
         {following ? "따라가는 중 ✓" : "취향 따라가기"}
       </button>
@@ -95,7 +94,7 @@ export function ProfileFollowArea({ handle, path, name, followingCount, follower
   return (
     <>
       <RelationLine path={path} followingCount={followingCount} followerCount={base + (following ? 1 : 0)} common={common} />
-      <div className="pt-7 flex flex-wrap items-start gap-2">
+      <div className="pt-6 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-start">
         <FollowTasteButton handle={handle} initialFollowing={initialFollowing} loggedIn={loggedIn} onChange={setFollowing} />
         <ShareProfileButton path={path} name={name} />
       </div>
@@ -119,7 +118,7 @@ export function RelationLine({ path, followingCount, followerCount, common }: { 
  * 공유 — Web Share API가 있으면 시스템 공유, 없으면 주소 복사 후 "링크가 복사되었습니다."
  * 주소는 /@handle로 고정(닉네임이 바뀌어도 링크 유지).
  */
-export function ShareProfileButton({ path, name, label = "공유", variant = "outline" }: { path: string; name: string; label?: string; variant?: "outline" | "solid" }) {
+export function ShareProfileButton({ path, name, label = "공유", variant = "outline" }: { path: string; name: string; label?: string; variant?: "outline" | "solid" | "text" }) {
   const [copied, setCopied] = useState(false);
 
   async function share() {
@@ -142,34 +141,32 @@ export function ShareProfileButton({ path, name, label = "공유", variant = "ou
   }
 
   return (
-    <span className="inline-flex flex-col gap-1">
-      <button
-        type="button"
-        onClick={share}
-        className="inline-flex items-center justify-center h-12 px-6 text-[15px] font-semibold whitespace-nowrap"
-        style={variant === "solid" ? { background: "var(--ed-fg)", color: "var(--ed-bg)", border: "1px solid var(--ed-fg)" } : { border: "1px solid var(--ed-fg)", color: "var(--ed-fg)" }}
-      >
+    <span className={variant === "text" ? "inline-flex items-center gap-2" : "inline-flex flex-col gap-1"}>
+      <button type="button" onClick={share} className={variant === "text" ? TEXT_ACTION : variant === "solid" ? "ed-btn ed-btn-primary w-full sm:w-auto sm:min-w-[120px]" : "ed-btn w-full sm:w-auto sm:min-w-[120px]"}>
         {label}
       </button>
-      <span role="status" className="text-xs h-4" style={{ color: "var(--ed-dim)" }}>{copied ? "링크가 복사되었습니다." : ""}</span>
+      <span role="status" className="text-xs empty:hidden" style={{ color: "var(--ed-dim)" }}>{copied ? "링크가 복사되었습니다." : ""}</span>
     </span>
   );
 }
 
 /** 공유하려는데 아직 공개 프로필이 없을 때 — 무엇을 해야 하는지 바로 알려준다(설정 패널에서 켠다). */
-export function ShareNeedsProfileButton({ label }: { label: string }) {
+export function ShareNeedsProfileButton({ label, variant = "outline" }: { label: string; variant?: "outline" | "text" }) {
   const [shown, setShown] = useState(false);
   return (
     <span className="inline-flex flex-col gap-1">
-      <button type="button" onClick={() => setShown(true)} className="inline-flex items-center justify-center h-12 px-6 text-[15px] font-semibold whitespace-nowrap" style={{ border: "1px solid var(--ed-fg)", color: "var(--ed-fg)" }}>
+      <button type="button" onClick={() => setShown(true)} className={variant === "text" ? TEXT_ACTION : "ed-btn w-full sm:w-auto"}>
         {label}
       </button>
-      <span role="status" className="text-xs min-h-4 max-w-[260px]" style={{ color: "var(--ed-dim)" }}>
-        {shown ? "공유하려면 오른쪽 위 설정(⚙)에서 공개 프로필을 먼저 켜주세요. 공개한 공간만 보여요." : ""}
+      <span role="status" className="text-xs max-w-[280px] empty:hidden" style={{ color: "var(--ed-dim)" }}>
+        {shown ? "설정(⚙)에서 공개 프로필을 먼저 켜주세요. 공개한 공간만 보여요." : ""}
       </span>
     </span>
   );
 }
+
+/** 작은 행동(공유 · 프로필 보기) — 글자 링크 모양이지만 터치 영역은 40px */
+const TEXT_ACTION = "inline-flex items-center min-h-10 text-[13px] font-semibold underline underline-offset-4 whitespace-nowrap";
 
 interface ToggleState {
   public: boolean;

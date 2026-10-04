@@ -18,7 +18,7 @@ export default function TabLinks({ tabs, active, label }: { tabs: Tab[]; active:
               <Link
                 href={t.href}
                 aria-current={on ? "page" : undefined}
-                className="inline-block py-3 text-xs md:text-sm tracking-[0.12em] font-semibold transition-opacity"
+                className="inline-flex items-center min-h-11 py-2 text-xs md:text-sm tracking-[0.12em] font-semibold transition-opacity"
                 style={{ opacity: on ? 1 : 0.45, borderBottom: on ? "1.5px solid var(--ed-fg)" : "1.5px solid transparent" }}
               >
                 {t.label}

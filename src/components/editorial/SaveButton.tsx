@@ -29,8 +29,10 @@ export default function SaveButton({ spaceId, spaceName, initialSaved, loggedIn,
     // 카드 전체가 링크인 곳에서도 상세로 이동하지 않게 한다.
     e.preventDefault();
     e.stopPropagation();
+    // 로그인 후 돌아올 곳은 검색어·지역까지 포함한 지금 주소(/find?area=망원 → 로그인 → 같은 화면)
+    const here = `${pathname}${window.location.search}`;
     if (!loggedIn) {
-      router.push(`/login?callbackUrl=${encodeURIComponent(pathname)}`);
+      router.push(`/login?callbackUrl=${encodeURIComponent(here)}`);
       return;
     }
     if (inFlight.current) return;
@@ -42,7 +44,7 @@ export default function SaveButton({ spaceId, spaceName, initialSaved, loggedIn,
       const res = await fetch(`/api/saves/spaces/${spaceId}`, { method: prev ? "DELETE" : "POST" });
       if (res.status === 401) {
         setSaved(prev);
-        router.push(`/login?callbackUrl=${encodeURIComponent(pathname)}`);
+        router.push(`/login?callbackUrl=${encodeURIComponent(here)}`);
         return;
       }
       const data = (await res.json().catch(() => ({}))) as { saved?: boolean };

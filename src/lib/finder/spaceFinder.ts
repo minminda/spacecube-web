@@ -171,5 +171,24 @@ export function rankCandidates<C extends FinderCandidate>(cands: C[], profile: T
 /** 추천 이유 — 실제로 겹치는 특징이 있을 때만, 태그를 나열하지 않고 한 문장으로(취향은 숫자·태그로 설명하지 않는다). */
 export function personalReason(matched: string[]): string | null {
   if (matched.length === 0) return null;
-  return "저장하고 다녀온 공간들과 비슷한 결이에요";
+  return "내 공간들과 비슷한 결";
+}
+
+/**
+ * 추천 카드의 이유 한 줄 — 하나만 고른다: 다녀온 곳 > 내 취향과 겹침 > 공간큐브 큐레이션 > 큐레이터 컬렉션.
+ * 카드에는 태그·유형을 나열하지 않는다(상세에서). 근거가 없으면 null(빈 문장을 만들지 않는다).
+ */
+export function cardReason(input: {
+  visited: boolean;
+  personalized: boolean;
+  matched: string[];
+  curationTitle?: string | null;
+  collection?: { curator: string; title: string } | null;
+}): string | null {
+  if (input.visited) return "다녀온 공간";
+  const personal = input.personalized ? personalReason(input.matched) : null;
+  if (personal) return personal;
+  if (input.curationTitle) return `큐레이션 ‘${input.curationTitle}’`;
+  if (input.collection) return `${input.collection.curator}의 ‘${input.collection.title}’`;
+  return null;
 }

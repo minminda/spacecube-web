@@ -39,7 +39,7 @@ function suggestHref(q: string) {
  *    나만 보는 개인 기록이며 공용 공간이 아니다.
  * C. "공간 제안하기" — 공용 공간 검토 요청(기존 제안 메일). 직접 등록 폼 아래 작은 링크로만.
  */
-export default function ArchiveAddSheet() {
+export default function ArchiveAddSheet({ className = "ed-btn ed-btn-primary" }: { className?: string }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
@@ -215,8 +215,7 @@ export default function ArchiveAddSheet() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="tap-target inline-flex items-center gap-2 px-5 text-sm font-semibold"
-        style={{ background: "var(--ed-fg)", color: "var(--ed-bg)" }}
+        className={className}
       >
         <span aria-hidden className="text-lg leading-none">+</span> 공간 추가
       </button>
@@ -253,14 +252,14 @@ export default function ArchiveAddSheet() {
                     autoComplete="off"
                   />
                   {/* 검색과 함께 처음부터 보이는 두 번째 방법(보조 버튼) */}
-                  <button type="button" onClick={startDirect} className="w-full h-11 text-sm font-semibold" style={{ border: "1px solid var(--ed-line)" }}>
+                  <button type="button" onClick={startDirect} className="ed-btn ed-btn-sm w-full">
                     직접 등록하기
                   </button>
                 </>
               )}
             </div>
 
-            <div className="px-5 py-4 flex-1">
+            <div className="px-5 pt-4 flex-1">
               {/* ── 1. 검색 결과 ── */}
               {!picked && !direct && (
                 <>
@@ -345,11 +344,14 @@ export default function ArchiveAddSheet() {
                       <input value={memo} maxLength={200} onChange={(e) => setMemo(e.target.value)} placeholder={choice === "VISITED" ? "이 공간이 좋았던 이유" : "가보고 싶은 이유"} className={inputCls} style={inputStyle} />
                     </label>
                   )}
-                  {error && <p className="text-sm" style={{ color: "#a1271b" }} role="alert">{error}</p>}
-                  <button type="button" disabled={!choice || !directName.trim() || !!busy} onClick={save} className="w-full h-12 text-base font-semibold disabled:opacity-40" style={{ background: "var(--ed-fg)", color: "var(--ed-bg)" }}>
-                    {busy ?? "저장"}
-                  </button>
-                  <a href={suggestHref(directName.trim() || q.trim())} className="block text-center text-xs underline underline-offset-4" style={{ color: "var(--ed-dim)" }}>공간 제안하기</a>
+                  <a href={suggestHref(directName.trim() || q.trim())} className="inline-block text-xs underline underline-offset-4" style={{ color: "var(--ed-dim)" }}>공간 제안하기</a>
+                  {/* 저장은 화면 아래에 붙어 있다 — 키보드가 올라오거나 사진이 늘어도 사라지지 않게 */}
+                  <div className="sticky bottom-0 -mx-5 px-5 py-3 space-y-2" style={{ background: "var(--ed-bg)", borderTop: "1px solid var(--ed-line)" }}>
+                    {error && <p className="text-sm" style={{ color: "#a1271b" }} role="alert">{error}</p>}
+                    <button type="button" disabled={!choice || !directName.trim() || !!busy} onClick={save} className="ed-btn ed-btn-primary w-full">
+                      {busy ?? "저장"}
+                    </button>
+                  </div>
                 </div>
               )}
 
@@ -417,10 +419,12 @@ export default function ArchiveAddSheet() {
                     </label>
                   )}
 
-                  {error && <p className="text-sm" style={{ color: "#a1271b" }} role="alert">{error}</p>}
-                  <button type="button" disabled={!choice || !!busy} onClick={save} className="w-full h-12 text-base font-semibold disabled:opacity-40" style={{ background: "var(--ed-fg)", color: "var(--ed-bg)" }}>
-                    {busy ?? "저장"}
-                  </button>
+                  <div className="sticky bottom-0 -mx-5 px-5 py-3 space-y-2" style={{ background: "var(--ed-bg)", borderTop: "1px solid var(--ed-line)" }}>
+                    {error && <p className="text-sm" style={{ color: "#a1271b" }} role="alert">{error}</p>}
+                    <button type="button" disabled={!choice || !!busy} onClick={save} className="ed-btn ed-btn-primary w-full">
+                      {busy ?? "저장"}
+                    </button>
+                  </div>
                 </div>
               )}
             </div>

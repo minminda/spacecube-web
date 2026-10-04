@@ -2,7 +2,7 @@ import Link from "next/link";
 import EdImage from "./EdImage";
 import SpaceCard from "./SpaceCard";
 import BlockRenderer, { type SaveState } from "./BlockRenderer";
-import StoryList from "./StoryList";
+import StoryCard, { INDEX_GRID_CLASS, INDEX_GRID_SIZES } from "./StoryCard";
 import type { EditorialBlock, LinkedSpace, ResolvedImage, SpaceView, StoryItem } from "@/lib/editorial/types";
 
 interface Props {
@@ -54,11 +54,13 @@ export default function StoryArticle(p: Props) {
       {!bodyHasSpaceCards && p.spaces.length > 0 && (
         <section className="ed-container py-16 md:pb-20" style={{ borderTop: "1px solid var(--ed-line)" }}>
           <p className="ed-label pb-8" style={{ color: "var(--ed-dim)" }}>{p.spacesLabel}</p>
-          <div className="grid gap-10 grid-cols-1 md:grid-cols-3">
+          <div className="grid gap-y-10 md:grid-cols-3 md:gap-x-8">
             {p.spaces.map((l) => (
               <SpaceCard
                 key={l.space.id}
                 space={l.space}
+                mobileRatio="3 / 2"
+                sizes="(min-width: 768px) 33vw, 100vw"
                 note={l.note}
                 showSummary={!l.note}
                 save={{ saved: p.saveState.savedIds.has(l.space.id), loggedIn: p.saveState.loggedIn }}
@@ -75,7 +77,11 @@ export default function StoryArticle(p: Props) {
               <p className="ed-label" style={{ color: "var(--ed-dim)" }}>다른 이야기</p>
               <Link href="/story" className="text-xs hover:underline underline-offset-4">STORY 전체 →</Link>
             </div>
-            <StoryList items={p.related} lead={false} />
+            <div className={INDEX_GRID_CLASS}>
+              {p.related.map((r) => (
+                <StoryCard key={r.key} href={r.href} image={r.cover} eyebrow={r.eyebrow} title={r.title} line={r.summary} ratio="4 / 5" sizes={INDEX_GRID_SIZES} />
+              ))}
+            </div>
           </div>
         </section>
       )}

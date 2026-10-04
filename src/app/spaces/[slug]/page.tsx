@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import PartnerMark from "@/components/editorial/PartnerMark";
 import EdImage from "@/components/editorial/EdImage";
 import SpaceCard from "@/components/editorial/SpaceCard";
+import { SPACE_GRID_CLASS } from "@/components/editorial/SpaceTile";
 import SiteFooter from "@/components/editorial/SiteFooter";
 import SaveButton from "@/components/editorial/SaveButton";
 import BlockRenderer from "@/components/editorial/BlockRenderer";
@@ -240,9 +241,9 @@ export default async function SpaceDetailPage({ params }: Props) {
           <section style={{ background: "var(--ed-soft)" }}>
             <div className="ed-container py-14 md:py-20">
               <p className="ed-label pb-8" style={{ color: "var(--ed-dim)" }}>{area ?? space.area}의 다른 공간</p>
-              <div className="grid grid-cols-2 gap-x-4 gap-y-10 md:grid-cols-3 md:gap-x-10">
+              <div className={SPACE_GRID_CLASS}>
                 {nearby.map((s) => (
-                  <SpaceCard key={s.slug} space={s} sizes="(min-width: 768px) 33vw, 50vw" save={{ saved: savedIds.has(s.id), loggedIn: viewer.loggedIn }} />
+                  <SpaceCard key={s.slug} space={s} save={{ saved: savedIds.has(s.id), loggedIn: viewer.loggedIn }} />
                 ))}
               </div>
             </div>

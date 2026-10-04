@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getEditorialViewer } from "@/lib/editorial/viewer";
-import { normalizeArea } from "@/lib/editorial/area";
+import { recommendRedirectTarget } from "@/lib/finder/recommendRedirect";
 
 interface Props {
   searchParams: Promise<{ area?: string; pa?: string }>;
@@ -13,7 +13,5 @@ interface Props {
  */
 export default async function RecommendRedirect({ searchParams }: Props) {
   const [viewer, sp] = await Promise.all([getEditorialViewer(), searchParams]);
-  if (!viewer.editorial) redirect(viewer.loggedIn ? "/archive/taste" : "/");
-  const area = normalizeArea(sp.area ?? sp.pa);
-  redirect(area ? `/find?area=${encodeURIComponent(area)}` : "/find");
+  redirect(recommendRedirectTarget(viewer, sp));
 }

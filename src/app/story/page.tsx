@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import PageHeader from "@/components/editorial/PageHeader";
 import SiteFooter from "@/components/editorial/SiteFooter";
-import StoryList from "@/components/editorial/StoryList";
+import StoryCard, { INDEX_GRID_CLASS, INDEX_GRID_SIZES } from "@/components/editorial/StoryCard";
 import TabLinks from "@/components/editorial/TabLinks";
 import { getEditorialViewer } from "@/lib/editorial/viewer";
 import { listStoryItems } from "@/lib/editorial/queries";
@@ -18,9 +18,9 @@ interface Props {
 }
 
 /**
- * STORY 허브 — PEOPLE(공간으로 한 사람을 알아가는 이야기)과 THOUGHT(장면에서 시작한 생각)를 함께 본다.
+ * STORY 허브 — PEOPLE(공간으로 한 사람을 알아가는 이야기)과 THOUGHT(장면에서 시작한 생각)를 함께 보는 매거진 인덱스.
+ * 카드 = 대표 이미지 · 라벨 · 제목 · 한 줄(StoryCard, 홈 미리보기와 같은 카드). 휴대폰 1열 · 태블릿 2열 · 데스크톱 3열.
  * SPACE는 STORY에 넣지 않는다(공간 발견은 CURATION, 파트너 공간은 함께한 공간).
- * 이전 /story/[slug](레거시 ContentStory)는 그대로 두고 이 목록에는 섞지 않는다.
  */
 export default async function StoryHubPage({ searchParams }: Props) {
   const [viewer, { type: typeRaw }] = await Promise.all([getEditorialViewer(), searchParams]);
@@ -40,19 +40,20 @@ export default async function StoryHubPage({ searchParams }: Props) {
     <div className="editorial-bleed">
       <main className="pb-20 md:pb-28">
         <PageHeader label="Story" title="STORY" description="공간을 통해 사람과 생각을 기록합니다." />
-        <div className="ed-container pt-6 md:pt-8" style={{ borderBottom: "1px solid var(--ed-line)" }}>
+        <div className="ed-container" style={{ borderBottom: "1px solid var(--ed-line)" }}>
           <TabLinks tabs={tabs} active={type ?? "all"} label="STORY 유형" />
         </div>
-        {type && (
-          <p className="ed-container pt-6 text-sm leading-relaxed" style={{ color: "var(--ed-dim)" }}>{STORY_TYPE_LABEL[type].description}</p>
-        )}
-        <section className="ed-container pt-10 md:pt-14">
+        <section className="ed-container pt-8 md:pt-12">
           {items.length === 0 ? (
             <p className="text-base py-10" style={{ color: "var(--ed-dim)" }}>
               {type ? `첫 번째 ${STORY_TYPE_LABEL[type].en} 이야기를 준비하고 있습니다.` : "첫 번째 이야기를 준비하고 있습니다."}
             </p>
           ) : (
-            <StoryList items={items} />
+            <div className={INDEX_GRID_CLASS}>
+              {items.map((s, i) => (
+                <StoryCard key={s.key} href={s.href} image={s.cover} eyebrow={s.eyebrow} title={s.title} line={s.summary} ratio="4 / 5" sizes={INDEX_GRID_SIZES} priority={i < 2} />
+              ))}
+            </div>
           )}
         </section>
       </main>

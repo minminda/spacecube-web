@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import type { Metadata } from "next";
+import PageHeader from "@/components/editorial/PageHeader";
 import SiteFooter from "@/components/editorial/SiteFooter";
 import PersonCard from "@/components/profile/PersonCard";
 import { getEditorialViewer } from "@/lib/editorial/viewer";
@@ -28,23 +29,20 @@ export default async function PeopleSearchPage({ searchParams }: Props) {
   return (
     <div className="editorial-bleed">
       <main className="pb-24 md:pb-32">
-        <div className="ed-container pt-8 md:pt-12">
-          <Link href="/archive" className="text-xs hover:underline underline-offset-4" style={{ color: "var(--ed-dim)" }}>← 내 아카이브</Link>
+        <div className="ed-container pt-5 md:pt-8">
+          <Link href="/archive" className="inline-flex items-center min-h-10 text-xs hover:underline underline-offset-4" style={{ color: "var(--ed-dim)" }}>← 내 아카이브</Link>
         </div>
-        <header className="ed-container pt-6 pb-8">
-          <p className="ed-label" style={{ color: "var(--ed-dim)" }}>People</p>
-          <h1 className="pt-3 text-[32px] md:text-[48px] font-bold leading-none tracking-[-0.04em]">사람 찾기</h1>
-          <p className="pt-3 text-sm leading-relaxed break-keep" style={{ color: "var(--ed-dim)" }}>친구의 닉네임이나 프로필 주소로 찾아보세요. 공개 프로필만 보여요.</p>
+        <PageHeader label="People" title="사람 찾기" description="공개 프로필만 검색돼요.">
           <form method="get" action="/archive/people" role="search" className="pt-6 flex gap-2 max-w-[520px]">
-            <input name="q" defaultValue={sp.q ?? ""} placeholder="닉네임 또는 @주소" aria-label="사람 찾기" autoComplete="off" className="flex-1 min-w-0 h-12 px-4 text-base outline-none" style={{ border: "1px solid var(--ed-fg)" }} />
-            <button type="submit" className="h-12 px-6 text-sm font-semibold shrink-0" style={{ background: "var(--ed-fg)", color: "var(--ed-bg)" }}>찾기</button>
+            <input name="q" type="search" defaultValue={sp.q ?? ""} placeholder="닉네임 검색" aria-label="닉네임 또는 @주소로 사람 찾기" autoComplete="off" className="flex-1 min-w-0 h-12 px-4 text-base outline-none" style={{ border: "1px solid var(--ed-fg)" }} />
+            <button type="submit" className="ed-btn ed-btn-primary shrink-0">찾기</button>
           </form>
-        </header>
+        </PageHeader>
 
         <section className="ed-container" style={{ borderTop: "1px solid var(--ed-fg)" }}>
           {!result ? (
             <p className="py-10 text-sm" style={{ color: "var(--ed-dim)" }}>
-              {sp.q && !q ? "두 글자 이상 입력해주세요." : "공유받은 링크로도 바로 프로필을 볼 수 있어요."}{" "}
+              {sp.q && !q ? <>두 글자 이상 입력해주세요. </> : null}
               <Link href="/archive/following" className="underline underline-offset-4">따라가는 취향 보기</Link>
             </p>
           ) : result.people.length === 0 ? (

@@ -213,7 +213,7 @@ export default async function ArchiveTastePage() {
         <>
           <Divider className="my-8" />
           <section className="mb-10">
-            <SectionLabel>// 내 취향과 비슷한 공간 TOP 3</SectionLabel>
+            <SectionLabel>{"// 내 취향과 비슷한 공간 TOP 3"}</SectionLabel>
             {ENABLE_RECOMMENDATION_PLAYLIST_UI && playlistCards.length > 0 ? (
               <div className="space-y-4">
                 <p className="text-xs -mt-3" style={{ color: "var(--dim)" }}>
@@ -256,7 +256,7 @@ export default async function ArchiveTastePage() {
             <>
               <Divider className="my-8" />
               <section className="mb-10">
-                <SectionLabel>// 내 취향과 닮은 사람</SectionLabel>
+                <SectionLabel>{"// 내 취향과 닮은 사람"}</SectionLabel>
                 <p className="text-xs -mt-3 mb-5" style={{ color: "var(--dim)" }}>
                   비슷한 공간에 머문 사람들의 취향입니다
                 </p>

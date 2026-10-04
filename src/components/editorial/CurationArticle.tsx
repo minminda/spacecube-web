@@ -65,9 +65,9 @@ export default function CurationArticle(p: Props) {
       {!bodyHasSpaceCards && p.spaces.length > 0 && (
         <section className="ed-container py-16 md:pb-20" style={{ borderTop: "1px solid var(--ed-line)" }}>
           <p className="ed-label pb-8" style={{ color: "var(--ed-dim)" }}>선정된 공간</p>
-          <div className="grid gap-10 grid-cols-1 md:grid-cols-3">
+          <div className="grid gap-y-10 md:grid-cols-3 md:gap-x-8">
             {p.spaces.map((l) => (
-              <SpaceCard key={l.space.id} space={l.space} note={l.note} showSummary={!l.note} save={{ saved: p.saveState.savedIds.has(l.space.id), loggedIn: p.saveState.loggedIn }} />
+              <SpaceCard key={l.space.id} space={l.space} mobileRatio="3 / 2" sizes="(min-width: 768px) 33vw, 100vw" note={l.note} showSummary={!l.note} save={{ saved: p.saveState.savedIds.has(l.space.id), loggedIn: p.saveState.loggedIn }} />
             ))}
           </div>
         </section>

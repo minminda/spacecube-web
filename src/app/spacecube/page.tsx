@@ -4,6 +4,8 @@ import type { Metadata } from "next";
 import EdImage from "@/components/editorial/EdImage";
 import CurationCard from "@/components/editorial/CurationCard";
 import SpaceCard from "@/components/editorial/SpaceCard";
+import { SPACE_GRID_CLASS } from "@/components/editorial/SpaceTile";
+import { INDEX_GRID_CLASS } from "@/components/editorial/StoryCard";
 import SiteFooter from "@/components/editorial/SiteFooter";
 import { getEditorialViewer } from "@/lib/editorial/viewer";
 import { listCubeSpaces, listCurations, listStoryItems } from "@/lib/editorial/queries";
@@ -98,8 +100,8 @@ export default async function SpaceCubeBrandHubPage() {
             {curationPreview.length === 0 ? (
               <Empty text="첫 번째 큐레이션을 준비하고 있습니다." />
             ) : (
-              <div className="grid gap-10 md:grid-cols-3 md:gap-8">
-                {curationPreview.map((c) => <CurationCard key={c.id} c={c} ratio="1 / 1" />)}
+              <div className={INDEX_GRID_CLASS}>
+                {curationPreview.map((c) => <CurationCard key={c.id} c={c} />)}
               </div>
             )}
           </div>
@@ -112,9 +114,9 @@ export default async function SpaceCubeBrandHubPage() {
             {cubePreview.length === 0 ? (
               <Empty text="함께한 공간을 준비하고 있습니다." />
             ) : (
-              <div className="grid grid-cols-2 gap-x-4 gap-y-10 md:grid-cols-4 md:gap-x-6">
+              <div className={SPACE_GRID_CLASS}>
                 {cubePreview.map((s) => (
-                  <SpaceCard key={s.id} space={s} sizes="(min-width: 768px) 25vw, 50vw" save={{ saved: savedIds.has(s.id), loggedIn: viewer.loggedIn }} />
+                  <SpaceCard key={s.id} space={s} save={{ saved: savedIds.has(s.id), loggedIn: viewer.loggedIn }} />
                 ))}
               </div>
             )}
