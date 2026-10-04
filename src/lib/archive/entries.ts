@@ -4,7 +4,8 @@
    상태를 바꿔도 지우지 않는다: 저장 → 다녀왔어요(방문 1건 추가) → 또 갔어요(방문 추가). ── */
 
 import { prisma } from "@/lib/prisma";
-import { compactName, linkMatchesSpace, parseHttpUrl, placeKey, detectSourceKind, type SourceKind } from "./source";
+import { parseHttpUrl, placeKey, detectSourceKind, type SourceKind } from "./source";
+import { addressHint, myStateOf, searchSpaces, type MyState } from "./spaceSearch";
 import type { CreateEntryInput, PatchEntryInput, PhotoInput, VisitInput } from "./input";
 
 /** 아카이브에서 고를 수 있는 공통 취향 태그 — 기존 활성 태그 중 "공간 유형"이 아닌 것(분위기 태그). */
@@ -17,43 +18,51 @@ export async function getArchiveTagOptions(): Promise<string[]> {
   return [...new Set(rows.map((r) => r.name))];
 }
 
-export interface SpaceMatch {
+export interface SpaceSearchResult {
   id: string;
   slug: string;
   name: string;
   area: string;
   category: string;
   coverImage: string | null;
-  matchedBy: "link" | "name";
+  addressHint: string | null;
+  /** 내가 이미 담은 공간인지 — 중복 기록 대신 "이미 저장한 공간이에요"로 이어 가기 위한 상태 */
+  mine: MyState;
 }
 
 /**
- * 공간큐브에 이미 있는 공간 찾기 — 붙여넣은 링크가 공간의 지도·인스타·웹 주소와 같거나(네이버 플레이스 번호 포함),
- * 이름이 비슷하면 후보로. 발행된 공간만(가상 공간은 미리보기 권한일 때만). 외부 페이지는 읽지 않는다.
+ * 공간 추가 검색 — 공간큐브에 등록된 canonical 공간(발행, 가상 공간은 미리보기 권한일 때만)에서 이름·지역·주소·유형으로.
+ * 검색어로 새 공간을 만들지 않는다. 결과마다 내 상태(저장·다녀옴·방문 수·메모)를 함께 돌려준다.
  */
-export async function findSpaceMatches(q: string, url: string | null, opts: { includeDemo: boolean }): Promise<{ kind: SourceKind | null; matches: SpaceMatch[] }> {
-  const pasted = parseHttpUrl(url);
+export async function searchArchiveSpaces(userId: string, q: string, opts: { includeDemo: boolean }): Promise<SpaceSearchResult[]> {
   const rows = await prisma.editorialSpace.findMany({
     where: { status: "PUBLISHED", ...(opts.includeDemo ? {} : { isDemo: false }) },
-    select: { id: true, slug: true, name: true, area: true, category: true, coverImage: true, mapUrl: true, instagram: true, website: true },
+    select: { id: true, slug: true, name: true, area: true, category: true, address: true, coverImage: true },
   });
-  const out: SpaceMatch[] = [];
-  if (pasted) {
-    for (const r of rows) if (linkMatchesSpace(pasted, [r.mapUrl, r.instagram, r.website])) out.push({ ...pick(r), matchedBy: "link" });
-  }
-  const needle = compactName(q);
-  if (needle.length >= 1) {
-    for (const r of rows) {
-      if (out.some((o) => o.id === r.id)) continue;
-      const hay = compactName(r.name);
-      if (hay.includes(needle) || (needle.length >= 2 && needle.includes(hay))) out.push({ ...pick(r), matchedBy: "name" });
-    }
-  }
-  return { kind: pasted ? detectSourceKind(pasted) : null, matches: out.slice(0, 5) };
-}
-
-function pick(r: { id: string; slug: string; name: string; area: string; category: string; coverImage: string | null }) {
-  return { id: r.id, slug: r.slug, name: r.name, area: r.area, category: r.category, coverImage: r.coverImage };
+  const hits = searchSpaces(rows, q);
+  if (hits.length === 0) return [];
+  const ids = hits.map((h) => h.id);
+  const [entries, saves, cube] = await Promise.all([
+    prisma.archiveEntry.findMany({ where: { userId, spaceId: { in: ids } }, select: { id: true, spaceId: true, status: true, memo: true, _count: { select: { visits: true } } } }),
+    prisma.savedEditorialSpace.findMany({ where: { userId, spaceId: { in: ids } }, select: { spaceId: true } }),
+    // Cube 방문(운영 Record)은 같은 slug의 운영 공간으로 잇는다(기존 아카이브 합치기와 같은 기준)
+    prisma.record.groupBy({ by: ["spaceId"], where: { userId, space: { slug: { in: hits.map((h) => h.slug) } } }, _count: { _all: true } }),
+  ]);
+  const opSlugs = cube.length
+    ? new Map((await prisma.space.findMany({ where: { id: { in: cube.map((c) => c.spaceId) } }, select: { id: true, slug: true } })).map((s) => [s.slug, s.id]))
+    : new Map<string, string>();
+  return hits.map((h) => {
+    const e = entries.find((x) => x.spaceId === h.id) ?? null;
+    const opId = opSlugs.get(h.slug);
+    return {
+      id: h.id, slug: h.slug, name: h.name, area: h.area, category: h.category, coverImage: h.coverImage, addressHint: addressHint(h.address),
+      mine: myStateOf({
+        entry: e ? { id: e.id, status: e.status, memo: e.memo, visits: e._count.visits } : null,
+        saved: saves.some((x) => x.spaceId === h.id),
+        cubeVisits: opId ? cube.find((c) => c.spaceId === opId)?._count._all ?? 0 : 0,
+      }),
+    };
+  });
 }
 
 function sourceKindOf(input: CreateEntryInput): "PHOTO" | SourceKind | "MANUAL" {
@@ -73,7 +82,9 @@ export class ArchiveError extends Error {
 }
 
 /**
- * 공간 추가. 연결 공간이 있고 이미 내 기록이 있으면 그 기록에 덧붙인다(merged=true).
+ * 공간 추가. 새 기록은 반드시 canonical 공간(spaceId)에 연결된다(공간 추가 화면은 검색으로 고른 공간만 보낸다 — API에서도 강제).
+ * 이미 내 기록이 있으면 새 기록을 만들지 않고 그 기록에 덧붙인다(merged=true).
+ * 연결 없는 개인 기록(spaceId=null)은 예전 V1에서 만든 것만 남아 있고 계속 읽고 고칠 수 있다.
  * "가보고 싶어요"로 공개 공간을 추가하면 공개 저장(SavedEditorialSpace)도 함께 남겨 다른 화면의 저장 표시와 맞춘다.
  */
 export async function createOrMergeEntry(userId: string, input: CreateEntryInput, opts: { includeDemo: boolean }): Promise<{ id: string; merged: boolean; visitId: string | null }> {

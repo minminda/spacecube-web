@@ -15,7 +15,6 @@ import { getUserDiscoveryContext } from "@/lib/discoverySignals";
 import { buildTasteProfile, topAttributes } from "@/lib/discoveryRecommend";
 import { formatDotDate } from "@/lib/time";
 import { normalizeArea } from "@/lib/editorial/area";
-import { getArchiveTagOptions } from "@/lib/archive/entries";
 import { filterLibrary, getLibrary, libraryHref, parseLibraryFilter, type LibraryFilter, type LibraryItem } from "@/lib/archive/library";
 import { curatorAccess } from "@/lib/curators/access";
 import { getViewerCuratorContext } from "@/lib/curators/viewerTaste";
@@ -93,7 +92,7 @@ export default async function ArchivePage({ searchParams }: Props) {
     ? await prisma.notification.count({ where: { receiverId: user.id, isRead: false } })
     : 0;
 
-  const [library, guestbookNotes, discovery, tagOptions, curatorCtx, profileSpaces, followingCount, followerCount] = await Promise.all([
+  const [library, guestbookNotes, discovery, curatorCtx, profileSpaces, followingCount, followerCount] = await Promise.all([
     getLibrary(user.id, { includeDemo }),
     prisma.guestbookNote.findMany({
       where: { userId: user.id, deletedAt: null },
@@ -102,7 +101,6 @@ export default async function ArchivePage({ searchParams }: Props) {
       select: { id: true, content: true, createdAt: true, space: { select: { slug: true, name: true } }, session: { select: { id: true, status: true } } },
     }),
     getUserDiscoveryContext(user.id, { includeDemo: access.includeDemo }),
-    getArchiveTagOptions(),
     access.enabled ? getViewerCuratorContext(user.id, access) : Promise.resolve(null),
     // 공개 취향 프로필 — 내가 공개로 고른 공간(칸에 "공개" 표시)과 따라가는 취향 수(새 정보구조를 볼 때만)
     editorial ? prisma.profileSpace.findMany({ where: { userId: user.id }, select: { space: { select: { slug: true } } } }) : Promise.resolve([]),
@@ -143,7 +141,7 @@ export default async function ArchivePage({ searchParams }: Props) {
               <h1 className="pt-3 text-[40px] md:text-[64px] font-bold leading-none tracking-[-0.04em]">내 아카이브</h1>
               <p className="pt-3 text-base md:text-lg leading-relaxed" style={{ color: "var(--ed-dim)" }}>내가 발견하고 머물렀던 공간들. 나만 보는 기록이에요.</p>
             </div>
-            <ArchiveAddSheet tagOptions={tagOptions} />
+            <ArchiveAddSheet />
           </div>
           {editorial && (
             // 사람과의 연결 — 아카이브(나의 기록)에서 공개 프로필(다른 사람이 보는 나의 공간)로 나가는 입구.
@@ -218,7 +216,7 @@ export default async function ArchivePage({ searchParams }: Props) {
             <div className="py-14 max-w-[560px] space-y-2">
               <p className="text-lg font-bold">아직 아카이브가 비어 있어요.</p>
               <p className="text-sm leading-relaxed" style={{ color: "var(--ed-dim)" }}>
-                좋았던 공간의 사진 한 장, 인스타그램이나 네이버 지도에서 본 공간의 링크 하나면 시작할 수 있어요.
+                “공간 추가”에서 공간을 검색해 고르고, 가보고 싶은지 다녀왔는지만 남기면 시작할 수 있어요.
                 Cube가 있는 공간에 다녀오면 그 기록도 여기에 쌓여요.
               </p>
             </div>
