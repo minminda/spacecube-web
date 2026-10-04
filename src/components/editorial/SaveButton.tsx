@@ -9,8 +9,8 @@ interface Props {
   spaceName: string;
   initialSaved: boolean;
   loggedIn: boolean;
-  /** icon: 카드 위 작은 아이콘 / text: 상세 페이지 버튼 */
-  variant?: "icon" | "text";
+  /** icon: 글 옆 작은 아이콘 / corner: 카드 사진 모서리 아이콘 / text: 상세 페이지 버튼 */
+  variant?: "icon" | "corner" | "text";
 }
 
 /**
@@ -60,7 +60,7 @@ export default function SaveButton({ spaceId, spaceName, initialSaved, loggedIn,
 
   const label = saved ? `${spaceName} 저장 해제` : `${spaceName} 저장`;
   const icon = (
-    <svg viewBox="0 0 24 24" width={variant === "icon" ? 18 : 16} height={variant === "icon" ? 18 : 16} aria-hidden>
+    <svg viewBox="0 0 24 24" width={variant === "icon" ? 18 : variant === "corner" ? 14 : 16} height={variant === "icon" ? 18 : variant === "corner" ? 14 : 16} aria-hidden>
       <path d="M6 3.75h12v16.5l-6-4.2-6 4.2z" fill={saved ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
     </svg>
   );
@@ -81,6 +81,24 @@ export default function SaveButton({ spaceId, spaceName, initialSaved, loggedIn,
         </button>
         <span aria-live="polite" className="text-xs" style={{ color: "var(--ed-dim)" }}>{error ? "저장하지 못했어요. 잠시 후 다시 시도해주세요." : ""}</span>
       </span>
+    );
+  }
+
+  if (variant === "corner") {
+    // 사진 모서리 — 보이는 칸은 24px(사진을 거의 가리지 않음), 누르는 영역은 40px
+    return (
+      <button
+        type="button"
+        onClick={toggle}
+        aria-pressed={saved}
+        aria-label={label}
+        title={error ? "저장하지 못했어요. 다시 시도해주세요." : label}
+        className="w-10 h-10 flex items-start justify-end p-1"
+      >
+        <span className="w-6 h-6 inline-flex items-center justify-center" style={{ background: "rgba(255,255,255,0.92)", color: error ? "#a1271b" : "#111" }}>
+          {icon}
+        </span>
+      </button>
     );
   }
 

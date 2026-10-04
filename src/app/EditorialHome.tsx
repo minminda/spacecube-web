@@ -1,7 +1,8 @@
 import Link from "next/link";
 import SiteFooter from "@/components/editorial/SiteFooter";
 import LatestSlider from "@/components/editorial/LatestSlider";
-import StoryCard from "@/components/editorial/StoryCard";
+import StoryCard, { INDEX_GRID_CLASS, INDEX_GRID_SIZES } from "@/components/editorial/StoryCard";
+import { SPACE_GRID_CLASS } from "@/components/editorial/SpaceTile";
 import CurationCard from "@/components/editorial/CurationCard";
 import SpaceCard from "@/components/editorial/SpaceCard";
 import { listContentStream, listCubeSpaces, listCurations, listStoryItems } from "@/lib/editorial/queries";
@@ -88,11 +89,9 @@ export default async function EditorialHome({ admin, previewDrafts, userId }: { 
             {curationPreview.length === 0 ? (
               <p className="py-4 text-sm" style={{ color: "var(--ed-dim)" }}>첫 번째 큐레이션을 준비하고 있습니다.</p>
             ) : (
-              <ul className="ed-scroll-x -mx-5 px-5 scroll-px-5 md:mx-0 md:px-0 md:scroll-px-0 flex md:grid md:grid-cols-3 gap-4 md:gap-8 overflow-x-auto snap-x snap-mandatory">
+              <ul className={INDEX_GRID_CLASS}>
                 {curationPreview.map((c) => (
-                  <li key={c.id} className="snap-start shrink-0 w-[78%] md:w-auto">
-                    <CurationCard c={c} ratio="1 / 1" sizes="(min-width: 768px) 33vw, 78vw" />
-                  </li>
+                  <li key={c.id} className="min-w-0"><CurationCard c={c} /></li>
                 ))}
               </ul>
             )}
@@ -106,10 +105,10 @@ export default async function EditorialHome({ admin, previewDrafts, userId }: { 
             {storyPreview.length === 0 ? (
               <p className="py-4 text-sm" style={{ color: "var(--ed-dim)" }}>첫 번째 이야기를 준비하고 있습니다.</p>
             ) : (
-              <ul className="ed-scroll-x -mx-5 px-5 scroll-px-5 md:mx-0 md:px-0 md:scroll-px-0 flex md:grid md:grid-cols-3 gap-4 md:gap-8 overflow-x-auto snap-x snap-mandatory">
+              <ul className={INDEX_GRID_CLASS}>
                 {storyPreview.map((s) => (
-                  <li key={s.key} className="snap-start shrink-0 w-[78%] md:w-auto">
-                    <StoryCard href={s.href} image={s.cover} eyebrow={s.eyebrow} title={s.title} line={s.summary} ratio="4 / 5" sizes="(min-width: 768px) 33vw, 78vw" />
+                  <li key={s.key} className="min-w-0">
+                    <StoryCard href={s.href} image={s.cover} eyebrow={s.eyebrow} title={s.title} line={s.summary} ratio="4 / 5" sizes={INDEX_GRID_SIZES} />
                   </li>
                 ))}
               </ul>
@@ -122,10 +121,10 @@ export default async function EditorialHome({ admin, previewDrafts, userId }: { 
           <section style={{ borderTop: "1px solid var(--ed-line)" }}>
             <div className="ed-container py-10 md:py-14">
               <SectionHead label="With Gonggancube" title="공간큐브와 함께한 공간" href="/cube-spaces" cta="함께한 공간 보기" />
-              <ul className="ed-scroll-x -mx-5 px-5 scroll-px-5 md:mx-0 md:px-0 md:scroll-px-0 flex md:grid md:grid-cols-4 gap-4 md:gap-6 overflow-x-auto snap-x snap-mandatory">
+              <ul className={SPACE_GRID_CLASS}>
                 {cubePreview.map((s) => (
-                  <li key={s.id} className="snap-start shrink-0 w-[46%] md:w-auto">
-                    <SpaceCard space={s} sizes="(min-width: 768px) 25vw, 46vw" save={{ saved: savedIds.has(s.id), loggedIn: !!userId }} />
+                  <li key={s.id} className="min-w-0">
+                    <SpaceCard space={s} save={{ saved: savedIds.has(s.id), loggedIn: !!userId }} />
                   </li>
                 ))}
               </ul>

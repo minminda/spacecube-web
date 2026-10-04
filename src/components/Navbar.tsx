@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ENABLE_NAV_DISCOVER_LINK, ENABLE_NAV_RECOMMENDATION_LINK, ENABLE_EDITORIAL_HOME } from "@/lib/features";
-import { BRAND_NAME, PARTICIPATION } from "@/content/site";
+import { BRAND_NAME, CONTACT_EMAIL, INSTAGRAM_URL, PARTICIPATION } from "@/content/site";
 
 const LEGACY_NAV_ITEMS = [
   { label: "공간들", href: "/discover", match: (p: string) => p.startsWith("/discover") || p.startsWith("/stories") || p.startsWith("/story"), enabled: ENABLE_NAV_DISCOVER_LINK },
@@ -27,8 +27,8 @@ const isRecommendPath = (p: string) => p.startsWith("/find") || p.startsWith("/r
 
 // 두 CTA 공용 치수 — 예전 상단 "공간 제안하기" 버튼(text-xs · px-3.5 · py-2 · 1px 테두리 · 각진 모서리)을 그대로 쓴다.
 // 추천은 검정 Navbar 위에서도 버튼으로 읽히도록 흰 1px 테두리만 최소로 둔다. 아카이브도 같은 두께의 흰 테두리라 높이가 같다.
-// 휴대폰에서도 두 CTA는 상단 바에 그대로 보인다(메뉴를 열지 않고 바로 추천 · 아카이브) — 폭만 줄인다.
-const CTA_CLASS = "inline-flex items-center justify-center h-9 md:h-auto md:min-w-[88px] text-xs font-semibold px-3 md:px-3.5 md:py-2 whitespace-nowrap transition-opacity hover:opacity-85";
+// 데스크톱 전용 — 휴대폰 상단 바에는 로고와 ☰만 두고, 추천 · 내 아카이브는 메뉴 안에서 다른 메뉴와 함께 보여준다.
+const CTA_CLASS = "inline-flex items-center justify-center min-w-[88px] text-xs font-semibold px-3.5 py-2 whitespace-nowrap transition-opacity hover:opacity-85";
 const CTA_RECOMMEND = { background: "#000", color: "#fff", border: "1px solid #fff" } as const;
 const CTA_ARCHIVE = { background: "#fff", color: "#000", border: "1px solid #fff" } as const;
 
@@ -116,7 +116,7 @@ export default function Navbar() {
 
   return (
     <nav className="sticky top-0 z-50 w-full" style={{ background: "#000", borderBottom: "1px solid #1a1a1a" }}>
-      <div className="ed-container flex items-center h-14 gap-2 md:gap-8">
+      <div className="ed-container flex items-center h-14 gap-8">
         <Link href="/" aria-label="GONGGANCUBE 홈" className="mr-auto py-2 text-[13px] font-bold tracking-[0.14em]" style={{ color: "#fff" }}>
           {BRAND_NAME}
         </Link>
@@ -137,7 +137,7 @@ export default function Navbar() {
           })}
         </div>
 
-        <div className="flex items-center gap-1.5 md:gap-2">
+        <div className="hidden md:flex items-center gap-2">
           <Link href={RECOMMEND_HREF} aria-current={isRecommendPath(pathname) ? "page" : undefined} className={CTA_CLASS} style={CTA_RECOMMEND}>
             추천
           </Link>
@@ -148,7 +148,7 @@ export default function Navbar() {
 
         <button
           type="button"
-          className="md:hidden -mr-3 w-11 h-12 flex items-center justify-center"
+          className="md:hidden -mr-3 w-12 h-12 flex items-center justify-center"
           aria-label={menuOpen ? "메뉴 닫기" : "메뉴 열기"}
           aria-expanded={menuOpen}
           onClick={() => setMenuOpenPath(menuOpen ? null : pathname)}
@@ -165,30 +165,39 @@ export default function Navbar() {
 
       {menuOpen && (
         <div className="md:hidden fixed inset-x-0 top-14 bottom-0 z-50 flex flex-col overflow-y-auto" style={{ background: "#000" }}>
-          <ul className="px-5 pt-6">
-            {navItems.map(({ label, href, match }) => (
-              <li key={href} style={{ borderBottom: "1px solid #222" }}>
+          {/* Primary — 데스크톱 상단 메뉴와 같은 네 가지, 같은 순서. 추천 · 내 아카이브는 "기능"이라 화살표 표식으로만 구분 */}
+          <ul className="px-4 pt-4">
+            {[
+              ...navItems.map((n) => ({ ...n, action: false })),
+              { label: "추천", href: RECOMMEND_HREF, match: isRecommendPath, action: true },
+              { label: "내 아카이브", href: archiveHref, match: (p: string) => p.startsWith("/archive"), action: true },
+            ].map(({ label, href, match, action }) => (
+              <li key={label} style={{ borderBottom: "1px solid #222" }}>
                 <Link
                   href={href}
                   onClick={() => setMenuOpenPath(null)}
-                  className="flex items-center justify-between py-5 text-2xl font-bold tracking-[-0.01em]"
+                  aria-current={match(pathname) ? "page" : undefined}
+                  className="flex items-center justify-between py-4 text-[22px] font-bold tracking-[-0.01em]"
                   style={{ color: "#fff", opacity: match(pathname) ? 1 : 0.85 }}
                 >
                   {label}
-                  <span aria-hidden className="text-base" style={{ color: "#666" }}>→</span>
+                  {/* 추천 · 내 아카이브 = 데스크톱의 반전 CTA와 같은 표식(흰 칸 화살표), 나머지는 회색 화살표 */}
+                  <span aria-hidden className="inline-flex items-center justify-center w-7 h-7 text-sm" style={action ? { background: "#fff", color: "#000" } : { color: "#666" }}>→</span>
                 </Link>
               </li>
             ))}
           </ul>
-          <div className="px-5 pt-8 pb-10 mt-auto space-y-4" style={{ paddingBottom: "calc(2.5rem + env(safe-area-inset-bottom))" }}>
-            {/* 하단 보조 영역 — 공간큐브 · 소개 · 공간 제안하기 · 관리자(관리자에게만) */}
-            <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm" style={{ color: "#999" }}>
-              <Link href="/spacecube" onClick={() => setMenuOpenPath(null)} style={{ color: "#fff" }}>공간큐브</Link>
-              <Link href="/about" onClick={() => setMenuOpenPath(null)}>공간큐브 소개</Link>
-              <a href={suggestHref}>공간 제안하기</a>
-              {viewer?.admin && <Link href="/admin" onClick={() => setMenuOpenPath(null)}>관리자</Link>}
-            </div>
-          </div>
+          {/* Secondary — 얇은 구분 아래 작은 글자 */}
+          <ul className="px-4 pt-8 pb-10 mt-auto space-y-1 text-sm" style={{ color: "#999", paddingBottom: "calc(2.5rem + env(safe-area-inset-bottom))" }}>
+            <li><Link href="/spacecube" onClick={() => setMenuOpenPath(null)} className="inline-flex items-center min-h-10" style={{ color: "#fff" }}>공간큐브</Link></li>
+            <li><Link href="/about" onClick={() => setMenuOpenPath(null)} className="inline-flex items-center min-h-10">공간큐브 소개</Link></li>
+            <li><a href={suggestHref} className="inline-flex items-center min-h-10">공간 제안하기</a></li>
+            <li className="flex gap-6">
+              <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer" className="inline-flex items-center min-h-10">Instagram ↗</a>
+              <a href={`mailto:${CONTACT_EMAIL}`} className="inline-flex items-center min-h-10">Contact</a>
+            </li>
+            {viewer?.admin && <li><Link href="/admin" onClick={() => setMenuOpenPath(null)} className="inline-flex items-center min-h-10">관리자</Link></li>}
+          </ul>
         </div>
       )}
     </nav>

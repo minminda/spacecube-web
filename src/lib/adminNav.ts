@@ -97,3 +97,29 @@ export function adminAreaOf(key: string | null): AdminArea | null {
   for (const g of ADMIN_NAV) if (g.items.some((i) => i.key === key)) return g.area;
   return null;
 }
+
+/**
+ * 뒤로가기의 "상위 화면" — 이전 화면 기록이 없을 때(주소로 바로 들어온 경우) 갈 곳. /admin 자체는 null(뒤로가기 없음).
+ * STORY · CURATION 편집/새 글 → 콘텐츠 백로그, 공간 콘텐츠 편집 → 공간 콘텐츠 목록, 운영 공간의 하위 화면 → 운영 공간 목록,
+ * 에피소드 편집 → 그 공간의 에피소드 목록, 그 밖의 한 단계 화면 → 대시보드.
+ */
+export function adminBackFallback(pathname: string): string | null {
+  const p = pathname.replace(/\/+$/, "") || "/";
+  if (p === "/admin" || !p.startsWith("/admin/")) return null;
+  const seg = p.split("/").slice(2); // "/admin/a/b" → ["a", "b"]
+
+  if (seg[0] === "content") {
+    if (seg.length === 1) return "/admin";
+    if (seg[1] === "spaces") return seg.length > 2 ? "/admin/content/spaces" : "/admin/content";
+    return "/admin/content"; // people · thoughts · curations(목록·새 글·편집) · home · media
+  }
+  if (seg[0] === "stories") return seg.length > 1 ? "/admin/stories" : "/admin";
+  if (seg[0] === "cubes") return seg.length > 1 ? "/admin/cubes" : "/admin";
+  if (seg[0] === "new") return "/admin/spaces";
+  if (seg.length === 1) return "/admin";
+  // 나머지 2단계 이상은 /admin/[운영 공간 id]/… 화면
+  const base = `/admin/${seg[0]}`;
+  if (seg[1] === "episodes" && seg.length > 2) return `${base}/episodes`;
+  if (seg[1] === "report" && seg.length > 2) return `${base}/report`;
+  return "/admin/spaces";
+}

@@ -67,7 +67,7 @@ export default function CurationArticle(p: Props) {
           <p className="ed-label pb-8" style={{ color: "var(--ed-dim)" }}>선정된 공간</p>
           <div className="grid gap-y-10 md:grid-cols-3 md:gap-x-8">
             {p.spaces.map((l) => (
-              <SpaceCard key={l.space.id} space={l.space} mobileRatio="3 / 2" sizes="(min-width: 768px) 33vw, 100vw" note={l.note} showSummary={!l.note} save={{ saved: p.saveState.savedIds.has(l.space.id), loggedIn: p.saveState.loggedIn }} />
+              <SpaceCard key={l.space.id} space={l.space} mobileRatio="3 / 2" variant="feature" sizes="(min-width: 768px) 33vw, 100vw" note={l.note} showSummary={!l.note} save={{ saved: p.saveState.savedIds.has(l.space.id), loggedIn: p.saveState.loggedIn }} />
             ))}
           </div>
         </section>

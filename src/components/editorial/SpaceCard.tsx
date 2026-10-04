@@ -21,13 +21,15 @@ interface Props {
   /** 추천 이유 등 보조 문장(실제 데이터로 설명 가능한 경우에만 넘긴다) */
   reason?: string | null;
   priority?: boolean;
+  /** grid(촘촘한 그리드, 기본) / feature(상세 하단 목록처럼 크게) */
+  variant?: "grid" | "feature";
 }
 
 /**
  * 공개 SPACE 카드 — 공통 SpaceTile(사진 · 공간명 · 지역 · 한 줄 · 저장) 위에 공간 데이터를 얹는다.
  * 공개 SPACE 상세(/spaces/[slug])로만 연결한다. 별점·순위·평가 표현은 쓰지 않는다.
  */
-export default function SpaceCard({ space, ratio, mobileRatio, sizes = SPACE_GRID_SIZES, note, showSummary, save, reason, priority }: Props) {
+export default function SpaceCard({ space, ratio, mobileRatio, sizes = SPACE_GRID_SIZES, note, showSummary, save, reason, priority, variant }: Props) {
   return (
     <SpaceTile
       href={spaceHref(space.slug)}
@@ -41,7 +43,8 @@ export default function SpaceCard({ space, ratio, mobileRatio, sizes = SPACE_GRI
       mobileRatio={mobileRatio}
       sizes={sizes}
       priority={priority}
-      action={save && <SaveButton spaceId={space.id} spaceName={space.name} initialSaved={save.saved} loggedIn={save.loggedIn} />}
+      variant={variant}
+      action={save && <SaveButton spaceId={space.id} spaceName={space.name} initialSaved={save.saved} loggedIn={save.loggedIn} variant="corner" />}
     />
   );
 }

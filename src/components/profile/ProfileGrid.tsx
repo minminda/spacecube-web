@@ -27,7 +27,7 @@ export default function ProfileGrid({ handle, cards, savedIds, loggedIn, common,
             meta={[c.space.area, common?.has(c.space.id) ? "나도 담은 곳" : null].filter(Boolean).join(" · ")}
             sizes={SPACE_GRID_SIZES}
             priority={priorityFirst && i < 4}
-            action={<SaveButton spaceId={c.space.id} spaceName={c.space.name} initialSaved={savedIds.has(c.space.id)} loggedIn={loggedIn} />}
+            action={<SaveButton spaceId={c.space.id} spaceName={c.space.name} initialSaved={savedIds.has(c.space.id)} loggedIn={loggedIn} variant="corner" />}
           />
         </li>
       ))}

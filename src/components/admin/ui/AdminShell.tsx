@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
 import CubeGlyph from "@/components/CubeGlyph";
-import { ADMIN_NAV, activeAdminNavKey } from "@/lib/adminNav";
+import { ADMIN_NAV, activeAdminNavKey, adminBackFallback } from "@/lib/adminNav";
 
 /* ── 관리자 작업실 셸 ─────────────────────────────────────────────────────
    Desktop(≥1024px): 고정 사이드바. Tablet/Mobile: 상단바 + 드로어 내비게이션.
@@ -25,6 +25,7 @@ export default function AdminShell({ email, children }: Props) {
   // 드로어는 "열었던 경로"를 기억해, 다른 페이지로 이동하면 자동으로 닫힌다.
   const [drawerPath, setDrawerPath] = useState<string | null>(null);
   const drawerOpen = drawerPath === pathname;
+  const back = useAdminBack(pathname);
 
   useEffect(() => {
     if (!drawerOpen) return;
@@ -64,6 +65,7 @@ export default function AdminShell({ email, children }: Props) {
           </svg>
         </button>
         <Brand />
+        {back && <div className="ml-auto -mr-2">{back}</div>}
       </header>
 
       {drawerOpen && (
@@ -77,9 +79,49 @@ export default function AdminShell({ email, children }: Props) {
 
       <div className="admin-main lg:pl-[232px]">
         {/* STORY·CURATION 편집 화면은 편집기 + 실시간 미리보기를 나란히 두므로 더 넓게 쓴다 */}
-        <div className={`admin-content ${WIDE_EDITOR_RE.test(pathname) ? "max-w-[1760px]" : "max-w-[1120px]"} mx-auto px-4 md:px-8 lg:px-10 py-6 md:py-10`}>{children}</div>
+        <div className={`admin-content relative ${WIDE_EDITOR_RE.test(pathname) ? "max-w-[1760px]" : "max-w-[1120px]"} mx-auto px-4 md:px-8 lg:px-10 py-6 md:py-10`}>
+          {/* 데스크톱: 본문 위 여백(40px) 오른쪽 위 — 페이지 제목·버튼과 겹치지 않는다 */}
+          {back && <div className="no-print hidden lg:block absolute right-8 top-1">{back}</div>}
+          {children}
+        </div>
       </div>
     </div>
+  );
+}
+
+/**
+ * 뒤로가기(모든 관리자 화면, /admin 제외) — 관리자 안에서 이동해 온 화면이면 router.back(),
+ * 주소로 바로 들어와 이전 화면이 없으면 상위 화면(adminBackFallback)으로. 셸이 페이지 이동 사이에 유지되므로
+ * 관리자 안에서 지나온 경로를 직접 쌓아 판단한다(브라우저 history.length는 사이트 밖 기록까지 세어 쓸 수 없다).
+ */
+function useAdminBack(pathname: string): React.ReactNode {
+  const router = useRouter();
+  const trail = useRef<string[]>([]);
+  useEffect(() => {
+    const t = trail.current;
+    if (t[t.length - 1] === pathname) return;
+    if (t[t.length - 2] === pathname) t.pop(); // 뒤로 간 경우
+    else t.push(pathname);
+  }, [pathname]);
+  const fallback = adminBackFallback(pathname);
+  if (!fallback) return null;
+  const goBack = () => {
+    const t = trail.current;
+    if (t.length > 1 && t[t.length - 1] === pathname) router.back();
+    else router.push(fallback);
+  };
+  return (
+    <button
+      type="button"
+      onClick={goBack}
+      aria-label="뒤로가기"
+      title="뒤로가기"
+      className="w-10 h-10 inline-flex items-center justify-center rounded-md hover:bg-[#f2f2f2]"
+    >
+      <svg viewBox="0 0 24 24" className="w-5 h-5" aria-hidden>
+        <path d="M19 12H5 M11 6l-6 6 6 6" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    </button>
   );
 }
 

@@ -59,7 +59,7 @@ export default function StoryArticle(p: Props) {
               <SpaceCard
                 key={l.space.id}
                 space={l.space}
-                mobileRatio="3 / 2"
+                mobileRatio="3 / 2" variant="feature"
                 sizes="(min-width: 768px) 33vw, 100vw"
                 note={l.note}
                 showSummary={!l.note}
