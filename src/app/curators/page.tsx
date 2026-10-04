@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import SiteFooter from "@/components/editorial/SiteFooter";
-import { CuratorAvatar, PrototypeBanner, TasteChips } from "@/components/curators/CuratorBits";
+import { CuratorAvatar, PrototypeBanner } from "@/components/curators/CuratorBits";
 import { getEditorialViewer } from "@/lib/editorial/viewer";
 import { normalizeArea } from "@/lib/editorial/area";
 import { curatorAccess } from "@/lib/curators/access";
@@ -86,7 +86,6 @@ export default async function CuratorsPage() {
                         {c.isOfficial && <span className="ed-label" style={{ color: "var(--ed-dim)" }}>Official</span>}
                       </p>
                       <p className="text-sm leading-relaxed break-keep">{c.bio}</p>
-                      <TasteChips tags={c.tasteTags} />
                       {(collectionsBy.get(c.slug) ?? []).length > 0 && (
                         <ul className="pt-1 space-y-0.5">
                           {(collectionsBy.get(c.slug) ?? []).slice(0, 2).map((t) => (

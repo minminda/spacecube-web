@@ -49,7 +49,7 @@ export default async function ArchiveDetailPage({ params }: Props) {
     publishable
       ? prisma.user.findUnique({
           where: { id: session.user.id },
-          select: { profilePublic: true, profileHandle: true, profileSpaces: { where: { spaceId: d.editorial!.id }, select: { showPhotos: true } } },
+          select: { profilePublic: true, profileHandle: true, profileSpaces: { where: { spaceId: d.editorial!.id }, select: { showPhotos: true, showMemo: true, showVisitDate: true } } },
         })
       : Promise.resolve(null),
   ]);
@@ -101,11 +101,18 @@ export default async function ArchiveDetailPage({ params }: Props) {
             {publishable && profileState && (
               <ProfileSpaceToggle
                 spaceId={d.editorial!.id}
-                initialPublic={profileState.profileSpaces.length > 0}
-                initialShowPhotos={profileState.profileSpaces[0]?.showPhotos ?? false}
+                initial={{
+                  public: profileState.profileSpaces.length > 0,
+                  showPhotos: profileState.profileSpaces[0]?.showPhotos ?? false,
+                  showMemo: profileState.profileSpaces[0]?.showMemo ?? false,
+                  showVisitDate: profileState.profileSpaces[0]?.showVisitDate ?? false,
+                }}
                 hasPhotos={d.photos.length > 0}
+                hasMemo={!!d.entry?.memo}
+                // 공개 방문 시기는 내가 날짜를 적은 방문 기록에서만(월 단위)
+                hasVisitDate={d.timeline.some((t) => t.kind === "visit" && t.dated)}
                 profilePublic={profileState.profilePublic}
-                profileHref={profileState.profileHandle ? profilePath(profileState.profileHandle) : null}
+                recordHref={profileState.profileHandle ? `${profilePath(profileState.profileHandle)}/s/${d.editorial!.slug}` : null}
               />
             )}
 

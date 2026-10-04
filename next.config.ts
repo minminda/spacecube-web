@@ -21,7 +21,10 @@ const nextConfig: NextConfig = {
   // 공개 취향 프로필의 공유 주소 /@handle → 실제 라우트 /u/[handle]. App Router에서 "@" 폴더는 병렬 라우트 문법이라
   // 폴더 이름으로 쓸 수 없어 rewrite로 연결한다(주소창에는 /@handle이 그대로 남는다).
   async rewrites() {
-    return [{ source: "/@:handle", destination: "/u/:handle" }];
+    return [
+      { source: "/@:handle", destination: "/u/:handle" },
+      { source: "/@:handle/:path*", destination: "/u/:handle/:path*" },
+    ];
   },
   async redirects() {
     return [

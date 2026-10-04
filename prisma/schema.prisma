@@ -32,7 +32,7 @@ model User {
   // 공유 주소용 고정 핸들(영문 소문자·숫자·._-) — 닉네임(한글, 30일마다 변경 가능)과 분리해 링크가 안정적이다.
   profileHandle     String?    @unique
   profileBio        String?    @db.VarChar(120)
-  // 자동 계산된 대표 취향 · 자주 찾는 지역을 프로필에 보일지(숨길 수 있음)
+  // (2026-10-04 이후 화면에서 쓰지 않음 — 프로필에 취향 태그·지역 통계를 보여주지 않기로 함. 컬럼만 유지)
   profileShowTaste  Boolean    @default(true)
   profileShowAreas  Boolean    @default(true)
 
@@ -1579,13 +1579,16 @@ model EditorialHomeSettings {
 // ─── 공개 취향 프로필: 공개한 공간 ─────────────────────────────────────────
 // 사용자가 "공개 프로필에 보이기"를 켠 canonical 공간(EditorialSpace) 하나. 공간을 복제하지 않는다.
 // 내 아카이브에 실제로 있는 공간(저장·방문)일 때만 공개 화면에 나온다(아카이브에서 지우면 자동으로 안 보임).
-// 개인 기록(공간큐브에 없는 장소)은 공개할 수 없다. 메모·방문 날짜는 공개하지 않고, 사진은 showPhotos일 때만.
+// 개인 기록(공간큐브에 없는 장소)은 공개할 수 없다. 사진·메모·방문 시기는 각각 따로 켤 때만 보인다(기본 전부 꺼짐).
 model ProfileSpace {
-  id         String   @id @default(cuid())
-  userId     String
-  spaceId    String
-  showPhotos Boolean  @default(false)
-  createdAt  DateTime @default(now())
+  id            String   @id @default(cuid())
+  userId        String
+  spaceId       String
+  showPhotos    Boolean  @default(false)
+  // 공개 기록 상세(/@handle/s/[slug])에 나의 한 줄 · 방문 시기(월)를 보일지 — 각각 따로 켠다(기본 꺼짐)
+  showMemo      Boolean  @default(false)
+  showVisitDate Boolean  @default(false)
+  createdAt     DateTime @default(now())
 
   user  User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   space EditorialSpace @relation(fields: [spaceId], references: [id], onDelete: Cascade)

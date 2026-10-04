@@ -168,7 +168,8 @@ export function rankCandidates<C extends FinderCandidate>(cands: C[], profile: T
 }
 
 /** 개인화 이유 — 실제로 겹친 속성이 있을 때만. */
+/** 추천 이유 — 실제로 겹치는 특징이 있을 때만, 태그를 나열하지 않고 한 문장으로(취향은 숫자·태그로 설명하지 않는다). */
 export function personalReason(matched: string[]): string | null {
   if (matched.length === 0) return null;
-  return `저장·방문한 공간들과 '${matched.slice(0, 2).join(" · ")}' 결이 비슷해요`;
+  return "저장하고 다녀온 공간들과 비슷한 결이에요";
 }

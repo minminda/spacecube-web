@@ -1,14 +1,11 @@
 /* ── 공개 취향 프로필(순수 함수) ─────────────────────────────────────────────
    내 아카이브 = 나만의 공간 기록(저장 · 방문 · 사진 · 메모 · 날짜).
-   공개 프로필 = 내가 고른 공간과 취향만 다른 사람에게 보여주는 곳(/@handle).
+   공개 프로필 = 내가 고른 공간이 쌓인 개인 공간 매거진(/@handle). 취향은 숫자·태그로 설명하지 않는다 —
+   고른 공간과 사진을 보면 느껴지게 한다. 태그·취향 가중치는 추천 엔진 안에서만 쓴다(화면에 내보내지 않음).
    - 기본은 전부 비공개. 프로필을 켜도 공간은 하나씩 직접 공개해야 보인다(ProfileSpace).
    - 공개할 수 있는 건 canonical 공간(EditorialSpace, 발행·실공간)뿐 — 개인 기록·가상 공간은 공개 불가.
-   - 메모와 방문 날짜는 공개 화면에 절대 내보내지 않는다. 사진은 공간별 showPhotos일 때만.
-   - 사람 사이 관계는 "취향 따라가기"(SavedTaste 재사용). 숫자 경쟁 없이 내가 따라가는 수만 작게.
-   - 취향 비교는 퍼센트 없이 큐레이터 겹침과 같은 단계(levelOf)로만. ── */
-
-import { levelOf, AFFINITY_LABEL, type AffinityLevel } from "@/lib/curators/affinity";
-import { normalizeArea } from "@/lib/editorial/area";
+   - 사진 · 나의 한 줄 · 방문 시기는 공간마다 각각 켤 때만(기본 꺼짐).
+   - 사람 사이 관계는 "취향 따라가기"(SavedTaste 재사용). 수는 작은 보조 문구로만. ── */
 
 /* ── 핸들(공유 주소 /@handle) ── */
 
@@ -38,8 +35,6 @@ export interface ProfileSettingsInput {
   profilePublic?: boolean;
   handle?: string;
   bio?: string | null;
-  showTaste?: boolean;
-  showAreas?: boolean;
 }
 
 export type ParseResult<T> = { ok: true; data: T } | { ok: false; error: string };
@@ -52,10 +47,9 @@ export function parseProfileSettings(raw: unknown, currentHandle: string | null)
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return { ok: false, error: "요청 형식이 올바르지 않아요." };
   const o = raw as Record<string, unknown>;
   const out: ProfileSettingsInput = {};
-  for (const k of ["profilePublic", "showTaste", "showAreas"] as const) {
-    if (o[k] === undefined) continue;
-    if (typeof o[k] !== "boolean") return { ok: false, error: "설정 값이 올바르지 않아요." };
-    out[k] = o[k] as boolean;
+  if (o.profilePublic !== undefined) {
+    if (typeof o.profilePublic !== "boolean") return { ok: false, error: "설정 값이 올바르지 않아요." };
+    out.profilePublic = o.profilePublic;
   }
   if (o.handle !== undefined) {
     if (typeof o.handle !== "string") return { ok: false, error: "프로필 주소 형식이 올바르지 않아요." };
@@ -85,13 +79,17 @@ export interface LibraryLike {
   demo: boolean;
 }
 
-export interface PublicSpaceRow {
+export interface PublicFlags {
+  showPhotos: boolean;
+  showMemo: boolean;
+  showVisitDate: boolean;
+}
+
+export interface PublicSpaceRow extends PublicFlags {
   spaceId: string;
   slug: string;
-  area: string | null;
   visited: boolean;
-  showPhotos: boolean;
-  /** 정렬용(화면에 날짜로 내보내지 않는다) */
+  /** 정렬용(화면에 날짜로 내보내지 않는다 — 방문 시기는 showVisitDate일 때만 따로) */
   lastAt: Date;
 }
 
@@ -101,7 +99,7 @@ export interface PublicSpaceRow {
  */
 export function publicSpaces(
   library: LibraryLike[],
-  picks: { spaceId: string; showPhotos: boolean; space: { slug: string; area: string; status: string; isDemo: boolean } }[],
+  picks: (PublicFlags & { spaceId: string; space: { slug: string; status: string; isDemo: boolean } })[],
 ): PublicSpaceRow[] {
   const byKey = new Map(library.map((i) => [i.key, i]));
   const out: PublicSpaceRow[] = [];
@@ -109,47 +107,35 @@ export function publicSpaces(
     if (p.space.status !== "PUBLISHED" || p.space.isDemo) continue;
     const it = byKey.get(`s-${p.space.slug}`);
     if (!it || it.personal || it.demo || !(it.visited || it.saved)) continue;
-    out.push({ spaceId: p.spaceId, slug: p.space.slug, area: p.space.area, visited: it.visited, showPhotos: p.showPhotos, lastAt: it.lastAt });
+    out.push({
+      spaceId: p.spaceId, slug: p.space.slug, visited: it.visited, lastAt: it.lastAt,
+      showPhotos: p.showPhotos, showMemo: p.showMemo, showVisitDate: p.showVisitDate,
+    });
   }
   return out.sort((a, b) => b.lastAt.getTime() - a.lastAt.getTime());
 }
 
-/** 자주 찾는 지역 — 공개한 공간만으로 센다(비공개 기록으로 사는 곳·다니는 곳이 드러나지 않게). */
-export function frequentAreas(rows: { area: string | null }[], n = 3): string[] {
-  const count = new Map<string, number>();
-  for (const r of rows) {
-    const a = normalizeArea(r.area);
-    if (a) count.set(a, (count.get(a) ?? 0) + 1);
-  }
-  return [...count.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "ko")).slice(0, n).map(([a]) => a);
-}
-
-/* ── 내 취향과 비교(퍼센트 없음) ── */
-
-export interface TasteComparison {
-  level: AffinityLevel;
-  label: string;
-  /** 상대의 공개 대표 취향 중 나에게도 있는 단어 */
-  sharedWords: string[];
-  /** 상대가 공개한 공간 중 내 아카이브에도 있는 공간 id */
-  commonSpaceIds: string[];
-}
-
 /**
- * viewerWeights: 내 취향 프로필(attrKey → 가중치). targetWords: 상대가 공개한 대표 취향 단어(숨겼으면 []).
- * commonSpaceIds는 상대가 공개한 공간만 대상으로 한다 — 비공개 공간은 비교에도 쓰지 않는다.
+ * 카드 사진 — 이 사람이 공개를 허용한 자기 사진이 있으면 그 사진(같은 공간이어도 사람마다 다른 시선),
+ * 없으면 공간큐브의 공간 대표 사진. 사진 공개를 끈 공간의 개인 사진은 절대 쓰지 않는다.
  */
-export function compareTaste(
-  viewerWeights: Map<string, number>,
-  targetWords: string[],
-  viewerSpaceSlugs: Set<string>,
-  targetPublic: { spaceId: string; slug: string }[],
-  key: (w: string) => string,
-): TasteComparison {
-  const sharedWords = targetWords.filter((w) => (viewerWeights.get(key(w)) ?? 0) > 0);
-  const commonSpaceIds = targetPublic.filter((s) => viewerSpaceSlugs.has(s.slug)).map((s) => s.spaceId);
-  const level = levelOf(commonSpaceIds.length, sharedWords.length);
-  return { level, label: AFFINITY_LABEL[level], sharedWords, commonSpaceIds };
+export function cardPhoto(row: Pick<PublicFlags, "showPhotos">, myPhotos: string[], spaceCover: string | null | undefined): { url: string | null; mine: boolean } {
+  if (row.showPhotos && myPhotos[0]) return { url: myPhotos[0], mine: true };
+  return { url: spaceCover ?? null, mine: false };
+}
+
+/** 방문 시기 표시 — 날짜까지 말고 "2026.09"(KST 월) 정도만. */
+export function visitMonth(d: Date | null): string | null {
+  if (!d) return null;
+  const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul", year: "numeric", month: "2-digit" }).formatToParts(d);
+  const y = parts.find((p) => p.type === "year")?.value;
+  const m = parts.find((p) => p.type === "month")?.value;
+  return y && m ? `${y}.${m}` : null;
+}
+
+/** 상대가 공개한 공간 중 내 아카이브에도 있는 공간 — 비공개 공간은 비교에도 쓰지 않는다. */
+export function commonSpaceIds(viewerSpaceSlugs: Set<string>, targetPublic: { spaceId: string; slug: string }[]): string[] {
+  return targetPublic.filter((s) => viewerSpaceSlugs.has(s.slug)).map((s) => s.spaceId);
 }
 
 /* ── 취향 따라가기 ── */
@@ -164,19 +150,8 @@ export function canFollow(viewerId: string, target: { id: string; profilePublic:
   return { ok: true };
 }
 
-/* ── 공개 대표 취향 ── */
-
-/**
- * 대표 취향 — 순서는 기존 취향 계산(저장·방문·아카이브 전체 신호의 가중치)을 그대로 따르되,
- * 공개한 공간의 유형·태그에서도 확인되는 단어만 보여준다. 비공개로 둔 공간에서만 나온 취향(예: 숨긴 공간의 "LP카페")이
- * 공개 프로필로 새어 나가지 않게 하기 위해서다. 공개한 공간이 없으면 빈 목록.
- */
-export function publicTasteWords(
-  ranked: { key: string; label: string }[],
-  publicAttrs: string[],
-  key: (w: string) => string,
-  n = 4,
-): string[] {
-  const allowed = new Set(publicAttrs.map(key).filter(Boolean));
-  return ranked.filter((r) => allowed.has(r.key)).slice(0, n).map((r) => r.label);
+/** 사람 찾기 검색어 — 앞뒤 공백·@ 제거, 2자 이상 30자 이하. 짧으면 검색하지 않는다(전체 목록·인기순 노출 없음). */
+export function peopleQuery(raw: string | undefined): string | null {
+  const q = (raw ?? "").trim().replace(/^@/, "").slice(0, 30);
+  return q.length >= 2 ? q : null;
 }

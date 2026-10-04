@@ -7,15 +7,11 @@ export interface ProfileSettingsValue {
   public: boolean;
   handle: string | null;
   bio: string | null;
-  showTaste: boolean;
-  showAreas: boolean;
-  /** 지금 계산된 대표 취향(미리보기) */
-  tasteWords: string[];
 }
 
 /**
  * 설정 › 공개 프로필 — 기존 설정 패널 안의 한 구획(새 설정 페이지를 만들지 않는다).
- * 켜는 순간 안내: 공개 프로필에는 고른 공간과 취향만 보이고 사진·메모는 기본 비공개.
+ * 공개 프로필에는 고른 공간만 보이고 사진·메모는 기본 비공개. 취향 태그·통계는 프로필에 보이지 않는다.
  * 공간 공개는 여기서가 아니라 아카이브의 각 공간에서 고른다.
  */
 export default function ProfileSettingsSection({ initial }: { initial: ProfileSettingsValue }) {
@@ -23,13 +19,10 @@ export default function ProfileSettingsSection({ initial }: { initial: ProfileSe
   const [isPublic, setPublic] = useState(initial.public);
   const [handle, setHandle] = useState(initial.handle ?? "");
   const [bio, setBio] = useState(initial.bio ?? "");
-  const [showTaste, setShowTaste] = useState(initial.showTaste);
-  const [showAreas, setShowAreas] = useState(initial.showAreas);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const dirty =
-    isPublic !== initial.public || handle.trim() !== (initial.handle ?? "") || bio.trim() !== (initial.bio ?? "") ||
-    showTaste !== initial.showTaste || showAreas !== initial.showAreas;
+    isPublic !== initial.public || handle.trim() !== (initial.handle ?? "") || bio.trim() !== (initial.bio ?? "");
 
   async function save() {
     setBusy(true);
@@ -38,7 +31,7 @@ export default function ProfileSettingsSection({ initial }: { initial: ProfileSe
       const res = await fetch("/api/profile", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ profilePublic: isPublic, ...(handle.trim() ? { handle } : {}), bio, showTaste, showAreas }),
+        body: JSON.stringify({ profilePublic: isPublic, ...(handle.trim() ? { handle } : {}), bio }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -65,7 +58,7 @@ export default function ProfileSettingsSection({ initial }: { initial: ProfileSe
         </label>
       </div>
       <p className="text-xs leading-relaxed" style={{ color: "var(--dim)" }}>
-        공개 프로필에서는 선택한 공간과 취향만 다른 사람에게 보여요. 사진과 메모는 기본적으로 공개되지 않습니다.
+        공개 프로필에서는 선택한 공간만 다른 사람에게 보여요. 사진과 메모는 기본적으로 공개되지 않습니다.
         공간은 아카이브의 각 공간에서 하나씩 골라 공개해요.
       </p>
 
@@ -95,23 +88,6 @@ export default function ProfileSettingsSection({ initial }: { initial: ProfileSe
           className="w-full text-sm bg-transparent border-b outline-none pb-2"
           style={{ borderColor: "var(--border)", color: "var(--fg)" }}
         />
-      </div>
-
-      <div className="space-y-2 text-xs" style={{ color: "var(--fg)" }}>
-        <label className="flex items-start justify-between gap-3 cursor-pointer">
-          <span>
-            대표 취향 보이기
-            <span className="block" style={{ color: "var(--dim)" }}>{initial.tasteWords.length ? initial.tasteWords.join(" · ") : "공간을 공개하면 그 공간들에서 확인되는 취향이 보여요"}</span>
-          </span>
-          <input type="checkbox" checked={showTaste} onChange={(e) => setShowTaste(e.target.checked)} className="w-4 h-4 mt-0.5" />
-        </label>
-        <label className="flex items-start justify-between gap-3 cursor-pointer">
-          <span>
-            자주 찾는 지역 보이기
-            <span className="block" style={{ color: "var(--dim)" }}>공개한 공간의 지역으로만 계산해요</span>
-          </span>
-          <input type="checkbox" checked={showAreas} onChange={(e) => setShowAreas(e.target.checked)} className="w-4 h-4 mt-0.5" />
-        </label>
       </div>
 
       <div className="flex items-center justify-between gap-3">

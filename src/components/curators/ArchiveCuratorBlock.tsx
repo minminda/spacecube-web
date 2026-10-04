@@ -14,8 +14,7 @@ export default function ArchiveCuratorBlock({ ctx }: { ctx: ViewerCuratorContext
   return (
     <section className="ed-container pb-10">
       <div className="py-5 space-y-4" style={{ borderTop: "1px solid var(--ed-line)", borderBottom: "1px solid var(--ed-line)" }}>
-        <p className="ed-label" style={{ color: "#8a5a00" }}>Prototype · 나의 공간 취향</p>
-        <p className="text-base font-semibold">{ctx.topTaste.join(" · ")}</p>
+        <p className="ed-label" style={{ color: "#8a5a00" }}>Prototype · 비슷한 결의 큐레이터</p>
         {matched.length > 0 && (
           <p className="text-sm">
             <span style={{ color: "var(--ed-dim)" }}>취향이 잘 맞는 큐레이터 · </span>

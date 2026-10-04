@@ -7,7 +7,7 @@ import { parseProfileSettings } from "@/lib/profile/publicProfile";
 export const dynamic = "force-dynamic";
 
 /**
- * 공개 프로필 설정(본인) — 공개 ON/OFF · 프로필 주소(handle) · 한 줄 소개 · 대표 취향/자주 찾는 지역 표시 여부.
+ * 공개 프로필 설정(본인) — 공개 ON/OFF · 프로필 주소(handle) · 한 줄 소개. (취향 태그·통계는 프로필에 보이지 않는다)
  * 프로필을 켜도 공간은 자동으로 공개되지 않는다(공간별로 /api/profile/spaces).
  */
 export async function PATCH(req: Request) {
@@ -19,7 +19,7 @@ export async function PATCH(req: Request) {
 
   const parsed = parseProfileSettings(await req.json().catch(() => null), me.profileHandle);
   if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400 });
-  const { profilePublic, handle, bio, showTaste, showAreas } = parsed.data;
+  const { profilePublic, handle, bio } = parsed.data;
 
   try {
     await prisma.user.update({
@@ -28,8 +28,6 @@ export async function PATCH(req: Request) {
         ...(profilePublic !== undefined ? { profilePublic } : {}),
         ...(handle !== undefined ? { profileHandle: handle } : {}),
         ...(bio !== undefined ? { profileBio: bio } : {}),
-        ...(showTaste !== undefined ? { profileShowTaste: showTaste } : {}),
-        ...(showAreas !== undefined ? { profileShowAreas: showAreas } : {}),
       },
     });
   } catch (e) {

@@ -157,6 +157,7 @@ export function curatorPickRecommendations<S extends FinderSpace>(
 /** "민지님이 추천했고, 저장한 공간들과 '조용한 · 혼자'가 겹쳐요" */
 export function pickReason(displayName: string, overlap: string[], collectionTitle: string): string {
   const subj = `${displayName}${hasBatchim(displayName) ? "이" : "가"}`;
-  if (overlap.length > 0) return `${subj} 추천했고, 내가 저장·방문한 공간들과 '${overlap.slice(0, 2).join(" · ")}' 결이 겹쳐요`;
+  // 겹치는 특징은 판단에만 쓰고 태그 단어는 나열하지 않는다(취향은 숫자·태그로 설명하지 않는다).
+  if (overlap.length > 0) return `${subj} 추천했고, 내가 저장·방문한 공간들과 비슷한 결이에요`;
   return `${subj} '${collectionTitle}'에 담은 곳이에요`;
 }

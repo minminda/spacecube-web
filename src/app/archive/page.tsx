@@ -21,7 +21,7 @@ import { curatorAccess } from "@/lib/curators/access";
 import { getViewerCuratorContext } from "@/lib/curators/viewerTaste";
 import ArchiveCuratorBlock from "@/components/curators/ArchiveCuratorBlock";
 import { profilePath } from "@/lib/profile/publicProfile";
-import { previewTasteWords } from "@/lib/profile/profileData";
+import { ShareNeedsProfileButton, ShareProfileButton } from "@/components/profile/ProfileActions";
 
 interface Props {
   searchParams: Promise<{ space?: string; view?: string; q?: string; area?: string; tag?: string; n?: string }>;
@@ -93,7 +93,7 @@ export default async function ArchivePage({ searchParams }: Props) {
     ? await prisma.notification.count({ where: { receiverId: user.id, isRead: false } })
     : 0;
 
-  const [library, guestbookNotes, discovery, tagOptions, curatorCtx, profileSpaces, followingCount, profileTasteWords] = await Promise.all([
+  const [library, guestbookNotes, discovery, tagOptions, curatorCtx, profileSpaces, followingCount, followerCount] = await Promise.all([
     getLibrary(user.id, { includeDemo }),
     prisma.guestbookNote.findMany({
       where: { userId: user.id, deletedAt: null },
@@ -107,7 +107,7 @@ export default async function ArchivePage({ searchParams }: Props) {
     // 공개 취향 프로필 — 내가 공개로 고른 공간(칸에 "공개" 표시)과 따라가는 취향 수(새 정보구조를 볼 때만)
     editorial ? prisma.profileSpace.findMany({ where: { userId: user.id }, select: { space: { select: { slug: true } } } }) : Promise.resolve([]),
     editorial ? prisma.savedTaste.count({ where: { userId: user.id } }) : Promise.resolve(0),
-    editorial ? previewTasteWords(user.id) : Promise.resolve([] as string[]),
+    editorial ? prisma.savedTaste.count({ where: { targetUserId: user.id } }) : Promise.resolve(0),
   ]);
   const publicKeys = new Set(profileSpaces.map((p) => `s-${p.space.slug}`));
 
@@ -119,7 +119,8 @@ export default async function ArchivePage({ searchParams }: Props) {
   };
   const areas = [...new Set(library.map((i) => normalizeArea(i.area)).filter((a): a is string => !!a))].sort((a, b) => a.localeCompare(b, "ko"));
   const myTags = [...new Set(library.flatMap((i) => i.tags))];
-  const tasteWords = topAttributes(buildTasteProfile(discovery.signals), 3);
+  // 취향 가중치는 추천에만 쓴다 — 화면에는 태그·통계로 내보내지 않고, 추천 입구를 보일지만 판단한다.
+  const hasTaste = topAttributes(buildTasteProfile(discovery.signals), 1).length > 0;
   const filtered = filter.q || filter.area || filter.tag;
 
   return (
@@ -128,14 +129,12 @@ export default async function ArchivePage({ searchParams }: Props) {
         <header className="ed-container pt-8 md:pt-14 pb-6">
           <div className="flex items-center justify-end gap-4 pb-5">
             {ENABLE_NOTIFICATIONS && <NotificationBell initialUnreadCount={unreadNotificationCount} />}
-            <ShareArchiveButton userId={user.id} />
+            {/* 새 정보구조에서는 공유를 아래 큰 버튼(공개 프로필 주소)으로 — 그 전에는 기존 공유 링크 그대로 */}
+            {!editorial && <ShareArchiveButton userId={user.id} />}
             <SettingsPanel
               nickname={user.nickname}
               nicknameUpdatedAt={user.nicknameUpdatedAt?.toISOString() ?? null}
-              profile={editorial ? {
-                public: user.profilePublic, handle: user.profileHandle, bio: user.profileBio, showTaste: user.profileShowTaste, showAreas: user.profileShowAreas,
-                tasteWords: profileTasteWords,
-              } : undefined}
+              profile={editorial ? { public: user.profilePublic, handle: user.profileHandle, bio: user.profileBio } : undefined}
             />
           </div>
           <div className="flex flex-wrap items-end justify-between gap-5">
@@ -143,22 +142,41 @@ export default async function ArchivePage({ searchParams }: Props) {
               <p className="ed-label" style={{ color: "var(--ed-dim)" }}>Archive{user.nickname ? ` · ${user.nickname}` : ""}</p>
               <h1 className="pt-3 text-[40px] md:text-[64px] font-bold leading-none tracking-[-0.04em]">내 아카이브</h1>
               <p className="pt-3 text-base md:text-lg leading-relaxed" style={{ color: "var(--ed-dim)" }}>내가 발견하고 머물렀던 공간들. 나만 보는 기록이에요.</p>
-              {editorial && (
-                // 아카이브(나의 기록)와 공개 프로필(다른 사람이 보는 나의 취향)을 구분하는 입구
-                <p className="pt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm">
-                  {user.profileHandle ? (
-                    <Link href={profilePath(user.profileHandle)} className="font-semibold underline underline-offset-4">
-                      {user.profilePublic ? "내 공개 프로필 보기 →" : "공개 프로필 미리보기(비공개) →"}
-                    </Link>
-                  ) : (
-                    <span style={{ color: "var(--ed-dim)" }}>공개 프로필은 설정(⚙)에서 만들 수 있어요</span>
-                  )}
-                  <Link href="/archive/following" className="underline underline-offset-4" style={{ color: "var(--ed-dim)" }}>따라가는 취향 {followingCount}</Link>
-                </p>
-              )}
             </div>
             <ArchiveAddSheet tagOptions={tagOptions} />
           </div>
+          {editorial && (
+            // 사람과의 연결 — 아카이브(나의 기록)에서 공개 프로필(다른 사람이 보는 나의 공간)로 나가는 입구.
+            // 관계 수는 작은 보조 문구로만(인기 경쟁처럼 보이지 않게), 각 목록으로 이어진다.
+            <div className="pt-6 space-y-3">
+              <div className="flex flex-wrap items-start gap-2">
+                {/* 아카이브의 주 행동은 "공간 추가"(검정) — 사람 찾기·공유는 같은 크기의 테두리 버튼으로 */}
+                <Link href="/archive/people" className="inline-flex items-center justify-center h-12 px-6 text-[15px] font-semibold" style={{ border: "1px solid var(--ed-fg)", color: "var(--ed-fg)" }}>
+                  사람 찾기
+                </Link>
+                {user.profilePublic && user.profileHandle ? (
+                  <ShareProfileButton path={profilePath(user.profileHandle)} name={user.nickname ?? user.profileHandle} label="내 아카이브 공유하기" />
+                ) : (
+                  <ShareNeedsProfileButton label="내 아카이브 공유하기" />
+                )}
+              </div>
+              <p className="flex flex-wrap gap-x-3 gap-y-1 text-xs" style={{ color: "var(--ed-dim)" }}>
+                {user.profileHandle ? (
+                  <Link href={profilePath(user.profileHandle)} className="font-semibold underline underline-offset-4" style={{ color: "var(--ed-fg)" }}>
+                    {user.profilePublic ? "내 공개 프로필 보기 →" : "공개 프로필 미리보기(비공개) →"}
+                  </Link>
+                ) : (
+                  <span>공개 프로필은 설정(⚙)에서 만들 수 있어요</span>
+                )}
+                <Link href="/archive/following" className="hover:underline underline-offset-4">따라가는 취향 <span className="tabular-nums">{followingCount}</span></Link>
+                {user.profilePublic && user.profileHandle ? (
+                  <Link href={`${profilePath(user.profileHandle)}/followers`} className="hover:underline underline-offset-4">나를 따라가는 사람 <span className="tabular-nums">{followerCount}</span></Link>
+                ) : (
+                  <span>나를 따라가는 사람 <span className="tabular-nums">{followerCount}</span></span>
+                )}
+              </p>
+            </div>
+          )}
         </header>
 
         {/* 보기 · 검색 · 지역 · 내 태그 — 100곳 이상이어도 찾을 수 있도록 */}
@@ -224,15 +242,13 @@ export default async function ArchivePage({ searchParams }: Props) {
           )}
         </section>
 
-        {/* 쌓인 기록 → 취향 → 다음 공간 */}
-        {tasteWords.length > 0 && (
+        {/* 쌓인 기록 → 다음 공간 — 취향을 태그·통계로 보여주지 않고 추천으로만 잇는다 */}
+        {hasTaste && (
           <section className="ed-container pt-14">
             <div className="py-6 flex flex-wrap items-end justify-between gap-4" style={{ borderTop: "1px solid var(--ed-fg)" }}>
               <div className="space-y-1">
                 <p className="ed-label" style={{ color: "var(--ed-dim)" }}>이 취향으로 추천받기</p>
-                <p className="text-base md:text-lg">
-                  최근 내 공간에서는 <strong>{tasteWords.join(" · ")}</strong> 특징이 자주 나타나요.
-                </p>
+                <p className="text-base md:text-lg break-keep">저장하고 다녀온 공간들과 비슷한 결의 공간을 찾아드려요.</p>
               </div>
               <Link href="/find" className="tap-target inline-flex items-center px-5 text-sm font-semibold" style={{ border: "1px solid var(--ed-fg)" }}>나에게 맞는 공간 보기 →</Link>
             </div>

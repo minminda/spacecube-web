@@ -2,14 +2,13 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import SiteFooter from "@/components/editorial/SiteFooter";
-import { CollectionCard, CuratorAvatar, PrototypeBanner, TasteChips } from "@/components/curators/CuratorBits";
+import { CollectionCard, CuratorAvatar, PrototypeBanner } from "@/components/curators/CuratorBits";
+import { FollowTasteButton } from "@/components/profile/ProfileActions";
+import { prisma } from "@/lib/prisma";
 import { getEditorialViewer } from "@/lib/editorial/viewer";
 import { curatorAccess } from "@/lib/curators/access";
 import { getCuratorBySlug } from "@/lib/curators/queries";
 import { getViewerCuratorContext } from "@/lib/curators/viewerTaste";
-import { AFFINITY_LABEL, affinityReason } from "@/lib/curators/affinity";
-import { curatorDisplayName } from "@/lib/curators/finder";
-import { attrKey } from "@/lib/discoveryRecommend";
 
 export const metadata: Metadata = { title: "CURATOR — 공간큐브", robots: { index: false } };
 
@@ -19,8 +18,8 @@ interface Props {
 
 /**
  * 큐레이터 프로필 — "이 사람은 어떤 공간을 고르는 사람인가"가 한눈에 보이게.
- * 대표 취향(선언) → 고른 공간에 실제로 자주 나오는 특징(개수) → 나와의 취향 겹침 → 컬렉션.
- * 숫자는 실제로 센 개수만 쓴다(점수·% 없음). 팔로워·좋아요 없음.
+ * 이름 · 소개 · 링크 · (공개 프로필이 있으면) 취향 따라가기 → 컬렉션. 취향은 태그·통계로 설명하지 않는다 —
+ * 고른 공간(컬렉션 사진)을 보면 느껴지게. 취향 가중치는 추천 정렬에서만 쓴다. 팔로워 수·좋아요 없음.
  */
 export default async function CuratorProfilePage({ params }: Props) {
   const [{ slug }, viewer] = await Promise.all([params, getEditorialViewer()]);
@@ -33,21 +32,11 @@ export default async function CuratorProfilePage({ params }: Props) {
   const isMe = viewer.userId === curator.userId;
   const viewerCtx = viewer.userId && !isMe ? await getViewerCuratorContext(viewer.userId, access) : null;
   const myAffinity = viewerCtx?.affinities.find((a) => a.curator.slug === curator.slug) ?? null;
+  // 큐레이터의 사용자 공개 프로필(있을 때만) — 취향 따라가기는 일반 사용자와 같은 관계(SavedTaste)
+  const owner = await prisma.user.findUnique({ where: { id: curator.userId }, select: { profilePublic: true, profileHandle: true, isDemo: true } });
+  const followHandle = owner?.profilePublic && owner.profileHandle && !owner.isDemo ? owner.profileHandle : null;
+  const followingCurator = !!(followHandle && viewer.userId && (await prisma.savedTaste.findUnique({ where: { userId_targetUserId: { userId: viewer.userId, targetUserId: curator.userId } }, select: { id: true } })));
 
-  // 이 큐레이터가 고른 공간들에 실제로 자주 나오는 특징(공간 유형·태그) — 공간 단위로 센다.
-  const counts = new Map<string, { label: string; n: number }>();
-  const seen = new Set<string>();
-  for (const col of collections) for (const p of col.picks) {
-    if (seen.has(p.space.id)) continue;
-    seen.add(p.space.id);
-    for (const a of new Set([p.space.category, ...(p.space.tags ?? [])])) {
-      const k = attrKey(a);
-      if (!k) continue;
-      counts.set(k, { label: counts.get(k)?.label ?? a, n: (counts.get(k)?.n ?? 0) + 1 });
-    }
-  }
-  const frequent = [...counts.values()].filter((c) => c.n >= 2).sort((a, b) => b.n - a.n).slice(0, 6);
-  const displayName = curatorDisplayName(curator);
   const links = [
     curator.instagramUrl ? { href: curator.instagramUrl, label: curator.instagramHandle ? `Instagram @${curator.instagramHandle}` : "Instagram" } : null,
     curator.websiteUrl ? { href: curator.websiteUrl, label: "Website" } : null,
@@ -77,38 +66,15 @@ export default async function CuratorProfilePage({ params }: Props) {
                 )}
               </div>
             </div>
-            <div className="md:col-span-5 space-y-5">
-              <div>
-                <p className="ed-label pb-2" style={{ color: "var(--ed-dim)" }}>대표 취향</p>
-                <TasteChips tags={curator.tasteTags} size="md" />
-              </div>
-              {frequent.length > 0 && (
-                <div>
-                  <p className="ed-label pb-2" style={{ color: "var(--ed-dim)" }}>고른 공간 {curator.spaceCount}곳에 자주 나오는 특징</p>
-                  <p className="text-sm leading-relaxed">
-                    {frequent.map((f, i) => (
-                      <span key={f.label}>
-                        {i > 0 && <span style={{ color: "var(--ed-line)" }}> / </span>}
-                        {f.label} <span className="tabular-nums" style={{ color: "var(--ed-dim)" }}>{f.n}곳</span>
-                      </span>
-                    ))}
-                  </p>
-                </div>
+            <div className="md:col-span-5 space-y-3 md:text-right">
+              {/* 큐레이터도 같은 사용자 — 공개 프로필이 있으면 같은 "취향 따라가기"(별도 큐레이터 팔로우 없음) */}
+              {!isMe && followHandle && <FollowTasteButton handle={followHandle} initialFollowing={followingCurator} loggedIn={viewer.loggedIn} returnTo={`/curators/${curator.slug}`} />}
+              {myAffinity && myAffinity.sharedSpaceIds.length > 0 && (
+                <p className="text-xs" style={{ color: "var(--ed-dim)" }}>함께 좋아하는 공간 {myAffinity.sharedSpaceIds.length}곳</p>
               )}
             </div>
           </div>
         </header>
-
-        {/* 나와의 취향 — 로그인했고 실제 겹침을 셀 수 있을 때만 */}
-        {myAffinity && viewerCtx && !viewerCtx.empty && (
-          <section className="ed-container pt-8">
-            <div className="py-5 px-5 md:px-6" style={{ background: "var(--ed-soft)" }}>
-              <p className="ed-label" style={{ color: "var(--ed-dim)" }}>나와의 취향</p>
-              <p className="pt-1 text-lg font-bold">{AFFINITY_LABEL[myAffinity.level]}</p>
-              <p className="pt-1 text-sm leading-relaxed" style={{ color: "var(--ed-dim)" }}>{affinityReason(myAffinity, displayName)}</p>
-            </div>
-          </section>
-        )}
 
         <section className="ed-container pt-12 md:pt-16">
           <p className="ed-label pb-6" style={{ color: "var(--ed-dim)" }}>{curator.name}의 Collections · {collections.length}</p>
