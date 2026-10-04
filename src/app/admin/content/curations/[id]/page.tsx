@@ -1,7 +1,8 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireAdminPage } from "@/lib/adminGuard";
-import { getAreaOptions, getSpaceOptions, opsInitial, storedBlocks } from "@/lib/editorial/admin";
+import { formatEditorialDate } from "@/lib/editorial/types";
+import { getAreaOptions, getPreviewSpaceViews, getSpaceOptions, opsInitial, storedBlocks } from "@/lib/editorial/admin";
 import { assigneeSuggestions } from "@/lib/editorial/pipelineDb";
 import { effectiveStage } from "@/lib/editorial/pipeline";
 import { curationLabel } from "@/lib/editorial/types";
@@ -12,11 +13,12 @@ import { EditorialDangerZone } from "@/components/admin/editorial/EditorialContr
 export default async function EditCurationPage({ params }: { params: Promise<{ id: string }> }) {
   await requireAdminPage();
   const { id } = await params;
-  const [c, spaceOptions, areaOptions, assigneeOptions] = await Promise.all([
+  const [c, spaceOptions, areaOptions, assigneeOptions, previewSpaces] = await Promise.all([
     prisma.editorialCuration.findUnique({ where: { id }, include: { spaces: { orderBy: { order: "asc" } } } }),
     getSpaceOptions(),
     getAreaOptions(),
     assigneeSuggestions(),
+    getPreviewSpaceViews(),
   ]);
   if (!c) notFound();
 
@@ -37,6 +39,8 @@ export default async function EditCurationPage({ params }: { params: Promise<{ i
           stage={effectiveStage(c.stage, c.status)}
           areaOptions={areaOptions}
           assigneeOptions={assigneeOptions}
+          previewSpaces={previewSpaces}
+          publishedDate={formatEditorialDate(c.publishedAt)}
           initial={{
             ...opsInitial(c),
             number: String(c.number), slug: c.slug, label: c.area ?? "", perspective: c.perspective ?? "", title: c.title, summary: c.summary,

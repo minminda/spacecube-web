@@ -16,6 +16,9 @@ interface Props {
   children: React.ReactNode;
 }
 
+/** 편집기 + 실시간 미리보기 화면(새 글 · 편집) */
+const WIDE_EDITOR_RE = /^\/admin\/content\/(curations|people|thoughts)\/[^/]+$/;
+
 export default function AdminShell({ email, children }: Props) {
   const pathname = usePathname();
   const activeKey = activeAdminNavKey(pathname);
@@ -73,7 +76,8 @@ export default function AdminShell({ email, children }: Props) {
       )}
 
       <div className="admin-main lg:pl-[232px]">
-        <div className="admin-content max-w-[1120px] mx-auto px-4 md:px-8 lg:px-10 py-6 md:py-10">{children}</div>
+        {/* STORY·CURATION 편집 화면은 편집기 + 실시간 미리보기를 나란히 두므로 더 넓게 쓴다 */}
+        <div className={`admin-content ${WIDE_EDITOR_RE.test(pathname) ? "max-w-[1760px]" : "max-w-[1120px]"} mx-auto px-4 md:px-8 lg:px-10 py-6 md:py-10`}>{children}</div>
       </div>
     </div>
   );

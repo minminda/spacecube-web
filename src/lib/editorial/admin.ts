@@ -5,6 +5,8 @@ import { readStoredBlocks } from "./input";
 import type { EditorialBlock, EditorialStatusValue } from "./types";
 import type { EditorialPriorityValue } from "./pipeline";
 import { normalizeArea } from "./area";
+import { toSpaceView } from "./queries";
+import type { SpaceView } from "./types";
 
 export interface SpaceOptionRow {
   id: string;
@@ -83,3 +85,12 @@ export function opsInitial(r: {
 }
 
 export const EMPTY_OPS_INITIAL = { priority: "MEDIUM" as EditorialPriorityValue, assignee: "", scheduledAt: "", referenceLinks: "", internalNote: "", instagramSummary: "" };
+
+/**
+ * 실시간 미리보기용 공간 정보 — 공개 화면에 실제로 나오는 공간(발행 · 실공간)만, 공개 렌더러가 쓰는 SpaceView 그대로.
+ * 미리보기는 독자가 볼 화면이므로 초안 공간은 넣지 않는다(공개 상세에서도 빠진다).
+ */
+export async function getPreviewSpaceViews(): Promise<Record<string, SpaceView>> {
+  const rows = await prisma.editorialSpace.findMany({ where: { status: "PUBLISHED", isDemo: false } });
+  return Object.fromEntries(rows.map((r) => [r.id, toSpaceView(r)]));
+}

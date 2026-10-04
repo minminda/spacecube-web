@@ -10,6 +10,9 @@ import { FormSection, TextArea, TextInput } from "./FormBits";
 import SpacePicker, { type LinkedSpaceValue, type SpaceOption } from "./SpacePicker";
 import BlockEditor, { toBlockItems, type BlockItem } from "./BlockEditor";
 import { StageControl } from "./PipelineControls";
+import { LivePreviewPane, LivePreviewSheet } from "./LivePreview";
+import type { PreviewPayload } from "@/components/editorial/EditorialPreviewFrame";
+import type { SpaceView } from "@/lib/editorial/types";
 import { EDITORIAL_PRIORITIES, PRIORITY_LABEL, type EditorialPriorityValue, type EditorialStageValue } from "@/lib/editorial/pipeline";
 
 export interface DocFormValue {
@@ -51,6 +54,10 @@ interface Props {
   areaOptions?: string[];
   /** 담당자 입력 제안 */
   assigneeOptions?: string[];
+  /** 실시간 미리보기용 공개 공간 정보(발행 공간, 공개 렌더러의 SpaceView) */
+  previewSpaces?: Record<string, SpaceView>;
+  /** 발행된 글이면 공개 화면의 날짜 표기 */
+  publishedDate?: string;
 }
 
 const COPY = {
@@ -92,7 +99,7 @@ function snapshot(val: Omit<DocFormValue, "blocks">, its: BlockItem[]): string {
 }
 
 /** 큐레이션 / PEOPLE / THOUGHT 등록·편집 — 기본 정보 + 대표 이미지 + 연결 공간 + 본문 블록. */
-export default function EditorialDocForm({ kind, id, status, initial, spaceOptions, stage = null, areaOptions = [], assigneeOptions = [] }: Props) {
+export default function EditorialDocForm({ kind, id, status, initial, spaceOptions, stage = null, areaOptions = [], assigneeOptions = [], previewSpaces = {}, publishedDate }: Props) {
   const c = COPY[kind];
   const router = useRouter();
   const [v, setV] = useState<Omit<DocFormValue, "blocks">>(() => {
@@ -153,8 +160,25 @@ export default function EditorialDocForm({ kind, id, status, initial, spaceOptio
     }
   }
 
+  // 실시간 미리보기 — 저장하지 않은 폼 상태를 그대로 공개 렌더러에 넘긴다(DB에 임시 저장하지 않음).
+  // Instagram 요약·내부 메모 같은 운영 정보는 공개 화면 요소가 아니므로 보내지 않는다.
+  const previewPayload = useMemo<PreviewPayload>(() => {
+    const blocks = items.map((i) => i.block);
+    const ids = new Set([...v.spaces.map((s) => s.spaceId), ...blocks.flatMap((b) => (b.type === "SPACE_CARD" ? [b.spaceId] : []))]);
+    return {
+      draft: {
+        kind, number: v.number, label: v.label, perspective: v.perspective, subjectRole: v.subjectRole,
+        title: v.title, summary: v.summary, coverImage: v.coverImage, coverPosition: v.coverPosition,
+        spaces: v.spaces, blocks, date: status === "PUBLISHED" ? publishedDate : undefined,
+      },
+      views: Object.fromEntries([...ids].flatMap((sid) => (previewSpaces[sid] ? [[sid, previewSpaces[sid]]] : []))),
+    };
+  }, [kind, v, items, status, publishedDate, previewSpaces]);
+
   return (
-    <div className="flex flex-col gap-8 max-w-3xl">
+    <div className="lg:grid lg:grid-cols-[minmax(0,46fr)_minmax(0,54fr)] lg:gap-8 lg:items-start">
+    <div className="flex flex-col gap-8 max-w-3xl lg:max-w-none min-w-0">
+      <LivePreviewSheet payload={previewPayload} published={status === "PUBLISHED"} />
       <FormSection title="제작 관리" description="내부 전용 — 공개 화면에는 나오지 않아요. 공개 여부는 “발행” 단계(또는 아래 발행하기)로만 바뀝니다.">
         <AdminFormField label="제작 단계">
           <StageControl kind={kind} id={id} stage={stage} archived={status === "ARCHIVED"} dirty={dirty} onSave={save} />
@@ -275,6 +299,8 @@ export default function EditorialDocForm({ kind, id, status, initial, spaceOptio
         onSave={save}
         error={error}
       />
+    </div>
+    <LivePreviewPane payload={previewPayload} published={status === "PUBLISHED"} />
     </div>
   );
 }

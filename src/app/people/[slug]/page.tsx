@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import SiteFooter from "@/components/editorial/SiteFooter";
 import PreviewBanner from "@/components/editorial/PreviewBanner";
 import StoryArticle from "@/components/editorial/StoryArticle";
+import { peopleEyebrow } from "@/lib/editorial/draftView";
 import { getEditorialViewer } from "@/lib/editorial/viewer";
 import { getBlockSpaces, getPersonBySlug, listStoryItems } from "@/lib/editorial/queries";
 import { getSavedEditorialSpaceIds } from "@/lib/editorial/saves";
@@ -41,7 +42,7 @@ export default async function PeopleDetailPage({ params }: Props) {
       <StoryArticle
         backHref="/story?type=people"
         backLabel="PEOPLE"
-        eyebrow={[formatPeopleNumber(person.number), person.subject, person.subjectRole].filter(Boolean).join(" · ")}
+        eyebrow={peopleEyebrow(person.number, person.subject, person.subjectRole)}
         title={person.title}
         summary={person.summary}
         date={formatEditorialDate(person.publishedAt)}
