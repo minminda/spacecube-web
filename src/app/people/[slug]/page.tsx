@@ -41,7 +41,7 @@ export default async function PeopleDetailPage({ params }: Props) {
       <StoryArticle
         backHref="/story?type=people"
         backLabel="PEOPLE"
-        eyebrow={`${formatPeopleNumber(person.number)}${person.subject ? ` · ${person.subject}` : ""}`}
+        eyebrow={[formatPeopleNumber(person.number), person.subject, person.subjectRole].filter(Boolean).join(" · ")}
         title={person.title}
         summary={person.summary}
         date={formatEditorialDate(person.publishedAt)}

@@ -1,5 +1,5 @@
 import { requireAdminPage } from "@/lib/adminGuard";
-import { getSpaceOptions, nextThoughtNumber } from "@/lib/editorial/admin";
+import { EMPTY_OPS_INITIAL, getSpaceOptions, nextThoughtNumber } from "@/lib/editorial/admin";
 import { AdminPageHeader } from "@/components/admin/ui";
 import EditorialDocForm from "@/components/admin/editorial/EditorialDocForm";
 
@@ -17,7 +17,7 @@ export default async function NewThoughtPage() {
       <EditorialDocForm
         kind="thoughts"
         spaceOptions={spaceOptions}
-        initial={{ number: String(number), slug: "", label: "", title: "", summary: "", coverImage: null, coverPosition: null, spaces: [], blocks: [] }}
+        initial={{ ...EMPTY_OPS_INITIAL, number: String(number), slug: "", label: "", title: "", summary: "", coverImage: null, coverPosition: null, spaces: [], blocks: [] }}
       />
     </>
   );

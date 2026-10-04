@@ -5,6 +5,7 @@
 import { isValidSlug, normalizeSlug } from "@/lib/slug";
 import type { BlockImage, CurationPerspectiveValue, EditorialBlock, EditorialStatusValue, HomeFeedItem } from "./types";
 import { CURATION_PERSPECTIVES, EDITORIAL_STATUSES } from "./types";
+import { EDITORIAL_PRIORITIES, EDITORIAL_STAGES, parseReferenceLinks, type EditorialPriorityValue, type EditorialStageValue, type PipelineKind } from "./pipeline";
 
 export type ParseResult<T> = { ok: true; data: T } | { ok: false; error: string };
 
@@ -253,15 +254,48 @@ function linkedSpaces(raw: unknown): LinkedSpaceInput[] {
   });
 }
 
-interface DocBase {
+/** 제작 관리(내부 전용) — 편집 화면 저장과 함께 들어온다. 단계(stage)는 별도 경로(/stage)에서만 바꾼다. */
+export interface DocOps {
+  priority: EditorialPriorityValue;
+  assignee: string | null;
+  scheduledAt: Date | null;
+  internalNote: string | null;
+  referenceLinks: string[];
+  instagramSummary: string | null;
+}
+
+interface DocBase extends DocOps {
   slug: string;
   number: number;
   title: string;
+  /** 한 줄 소개(STORY) / 한 줄 선정 기준(CURATION). 저장은 비워도 되고 발행 때 필수(pipeline.publishMissing). */
   summary: string;
   coverImage: string | null;
   coverPosition: string | null;
   blocks: EditorialBlock[];
   spaces: LinkedSpaceInput[];
+}
+
+/** "2026-10-10"(KST 날짜) 또는 ISO 문자열 → Date. 빈 값은 null. */
+export function parseScheduledAt(v: unknown): Date | null {
+  if (v === undefined || v === null || v === "") return null;
+  if (typeof v !== "string") fail("발행 예정일 형식이 올바르지 않아요.");
+  const d = /^\d{4}-\d{2}-\d{2}$/.test(v) ? new Date(`${v}T00:00:00+09:00`) : new Date(v);
+  if (Number.isNaN(d.getTime())) fail("발행 예정일 형식이 올바르지 않아요.");
+  return d;
+}
+
+function docOps(o: Record<string, unknown>): DocOps {
+  const pr = o.priority;
+  if (pr !== undefined && pr !== null && !(EDITORIAL_PRIORITIES as readonly unknown[]).includes(pr)) fail("우선순위 값이 올바르지 않아요.");
+  return {
+    priority: (pr as EditorialPriorityValue | undefined) ?? "MEDIUM",
+    assignee: optStr(o.assignee, "담당자", 40),
+    scheduledAt: parseScheduledAt(o.scheduledAt),
+    internalNote: optStr(o.internalNote, "내부 메모", 5000),
+    referenceLinks: parseReferenceLinks(o.referenceLinks),
+    instagramSummary: optStr(o.instagramSummary, "Instagram 요약", 2200),
+  };
 }
 
 export interface CurationInput extends DocBase {
@@ -271,7 +305,10 @@ export interface CurationInput extends DocBase {
   perspective: CurationPerspectiveValue | null;
 }
 export interface PersonInput extends DocBase {
+  /** 인터뷰이(이름 또는 호칭) */
   subject: string | null;
+  subjectRole: string | null;
+  subjectLink: string | null;
 }
 export interface ThoughtInput extends DocBase {
   /** 이야기가 시작된 장면·장소(선택) */
@@ -283,11 +320,12 @@ function docBase(o: Record<string, unknown>): DocBase {
     slug: slugOf(o.slug),
     number: posInt(o.number, "번호"),
     title: reqStr(o.title, "제목", 200),
-    summary: reqStr(o.summary, "요약", MAX.medium * 2),
+    summary: optStr(o.summary, "요약", MAX.medium * 2) ?? "",
     coverImage: optUrl(o.coverImage, "대표 이미지"),
     coverPosition: optStr(o.coverPosition, "대표 이미지 초점", 40),
     blocks: parseBlockList(o.blocks),
     spaces: linkedSpaces(o.spaces),
+    ...docOps(o),
   };
 }
 
@@ -304,7 +342,7 @@ export function parseCurationInput(raw: unknown): ParseResult<CurationInput> {
 export function parsePersonInput(raw: unknown): ParseResult<PersonInput> {
   return wrap(() => {
     const o = obj(raw);
-    return { ...docBase(o), subject: optStr(o.subject, "소개 대상", 60) };
+    return { ...docBase(o), subject: optStr(o.subject, "소개 대상", 60), subjectRole: optStr(o.subjectRole, "역할·직함", 80), subjectLink: optUrl(o.subjectLink, "외부 링크") };
   });
 }
 
@@ -365,5 +403,42 @@ export function readStoredFeed(raw: unknown): HomeFeedItem[] {
   return raw.flatMap((item) => {
     const r = parseHomeInput({ feed: [item] });
     return r.ok ? r.data.feed : [];
+  });
+}
+
+/* ── 백로그 빠른 아이디어 ── */
+
+export interface IdeaInput {
+  kind: PipelineKind;
+  title: string;
+  internalNote: string | null;
+  referenceLinks: string[];
+  priority: EditorialPriorityValue;
+  assignee: string | null;
+}
+
+/** 아이디어는 제목만 필수 — 대표 이미지·본문·공간은 제작을 시작할 때 전체 편집 화면에서 채운다. */
+export function parseIdeaInput(raw: unknown): ParseResult<IdeaInput> {
+  return wrap(() => {
+    const o = obj(raw);
+    if (o.kind !== "people" && o.kind !== "thoughts" && o.kind !== "curations") fail("유형을 골라주세요.");
+    const pr = o.priority;
+    if (pr !== undefined && pr !== null && !(EDITORIAL_PRIORITIES as readonly unknown[]).includes(pr)) fail("우선순위 값이 올바르지 않아요.");
+    return {
+      kind: o.kind,
+      title: reqStr(o.title, "제목/아이디어", 200),
+      internalNote: optStr(o.note, "메모", 5000),
+      referenceLinks: parseReferenceLinks(o.referenceLinks),
+      priority: (pr as EditorialPriorityValue | undefined) ?? "MEDIUM",
+      assignee: optStr(o.assignee, "담당자", 40),
+    };
+  });
+}
+
+export function parseStage(raw: unknown): ParseResult<EditorialStageValue> {
+  return wrap(() => {
+    const s = obj(raw).stage;
+    if (typeof s !== "string" || !(EDITORIAL_STAGES as readonly string[]).includes(s)) fail("단계 값이 올바르지 않아요.");
+    return s as EditorialStageValue;
   });
 }

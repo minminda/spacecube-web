@@ -3,6 +3,8 @@ import { AdminPageHeader, AdminTable, AdminButtonLink, EmptyState, FilterBar, St
 import type { EditorialStatusValue } from "@/lib/editorial/types";
 import { EditorialStatusBadge } from "./EditorialControls";
 import StatusTabs from "./StatusTabs";
+import { StageBadge } from "./PipelineControls";
+import type { EditorialStageValue } from "@/lib/editorial/pipeline";
 
 export interface DocRow {
   id: string;
@@ -14,6 +16,8 @@ export interface DocRow {
   status: EditorialStatusValue;
   updatedAt: Date;
   homeFeatured?: boolean;
+  /** 제작 단계(보관이면 null) — 상태 옆에 표시 */
+  stage?: EditorialStageValue | null;
 }
 
 interface Props {
@@ -58,6 +62,7 @@ export default function DocListPage({ kind, title, description, newLabel, search
               <td className="tabular-nums">{r.spaceCount}</td>
               <td className="space-x-1 whitespace-nowrap">
                 <EditorialStatusBadge status={r.status} />
+                {r.stage && r.stage !== "PUBLISHED" && <StageBadge stage={r.stage} />}
                 {r.homeFeatured && <StatusBadge tone="neutral">홈 대표</StatusBadge>}
               </td>
               <td className="text-xs tabular-nums" style={{ color: "var(--a-dim)" }}>{formatAdminDate(r.updatedAt)}</td>

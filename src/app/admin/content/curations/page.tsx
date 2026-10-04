@@ -1,5 +1,6 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { effectiveStage } from "@/lib/editorial/pipeline";
 import { requireAdminPage } from "@/lib/adminGuard";
 import { curationLabel, PERSPECTIVE_LABEL } from "@/lib/editorial/types";
 import DocListPage, { statusCounts } from "@/components/admin/editorial/DocListPage";
@@ -41,7 +42,7 @@ export default async function AdminContentCurationsPage({ searchParams }: Props)
       counts={statusCounts(groups)}
       rows={rows.map((c) => ({
         id: c.id, slug: c.slug, numberLabel: curationLabel({ number: c.number, area: c.area }), title: c.title, sub: c.perspective ? PERSPECTIVE_LABEL[c.perspective].ko : "관점 미지정",
-        spaceCount: c._count.spaces, status: c.status, updatedAt: c.updatedAt,
+        spaceCount: c._count.spaces, status: c.status, stage: effectiveStage(c.stage, c.status), updatedAt: c.updatedAt,
       }))}
     />
   );

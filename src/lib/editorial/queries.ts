@@ -5,6 +5,7 @@
    Cube 운영 모델(Space/Episode/...)은 조회하지 않는다. ── */
 
 import type { EditorialCuration, EditorialPerson, EditorialSpace, EditorialThought, Prisma } from "@prisma/client";
+import { latestKey, orderLatest, type LatestRow } from "./latest";
 import { prisma } from "@/lib/prisma";
 import { readStoredBlocks, collectBlockSpaceIds } from "./input";
 import type { ContentItem, CurationView, LinkedSpace, PersonView, ResolvedImage, SpaceView, EditorialBlock, StoryItem, ThoughtView } from "./types";
@@ -121,6 +122,7 @@ function toPersonView(row: EditorialPerson & { spaces: LinkRow[] }, v?: Visibili
     number: row.number,
     title: row.title,
     subject: row.subject ?? undefined,
+    subjectRole: row.subjectRole ?? undefined,
     summary: row.summary,
     cover: cover(row.coverImage, row.coverPosition, row.title),
     spaces: linked(row.spaces, v),
@@ -276,13 +278,12 @@ export async function listContentStream(v?: Visibility): Promise<ContentItem[]> 
     prisma.editorialThought.findMany({ where, include: { spaces: linkInclude } }),
   ]);
 
-  const sortTime = (r: { publishedAt: Date | null; updatedAt: Date }) => (r.publishedAt ?? r.updatedAt).getTime();
-  const rows: { t: number; created: number; item: ContentItem }[] = [];
+  const rows: LatestRow<ContentItem>[] = [];
 
   for (const r of curations) {
     const c = toCurationView(r, v);
     rows.push({
-      t: sortTime(r), created: r.createdAt.getTime(),
+      ...latestKey(r),
       item: {
         key: `curation-${c.id}`, kind: "curation", eyebrow: curationLabel(c), title: c.title, summary: c.summary,
         meta: c.spaces.length ? (c.area ? `${c.area}에서 발견한 ${c.spaces.length}개의 공간` : `공간 ${c.spaces.length}곳`) : undefined,
@@ -293,7 +294,7 @@ export async function listContentStream(v?: Visibility): Promise<ContentItem[]> 
   for (const r of people) {
     const p = toPersonView(r, v);
     rows.push({
-      t: sortTime(r), created: r.createdAt.getTime(),
+      ...latestKey(r),
       item: {
         key: `person-${p.id}`, kind: "person", eyebrow: p.subject ? `${formatPeopleNumber(p.number)} · ${p.subject}` : formatPeopleNumber(p.number),
         title: p.title, summary: p.summary, href: `/people/${p.slug}`, image: p.cover, date: formatEditorialDate(p.publishedAt), status: p.status,
@@ -303,7 +304,7 @@ export async function listContentStream(v?: Visibility): Promise<ContentItem[]> 
   for (const r of thoughts) {
     const t = toThoughtView(r, v);
     rows.push({
-      t: sortTime(r), created: r.createdAt.getTime(),
+      ...latestKey(r),
       item: {
         key: `thought-${t.id}`, kind: "thought", eyebrow: t.scene ? `${formatThoughtNumber(t.number)} · ${t.scene}` : formatThoughtNumber(t.number),
         title: t.title, summary: t.summary, href: `/thought/${t.slug}`, image: t.cover, date: formatEditorialDate(t.publishedAt), status: t.status,
@@ -313,16 +314,14 @@ export async function listContentStream(v?: Visibility): Promise<ContentItem[]> 
   for (const r of spaces) {
     const s = toSpaceView(r);
     rows.push({
-      t: sortTime(r), created: r.createdAt.getTime(),
+      ...latestKey(r),
       item: {
         key: `space-${s.id}`, kind: "space", eyebrow: [s.area, s.category].filter(Boolean).join(" · "), title: s.name, summary: s.summary,
         href: spaceHref(s.slug), image: spaceCoverImage(s), date: formatEditorialDate(r.publishedAt), partner: s.cubeAvailable, status: s.status,
       },
     });
   }
-  // 최신 발행 순, 같은 시각이면 먼저 만든 것이 앞(등록 순서 유지)
-  rows.sort((a, b) => b.t - a.t || a.created - b.created);
-  return rows.map((r) => r.item);
+  return orderLatest(rows);
 }
 
 /* ── STORY(PEOPLE + THOUGHT) ── */

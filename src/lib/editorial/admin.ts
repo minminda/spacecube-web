@@ -3,6 +3,8 @@
 import { prisma } from "@/lib/prisma";
 import { readStoredBlocks } from "./input";
 import type { EditorialBlock, EditorialStatusValue } from "./types";
+import type { EditorialPriorityValue } from "./pipeline";
+import { normalizeArea } from "./area";
 
 export interface SpaceOptionRow {
   id: string;
@@ -52,3 +54,32 @@ export async function getTagSuggestions(): Promise<string[]> {
   });
   return [...new Set(rows.map((r) => r.name))];
 }
+
+/** 큐레이션 지역 선택지 — canonical 공간 콘텐츠(EditorialSpace, 가상 공간 제외)의 정규화된 지역(area.ts). 새 지역 목록을 따로 두지 않는다. */
+export async function getAreaOptions(): Promise<string[]> {
+  const rows = await prisma.editorialSpace.findMany({ where: { isDemo: false, status: { not: "ARCHIVED" } }, select: { area: true }, distinct: ["area"] });
+  return [...new Set(rows.map((r) => normalizeArea(r.area)).filter((a): a is string => !!a))].sort((a, b) => a.localeCompare(b, "ko"));
+}
+
+/** Date → KST "YYYY-MM-DD"(date input 값) */
+export function toKstDateInput(d: Date | null): string {
+  if (!d) return "";
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit" }).format(d);
+}
+
+/** 편집 폼의 제작 관리 초기값(행 → 폼 문자열). */
+export function opsInitial(r: {
+  priority: EditorialPriorityValue; assignee: string | null; scheduledAt: Date | null; referenceLinks: string[];
+  internalNote: string | null; instagramSummary: string | null;
+}) {
+  return {
+    priority: r.priority,
+    assignee: r.assignee ?? "",
+    scheduledAt: toKstDateInput(r.scheduledAt),
+    referenceLinks: r.referenceLinks.join("\n"),
+    internalNote: r.internalNote ?? "",
+    instagramSummary: r.instagramSummary ?? "",
+  };
+}
+
+export const EMPTY_OPS_INITIAL = { priority: "MEDIUM" as EditorialPriorityValue, assignee: "", scheduledAt: "", referenceLinks: "", internalNote: "", instagramSummary: "" };

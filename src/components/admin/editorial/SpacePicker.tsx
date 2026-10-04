@@ -22,7 +22,7 @@ export interface LinkedSpaceValue {
  * 연결 공간 선택 — 공간 콘텐츠(EditorialSpace)만 고를 수 있다(운영 공간·Cube와 무관).
  * 순서 ↑↓, 메모, 제거. 발행되지 않은 공간은 공개 화면에서 자동으로 빠진다는 점을 표시한다.
  */
-export default function SpacePicker({ options, value, onChange }: { options: SpaceOption[]; value: LinkedSpaceValue[]; onChange: (v: LinkedSpaceValue[]) => void }) {
+export default function SpacePicker({ options, value, onChange, notePlaceholder = "카드에 붙일 한 줄 메모(선택)" }: { options: SpaceOption[]; value: LinkedSpaceValue[]; onChange: (v: LinkedSpaceValue[]) => void; notePlaceholder?: string }) {
   const [query, setQuery] = useState("");
   const byId = useMemo(() => new Map(options.map((o) => [o.id, o])), [options]);
   const selected = new Set(value.map((v) => v.spaceId));
@@ -60,7 +60,7 @@ export default function SpacePicker({ options, value, onChange }: { options: Spa
                 <input
                   value={item.note}
                   onChange={(e) => onChange(value.map((v, k) => (k === i ? { ...v, note: e.target.value } : v)))}
-                  placeholder="카드에 붙일 한 줄 메모(선택)"
+                  placeholder={notePlaceholder}
                   className="a-input sm:max-w-[260px]"
                   style={{ height: 32, fontSize: 13 }}
                 />
@@ -76,7 +76,7 @@ export default function SpacePicker({ options, value, onChange }: { options: Spa
       )}
 
       <div className="space-y-2">
-        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="공간 콘텐츠 검색해서 추가" className="a-input max-w-sm" />
+        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="공간 이름 · 지역 · 유형으로 검색해서 추가" className="a-input max-w-sm" />
         {candidates.length > 0 ? (
           <ul className="flex flex-wrap gap-2">
             {candidates.map((o) => (

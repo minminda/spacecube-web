@@ -1,11 +1,11 @@
 import { requireAdminPage } from "@/lib/adminGuard";
-import { getSpaceOptions, nextCurationNumber } from "@/lib/editorial/admin";
+import { EMPTY_OPS_INITIAL, getAreaOptions, getSpaceOptions, nextCurationNumber } from "@/lib/editorial/admin";
 import { AdminPageHeader } from "@/components/admin/ui";
 import EditorialDocForm from "@/components/admin/editorial/EditorialDocForm";
 
 export default async function NewCurationPage() {
   await requireAdminPage();
-  const [spaceOptions, number] = await Promise.all([getSpaceOptions(), nextCurationNumber()]);
+  const [spaceOptions, number, areaOptions] = await Promise.all([getSpaceOptions(), nextCurationNumber(), getAreaOptions()]);
   return (
     <>
       <AdminPageHeader
@@ -17,7 +17,8 @@ export default async function NewCurationPage() {
       <EditorialDocForm
         kind="curations"
         spaceOptions={spaceOptions}
-        initial={{ number: String(number), slug: "", label: "", perspective: "", title: "", summary: "", coverImage: null, coverPosition: null, spaces: [], blocks: [] }}
+        areaOptions={areaOptions}
+        initial={{ ...EMPTY_OPS_INITIAL, number: String(number), slug: "", label: "", perspective: "", title: "", summary: "", coverImage: null, coverPosition: null, spaces: [], blocks: [] }}
       />
     </>
   );

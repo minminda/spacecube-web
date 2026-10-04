@@ -1147,6 +1147,24 @@ enum EditorialCurationPerspective {
   PURPOSE
 }
 
+// 콘텐츠 제작 파이프라인(내부 전용) — 공개 여부는 여전히 EditorialStatus(PUBLISHED만 공개)가 정한다.
+// stage는 팀의 진행 단계일 뿐이며, PUBLISHED 단계로 옮기면 status도 PUBLISHED로 함께 바뀐다
+// (src/lib/editorial/pipeline.ts가 둘을 항상 맞춘다). 단계는 건너뛸 수 있다(PEOPLE이 아니면 CONTACTING 생략 등).
+enum EditorialStage {
+  IDEA
+  CONTACTING
+  PRODUCING
+  REVIEW
+  SCHEDULED
+  PUBLISHED
+}
+
+enum EditorialPriority {
+  HIGH
+  MEDIUM
+  LOW
+}
+
 model EditorialSpace {
   id            String          @id @default(cuid())
   slug          String          @unique
@@ -1177,12 +1195,12 @@ model EditorialSpace {
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
 
-  curationLinks EditorialCurationSpace[]
-  personLinks   EditorialPersonSpace[]
-  thoughtLinks  EditorialThoughtSpace[]
-  homeHeroOf    EditorialHomeSettings[]  @relation("EditorialHomeHero")
-  saves         SavedEditorialSpace[]
-  curatorPicks  CuratorCollectionSpace[]
+  curationLinks  EditorialCurationSpace[]
+  personLinks    EditorialPersonSpace[]
+  thoughtLinks   EditorialThoughtSpace[]
+  homeHeroOf     EditorialHomeSettings[]  @relation("EditorialHomeHero")
+  saves          SavedEditorialSpace[]
+  curatorPicks   CuratorCollectionSpace[]
   archiveEntries ArchiveEntry[]
 
   @@index([status])
@@ -1190,23 +1208,32 @@ model EditorialSpace {
 }
 
 model EditorialCuration {
-  id            String          @id @default(cuid())
-  slug          String          @unique
-  number        Int             @unique // "CURATION 001"
+  id               String                        @id @default(cuid())
+  slug             String                        @unique
+  number           Int                           @unique // "CURATION 001"
   // 지역(예: "문래") — 현재 주 운영 방식은 "지역 × 하나의 관점"이지만, 지역과 무관한 주제형
   // 큐레이션도 가능하도록 선택값으로 둔다.
-  area          String?
+  area             String?
   // 큐레이션 관점 — 지역 × 상황(SITUATION) 또는 지역 × 취향·목적(PURPOSE). null은 아직 미지정.
-  perspective   EditorialCurationPerspective?
-  title         String
-  summary       String          @db.Text
-  coverImage    String?
-  coverPosition String?
-  blocks        Json            @default("[]")
-  status        EditorialStatus @default(DRAFT)
-  publishedAt   DateTime?
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
+  perspective      EditorialCurationPerspective?
+  title            String
+  summary          String                        @db.Text
+  coverImage       String?
+  coverPosition    String?
+  blocks           Json                          @default("[]")
+  status           EditorialStatus               @default(DRAFT)
+  publishedAt      DateTime?
+  createdAt        DateTime                      @default(now())
+  updatedAt        DateTime                      @updatedAt
+  // ── 제작 관리(내부 전용, 공개 화면에 내보내지 않는다) ──
+  // 기존 행은 이미 본문이 있는 초안이므로 기본값을 PRODUCING으로 둔다(빠른 아이디어는 IDEA로 명시 생성).
+  stage            EditorialStage                @default(PRODUCING)
+  priority         EditorialPriority             @default(MEDIUM)
+  assignee         String? // 담당자 이름(팀 권한 시스템 없이 간단한 텍스트)
+  scheduledAt      DateTime? // 발행 예정일(자동 발행 없음 — 백로그에서 확인)
+  internalNote     String?                       @db.Text
+  referenceLinks   String[]                      @default([])
+  instagramSummary String?                       @db.Text
 
   spaces         EditorialCurationSpace[]
   homeFeaturedOf EditorialHomeSettings[]  @relation("EditorialHomeCuration")
@@ -1232,19 +1259,30 @@ model EditorialCurationSpace {
 }
 
 model EditorialPerson {
-  id            String          @id @default(cuid())
-  slug          String          @unique
-  number        Int             @unique // "PEOPLE 001"
-  title         String
-  subject       String? // 소개 대상(이름 또는 호칭)
-  summary       String          @db.Text
-  coverImage    String?
-  coverPosition String?
-  blocks        Json            @default("[]")
-  status        EditorialStatus @default(DRAFT)
-  publishedAt   DateTime?
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
+  id               String            @id @default(cuid())
+  slug             String            @unique
+  number           Int               @unique // "PEOPLE 001"
+  title            String
+  subject          String? // 소개 대상(이름 또는 호칭) — 인터뷰이
+  subjectRole      String? // 역할·직함(선택) — 예: "북눅 연남 운영자"
+  subjectLink      String? // 인스타그램·외부 링크(선택)
+  summary          String            @db.Text
+  coverImage       String?
+  coverPosition    String?
+  blocks           Json              @default("[]")
+  status           EditorialStatus   @default(DRAFT)
+  publishedAt      DateTime?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  // ── 제작 관리(내부 전용, 공개 화면에 내보내지 않는다) ──
+  // 기존 행은 이미 본문이 있는 초안이므로 기본값을 PRODUCING으로 둔다(빠른 아이디어는 IDEA로 명시 생성).
+  stage            EditorialStage    @default(PRODUCING)
+  priority         EditorialPriority @default(MEDIUM)
+  assignee         String? // 담당자 이름(팀 권한 시스템 없이 간단한 텍스트)
+  scheduledAt      DateTime? // 발행 예정일(자동 발행 없음 — 백로그에서 확인)
+  internalNote     String?           @db.Text
+  referenceLinks   String[]          @default([])
+  instagramSummary String?           @db.Text
 
   spaces EditorialPersonSpace[]
 
@@ -1270,20 +1308,29 @@ model EditorialPersonSpace {
 // STORY › THOUGHT — 실제 장면에서 시작해 하나의 질문·생각으로 넓혀 가는 에디토리얼.
 // PEOPLE(EditorialPerson)과 같은 형태지만 번호 체계("THOUGHT 001")가 따로라 별도 모델로 둔다.
 model EditorialThought {
-  id            String          @id @default(cuid())
-  slug          String          @unique
-  number        Int             @unique // "THOUGHT 001"
-  title         String
+  id               String            @id @default(cuid())
+  slug             String            @unique
+  number           Int               @unique // "THOUGHT 001"
+  title            String
   // 이야기가 시작된 장면·장소(선택) — 예: "비 오는 오후의 서점"
-  scene         String?
-  summary       String          @db.Text
-  coverImage    String?
-  coverPosition String?
-  blocks        Json            @default("[]")
-  status        EditorialStatus @default(DRAFT)
-  publishedAt   DateTime?
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
+  scene            String?
+  summary          String            @db.Text
+  coverImage       String?
+  coverPosition    String?
+  blocks           Json              @default("[]")
+  status           EditorialStatus   @default(DRAFT)
+  publishedAt      DateTime?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  // ── 제작 관리(내부 전용, 공개 화면에 내보내지 않는다) ──
+  // 기존 행은 이미 본문이 있는 초안이므로 기본값을 PRODUCING으로 둔다(빠른 아이디어는 IDEA로 명시 생성).
+  stage            EditorialStage    @default(PRODUCING)
+  priority         EditorialPriority @default(MEDIUM)
+  assignee         String? // 담당자 이름(팀 권한 시스템 없이 간단한 텍스트)
+  scheduledAt      DateTime? // 발행 예정일(자동 발행 없음 — 백로그에서 확인)
+  internalNote     String?           @db.Text
+  referenceLinks   String[]          @default([])
+  instagramSummary String?           @db.Text
 
   spaces EditorialThoughtSpace[]
 

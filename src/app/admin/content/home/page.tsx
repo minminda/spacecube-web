@@ -10,7 +10,8 @@ const LATEST_COUNT = 5;
 
 function adminHref(item: ContentItem): string {
   const id = item.key.slice(item.key.indexOf("-") + 1);
-  return item.kind === "curation" ? `/admin/content/curations/${id}` : item.kind === "person" ? `/admin/content/people/${id}` : `/admin/content/spaces/${id}`;
+  const base = { curation: "curations", person: "people", thought: "thoughts", space: "spaces" }[item.kind];
+  return `/admin/content/${base}/${id}`;
 }
 
 /**
@@ -29,7 +30,7 @@ export default async function AdminContentHomePage() {
       <AdminPageHeader
         area="content"
         title="홈페이지"
-        description="HOME은 자동으로 구성됩니다. 공간 콘텐츠·큐레이션·PEOPLE을 발행하면 발행일 순으로 LATEST와 콘텐츠 피드에 바로 반영되고, 따로 홈을 편집할 필요가 없어요."
+        description="HOME은 자동으로 구성됩니다. 공간 콘텐츠·큐레이션·STORY(PEOPLE·THOUGHT)를 발행하면 발행일 순으로 LATEST와 콘텐츠 피드에 바로 반영되고, 따로 홈을 편집할 필요가 없어요."
         actions={
           <>
             <AdminButtonLink href="/?preview=drafts" external>초안 포함 미리보기 ↗</AdminButtonLink>

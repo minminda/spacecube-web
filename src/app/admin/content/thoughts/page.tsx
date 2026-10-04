@@ -1,5 +1,6 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { effectiveStage } from "@/lib/editorial/pipeline";
 import { requireAdminPage } from "@/lib/adminGuard";
 import { formatThoughtNumber } from "@/lib/editorial/types";
 import DocListPage, { statusCounts } from "@/components/admin/editorial/DocListPage";
@@ -41,7 +42,7 @@ export default async function AdminContentThoughtsPage({ searchParams }: Props) 
       counts={statusCounts(groups)}
       rows={rows.map((p) => ({
         id: p.id, slug: p.slug, numberLabel: formatThoughtNumber(p.number), title: p.title, sub: p.scene,
-        spaceCount: p._count.spaces, status: p.status, updatedAt: p.updatedAt,
+        spaceCount: p._count.spaces, status: p.status, stage: effectiveStage(p.stage, p.status), updatedAt: p.updatedAt,
       }))}
     />
   );

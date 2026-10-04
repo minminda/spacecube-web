@@ -118,6 +118,8 @@ export interface PersonView {
   number: number;
   title: string;
   subject?: string;
+  /** 인터뷰이 역할·직함(선택) */
+  subjectRole?: string;
   summary: string;
   cover: ResolvedImage;
   spaces: LinkedSpace[];

@@ -1,7 +1,9 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireAdminPage } from "@/lib/adminGuard";
-import { getSpaceOptions, storedBlocks } from "@/lib/editorial/admin";
+import { getSpaceOptions, opsInitial, storedBlocks } from "@/lib/editorial/admin";
+import { assigneeSuggestions } from "@/lib/editorial/pipelineDb";
+import { effectiveStage } from "@/lib/editorial/pipeline";
 import { formatThoughtNumber } from "@/lib/editorial/types";
 import { AdminPageHeader } from "@/components/admin/ui";
 import EditorialDocForm from "@/components/admin/editorial/EditorialDocForm";
@@ -10,9 +12,11 @@ import { EditorialDangerZone } from "@/components/admin/editorial/EditorialContr
 export default async function EditThoughtPage({ params }: { params: Promise<{ id: string }> }) {
   await requireAdminPage();
   const { id } = await params;
-  const [p, spaceOptions] = await Promise.all([
+  const [p, spaceOptions, areaOptions, assigneeOptions] = await Promise.all([
     prisma.editorialThought.findUnique({ where: { id }, include: { spaces: { orderBy: { order: "asc" } } } }),
     getSpaceOptions(),
+    Promise.resolve([] as string[]),
+    assigneeSuggestions(),
   ]);
   if (!p) notFound();
 
@@ -30,7 +34,11 @@ export default async function EditThoughtPage({ params }: { params: Promise<{ id
           id={p.id}
           status={p.status}
           spaceOptions={spaceOptions}
+          stage={effectiveStage(p.stage, p.status)}
+          areaOptions={areaOptions}
+          assigneeOptions={assigneeOptions}
           initial={{
+            ...opsInitial(p),
             number: String(p.number), slug: p.slug, label: p.scene ?? "", title: p.title, summary: p.summary,
             coverImage: p.coverImage, coverPosition: p.coverPosition,
             spaces: p.spaces.map((l) => ({ spaceId: l.spaceId, note: l.note ?? "" })),
