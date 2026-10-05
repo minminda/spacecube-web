@@ -37,4 +37,8 @@ describe("cardReason — 추천 카드 이유 한 줄", () => {
   it("근거가 없으면 null", () => {
     expect(cardReason(base)).toBeNull();
   });
+
+  it("카테고리도 함께 넘긴다", () => {
+    expect(recommendRedirectTarget({ editorial: true, loggedIn: false }, { area: "망원동", category: "카페" })).toBe(`/find?area=${encodeURIComponent("망원")}&category=${encodeURIComponent("카페")}`);
+  });
 });

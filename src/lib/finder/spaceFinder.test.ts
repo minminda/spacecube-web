@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { filterCandidates, parseFinderQuery, personalReason, rankCandidates, type FinderCandidate } from "./spaceFinder";
+import { categoryOptions, filterCandidates, finderHref, parseFinderQuery, personalReason, rankCandidates, type FinderCandidate } from "./spaceFinder";
 import { buildTasteProfile } from "@/lib/discoveryRecommend";
 
 const col = (title: string, curatorSlug: string, keywords: string[]) => ({ title, slug: title, curatorSlug, curatorName: curatorSlug, curatorIsOfficial: false, keywords });
@@ -14,7 +14,7 @@ const pool = [
 
 describe("parseFinderQuery", () => {
   it("예전 feel/for 이름을 받고, 표기 차이(감각적인)는 같은 분위기로", () => {
-    expect(parseFinderQuery({ area: "연남동", feel: "감각적인,없는것", for: "책", q: "  카페 " })).toEqual({ area: "연남", q: "카페", moods: ["감각 있는"], purposes: ["책"] });
+    expect(parseFinderQuery({ area: "연남동", feel: "감각적인,없는것", for: "책", q: "  카페 " })).toEqual({ area: "연남", category: null, q: "카페", moods: ["감각 있는"], purposes: ["책"] });
   });
 });
 
@@ -54,5 +54,38 @@ describe("rankCandidates — 개인화 정렬", () => {
     const r = rankCandidates(pool.slice(0, 3), null, new Map([["minji", 1.5]]));
     expect(r[0].space.id).toBe("book");
     expect(r[0].affineCollections.map((k) => k.curatorSlug)).toEqual(["minji"]);
+  });
+});
+
+describe("지역 · 카테고리 · 검색 조합", () => {
+  const ids = (q: Parameters<typeof parseFinderQuery>[0]) => filterCandidates(pool, parseFinderQuery(q)).map((x) => x.id).sort();
+
+  it("카테고리는 저장된 값과 정확히 같은 공간만, 지역 · 검색과 동시에 적용", () => {
+    expect(ids({ category: "독립서점" })).toEqual(["book", "far"]);
+    expect(ids({ area: "연남", category: "독립서점" })).toEqual(["book"]);
+    expect(ids({ area: "연남", category: "독립서점", q: "북" })).toEqual(["book"]);
+    expect(ids({ area: "연남", category: "LP카페", q: "북" })).toEqual([]);
+    expect(ids({ category: "카페", q: "조용" })).toEqual(["quiet"]);
+  });
+
+  it("카테고리 값이 없는 공간은 전체에서만 보인다(기타로 바꾸지 않음)", () => {
+    const withNull = [...pool, c({ id: "none", category: "" })];
+    expect(filterCandidates(withNull, parseFinderQuery({})).map((x) => x.id)).toContain("none");
+    expect(filterCandidates(withNull, parseFinderQuery({ category: "카페" })).map((x) => x.id)).not.toContain("none");
+    const opts = categoryOptions(withNull);
+    expect(opts[0]).toBe("독립서점"); // 많은 순
+    expect([...opts].sort()).toEqual(["LP카페", "독립서점", "카페"].sort());
+  });
+
+  it("필터 뒤에도 남은 공간의 개인화 순서는 그대로", () => {
+    const profile = buildTasteProfile({ visits: [{ name: "조용한", weight: 4 }], visitCount: 1, saves: [["혼자"], ["음악"]] });
+    const all = rankCandidates(pool, profile).map((r) => r.space.id);
+    const onlyYeonnam = rankCandidates(filterCandidates(pool, parseFinderQuery({ area: "연남" })), profile).map((r) => r.space.id);
+    expect(onlyYeonnam).toEqual(all.filter((id) => onlyYeonnam.includes(id)));
+  });
+
+  it("주소에 지역 · 카테고리 · 검색어를 남긴다", () => {
+    expect(finderHref({ area: null, category: null, q: "" })).toBe("/find");
+    expect(finderHref({ area: "연남", category: "복합문화공간", q: "북" })).toBe(`/find?area=${encodeURIComponent("연남")}&category=${encodeURIComponent("복합문화공간")}&q=${encodeURIComponent("북")}`);
   });
 });

@@ -55,6 +55,8 @@ export interface FinderCandidate {
 
 export interface FinderQuery {
   area: string | null;
+  /** 공간 카테고리(EditorialSpace.category 값 그대로 — 관리자 공간 등록과 같은 분류). null = 전체 */
+  category: string | null;
   q: string;
   moods: string[];
   purposes: string[];
@@ -63,10 +65,11 @@ export interface FinderQuery {
 const list = (v?: string | string[]) => (Array.isArray(v) ? v : v ? v.split(",") : []).map((x) => x.trim()).filter(Boolean);
 
 /** URL 쿼리 → 조건. 예전 링크의 feel(분위기)·for(목적) 이름을 그대로 받는다. 목록 밖 값은 버린다. */
-export function parseFinderQuery(raw: { area?: string; q?: string; feel?: string | string[]; for?: string | string[] }): FinderQuery {
+export function parseFinderQuery(raw: { area?: string; category?: string; q?: string; feel?: string | string[]; for?: string | string[] }): FinderQuery {
   const moodOf = (m: string) => FINDER_MOODS.find((x) => x.key === m || (x.match as readonly string[]).includes(attrKey(m)))?.key;
   return {
     area: normalizeArea(raw.area),
+    category: (raw.category ?? "").trim().slice(0, 40) || null,
     q: (raw.q ?? "").trim().slice(0, 40),
     moods: [...new Set(list(raw.feel).map(moodOf).filter((m): m is (typeof FINDER_MOODS)[number]["key"] => !!m))].slice(0, 3),
     purposes: [...new Set(list(raw.for))].filter((p) => FINDER_PURPOSES.some((x) => x.key === p)).slice(0, 3),
@@ -119,6 +122,8 @@ function matchesSearch(c: FinderCandidate, q: string): boolean {
 export function filterCandidates<C extends FinderCandidate>(cands: C[], q: FinderQuery): C[] {
   return cands.filter((c) => {
     if (q.area && normalizeArea(c.area) !== q.area) return false;
+    // 카테고리는 저장된 값과 정확히 같을 때만(값이 없는 공간은 특정 카테고리에서 빠지고 전체에서만 보인다)
+    if (q.category && (c.category ?? "").trim() !== q.category) return false;
     const attrs = candidateAttrs(c);
     if (!q.moods.every((m) => moodMatches(m, attrs))) return false;
     if (!q.purposes.every((p) => purposeMatches(p, attrs))) return false;
@@ -191,4 +196,25 @@ export function cardReason(input: {
   if (input.curationTitle) return `큐레이션 ‘${input.curationTitle}’`;
   if (input.collection) return `${input.collection.curator}의 ‘${input.collection.title}’`;
   return null;
+}
+
+/** 카테고리 선택지 — 후보 공간에 실제로 저장된 값만(하드코딩 없음). 많은 순 → 가나다. 값이 없는 공간은 선택지를 만들지 않는다. */
+export function categoryOptions(cands: { category?: string | null }[]): string[] {
+  const count = new Map<string, number>();
+  for (const c of cands) {
+    const v = (c.category ?? "").trim();
+    if (v) count.set(v, (count.get(v) ?? 0) + 1);
+  }
+  return [...count].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "ko")).map(([v]) => v);
+}
+
+/** 추천 > 공간 주소 — 지역 · 카테고리 · 검색어(· 더 보기 개수)를 주소에 남긴다(뒤로/앞으로 그대로). */
+export function finderHref(q: { area: string | null; category: string | null; q: string }, n?: number): string {
+  const p = new URLSearchParams();
+  if (q.area) p.set("area", q.area);
+  if (q.category) p.set("category", q.category);
+  if (q.q) p.set("q", q.q);
+  if (n) p.set("n", String(n));
+  const s = p.toString();
+  return s ? `/find?${s}` : "/find";
 }

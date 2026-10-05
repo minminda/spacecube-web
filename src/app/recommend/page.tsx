@@ -3,7 +3,7 @@ import { getEditorialViewer } from "@/lib/editorial/viewer";
 import { recommendRedirectTarget } from "@/lib/finder/recommendRedirect";
 
 interface Props {
-  searchParams: Promise<{ area?: string; pa?: string }>;
+  searchParams: Promise<{ area?: string; pa?: string; category?: string }>;
 }
 
 /**
