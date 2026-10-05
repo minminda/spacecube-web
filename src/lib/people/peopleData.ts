@@ -10,13 +10,15 @@ import { isAdmin } from "@/lib/admin";
 import { getLibrary } from "@/lib/archive/library";
 import { publicSpaceRows, searchPeople } from "@/lib/profile/profileData";
 import { peopleQuery } from "@/lib/profile/publicProfile";
+import { avatarSeed } from "./avatar";
 import { PEOPLE_REASON_TEXT, rankPeople, type PersonCandidate, type SpaceFeatures, type ViewerTaste } from "./rankPeople";
 
 /** 후보 상한 — 사람이 많아지면 최근 가입 순으로 자른다(V1). */
 const CANDIDATE_LIMIT = 200;
 
 export interface RecommendedPerson {
-  userId: string;
+  /** 아바타 seed(내부 사용자 id가 아니다 — lib/people/avatar.ts avatarSeed) */
+  avatarSeed: string;
   handle: string;
   name: string;
   image: string | null;
@@ -80,7 +82,7 @@ export async function recommendPeople(viewerId: string | null, opts: { includeDe
     .map((r) => {
       const u = byId.get(r.userId)!;
       return {
-        userId: u.id,
+        avatarSeed: avatarSeed(u.id),
         handle: u.profileHandle!,
         name: u.nickname || `@${u.profileHandle}`,
         image: u.image,
@@ -98,5 +100,5 @@ export async function searchPeopleTiles(raw: string | undefined, viewerId: strin
   const q = peopleQuery(raw);
   if (!q) return null;
   const { people } = await searchPeople(q, viewerId, { includeDemo: opts.includeDemo, photos: 0 });
-  return people.map((p) => ({ userId: p.userId, handle: p.handle, name: p.name, image: p.image, reason: null, demo: p.demo }));
+  return people.map((p) => ({ avatarSeed: avatarSeed(p.userId), handle: p.handle, name: p.name, image: p.image, reason: null, demo: p.demo }));
 }

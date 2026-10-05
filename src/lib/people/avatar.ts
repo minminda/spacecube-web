@@ -37,6 +37,14 @@ export function hashSeed(seed: string): number {
   return h >>> 0;
 }
 
+/**
+ * 사용자 id → 아바타 seed. 화면 · API에는 내부 id 대신 이 값만 내보낸다(32비트 해시라 id로 되돌릴 수 없다).
+ * 서버에서 계산해 넘기므로 같은 사람은 카드 · 프로필 어디서나 같은 아바타.
+ */
+export function avatarSeed(userId: string): string {
+  return hashSeed(`sc-avatar:${userId}`).toString(36);
+}
+
 export function avatarSpec(seed: string): AvatarSpec {
   let h = hashSeed(seed || "spacecube");
   const pick = <T,>(list: readonly T[]): T => {

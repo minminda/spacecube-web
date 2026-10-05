@@ -3,6 +3,7 @@ import EdImage from "@/components/editorial/EdImage";
 import type { PersonCard as PersonCardData } from "@/lib/profile/profileData";
 import { profilePath } from "@/lib/profile/publicProfile";
 import { FollowTasteButton } from "./ProfileActions";
+import { avatarSeed } from "@/lib/people/avatar";
 import UserAvatar from "./UserAvatar";
 
 /**
@@ -14,7 +15,7 @@ export default function PersonCard({ p, following, loggedIn, self, returnTo }: {
   return (
     <article className="py-6 md:py-8 grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] md:gap-10 md:items-center" style={{ borderBottom: "1px solid var(--ed-line)" }}>
       <div className="flex items-start gap-4 min-w-0">
-        <Link href={href} aria-label={`${p.name}의 공개 프로필`}><UserAvatar seed={p.userId} image={p.image} size={52} /></Link>
+        <Link href={href} aria-label={`${p.name}의 공개 프로필`}><UserAvatar seed={avatarSeed(p.userId)} image={p.image} size={52} /></Link>
         <div className="min-w-0 space-y-1.5">
           <Link href={href} className="block text-lg md:text-xl font-bold tracking-tight truncate hover:underline underline-offset-4">{p.name}</Link>
           {p.bio && <p className="text-sm leading-relaxed break-keep line-clamp-2" style={{ color: "var(--ed-dim)" }}>{p.bio}</p>}

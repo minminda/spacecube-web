@@ -16,7 +16,7 @@ const soft = { background: "var(--ed-soft)" } as const;
 export function PersonTile({ p }: { p: RecommendedPerson }) {
   return (
     <Link href={profilePath(p.handle)} className="group block min-w-0" aria-label={`${p.name} 프로필`}>
-      <UserAvatar seed={p.userId} image={p.image} />
+      <UserAvatar seed={p.avatarSeed} image={p.image} />
       <p className="pt-1.5 md:pt-3 text-[11px] leading-[1.35] md:text-sm font-semibold break-keep line-clamp-2 group-hover:underline underline-offset-4">{p.name}</p>
       {p.reason && (
         <span className="hidden md:block pt-1">
@@ -31,7 +31,7 @@ export function PeopleGrid({ people }: { people: RecommendedPerson[] }) {
   return (
     <ul className={PEOPLE_GRID_CLASS}>
       {people.map((p) => (
-        <li key={p.userId} className="min-w-0">
+        <li key={p.handle} className="min-w-0">
           <PersonTile p={p} />
         </li>
       ))}

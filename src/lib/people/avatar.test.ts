@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { avatarSpec, hashSeed } from "./avatar";
+import { avatarSeed, avatarSpec, hashSeed } from "./avatar";
 
 describe("avatarSpec", () => {
   it("같은 seed는 항상 같은 조합", () => {
@@ -29,5 +29,12 @@ describe("avatarSpec", () => {
 
   it("빈 seed도 안전하게", () => {
     expect(() => avatarSpec("")).not.toThrow();
+  });
+
+  it("avatarSeed는 같은 사용자에게 항상 같고, 내부 id를 그대로 담지 않는다", () => {
+    const id = "cmg1abcdef0001xyz";
+    expect(avatarSeed(id)).toBe(avatarSeed(id));
+    expect(avatarSeed(id)).not.toContain(id);
+    expect(avatarSeed(id)).not.toBe(avatarSeed("cmg1abcdef0002xyz"));
   });
 });

@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import SiteFooter from "@/components/editorial/SiteFooter";
 import ProfileGrid from "@/components/profile/ProfileGrid";
+import { avatarSeed } from "@/lib/people/avatar";
 import UserAvatar from "@/components/profile/UserAvatar";
 import { ProfileFollowArea, RelationLine, ShareNeedsProfileButton, ShareProfileButton } from "@/components/profile/ProfileActions";
 import { getEditorialViewer } from "@/lib/editorial/viewer";
@@ -53,7 +54,7 @@ export default async function PublicProfilePage({ params }: Props) {
         <header className="ed-container pt-8 md:pt-14 pb-10 md:pb-14">
           <p className="ed-label" style={{ color: "var(--ed-dim)" }}>@{p.handle}</p>
           <div className="pt-3 flex items-end gap-3 md:gap-4">
-            <UserAvatar seed={p.userId} image={p.image} size={48} />
+            <UserAvatar seed={avatarSeed(p.userId)} image={p.image} size={48} />
             <h1 className="min-w-0 text-[36px] md:text-[56px] font-bold leading-none tracking-[-0.04em] break-keep">{p.name}</h1>
           </div>
           {p.bio && <p className="pt-4 text-base leading-relaxed break-keep max-w-[560px]">{p.bio}</p>}
