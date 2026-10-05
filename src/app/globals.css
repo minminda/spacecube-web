@@ -218,6 +218,8 @@ body {
 .ed-btn:disabled { opacity: 0.4; }
 .ed-btn-primary { background: var(--ed-fg); color: var(--ed-bg); }
 .ed-btn-sm { height: 40px; padding: 0 16px; font-size: 13px; }
+/* 추천의 공간/사람 세그먼트(SegmentTabs)와 같은 높이 · 글자 — 내 아카이브 상단 행동이 같은 크기로 보이게 */
+.ed-btn-seg { height: 46px; font-size: 14px; }
 .editorial-bleed :is(a, button, input, textarea, select):focus-visible {
   outline: 2px solid var(--ed-fg);
   outline-offset: 2px;

@@ -9,13 +9,10 @@ import SegmentTabs from "@/components/editorial/SegmentTabs";
 import { PeopleGrid, PeopleGridSkeleton } from "@/components/people/PeopleGrid";
 import PeopleSearch from "@/components/people/PeopleSearch";
 import { SPACE_GRID_CLASS } from "@/components/editorial/SpaceTile";
-import { PrototypeBanner } from "@/components/curators/CuratorBits";
 import { getEditorialViewer } from "@/lib/editorial/viewer";
 import { getSavedEditorialSpaceIds } from "@/lib/editorial/saves";
 import { normalizeArea } from "@/lib/editorial/area";
 import { curatorAccess } from "@/lib/curators/access";
-import { AFFINITY_LABEL } from "@/lib/curators/affinity";
-import { curatorDisplayName } from "@/lib/curators/finder";
 import { cardReason, filterCandidates, parseFinderQuery, rankCandidates, type FinderQuery } from "@/lib/finder/spaceFinder";
 import { getFinderPool, getFinderViewer } from "@/lib/finder/finderData";
 import { previewDemoUsers } from "@/lib/demoData";
@@ -137,12 +134,9 @@ export default async function FindPage({ searchParams }: Props) {
   });
   const ranked = rankCandidates(filterCandidates(pool, q), me.personalized ? me.profile : null, me.curatorBoost);
   const shown = ranked.slice(0, limit);
-  const matchedCurators = me.affinities.filter((a) => a.level !== "new").slice(0, 2);
-  const demoShown = access.includeDemo && pool.some((s) => s.view.isDemo);
 
   return (
     <div className="editorial-bleed">
-      {demoShown && <PrototypeBanner demo />}
       <main className="pb-20 md:pb-28">
         <PageHeader title="추천">
           <div className="pt-5"><SegmentTabs segments={tabs} active="space" label="추천 종류" /></div>
@@ -184,17 +178,6 @@ export default async function FindPage({ searchParams }: Props) {
             </p>
           )}
 
-          {matchedCurators.length > 0 && (
-            <p className="pb-5 text-xs" style={{ color: "var(--ed-dim)" }}>
-              취향이 잘 맞는 큐레이터 ·{" "}
-              {matchedCurators.map((a, i) => (
-                <span key={a.curator.slug}>
-                  {i > 0 && ", "}
-                  <Link href={`/curators/${a.curator.slug}`} className="font-semibold underline underline-offset-4" style={{ color: "var(--ed-fg)" }}>{a.curator.name}</Link> ({AFFINITY_LABEL[a.level]})
-                </span>
-              ))}
-            </p>
-          )}
 
           {shown.length === 0 ? (
             <div className="py-10 space-y-3">
@@ -204,13 +187,13 @@ export default async function FindPage({ searchParams }: Props) {
           ) : (
             <div className={`${SPACE_GRID_CLASS} pt-2`}>
               {shown.map((r, i) => {
-                const col = r.affineCollections[0] ?? r.space.collections[0];
+                // 공간 탭은 공간에만 — 이유에 사람(컬렉션 작성자)을 언급하지 않는다
                 const reason = cardReason({
                   visited: me.visitedSlugs.has(r.space.view.slug),
                   personalized: me.personalized,
                   matched: r.matched,
                   curationTitle: r.space.curations[0]?.title,
-                  collection: col ? { curator: curatorDisplayName({ name: col.curatorName, isOfficial: col.curatorIsOfficial }), title: col.title } : null,
+                  collection: null,
                 });
                 return (
                   <SpaceCard

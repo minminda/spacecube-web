@@ -3,6 +3,7 @@ import Google from "next-auth/providers/google";
 import Kakao from "next-auth/providers/kakao";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma } from "@/lib/prisma";
+import { ensureProfileHandle } from "@/lib/profile/handle";
 
 // 카카오는 이메일 동의 여부와 무관하게 로그인이 항상 성공해야 한다 — Auth.js/PrismaAdapter는
 // 이미 이를 안전하게 처리한다: 재로그인은 Account.provider+providerAccountId로만 식별되고
@@ -25,6 +26,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   ],
   pages: {
     signIn: "/login",
+  },
+  events: {
+    // 새 사용자는 프로필이 기본 공개(스키마 기본값)이고, 공유할 주소(/@handle)를 바로 갖는다 — 가입 경로(카카오 · 구글) 무관.
+    // 실패해도 로그인은 막지 않는다(아카이브를 열 때 다시 발급).
+    async createUser({ user }) {
+      if (user.id) await ensureProfileHandle(user.id).catch(() => null);
+    },
   },
   callbacks: {
     // 기본 session 콜백은 name/email/image만 남기고 user.id를 잘라낸다. 이메일이 없을 수 있는

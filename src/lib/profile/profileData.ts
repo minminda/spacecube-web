@@ -7,6 +7,8 @@ import { prisma } from "@/lib/prisma";
 import { getLibrary } from "@/lib/archive/library";
 import { getSpacesByIds } from "@/lib/editorial/queries";
 import type { SpaceView } from "@/lib/editorial/types";
+import { isAdmin } from "@/lib/admin";
+import { avatarSeed } from "@/lib/people/avatar";
 import { cardPhoto, commonSpaceIds, publicSpaces, visitMonth, type PublicSpaceRow } from "./publicProfile";
 
 const PICK_SELECT = {
@@ -67,6 +69,22 @@ async function findViewable(handle: string, viewerId: string | null, includeDemo
 }
 
 const displayName = (u: { nickname: string | null; profileHandle: string | null }) => u.nickname || `@${u.profileHandle}`;
+
+export interface PrivateProfileStub {
+  handle: string;
+  name: string;
+  avatarSeed: string;
+}
+
+/**
+ * 비공개 프로필의 최소 정보 — 주소(/@handle)는 비공개여도 열리고 "비공개 아카이브입니다."만 보인다.
+ * 이름 · 아바타 seed만 돌려준다(공간 · 사진 · 소개 · 기록 · 관계 수는 조회하지도 않는다). 공개 프로필이면 null.
+ */
+export async function getPrivateProfileStub(handle: string, opts: { includeDemo?: boolean } = {}): Promise<PrivateProfileStub | null> {
+  const user = await prisma.user.findUnique({ where: { profileHandle: handle }, select: { id: true, nickname: true, isDemo: true, profilePublic: true, profileHandle: true } });
+  if (!user || !user.profileHandle || user.profilePublic || (user.isDemo && !opts.includeDemo)) return null;
+  return { handle: user.profileHandle, name: displayName(user), avatarSeed: avatarSeed(user.id) };
+}
 
 export interface PublicProfile {
   userId: string;
@@ -191,12 +209,14 @@ export async function searchPeople(q: string, viewerId: string | null, opts: { i
     where: {
       profilePublic: true, profileHandle: { not: null },
       ...(opts.includeDemo ? {} : { isDemo: false }),
+      // 추천 > 사람과 같은 기준: 테스트 픽스처 제외(이메일 없는 카카오 사용자는 남긴다). 관리자는 아래에서 뺀다.
+      AND: [{ OR: [{ email: null }, { NOT: { email: { endsWith: "@example.test" } } }] }],
       OR: [{ nickname: { contains: q, mode: "insensitive" } }, { profileHandle: { contains: q.toLowerCase() } }],
     },
-    select: PROFILE_USER_SELECT,
+    select: { ...PROFILE_USER_SELECT, email: true },
     orderBy: [{ nickname: "asc" }, { profileHandle: "asc" }],
     take: 20,
-  });
+  }).then((rows) => rows.filter((u) => !isAdmin(u.email))); // 이메일은 판별에만 — personCards가 새 객체를 만들어 밖으로 나가지 않는다
   const [people, follows] = await Promise.all([
     personCards(users, opts.photos ?? 3),
     viewerId ? prisma.savedTaste.findMany({ where: { userId: viewerId, targetUserId: { in: users.map((u) => u.id) } }, select: { targetUserId: true } }) : Promise.resolve([]),

@@ -10,9 +10,9 @@ export interface ProfileSettingsValue {
 }
 
 /**
- * 설정 › 공개 프로필 — 기존 설정 패널 안의 한 구획(새 설정 페이지를 만들지 않는다).
- * 공개 프로필에는 고른 공간만 보이고 사진·메모는 기본 비공개. 취향 태그·통계는 프로필에 보이지 않는다.
- * 공간 공개는 여기서가 아니라 아카이브의 각 공간에서 고른다.
+ * 설정 › 프로필 공개 — [공개 | 비공개] 세그먼트(누르면 바로 저장, 기본 공개) + 주소 · 한 줄 소개.
+ * 비공개여도 /@주소는 열리고 "비공개 아카이브입니다."만 보인다(공유와 공개 설정은 별개).
+ * 공개 프로필에는 고른 공간만 보이고 사진·메모는 기본 비공개. 공간 공개는 아카이브의 각 공간에서 고른다.
  */
 export default function ProfileSettingsSection({ initial }: { initial: ProfileSettingsValue }) {
   const router = useRouter();
@@ -21,8 +21,27 @@ export default function ProfileSettingsSection({ initial }: { initial: ProfileSe
   const [bio, setBio] = useState(initial.bio ?? "");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
-  const dirty =
-    isPublic !== initial.public || handle.trim() !== (initial.handle ?? "") || bio.trim() !== (initial.bio ?? "");
+  const dirty = handle.trim() !== (initial.handle ?? "") || bio.trim() !== (initial.bio ?? "");
+
+  async function setVisibility(next: boolean) {
+    if (next === isPublic || busy) return;
+    setBusy(true);
+    setMsg(null);
+    try {
+      const res = await fetch("/api/profile", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ profilePublic: next }) });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setMsg(data.error ?? "저장하지 못했어요.");
+        return;
+      }
+      setPublic(next);
+      router.refresh();
+    } catch {
+      setMsg("네트워크 오류로 저장하지 못했어요.");
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function save() {
     setBusy(true);
@@ -31,7 +50,7 @@ export default function ProfileSettingsSection({ initial }: { initial: ProfileSe
       const res = await fetch("/api/profile", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ profilePublic: isPublic, ...(handle.trim() ? { handle } : {}), bio }),
+        body: JSON.stringify({ ...(handle.trim() ? { handle } : {}), bio }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -50,16 +69,28 @@ export default function ProfileSettingsSection({ initial }: { initial: ProfileSe
   const savedHandle = initial.handle;
   return (
     <div className="space-y-4 pt-2" style={{ borderTop: "1px solid var(--border)" }}>
-      <div className="flex items-center justify-between gap-3 pt-2">
-        <p className="text-xs uppercase tracking-widest" style={{ color: "var(--fg)" }}>공개 프로필</p>
-        <label className="inline-flex items-center gap-2 text-xs cursor-pointer" style={{ color: "var(--fg)" }}>
-          {isPublic ? "켜짐" : "꺼짐"}
-          <input type="checkbox" checked={isPublic} onChange={(e) => setPublic(e.target.checked)} className="w-4 h-4" />
-        </label>
+      <p className="text-xs uppercase tracking-widest pt-2" style={{ color: "var(--fg)" }}>프로필 공개</p>
+      <div role="radiogroup" aria-label="프로필 공개" className="grid grid-cols-2" style={{ border: "1px solid var(--fg)" }}>
+        {[{ v: true, label: "공개" }, { v: false, label: "비공개" }].map(({ v, label }, i) => {
+          const on = isPublic === v;
+          return (
+            <button
+              key={label}
+              type="button"
+              role="radio"
+              aria-checked={on}
+              disabled={busy}
+              onClick={() => setVisibility(v)}
+              className="h-[46px] text-sm font-semibold transition-colors disabled:opacity-60"
+              style={{ background: on ? "var(--fg)" : "var(--bg)", color: on ? "var(--bg)" : "var(--fg)", borderLeft: i > 0 ? "1px solid var(--fg)" : undefined }}
+            >
+              {label}
+            </button>
+          );
+        })}
       </div>
       <p className="text-xs leading-relaxed" style={{ color: "var(--dim)" }}>
-        공개 프로필에서는 선택한 공간만 다른 사람에게 보여요. 사진과 메모는 기본적으로 공개되지 않습니다.
-        공간은 아카이브의 각 공간에서 하나씩 골라 공개해요.
+        {isPublic ? "아카이브에서 고른 공간만 보여요." : "주소로 들어와도 “비공개 아카이브입니다.”만 보여요."}
       </p>
 
       <div className="space-y-1.5">

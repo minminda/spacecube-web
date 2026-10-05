@@ -18,10 +18,9 @@ import { formatDotDate } from "@/lib/time";
 import { normalizeArea } from "@/lib/editorial/area";
 import { filterLibrary, getLibrary, libraryHref, parseLibraryFilter, type LibraryFilter } from "@/lib/archive/library";
 import { curatorAccess } from "@/lib/curators/access";
-import { getViewerCuratorContext } from "@/lib/curators/viewerTaste";
-import ArchiveCuratorBlock from "@/components/curators/ArchiveCuratorBlock";
 import { profilePath } from "@/lib/profile/publicProfile";
-import { ShareNeedsProfileButton, ShareProfileButton } from "@/components/profile/ProfileActions";
+import { ShareProfileButton } from "@/components/profile/ProfileActions";
+import { ensureProfileHandle } from "@/lib/profile/handle";
 
 export const metadata = { title: "내 아카이브 — 공간큐브", robots: { index: false } };
 
@@ -62,6 +61,8 @@ export default async function ArchivePage({ searchParams }: Props) {
   if (!user) redirect("/login");
   const admin = isAdmin(session.user.email);
   const editorial = ENABLE_EDITORIAL_HOME || admin;
+  // 공유 주소(/@handle)는 공개 여부와 상관없이 항상 있어야 한다 — 가입 때 못 받은 사람은 여기서 발급
+  const handle = editorial ? user.profileHandle ?? (await ensureProfileHandle(user.id)) : user.profileHandle;
   const access = curatorAccess({ admin, editorial });
   const includeDemo = admin || process.env.NODE_ENV === "development";
   const filter = parseLibraryFilter(sp);
@@ -71,7 +72,7 @@ export default async function ArchivePage({ searchParams }: Props) {
     ? await prisma.notification.count({ where: { receiverId: user.id, isRead: false } })
     : 0;
 
-  const [library, guestbookNotes, discovery, curatorCtx, followingCount, followerCount] = await Promise.all([
+  const [library, guestbookNotes, discovery, followingCount, followerCount] = await Promise.all([
     getLibrary(user.id, { includeDemo }),
     prisma.guestbookNote.findMany({
       where: { userId: user.id, deletedAt: null },
@@ -80,7 +81,6 @@ export default async function ArchivePage({ searchParams }: Props) {
       select: { id: true, content: true, createdAt: true, space: { select: { slug: true, name: true } }, session: { select: { id: true, status: true } } },
     }),
     getUserDiscoveryContext(user.id, { includeDemo: access.includeDemo }),
-    access.enabled ? getViewerCuratorContext(user.id, access) : Promise.resolve(null),
     editorial ? prisma.savedTaste.count({ where: { userId: user.id } }) : Promise.resolve(0),
     editorial ? prisma.savedTaste.count({ where: { targetUserId: user.id } }) : Promise.resolve(0),
   ]);
@@ -110,32 +110,26 @@ export default async function ArchivePage({ searchParams }: Props) {
             </>
           }
         >
-          {/* 핵심 행동 — 1줄: 공간 추가(Primary, 한 줄 전체) / 2줄: 사람 찾기 · 내 아카이브 공유(Secondary, 1:1).
-              휴대폰 · 데스크톱 같은 위계, 데스크톱은 560px까지만 넓어진다. */}
-          <div className="pt-6 max-w-[560px] space-y-2">
-            <ArchiveAddSheet className="ed-btn ed-btn-primary w-full" />
-            {editorial && (
-              <div className="grid grid-cols-2 gap-2">
-                <Link href="/find?tab=people&search=1" className="ed-btn w-full">사람 찾기</Link>
-                {user.profilePublic && user.profileHandle ? (
-                  <ShareProfileButton path={profilePath(user.profileHandle)} name={user.nickname ?? user.profileHandle} label="내 아카이브 공유" fill />
-                ) : (
-                  <ShareNeedsProfileButton label="내 아카이브 공유" fill />
-                )}
-              </div>
+          {/* 핵심 행동 두 가지 — 공간 추가(Primary) · 내 아카이브 공유(Secondary)를 세로로.
+              크기는 추천의 공간/사람 세그먼트와 같다(휴대폰 전체 폭, 데스크톱 360px · 높이 46px).
+              공유는 공개 여부와 상관없이 항상 내 /@handle — 비공개면 받는 사람에게 "비공개 아카이브입니다."가 보인다. */}
+          <div className="pt-6 w-full md:max-w-[360px] flex flex-col gap-2">
+            <ArchiveAddSheet className="ed-btn ed-btn-primary ed-btn-seg w-full" />
+            {editorial && handle && (
+              <ShareProfileButton path={profilePath(handle)} name={user.nickname ?? handle} label="내 아카이브 공유" variant="seg" />
             )}
           </div>
           {editorial && (
             // 공개 주소 · 관계 수 — 작은 보조 줄(인기 경쟁처럼 보이지 않게 숫자도 작게). 공유 행동은 위 버튼 하나뿐.
             <div className="pt-2 flex flex-wrap items-center gap-x-5 text-xs" style={{ color: "var(--ed-dim)" }}>
-              {user.profileHandle && (
-                <Link href={profilePath(user.profileHandle)} className="inline-flex items-center min-h-10 text-[13px] font-semibold underline underline-offset-4" style={{ color: "var(--ed-fg)" }}>
-                  @{user.profileHandle}{user.profilePublic ? "" : " (비공개)"}
+              {handle && (
+                <Link href={profilePath(handle)} className="inline-flex items-center min-h-10 text-[13px] font-semibold underline underline-offset-4" style={{ color: "var(--ed-fg)" }}>
+                  @{handle}{user.profilePublic ? "" : " (비공개)"}
                 </Link>
               )}
               <Link href="/archive/following" className="inline-flex items-center min-h-10 hover:underline underline-offset-4">따라가는 취향 <span className="ml-1 tabular-nums">{followingCount}</span></Link>
-              {user.profilePublic && user.profileHandle ? (
-                <Link href={`${profilePath(user.profileHandle)}/followers`} className="inline-flex items-center min-h-10 hover:underline underline-offset-4">나를 따라가는 사람 <span className="ml-1 tabular-nums">{followerCount}</span></Link>
+              {user.profilePublic && handle ? (
+                <Link href={`${profilePath(handle)}/followers`} className="inline-flex items-center min-h-10 hover:underline underline-offset-4">나를 따라가는 사람 <span className="ml-1 tabular-nums">{followerCount}</span></Link>
               ) : (
                 <span className="inline-flex items-center min-h-10">나를 따라가는 사람 <span className="ml-1 tabular-nums">{followerCount}</span></span>
               )}
@@ -215,7 +209,6 @@ export default async function ArchivePage({ searchParams }: Props) {
           </section>
         )}
 
-        {curatorCtx && <div className="pt-4"><ArchiveCuratorBlock ctx={curatorCtx} /></div>}
 
         {/* 나의 흔적 — 방명록에 남긴 문장 */}
         {guestbookNotes.length > 0 && (

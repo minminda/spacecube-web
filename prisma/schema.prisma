@@ -26,9 +26,9 @@ model User {
   isDemo            Boolean    @default(false)
   createdAt         DateTime   @default(now())
   // ── 공개 취향 프로필(/@handle) — 내 아카이브(개인 기록)와 같은 데이터를 쓰되, 사용자가 켠 것만 보여준다.
-  // 기본은 전부 비공개: 기존 사용자도 자동 공개되지 않는다. 공간은 ProfileSpace로 하나씩 공개한다.
+  // 기본 공개(2026-10-05 정책 변경) — 비공개로 바꿔도 /@handle은 "비공개 아카이브입니다."로 열린다. 공간은 ProfileSpace로 하나씩 공개한다.
   // (레거시 visibility와 별개 — visibility는 기존 "취향 닮은 사람" 추천에만 쓰인다.)
-  profilePublic     Boolean    @default(false)
+  profilePublic     Boolean    @default(true)
   // 공유 주소용 고정 핸들(영문 소문자·숫자·._-) — 닉네임(한글, 30일마다 변경 가능)과 분리해 링크가 안정적이다.
   profileHandle     String?    @unique
   profileBio        String?    @db.VarChar(120)

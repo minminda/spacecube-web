@@ -128,8 +128,9 @@ function Toast({ children }: { children: React.ReactNode }) {
 /**
  * 공유 — Web Share API가 있으면 시스템 공유, 없으면 주소 복사 후 "링크를 복사했어요." 토스트.
  * 주소는 공개 프로필 /@handle로 고정(닉네임이 바뀌어도 링크 유지, 내부 사용자 id는 쓰지 않는다).
+ * 공개 여부와 상관없이 공유할 수 있다 — 비공개면 받는 사람에게 "비공개 아카이브입니다."가 보인다(공개를 강요하지 않음).
  */
-export function ShareProfileButton({ path, name, label = "공유", variant = "outline", fill }: { path: string; name: string; label?: string; variant?: "outline" | "solid" | "text"; /** 칸을 꽉 채운다(버튼 그리드) */ fill?: boolean }) {
+export function ShareProfileButton({ path, name, label = "공유", variant = "outline", fill }: { path: string; name: string; label?: string; /** seg: 추천 세그먼트와 같은 크기의 전체 폭 Secondary(내 아카이브 상단) */ variant?: "outline" | "solid" | "text" | "seg"; /** 칸을 꽉 채운다(버튼 그리드) */ fill?: boolean }) {
   const [copied, setCopied] = useState(false);
 
   async function share() {
@@ -154,32 +155,10 @@ export function ShareProfileButton({ path, name, label = "공유", variant = "ou
   const size = fill ? "w-full" : "w-full sm:w-auto sm:min-w-[120px]";
   return (
     <>
-      <button type="button" onClick={share} className={variant === "text" ? TEXT_ACTION : variant === "solid" ? `ed-btn ed-btn-primary ${size}` : `ed-btn ${size}`}>
+      <button type="button" onClick={share} className={variant === "text" ? TEXT_ACTION : variant === "seg" ? "ed-btn ed-btn-seg w-full" : variant === "solid" ? `ed-btn ed-btn-primary ${size}` : `ed-btn ${size}`}>
         {label}
       </button>
       {copied && <Toast>링크를 복사했어요.</Toast>}
-    </>
-  );
-}
-
-/** 공유하려는데 아직 공개 프로필이 꺼져 있을 때 — 링크를 복사하지 않고, 공개 설정으로 가는 길만 알려준다. */
-export function ShareNeedsProfileButton({ label, variant = "outline", fill }: { label: string; variant?: "outline" | "text"; fill?: boolean }) {
-  const [shown, setShown] = useState(false);
-  function show() {
-    setShown(true);
-    setTimeout(() => setShown(false), 5000);
-  }
-  return (
-    <>
-      <button type="button" onClick={show} className={variant === "text" ? TEXT_ACTION : `ed-btn ${fill ? "w-full" : "w-full sm:w-auto"}`}>
-        {label}
-      </button>
-      {shown && (
-        <Toast>
-          <span>아카이브를 공개해야 공유할 수 있어요.</span>
-          <a href="/settings" className="font-semibold underline underline-offset-4 whitespace-nowrap">공개 설정</a>
-        </Toast>
-      )}
     </>
   );
 }
