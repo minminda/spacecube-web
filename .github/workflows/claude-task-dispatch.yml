@@ -1,0 +1,55 @@
+name: Dispatch Claude Task
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - 'docs/CLAUDE_TASK.md'
+
+concurrency:
+  group: claude-task-dispatch
+  cancel-in-progress: false
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Read current task
+        id: task
+        shell: bash
+        run: |
+          {
+            echo 'text<<EOF'
+            cat docs/CLAUDE_TASK.md
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Trigger Claude Code routine
+        env:
+          CLAUDE_ROUTINE_URL: ${{ secrets.CLAUDE_ROUTINE_URL }}
+          CLAUDE_ROUTINE_TOKEN: ${{ secrets.CLAUDE_ROUTINE_TOKEN }}
+          TASK_TEXT: ${{ steps.task.outputs.text }}
+        shell: bash
+        run: |
+          if [ -z "$CLAUDE_ROUTINE_URL" ] || [ -z "$CLAUDE_ROUTINE_TOKEN" ]; then
+            echo "Claude routine secrets are not configured yet."
+            echo "Add CLAUDE_ROUTINE_URL and CLAUDE_ROUTINE_TOKEN in GitHub Actions secrets."
+            exit 1
+          fi
+
+          jq -n --arg text "$TASK_TEXT" '{text: $text}' > payload.json
+
+          curl --fail-with-body \
+            -X POST "$CLAUDE_ROUTINE_URL" \
+            -H "Authorization: Bearer $CLAUDE_ROUTINE_TOKEN" \
+            -H "anthropic-beta: experimental-cc-routine-2026-04-01" \
+            -H "anthropic-version: 2023-06-01" \
+            -H "Content-Type: application/json" \
+            --data-binary @payload.json
