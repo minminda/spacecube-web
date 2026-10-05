@@ -21,8 +21,20 @@ export default function FinderFilters({ query, areas, categories }: { query: Que
 
   useEffect(() => {
     if (!open) return;
-    const onDown = (e: MouseEvent | TouchEvent) => {
-      if (!rootRef.current?.contains(e.target as Node)) setOpen(null);
+    const outside = (t: EventTarget | null) => !rootRef.current?.contains(t as Node);
+    const onDown = (e: MouseEvent) => {
+      if (outside(e.target)) setOpen(null);
+    };
+    // 터치는 바로 닫지 않는다 — 바깥을 손가락으로 스크롤하는 중에는 열린 채로 두고, 거의 안 움직인 탭(10px 미만)일 때만 닫는다
+    let start: { x: number; y: number; outside: boolean } | null = null;
+    const onTouchStart = (e: TouchEvent) => {
+      const t = e.touches[0];
+      start = t ? { x: t.clientX, y: t.clientY, outside: outside(e.target) } : null;
+    };
+    const onTouchEnd = (e: TouchEvent) => {
+      const t = e.changedTouches[0];
+      if (start?.outside && t && Math.hypot(t.clientX - start.x, t.clientY - start.y) < 10) setOpen(null);
+      start = null;
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -31,11 +43,13 @@ export default function FinderFilters({ query, areas, categories }: { query: Que
       }
     };
     document.addEventListener("mousedown", onDown);
-    document.addEventListener("touchstart", onDown, { passive: true });
+    document.addEventListener("touchstart", onTouchStart, { passive: true });
+    document.addEventListener("touchend", onTouchEnd, { passive: true });
     document.addEventListener("keydown", onKey);
     return () => {
       document.removeEventListener("mousedown", onDown);
-      document.removeEventListener("touchstart", onDown);
+      document.removeEventListener("touchstart", onTouchStart);
+      document.removeEventListener("touchend", onTouchEnd);
       document.removeEventListener("keydown", onKey);
     };
   }, [open]);
@@ -164,7 +178,7 @@ function Dropdown({ which, label, chosen, listLabel, items, open, onToggle, onPi
           id={listId}
           aria-label={listLabel}
           onKeyDown={onListKey}
-          className={`absolute z-30 top-[calc(100%+4px)] ${align === "right" ? "right-0" : "left-0"} min-w-full w-max max-w-[calc(100vw-32px)] py-1`}
+          className={`absolute z-30 top-[calc(100%+4px)] ${align === "right" ? "right-0" : "left-0"} min-w-full w-max max-w-[calc(100vw-32px)] max-h-[min(320px,45vh)] overflow-y-auto overscroll-contain py-1`}
           style={{ background: "var(--ed-bg)", border: "1px solid var(--ed-fg)", boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}
         >
           {items.map((it) => (
