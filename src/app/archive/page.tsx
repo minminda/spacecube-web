@@ -3,7 +3,6 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 import { isAdmin } from "@/lib/admin";
-import SettingsPanel from "@/components/SettingsPanel";
 import NotificationBell from "@/components/NotificationBell";
 import PageHeader from "@/components/editorial/PageHeader";
 import TabLinks from "@/components/editorial/TabLinks";
@@ -106,11 +105,8 @@ export default async function ArchivePage({ searchParams }: Props) {
           tools={
             <>
               {ENABLE_NOTIFICATIONS && <NotificationBell initialUnreadCount={unreadNotificationCount} />}
-              {/* 새 정보구조에서는 톱니바퀴 없이 메뉴의 "설정"(/settings)으로. 예전 화면만 기존 패널 유지. */}
+              {/* 설정은 톱니바퀴 없이 메뉴의 "설정"(/settings)으로 */}
               {!editorial && <ShareArchiveButton userId={user.id} />}
-              {!editorial && (
-                <SettingsPanel nickname={user.nickname} nicknameUpdatedAt={user.nicknameUpdatedAt?.toISOString() ?? null} />
-              )}
             </>
           }
         >
