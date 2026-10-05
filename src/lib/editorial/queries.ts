@@ -9,7 +9,7 @@ import { latestKey, orderLatest, type LatestRow } from "./latest";
 import { prisma } from "@/lib/prisma";
 import { readStoredBlocks, collectBlockSpaceIds } from "./input";
 import type { ContentItem, CurationView, LinkedSpace, PersonView, ResolvedImage, SpaceView, EditorialBlock, StoryItem, ThoughtView } from "./types";
-import { curationLabel, formatEditorialDate, formatPeopleNumber, formatThoughtNumber, spaceCoverImage, spaceHref } from "./types";
+import { curationLabel, formatEditorialDate, formatPeopleNumber, formatSerial, formatThoughtNumber, spaceCoverImage, spaceHref } from "./types";
 import { normalizeArea } from "./area";
 
 export interface Visibility {
@@ -285,8 +285,8 @@ export async function listContentStream(v?: Visibility): Promise<ContentItem[]> 
     rows.push({
       ...latestKey(r),
       item: {
-        key: `curation-${c.id}`, kind: "curation", eyebrow: curationLabel(c), title: c.title, summary: c.summary,
-        meta: c.spaces.length ? (c.area ? `${c.area}에서 발견한 ${c.spaces.length}개의 공간` : `공간 ${c.spaces.length}곳`) : undefined,
+        key: `curation-${c.id}`, kind: "curation", eyebrow: curationLabel(c), label: curationLabel(c, false), title: c.title, summary: c.summary,
+        meta: c.spaces.length ? `공간 ${c.spaces.length}곳` : undefined,
         href: `/curation/${c.slug}`, image: c.cover, date: formatEditorialDate(c.publishedAt), status: c.status,
       },
     });
@@ -296,7 +296,7 @@ export async function listContentStream(v?: Visibility): Promise<ContentItem[]> 
     rows.push({
       ...latestKey(r),
       item: {
-        key: `person-${p.id}`, kind: "person", eyebrow: p.subject ? `${formatPeopleNumber(p.number)} · ${p.subject}` : formatPeopleNumber(p.number),
+        key: `person-${p.id}`, kind: "person", eyebrow: peopleLine(p, true), label: peopleLine(p, false),
         title: p.title, summary: p.summary, href: `/people/${p.slug}`, image: p.cover, date: formatEditorialDate(p.publishedAt), status: p.status,
       },
     });
@@ -306,7 +306,7 @@ export async function listContentStream(v?: Visibility): Promise<ContentItem[]> 
     rows.push({
       ...latestKey(r),
       item: {
-        key: `thought-${t.id}`, kind: "thought", eyebrow: t.scene ? `${formatThoughtNumber(t.number)} · ${t.scene}` : formatThoughtNumber(t.number),
+        key: `thought-${t.id}`, kind: "thought", eyebrow: thoughtLine(t, true), label: thoughtLine(t, false),
         title: t.title, summary: t.summary, href: `/thought/${t.slug}`, image: t.cover, date: formatEditorialDate(t.publishedAt), status: t.status,
       },
     });
@@ -316,7 +316,8 @@ export async function listContentStream(v?: Visibility): Promise<ContentItem[]> 
     rows.push({
       ...latestKey(r),
       item: {
-        key: `space-${s.id}`, kind: "space", eyebrow: [s.area, s.category].filter(Boolean).join(" · "), title: s.name, summary: s.summary,
+        key: `space-${s.id}`, kind: "space", eyebrow: ["SPACE", s.area, s.category].filter(Boolean).join(" · "),
+        label: [s.area, s.category].filter(Boolean).join(" · "), title: s.name, summary: s.summary,
         href: spaceHref(s.slug), image: spaceCoverImage(s), date: formatEditorialDate(r.publishedAt), partner: s.cubeAvailable, status: s.status,
       },
     });
@@ -326,10 +327,22 @@ export async function listContentStream(v?: Visibility): Promise<ContentItem[]> 
 
 /* ── STORY(PEOPLE + THOUGHT) ── */
 
+/** "PEOPLE 001 · 이름"(withType) / "001 · 이름" */
+function peopleLine(p: Pick<PersonView, "number" | "subject">, withType: boolean): string {
+  const no = withType ? formatPeopleNumber(p.number) : formatSerial(p.number);
+  return p.subject ? `${no} · ${p.subject}` : no;
+}
+
+/** "THOUGHT 002 · 장면"(withType) / "002 · 장면" */
+function thoughtLine(t: Pick<ThoughtView, "number" | "scene">, withType: boolean): string {
+  const no = withType ? formatThoughtNumber(t.number) : formatSerial(t.number);
+  return t.scene ? `${no} · ${t.scene}` : no;
+}
+
 export function personStoryItem(p: PersonView): StoryItem {
   return {
     key: `people-${p.id}`, type: "people",
-    eyebrow: p.subject ? `${formatPeopleNumber(p.number)} · ${p.subject}` : formatPeopleNumber(p.number),
+    eyebrow: peopleLine(p, true), label: formatSerial(p.number),
     title: p.title, summary: p.summary, href: `/people/${p.slug}`, cover: p.cover,
     date: formatEditorialDate(p.publishedAt), publishedAt: p.publishedAt, status: p.status,
   };
@@ -338,7 +351,7 @@ export function personStoryItem(p: PersonView): StoryItem {
 export function thoughtStoryItem(t: ThoughtView): StoryItem {
   return {
     key: `thought-${t.id}`, type: "thought",
-    eyebrow: t.scene ? `${formatThoughtNumber(t.number)} · ${t.scene}` : formatThoughtNumber(t.number),
+    eyebrow: thoughtLine(t, true), label: formatSerial(t.number),
     title: t.title, summary: t.summary, href: `/thought/${t.slug}`, cover: t.cover,
     date: formatEditorialDate(t.publishedAt), publishedAt: t.publishedAt, status: t.status,
   };

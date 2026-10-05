@@ -83,7 +83,7 @@ export default async function FindPage({ searchParams }: Props) {
     <div className="editorial-bleed">
       {demoShown && <PrototypeBanner demo />}
       <main className="pb-20 md:pb-28">
-        <PageHeader label="Recommend" title="추천">
+        <PageHeader title="추천">
           <h2 className="pt-6 pb-3 text-sm font-semibold">어디에서 찾고 있나요?</h2>
           {/* 사용자가 고르는 것은 지역 하나뿐 — 휴대폰은 한 줄 가로 스크롤, 데스크톱은 줄바꿈 */}
           <nav aria-label="지역" className="ed-scroll-x -mx-5 px-5 md:mx-0 md:px-0 flex gap-2 overflow-x-auto md:flex-wrap">

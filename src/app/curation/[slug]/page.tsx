@@ -48,12 +48,12 @@ export default async function CurationDetailPage({ params }: Props) {
       <PreviewBanner status={curation.status} editHref={`/admin/content/curations/${curation.id}`} />
       <CurationArticle
         backHref={area ? `/curation?area=${encodeURIComponent(area)}` : "/curation"}
-        backLabel={area ? `${area} 큐레이션` : "CURATION"}
+        backLabel="CURATION"
         eyebrow={curationEyebrowLine(curation.number, curation.perspective)}
         area={curation.area ?? null}
         title={curation.title}
         summary={curation.summary}
-        meta={[curationSpaceCountLabel(curation.area, spaces.length), dateLabel].filter(Boolean).join(" · ")}
+        meta={[curationSpaceCountLabel(spaces.length), dateLabel].filter(Boolean).join(" · ")}
         cover={curation.cover}
         blocks={curation.blocks}
         blockSpaces={blockSpaces}

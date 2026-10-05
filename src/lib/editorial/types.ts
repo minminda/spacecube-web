@@ -102,14 +102,19 @@ export interface CurationView {
   publishedAt: Date | null;
 }
 
-/** "CURATION 001 · 연남 · 상황" — 관점이 지정된 큐레이션은 관점까지. */
-export function curationEyebrow(c: { number: number; area?: string | null; perspective?: CurationPerspectiveValue | null }): string {
-  return c.perspective ? `${curationLabel(c)} · ${PERSPECTIVE_LABEL[c.perspective].ko}` : curationLabel(c);
+/**
+ * "CURATION 001 · 연남 · 상황" — 관점이 지정된 큐레이션은 관점까지.
+ * withType=false는 "001 · 연남 · 상황" — 상위 섹션이 이미 큐레이션임을 말해 줄 때(같은 단어를 가까이 반복하지 않는다).
+ */
+export function curationEyebrow(c: { number: number; area?: string | null; perspective?: CurationPerspectiveValue | null }, withType = true): string {
+  const base = curationLabel(c, withType);
+  return c.perspective ? `${base} · ${PERSPECTIVE_LABEL[c.perspective].ko}` : base;
 }
 
-/** "CURATION 001 · 문래" (지역이 없으면 번호만) */
-export function curationLabel(c: { number: number; area?: string | null }): string {
-  return c.area ? `${formatCurationNumber(c.number)} · ${c.area}` : formatCurationNumber(c.number);
+/** "CURATION 001 · 문래" (지역이 없으면 번호만). withType=false는 "001 · 문래". */
+export function curationLabel(c: { number: number; area?: string | null }, withType = true): string {
+  const no = withType ? formatCurationNumber(c.number) : formatSerial(c.number);
+  return c.area ? `${no} · ${c.area}` : no;
 }
 
 export interface PersonView {
@@ -155,16 +160,24 @@ export function spaceCoverImage(space: Pick<SpaceView, "coverImage" | "name" | "
   return { src: space.coverImage ?? null, alt: space.name, position: space.coverPosition };
 }
 
+/**
+ * "003" — 유형 없는 번호. 라벨 원칙: 위치(섹션 · 탭 · 페이지)가 이미 유형을 알려 주면 카드에는 번호만,
+ * 여러 유형이 섞인 곳(LATEST · 다른 이야기 등)에서만 "CURATION 003"처럼 유형을 한 번 붙인다.
+ */
+export function formatSerial(n: number): string {
+  return String(n).padStart(3, "0");
+}
+
 export function formatCurationNumber(n: number): string {
-  return `CURATION ${String(n).padStart(3, "0")}`;
+  return `CURATION ${formatSerial(n)}`;
 }
 
 export function formatPeopleNumber(n: number): string {
-  return `PEOPLE ${String(n).padStart(3, "0")}`;
+  return `PEOPLE ${formatSerial(n)}`;
 }
 
 export function formatThoughtNumber(n: number): string {
-  return `THOUGHT ${String(n).padStart(3, "0")}`;
+  return `THOUGHT ${formatSerial(n)}`;
 }
 
 export const STATUS_LABEL: Record<EditorialStatusValue, string> = {
@@ -196,11 +209,13 @@ export const CONTENT_KIND_LABEL: Record<ContentKind, string> = {
 export interface ContentItem {
   key: string;
   kind: ContentKind;
-  /** 예: "CURATION 001 · 연남", "PEOPLE 001", "연남동 · 독립서점" */
+  /** 유형을 한 번 포함한 머리줄(여러 유형이 섞인 곳용) — 예: "CURATION 001 · 연남", "PEOPLE 001", "SPACE · 연남 · 독립서점" */
   eyebrow: string;
+  /** 유형을 뺀 머리줄(위치가 유형을 알려 줄 때) — 예: "001 · 연남", "001", "연남 · 독립서점" */
+  label: string;
   title: string;
   summary?: string;
-  /** 보조 정보 — 예: "연남에서 발견한 3개의 공간" */
+  /** 보조 정보 — 예: "공간 3곳"(지역은 머리줄에 이미 있다) */
   meta?: string;
   href: string;
   image: ResolvedImage;
@@ -224,8 +239,10 @@ export const STORY_TYPE_LABEL: Record<StoryType, { en: string; ko: string; descr
 export interface StoryItem {
   key: string;
   type: StoryType;
-  /** 예: "PEOPLE 001 · 이름", "THOUGHT 002 · 비 오는 오후의 서점" */
+  /** 유형 포함(ALL 등 섞인 목록) — 예: "PEOPLE 001 · 이름", "THOUGHT 002 · 비 오는 오후의 서점" */
   eyebrow: string;
+  /** 유형 제외(PEOPLE · THOUGHT 구획 · 탭 안) — 번호만, 예: "001". 이름 · 장면은 휴대폰 3열에서 잘리므로 섞인 목록(eyebrow)에서만. */
+  label: string;
   title: string;
   summary: string;
   href: string;

@@ -4,7 +4,10 @@ import EdImage from "./EdImage";
 interface Props {
   href: string;
   image: { src: string | null; alt: string; position?: string };
-  /** PEOPLE 001 · THOUGHT 002 / CURATION 001 · 연남 */
+  /**
+   * 메타 한 줄 — 위치가 유형을 알려 주면 번호부터("001", "003 · 연남"),
+   * 여러 유형이 섞인 목록에서만 유형을 한 번("PEOPLE 001", "THOUGHT 002 · 장면").
+   */
   eyebrow: string;
   title: string;
   /** 한 줄 — 768px부터만(휴대폰 3열에서는 이미지 · 라벨 · 제목만) */
@@ -24,7 +27,7 @@ export default function StoryCard({ href, image, eyebrow, title, line, ratio, si
   return (
     <Link href={href} className="group block min-w-0">
       <EdImage image={image} ratio={ratio} sizes={sizes} priority={priority} />
-      <p className="pt-1.5 md:pt-3 text-[9px] md:text-[11px] font-semibold tracking-[0.1em] md:tracking-[0.14em] uppercase truncate" style={{ color: "var(--ed-dim)" }}>{eyebrow}</p>
+      <p className="ed-meta pt-1.5 md:pt-3 truncate">{eyebrow}</p>
       <p className="pt-0.5 md:pt-1.5 text-[12px] leading-[1.35] md:text-xl md:leading-snug font-bold tracking-[-0.02em] break-keep line-clamp-2 group-hover:underline underline-offset-4">{title}</p>
       {line && (
         <span className="hidden md:block pt-1">

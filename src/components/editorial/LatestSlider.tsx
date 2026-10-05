@@ -5,7 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import CubeGlyph from "@/components/CubeGlyph";
 import PartnerMark from "./PartnerMark";
-import { CONTENT_KIND_LABEL, type ContentItem } from "@/lib/editorial/types";
+import type { ContentItem } from "@/lib/editorial/types";
 
 /* ── HOME LATEST — Editorial Hero Slider ─────────────────────────────────
    최신 발행 콘텐츠(최대 5개)를 한 번에 하나씩 크게 보여준다(작은 카드 나열형 캐러셀이 아님).
@@ -102,7 +102,7 @@ export default function LatestSlider({ items, allHref }: { items: ContentItem[];
       }}
     >
       <div className="flex items-center justify-between pb-3 md:pb-6" style={{ borderBottom: "1px solid var(--ed-fg)" }}>
-        <p className="ed-label">Latest</p>
+        <h2 className="ed-section-title">LATEST</h2>
         <div className="flex items-center gap-4 md:gap-6">
           {multi && (
             <p className="ed-label tabular-nums" style={{ color: "var(--ed-dim)" }}>
@@ -127,16 +127,16 @@ export default function LatestSlider({ items, allHref }: { items: ContentItem[];
                   aria-roledescription="slide"
                   aria-label={`${i + 1} / ${count}`}
                 >
-                  <p className="ed-label hidden md:block" style={{ color: "var(--ed-dim)" }}>
-                    {CONTENT_KIND_LABEL[it.kind]}
+                  {/* 유형 + 번호를 한 줄로("CURATION 003 · 연남") — 유형 라벨을 따로 두지 않는다 */}
+                  <p className="ed-label line-clamp-1" style={{ color: "var(--ed-dim)" }}>
+                    {it.eyebrow}
                     {it.partner && <PartnerMark size={14} className="ml-3 align-[-3px]" />}
                   </p>
-                  <p className="ed-label md:mt-6 line-clamp-1" style={{ color: "var(--ed-dim)" }}>{it.eyebrow}</p>
-                  <h2 className="mt-1.5 md:mt-4 text-[22px] leading-[1.25] line-clamp-2 md:line-clamp-none md:text-[44px] md:leading-[1.15] font-bold tracking-[-0.03em]">
+                  <h3 className="mt-1.5 md:mt-4 text-[22px] leading-[1.25] line-clamp-2 md:line-clamp-none md:text-[44px] md:leading-[1.15] font-bold tracking-[-0.03em]">
                     <Link href={it.href} tabIndex={i === index ? 0 : -1} className="hover:underline underline-offset-[6px] decoration-2">
                       {it.title}
                     </Link>
-                  </h2>
+                  </h3>
                   {it.summary && <p className="mt-2 md:mt-4 text-sm md:text-lg leading-relaxed line-clamp-2 md:line-clamp-none" style={{ color: "var(--ed-dim)" }}>{it.summary}</p>}
                   {it.meta && <p className="hidden md:block mt-4 text-sm" style={{ color: "var(--ed-dim)" }}>{it.meta}</p>}
                   <div className="hidden md:block md:mt-auto md:pt-10">
@@ -150,11 +150,6 @@ export default function LatestSlider({ items, allHref }: { items: ContentItem[];
           </div>
 
           <div className="md:col-span-7 md:order-2 order-1">
-            {/* 모바일: 이미지 위에 유형·날짜 */}
-            <p className="ed-label pb-2 md:hidden" style={{ color: "var(--ed-dim)" }}>
-              {CONTENT_KIND_LABEL[current.kind]}
-              {current.partner && <PartnerMark size={14} className="ml-3 align-[-3px]" />}
-            </p>
             <Link href={current.href} tabIndex={-1} aria-hidden className="block relative w-full overflow-hidden aspect-[16/10] md:aspect-[4/3]" style={{ background: "var(--ed-soft)" }}>
               {items.map((it, i) => (
                 <div key={it.key} className={`absolute inset-0 ${fade} ${i === index ? "opacity-100" : "opacity-0"}`}>

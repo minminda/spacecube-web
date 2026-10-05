@@ -7,13 +7,13 @@ import { curationEyebrow, type CurationView, type EditorialBlock, type LinkedSpa
 interface Props {
   backHref: string;
   backLabel: string;
-  /** "CURATION 001 · SITUATION · 상황" */
+  /** "001 · SITUATION · 상황" — 유형은 바로 위 뒤로가기 링크(← CURATION)가 말한다 */
   eyebrow: string;
   area: string | null;
   title: string;
   /** 한 줄 선정 기준 */
   summary: string;
-  /** "연남에서 발견한 3개의 공간 · 2026.10.04" */
+  /** "공간 3곳 · 2026.10.04" */
   meta: string;
   cover: ResolvedImage;
   blocks: EditorialBlock[];
@@ -82,7 +82,7 @@ export default function CurationArticle(p: Props) {
                 <Link key={c.id} href={`/curation/${c.slug}`} className="group grid grid-cols-[120px_1fr] md:grid-cols-[200px_1fr] gap-5 items-center">
                   <EdImage image={c.cover} ratio="1 / 1" sizes="200px" />
                   <div className="space-y-2">
-                    <p className="ed-label" style={{ color: "var(--ed-dim)" }}>{curationEyebrow(c)}</p>
+                    <p className="ed-label" style={{ color: "var(--ed-dim)" }}>{curationEyebrow(c, false)}</p>
                     <p className="text-lg md:text-xl font-bold leading-snug group-hover:underline underline-offset-4">{c.title}</p>
                   </div>
                 </Link>

@@ -7,10 +7,11 @@ import CurationCard from "@/components/editorial/CurationCard";
 import SpaceCard from "@/components/editorial/SpaceCard";
 import { listContentStream, listCubeSpaces, listCurations, listStoryItems } from "@/lib/editorial/queries";
 import { getSavedEditorialSpaceIds } from "@/lib/editorial/saves";
+import { STORY_TYPE_LABEL, type StoryItem } from "@/lib/editorial/types";
 import QrScanSheet from "./QrScanSheet";
 
 /* ── 에디토리얼 홈 ───────────────────────────────────────────────────────
-   INTRO(브랜드 한 줄) → LATEST(최신 발행 5개 Hero Slider, 전체는 /latest) → CURATION → STORY → 함께한 공간
+   INTRO(브랜드 한 줄) → LATEST(최신 발행 5개 Hero Slider, 전체는 /latest) → CURATION → STORY(PEOPLE / THOUGHT) → 함께한 공간
    → GONGGANCUBE EXPERIENCE → FOOTER.
    홈은 "공간큐브가 지금 무엇을 발견하고 기록하는지" 보여주는 콘텐츠 중심 — 추천(/find)·내 아카이브는 홈 섹션이 아니라
    Navbar의 핵심 Action이다. 공간 제안하기는 푸터(유틸리티)에서만 받는다.
@@ -22,14 +23,31 @@ import QrScanSheet from "./QrScanSheet";
 
 const LATEST_COUNT = 5;
 
-function SectionHead({ label, title, href, cta }: { label: string; title: string; href: string; cta: string }) {
+/** 섹션 머리 — 섹션 제목(.ed-section-title)을 크게, 설명은 그 아래 작고 흐리게(.ed-section-desc), 오른쪽에 허브 링크. */
+function SectionHead({ title, description, href, cta }: { title: string; description?: string; href: string; cta: string }) {
   return (
-    <div className="flex items-end justify-between gap-6 pb-6 md:pb-8">
-      <div className="space-y-1.5">
-        <p className="ed-label" style={{ color: "var(--ed-dim)" }}>{label}</p>
-        <h2 className="text-xl md:text-[28px] font-bold leading-[1.25] tracking-[-0.03em] break-keep">{title}</h2>
+    <div className="flex items-end justify-between gap-6 pb-5 md:pb-8">
+      <div className="min-w-0">
+        <h2 className="ed-section-title">{title}</h2>
+        {description && <p className="ed-section-desc pt-1.5 md:pt-2">{description}</p>}
       </div>
       <Link href={href} className="shrink-0 text-xs md:text-sm font-semibold hover:underline underline-offset-4">{cta} →</Link>
+    </div>
+  );
+}
+
+/** STORY 안의 하위 구획(PEOPLE · THOUGHT) — 구획 제목이 유형을 말하므로 카드는 번호만("001"). */
+function StorySubsection({ title, items }: { title: string; items: StoryItem[] }) {
+  return (
+    <div>
+      <h3 className="ed-subsection-title pb-3 md:pb-5">{title}</h3>
+      <ul className={INDEX_GRID_CLASS}>
+        {items.map((s) => (
+          <li key={s.key} className="min-w-0">
+            <StoryCard href={s.href} image={s.cover} eyebrow={s.label} title={s.title} line={s.summary} ratio="4 / 5" sizes={INDEX_GRID_SIZES} />
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
@@ -46,7 +64,10 @@ export default async function EditorialHome({ admin, previewDrafts, userId }: { 
   // 보관(ARCHIVED)은 홈에서 항상 제외 — 미리보기도 발행·초안까지만(listContentStream과 같은 규칙).
   const visible = <T extends { status: string }>(rows: T[]) => rows.filter((r) => r.status !== "ARCHIVED");
   const latest = stream.slice(0, LATEST_COUNT);
-  const storyPreview = visible(stories).slice(0, 3);
+  // STORY는 PEOPLE · THOUGHT를 한 그리드에 섞지 않는다 — 각각 최신 3편, 0편인 쪽은 구획째 숨긴다.
+  const storyGroups = (["people", "thought"] as const)
+    .map((type) => ({ type, items: visible(stories).filter((s) => s.type === type).slice(0, 3) }))
+    .filter((g) => g.items.length > 0);
   const curationPreview = visible(curations).slice(0, 3);
   const cubePreview = visible(cubeSpaces).slice(0, 4);
 
@@ -77,7 +98,7 @@ export default async function EditorialHome({ admin, previewDrafts, userId }: { 
           <LatestSlider items={latest} allHref="/latest" />
         ) : (
           <section className="ed-container py-10">
-            <p className="ed-label pb-3" style={{ borderBottom: "1px solid var(--ed-fg)" }}>Latest</p>
+            <h2 className="ed-section-title pb-3" style={{ borderBottom: "1px solid var(--ed-fg)" }}>LATEST</h2>
             <p className="pt-6 text-base" style={{ color: "var(--ed-dim)" }}>첫 번째 이야기를 준비하고 있어요.</p>
           </section>
         )}
@@ -85,7 +106,7 @@ export default async function EditorialHome({ admin, previewDrafts, userId }: { 
         {/* ── CURATION — 공간큐브가 지역 × 상황/목적으로 직접 고른 공간 ── */}
         <section style={{ borderTop: "1px solid var(--ed-line)" }}>
           <div className="ed-container py-10 md:py-14">
-            <SectionHead label="CURATION" title="지역에서, 어떤 날과 어떤 마음으로 고른 공간" href="/curation" cta="큐레이션 보기" />
+            <SectionHead title="CURATION" description="지역에서, 어떤 날과 어떤 마음으로 고른 공간" href="/curation" cta="큐레이션 보기" />
             {curationPreview.length === 0 ? (
               <p className="py-4 text-sm" style={{ color: "var(--ed-dim)" }}>첫 번째 큐레이션을 준비하고 있어요.</p>
             ) : (
@@ -98,20 +119,18 @@ export default async function EditorialHome({ admin, previewDrafts, userId }: { 
           </div>
         </section>
 
-        {/* ── STORY — PEOPLE / THOUGHT, 공간을 통해 사람과 생각을 읽는다 ── */}
+        {/* ── STORY — PEOPLE(위) / THOUGHT(아래), 공간을 통해 사람과 생각을 읽는다 ── */}
         <section style={{ borderTop: "1px solid var(--ed-line)" }}>
           <div className="ed-container py-10 md:py-14">
-            <SectionHead label="STORY · PEOPLE / THOUGHT" title="공간을 통해 사람과 생각을 읽습니다" href="/story" cta="스토리 보기" />
-            {storyPreview.length === 0 ? (
+            <SectionHead title="STORY" description="공간을 통해 사람과 생각을 읽습니다" href="/story" cta="스토리 보기" />
+            {storyGroups.length === 0 ? (
               <p className="py-4 text-sm" style={{ color: "var(--ed-dim)" }}>첫 번째 이야기를 준비하고 있어요.</p>
             ) : (
-              <ul className={INDEX_GRID_CLASS}>
-                {storyPreview.map((s) => (
-                  <li key={s.key} className="min-w-0">
-                    <StoryCard href={s.href} image={s.cover} eyebrow={s.eyebrow} title={s.title} line={s.summary} ratio="4 / 5" sizes={INDEX_GRID_SIZES} />
-                  </li>
+              <div className="flex flex-col gap-10 md:gap-14">
+                {storyGroups.map((g) => (
+                  <StorySubsection key={g.type} title={STORY_TYPE_LABEL[g.type].en} items={g.items} />
                 ))}
-              </ul>
+              </div>
             )}
           </div>
         </section>
@@ -120,7 +139,7 @@ export default async function EditorialHome({ admin, previewDrafts, userId }: { 
         {cubePreview.length > 0 && (
           <section style={{ borderTop: "1px solid var(--ed-line)" }}>
             <div className="ed-container py-10 md:py-14">
-              <SectionHead label="With Gonggancube" title="공간큐브와 함께한 공간" href="/cube-spaces" cta="함께한 공간 보기" />
+              <SectionHead title="함께한 공간" description="현장에 Cube가 있는 공간" href="/cube-spaces" cta="함께한 공간 보기" />
               <ul className={SPACE_GRID_CLASS}>
                 {cubePreview.map((s) => (
                   <li key={s.id} className="min-w-0">

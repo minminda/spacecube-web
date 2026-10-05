@@ -82,7 +82,7 @@ export default async function AdminContentHomePage() {
                     <span className="a-eyebrow w-20" style={{ fontSize: 10 }}>{CONTENT_KIND_LABEL[it.kind]}</span>
                     <span className="min-w-0 flex-1">
                       <span className="block text-sm font-medium truncate">{it.title}</span>
-                      <span className="block text-[11px]" style={{ color: "var(--a-dim)" }}>{it.eyebrow}</span>
+                      <span className="block text-[11px]" style={{ color: "var(--a-dim)" }}>{it.label}</span>
                     </span>
                     <span className="text-xs tabular-nums shrink-0" style={{ color: "var(--a-dim)" }}>{it.date}</span>
                     <EditorialStatusBadge status={it.status} />

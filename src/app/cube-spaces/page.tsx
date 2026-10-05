@@ -35,7 +35,6 @@ export default async function CubeSpacesPage() {
     <div className="editorial-bleed">
       <main className="pb-20 md:pb-28">
         <PageHeader
-          label="With Gonggancube"
           title="함께한 공간"
           description="공간큐브와 실제로 함께한 공간입니다. 큐레이션에서 소개하는 공간과 달리, 이곳들에는 현장에 Cube가 있어요."
         />

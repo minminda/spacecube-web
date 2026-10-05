@@ -75,7 +75,7 @@ export default async function SpaceCubeBrandHubPage() {
 
         {/* STORY */}
         <section className="ed-container pt-12 md:pt-16">
-          <SectionHead label="Story · People / Thought" title="사람과 공간에서 시작된 이야기" body="한 사람이 머무는 공간(PEOPLE), 하나의 장면에서 시작한 생각(THOUGHT)을 기록합니다." href="/story" cta="스토리 보기" />
+          <SectionHead label="Story" title="사람과 공간에서 시작된 이야기" body="한 사람이 머무는 공간(PEOPLE), 하나의 장면에서 시작한 생각(THOUGHT)을 기록합니다." href="/story" cta="스토리 보기" />
           {storyPreview.length === 0 ? (
             <Empty text="첫 번째 이야기를 준비하고 있어요." />
           ) : (

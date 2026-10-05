@@ -9,26 +9,28 @@
 
 import { readStoredBlocks } from "./input";
 import {
-  PERSPECTIVE_LABEL, formatCurationNumber, formatPeopleNumber, formatThoughtNumber,
+  PERSPECTIVE_LABEL, formatSerial,
   type CurationPerspectiveValue, type EditorialBlock, type LinkedSpace, type ResolvedImage, type SpaceView,
 } from "./types";
 
-/* ── 공개 페이지와 공용: 머리줄 ── */
+/* ── 공개 페이지와 공용: 머리줄 ──
+   상세 머리줄은 유형을 빼고 번호부터 쓴다 — 바로 위 뒤로가기 링크(← PEOPLE · ← CURATION 등)가 이미 유형을 말해 준다. */
 
 export function peopleEyebrow(number: number, subject?: string | null, role?: string | null): string {
-  return [formatPeopleNumber(number), subject, role].filter(Boolean).join(" · ");
+  return [formatSerial(number), subject, role].filter(Boolean).join(" · ");
 }
 
 export function thoughtEyebrow(number: number, scene?: string | null): string {
-  return `${formatThoughtNumber(number)}${scene ? ` · ${scene}` : ""}`;
+  return `${formatSerial(number)}${scene ? ` · ${scene}` : ""}`;
 }
 
 export function curationEyebrowLine(number: number, perspective?: CurationPerspectiveValue | null): string {
-  return `${formatCurationNumber(number)}${perspective ? ` · ${PERSPECTIVE_LABEL[perspective].en} · ${PERSPECTIVE_LABEL[perspective].ko}` : ""}`;
+  return `${formatSerial(number)}${perspective ? ` · ${PERSPECTIVE_LABEL[perspective].en} · ${PERSPECTIVE_LABEL[perspective].ko}` : ""}`;
 }
 
-export function curationSpaceCountLabel(area: string | null | undefined, count: number): string {
-  return area ? `${area}에서 발견한 ${count}개의 공간` : `공간 ${count}곳`;
+/** "공간 3곳" — 지역은 머리줄 · 큰 제목이 이미 보여 주므로 여기서 다시 쓰지 않는다. */
+export function curationSpaceCountLabel(count: number): string {
+  return `공간 ${count}곳`;
 }
 
 /* ── 초안 입력 ── */
@@ -135,7 +137,7 @@ export function curationArticleFromDraft(d: DraftInput, views: Record<string, Sp
     area,
     title,
     summary: d.summary.trim() || (opts.placeholders ? PREVIEW_PLACEHOLDER.curationSummary : ""),
-    meta: [curationSpaceCountLabel(area, spaces.length), d.date].filter(Boolean).join(" · "),
+    meta: [curationSpaceCountLabel(spaces.length), d.date].filter(Boolean).join(" · "),
     cover: draftCover(d, title),
     blocks,
     blockSpaces: draftBlockSpaces(blocks, views),

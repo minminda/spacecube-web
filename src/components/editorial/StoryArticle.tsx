@@ -8,6 +8,7 @@ import type { EditorialBlock, LinkedSpace, ResolvedImage, SpaceView, StoryItem }
 interface Props {
   backHref: string;
   backLabel: string;
+  /** "002 · 이름" — 유형은 바로 위 뒤로가기 링크(← PEOPLE / ← THOUGHT)가 말한다 */
   eyebrow: string;
   title: string;
   /** 짧은 deck/intro */
@@ -78,6 +79,7 @@ export default function StoryArticle(p: Props) {
               <Link href="/story" className="text-xs hover:underline underline-offset-4">STORY 전체 →</Link>
             </div>
             <div className={INDEX_GRID_CLASS}>
+              {/* 다른 이야기는 PEOPLE · THOUGHT가 섞이므로 유형을 한 번 붙인다 */}
               {p.related.map((r) => (
                 <StoryCard key={r.key} href={r.href} image={r.cover} eyebrow={r.eyebrow} title={r.title} line={r.summary} ratio="4 / 5" sizes={INDEX_GRID_SIZES} />
               ))}

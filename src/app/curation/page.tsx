@@ -58,7 +58,7 @@ export default async function CurationHubPage({ searchParams }: Props) {
   return (
     <div className="editorial-bleed">
       <main className="pb-20 md:pb-28">
-        <PageHeader label="Curation" title={area ?? "CURATION"} description={area ? undefined : "지역에서, 어떤 날과 어떤 마음으로 고른 공간."} />
+        <PageHeader label={area ? "Curation" : undefined} title={area ?? "CURATION"} description={area ? undefined : "지역에서, 어떤 날과 어떤 마음으로 고른 공간."} />
         <div className="ed-container" style={{ borderBottom: "1px solid var(--ed-line)" }}>
           <TabLinks tabs={areaTabs} active={area ?? "all"} label="지역" />
         </div>
@@ -75,7 +75,7 @@ export default async function CurationHubPage({ searchParams }: Props) {
             </p>
           ) : (
             <div className={INDEX_GRID_CLASS}>
-              {shown.map((c, i) => <CurationCard key={c.id} c={c} priority={i < 2} />)}
+              {shown.map((c, i) => <CurationCard key={c.id} c={c} priority={i < 2} showArea={!area} />)}
             </div>
           )}
         </section>

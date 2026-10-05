@@ -8,7 +8,7 @@ import SiteFooter from "@/components/editorial/SiteFooter";
 import TabLinks from "@/components/editorial/TabLinks";
 import { getEditorialViewer } from "@/lib/editorial/viewer";
 import { listContentStream } from "@/lib/editorial/queries";
-import { CONTENT_KIND_LABEL, type ContentItem } from "@/lib/editorial/types";
+import type { ContentItem } from "@/lib/editorial/types";
 
 export const metadata: Metadata = {
   title: "LATEST — 공간큐브",
@@ -42,6 +42,9 @@ export default async function LatestPage({ searchParams }: Props) {
   const all = await listContentStream();
   const items = type ? all.filter(FILTERS[type]) : all;
   const shown = items.slice(0, limit);
+  // 유형 + 번호는 한 줄로 한 번만("CURATION 003 · 연남"). 탭이 이미 한 유형만 보여 주면(CURATION · SPACE) 유형을 뺀다.
+  // STORY 탭은 PEOPLE · THOUGHT가 섞이므로 유형을 남긴다.
+  const single = type === "curation" || type === "space";
 
   const tabs = [
     { key: "all", label: "ALL", href: "/latest" },
@@ -54,7 +57,7 @@ export default async function LatestPage({ searchParams }: Props) {
   return (
     <div className="editorial-bleed">
       <main className="pb-20 md:pb-28">
-        <PageHeader label="Latest" title="LATEST" description="새롭게 기록한 공간과 이야기를 만나보세요." />
+        <PageHeader title="LATEST" description="새롭게 기록한 공간과 이야기를 만나보세요." />
         <div className="ed-container pt-6 md:pt-8" style={{ borderBottom: "1px solid var(--ed-line)" }}>
           <TabLinks tabs={tabs} active={type ?? "all"} label="LATEST 유형" />
         </div>
@@ -67,16 +70,14 @@ export default async function LatestPage({ searchParams }: Props) {
               {shown.map((it, i) => (
                 <li key={it.key} style={{ borderBottom: "1px solid var(--ed-line)" }}>
                   <Link href={it.href} className="group grid grid-cols-[1fr_104px] md:grid-cols-[140px_1fr_240px] gap-4 md:gap-10 py-6 md:py-8 items-start">
-                    <div className="hidden md:block space-y-1.5 pt-1">
-                      <p className="ed-label">{CONTENT_KIND_LABEL[it.kind]}</p>
+                    <div className="hidden md:block pt-1">
                       {it.date && <p className="text-xs tabular-nums" style={{ color: "var(--ed-dim)" }}>{it.date}</p>}
                     </div>
                     <div className="space-y-2 min-w-0">
-                      <p className="md:hidden ed-label">
-                        {CONTENT_KIND_LABEL[it.kind]}
-                        {it.date && <span className="ml-2 tabular-nums font-normal" style={{ color: "var(--ed-dim)" }}>{it.date}</span>}
+                      <p className="ed-label">
+                        {single ? it.label : it.eyebrow}
+                        {it.date && <span className="md:hidden ml-2 tabular-nums font-normal tracking-normal" style={{ color: "var(--ed-dim)" }}>{it.date}</span>}
                       </p>
-                      {it.eyebrow && <p className="text-xs" style={{ color: "var(--ed-dim)" }}>{it.eyebrow}</p>}
                       <p className="flex items-center gap-2 text-lg md:text-2xl font-bold leading-snug tracking-tight break-keep group-hover:underline underline-offset-4">
                         {it.title}
                         {it.partner && <PartnerMark size={16} />}

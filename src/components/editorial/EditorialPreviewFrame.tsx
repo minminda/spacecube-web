@@ -55,7 +55,7 @@ export default function EditorialPreviewFrame() {
       {draft.kind === "curations" ? (
         <CurationArticle
           backHref="/curation"
-          backLabel={draft.label.trim() ? `${draft.label.trim()} 큐레이션` : "CURATION"}
+          backLabel="CURATION"
           {...curationArticleFromDraft(draft, views, { placeholders: true })}
           saveState={NO_SAVE}
         />

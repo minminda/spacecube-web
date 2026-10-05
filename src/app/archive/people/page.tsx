@@ -32,7 +32,7 @@ export default async function PeopleSearchPage({ searchParams }: Props) {
         <div className="ed-container pt-5 md:pt-8">
           <Link href="/archive" className="inline-flex items-center min-h-10 text-xs hover:underline underline-offset-4" style={{ color: "var(--ed-dim)" }}>← 내 아카이브</Link>
         </div>
-        <PageHeader label="People" title="사람 찾기" description="공개 프로필만 검색돼요.">
+        <PageHeader title="사람 찾기" description="공개 프로필만 검색돼요.">
           <form method="get" action="/archive/people" role="search" className="pt-6 flex gap-2 max-w-[520px]">
             <input name="q" type="search" defaultValue={sp.q ?? ""} placeholder="닉네임 검색" aria-label="닉네임 또는 @주소로 사람 찾기" autoComplete="off" className="flex-1 min-w-0 h-12 px-4 text-base outline-none" style={{ border: "1px solid var(--ed-fg)" }} />
             <button type="submit" className="ed-btn ed-btn-primary shrink-0">찾기</button>
