@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { ENABLE_NAV_DISCOVER_LINK, ENABLE_NAV_RECOMMENDATION_LINK, ENABLE_EDITORIAL_HOME } from "@/lib/features";
 import { BRAND_NAME, CONTACT_EMAIL, INSTAGRAM_URL, PARTICIPATION } from "@/content/site";
 // 모든 화면에 있는 Navbar에서 이동 종류(링크/뒤로가기) 감지를 미리 켠다 — 목록에서 상세로 처음 들어갈 때도 동작하도록
-import "@/components/editorial/useOpenAtTop";
+import "@/components/editorial/useArticleScroll";
 
 const LEGACY_NAV_ITEMS = [
   { label: "공간들", href: "/discover", match: (p: string) => p.startsWith("/discover") || p.startsWith("/stories") || p.startsWith("/story"), enabled: ENABLE_NAV_DISCOVER_LINK },

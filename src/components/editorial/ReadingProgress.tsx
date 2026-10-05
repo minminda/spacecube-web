@@ -3,13 +3,13 @@
 import { useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import { readingProgress } from "@/lib/editorial/readingProgress";
-import { useOpenAtTop } from "./useOpenAtTop";
+import { useArticleScroll } from "./useArticleScroll";
 
 /** Navbar 높이(h-14 56px + 아래 테두리 1px). 진행 바는 그 바로 아래에 붙고, 0%는 글 위쪽이 이 선에 닿은 상태다. */
 const NAV_HEIGHT = 57;
 
 /**
- * 상세 글 읽기 진행 바 — Navbar 바로 아래 전체 폭 4px(아주 연한 회색 바탕 위 검정). 링크로 들어오면 글을 맨 위에서 연다(useOpenAtTop). 감싼 영역(제목 ~ 마지막 본문 블록)만 기준으로 계산하므로
+ * 상세 글 읽기 진행 바 — Navbar 바로 아래 전체 폭 4px(아주 연한 회색 바탕 위 검정). 링크로 들어오면 맨 위, 새로고침하면 읽던 위치(useArticleScroll). 감싼 영역(제목 ~ 마지막 본문 블록)만 기준으로 계산하므로
  * 아래의 관련 공간 · 다른 이야기 · 푸터는 진행률에 들어가지 않는다(본문 끝 = 100%).
  * StoryArticle · CurationArticle이 쓰므로 공개 상세와 관리자 미리보기(iframe)가 같다 — iframe 안에서는 그 문서의
  * window로 계산되어 관리자 화면 스크롤과 섞이지 않는다.
@@ -20,7 +20,7 @@ export default function ReadingProgress({ children }: { children: React.ReactNod
   const areaRef = useRef<HTMLDivElement>(null);
   const barRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
-  useOpenAtTop(pathname);
+  useArticleScroll(pathname);
 
   useEffect(() => {
     const area = areaRef.current;
