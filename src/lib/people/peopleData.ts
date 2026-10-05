@@ -8,7 +8,8 @@
 import { prisma } from "@/lib/prisma";
 import { isAdmin } from "@/lib/admin";
 import { getLibrary } from "@/lib/archive/library";
-import { publicSpaceRows } from "@/lib/profile/profileData";
+import { publicSpaceRows, searchPeople } from "@/lib/profile/profileData";
+import { peopleQuery } from "@/lib/profile/publicProfile";
 import { PEOPLE_REASON_TEXT, rankPeople, type PersonCandidate, type SpaceFeatures, type ViewerTaste } from "./rankPeople";
 
 /** 후보 상한 — 사람이 많아지면 최근 가입 순으로 자른다(V1). */
@@ -87,4 +88,15 @@ export async function recommendPeople(viewerId: string | null, opts: { includeDe
         demo: u.isDemo,
       };
     });
+}
+
+/**
+ * 추천 > 사람 탭의 닉네임 검색 — 기존 사람 찾기(searchPeople)를 그대로 쓰고 같은 카드 모양으로만 바꾼다.
+ * 검색어가 2자 미만이면 null(= 추천을 보여준다).
+ */
+export async function searchPeopleTiles(raw: string | undefined, viewerId: string | null, opts: { includeDemo: boolean }): Promise<RecommendedPerson[] | null> {
+  const q = peopleQuery(raw);
+  if (!q) return null;
+  const { people } = await searchPeople(q, viewerId, { includeDemo: opts.includeDemo, photos: 0 });
+  return people.map((p) => ({ userId: p.userId, handle: p.handle, name: p.name, image: p.image, reason: null, demo: p.demo }));
 }

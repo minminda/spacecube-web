@@ -114,11 +114,22 @@ export function RelationLine({ path, followingCount, followerCount, common }: { 
   );
 }
 
+/** 화면 아래 짧은 안내(토스트) — 버튼 줄의 레이아웃을 밀지 않는다. 몇 초 뒤 사라진다. */
+function Toast({ children }: { children: React.ReactNode }) {
+  return (
+    <div role="status" className="fixed inset-x-0 bottom-6 z-[70] flex justify-center px-4 pointer-events-none">
+      <div className="pointer-events-auto inline-flex items-center gap-4 px-4 py-3 text-sm" style={{ background: "var(--ed-fg)", color: "var(--ed-bg)" }}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
 /**
- * 공유 — Web Share API가 있으면 시스템 공유, 없으면 주소 복사 후 "링크가 복사되었습니다."
- * 주소는 /@handle로 고정(닉네임이 바뀌어도 링크 유지).
+ * 공유 — Web Share API가 있으면 시스템 공유, 없으면 주소 복사 후 "링크를 복사했어요." 토스트.
+ * 주소는 공개 프로필 /@handle로 고정(닉네임이 바뀌어도 링크 유지, 내부 사용자 id는 쓰지 않는다).
  */
-export function ShareProfileButton({ path, name, label = "공유", variant = "outline" }: { path: string; name: string; label?: string; variant?: "outline" | "solid" | "text" }) {
+export function ShareProfileButton({ path, name, label = "공유", variant = "outline", fill }: { path: string; name: string; label?: string; variant?: "outline" | "solid" | "text"; /** 칸을 꽉 채운다(버튼 그리드) */ fill?: boolean }) {
   const [copied, setCopied] = useState(false);
 
   async function share() {
@@ -140,28 +151,36 @@ export function ShareProfileButton({ path, name, label = "공유", variant = "ou
     }
   }
 
+  const size = fill ? "w-full" : "w-full sm:w-auto sm:min-w-[120px]";
   return (
-    <span className={variant === "text" ? "inline-flex items-center gap-2" : "inline-flex flex-col gap-1"}>
-      <button type="button" onClick={share} className={variant === "text" ? TEXT_ACTION : variant === "solid" ? "ed-btn ed-btn-primary w-full sm:w-auto sm:min-w-[120px]" : "ed-btn w-full sm:w-auto sm:min-w-[120px]"}>
+    <>
+      <button type="button" onClick={share} className={variant === "text" ? TEXT_ACTION : variant === "solid" ? `ed-btn ed-btn-primary ${size}` : `ed-btn ${size}`}>
         {label}
       </button>
-      <span role="status" className="text-xs empty:hidden" style={{ color: "var(--ed-dim)" }}>{copied ? "링크가 복사되었습니다." : ""}</span>
-    </span>
+      {copied && <Toast>링크를 복사했어요.</Toast>}
+    </>
   );
 }
 
-/** 공유하려는데 아직 공개 프로필이 없을 때 — 무엇을 해야 하는지 바로 알려준다(설정 패널에서 켠다). */
-export function ShareNeedsProfileButton({ label, variant = "outline" }: { label: string; variant?: "outline" | "text" }) {
+/** 공유하려는데 아직 공개 프로필이 꺼져 있을 때 — 링크를 복사하지 않고, 공개 설정으로 가는 길만 알려준다. */
+export function ShareNeedsProfileButton({ label, variant = "outline", fill }: { label: string; variant?: "outline" | "text"; fill?: boolean }) {
   const [shown, setShown] = useState(false);
+  function show() {
+    setShown(true);
+    setTimeout(() => setShown(false), 5000);
+  }
   return (
-    <span className="inline-flex flex-col gap-1">
-      <button type="button" onClick={() => setShown(true)} className={variant === "text" ? TEXT_ACTION : "ed-btn w-full sm:w-auto"}>
+    <>
+      <button type="button" onClick={show} className={variant === "text" ? TEXT_ACTION : `ed-btn ${fill ? "w-full" : "w-full sm:w-auto"}`}>
         {label}
       </button>
-      <span role="status" className="text-xs max-w-[280px] empty:hidden" style={{ color: "var(--ed-dim)" }}>
-        {shown ? "설정(⚙)에서 공개 프로필을 먼저 켜주세요. 공개한 공간만 보여요." : ""}
-      </span>
-    </span>
+      {shown && (
+        <Toast>
+          <span>아카이브를 공개해야 공유할 수 있어요.</span>
+          <a href="/settings" className="font-semibold underline underline-offset-4 whitespace-nowrap">공개 설정</a>
+        </Toast>
+      )}
+    </>
   );
 }
 
@@ -237,7 +256,7 @@ export function ProfileSpaceToggle({ spaceId, initial, hasPhotos, hasMemo, hasVi
         </div>
       )}
       {st.public && !profilePublic && (
-        <p className="text-xs" style={{ color: "var(--ed-dim)" }}>공개 프로필이 아직 꺼져 있어 지금은 아무에게도 보이지 않아요. 설정(⚙)에서 켤 수 있어요.</p>
+        <p className="text-xs" style={{ color: "var(--ed-dim)" }}>공개 프로필이 아직 꺼져 있어 지금은 아무에게도 보이지 않아요. <a href="/settings" className="underline underline-offset-4">설정</a>에서 켤 수 있어요.</p>
       )}
       {st.public && profilePublic && recordHref && (
         <a href={recordHref} className="inline-block text-xs underline underline-offset-4">다른 사람에게 보이는 모습 보기 →</a>

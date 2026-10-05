@@ -23,7 +23,7 @@ export default async function MyFollowingPage() {
       <main className="pb-24 md:pb-32">
         <div className="ed-container pt-8 md:pt-12 flex justify-between gap-4">
           <Link href="/archive" className="text-xs hover:underline underline-offset-4" style={{ color: "var(--ed-dim)" }}>← 내 아카이브</Link>
-          <Link href="/archive/people" className="text-xs font-semibold hover:underline underline-offset-4">사람 찾기 →</Link>
+          <Link href="/find?tab=people&search=1" className="text-xs font-semibold hover:underline underline-offset-4">사람 찾기 →</Link>
         </div>
         <header className="ed-container pt-6 pb-6">
           <p className="ed-label" style={{ color: "var(--ed-dim)" }}>Following Tastes</p>
@@ -33,7 +33,7 @@ export default async function MyFollowingPage() {
         <section className="ed-container" style={{ borderTop: "1px solid var(--ed-fg)" }}>
           {people.length === 0 ? (
             <p className="py-12 text-sm leading-relaxed break-keep" style={{ color: "var(--ed-dim)" }}>
-              아직 따라가는 취향이 없어요. <Link href="/archive/people" className="underline underline-offset-4">사람 찾기</Link>로 친구를 찾거나, 공유받은 프로필에서 “취향 따라가기”를 눌러보세요.
+              아직 따라가는 취향이 없어요. <Link href="/find?tab=people&search=1" className="underline underline-offset-4">사람 찾기</Link>로 친구를 찾거나, 공유받은 프로필에서 “취향 따라가기”를 눌러보세요.
             </p>
           ) : (
             people.map((p) => <PersonCard key={p.handle} p={p} following={following.has(p.userId)} loggedIn self={false} returnTo="/archive/following" />)

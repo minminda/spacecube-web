@@ -5,8 +5,9 @@ import type { Metadata } from "next";
 import SiteFooter from "@/components/editorial/SiteFooter";
 import PageHeader from "@/components/editorial/PageHeader";
 import SpaceCard from "@/components/editorial/SpaceCard";
-import TabLinks from "@/components/editorial/TabLinks";
+import SegmentTabs from "@/components/editorial/SegmentTabs";
 import { PeopleGrid, PeopleGridSkeleton } from "@/components/people/PeopleGrid";
+import PeopleSearch from "@/components/people/PeopleSearch";
 import { SPACE_GRID_CLASS } from "@/components/editorial/SpaceTile";
 import { PrototypeBanner } from "@/components/curators/CuratorBits";
 import { getEditorialViewer } from "@/lib/editorial/viewer";
@@ -18,12 +19,12 @@ import { curatorDisplayName } from "@/lib/curators/finder";
 import { cardReason, filterCandidates, parseFinderQuery, rankCandidates, type FinderQuery } from "@/lib/finder/spaceFinder";
 import { getFinderPool, getFinderViewer } from "@/lib/finder/finderData";
 import { previewDemoUsers } from "@/lib/demoData";
-import { recommendPeople } from "@/lib/people/peopleData";
+import { recommendPeople, searchPeopleTiles } from "@/lib/people/peopleData";
 
 export const metadata: Metadata = { title: "추천 — 공간큐브", description: "지역만 고르면, 지금까지의 공간 경험을 바탕으로 나에게 맞는 공간부터 보여드려요." };
 
 interface Props {
-  searchParams: Promise<{ tab?: string; area?: string; q?: string; feel?: string; for?: string; n?: string }>;
+  searchParams: Promise<{ tab?: string; who?: string; search?: string; area?: string; q?: string; feel?: string; for?: string; n?: string }>;
 }
 
 const PREFERRED_AREAS = ["연남", "망원", "서촌", "성수"];
@@ -61,7 +62,7 @@ async function PeopleResults({ viewerId, admin, loggedIn }: { viewerId: string |
           <Link href={`/login?callbackUrl=${encodeURIComponent("/find?tab=people")}`} className="font-semibold underline underline-offset-4" style={{ color: "var(--ed-fg)" }}>로그인</Link>하면 나와 비슷한 사람부터 보여드려요.
         </p>
       )}
-      {people.length === 0 ? <p className="py-10 text-base font-semibold">아직 추천할 사람이 없어요.</p> : <PeopleGrid people={people} />}
+      {people.length === 0 ? <p className="py-10 text-base font-semibold">추천할 사람이 없습니다.</p> : <PeopleGrid people={people} />}
     </>
   );
 }
@@ -100,21 +101,22 @@ export default async function FindPage({ searchParams }: Props) {
     { key: "people", label: "사람", href: peopleHref(q) },
   ];
 
-  // 기본은 공간. 사람 탭은 지역 선택 · 검색 없이 추천 그리드만.
+  // 기본은 공간. 사람 탭 = 닉네임 검색 칸 + 추천 그리드(검색어가 있으면 같은 자리에 검색 결과). 지역 선택 없음.
   if (sp.tab === "people") {
+    const who = (sp.who ?? "").slice(0, 30);
+    const initialResults = await searchPeopleTiles(who, viewer.userId, { includeDemo: previewDemoUsers(viewer.admin) });
     return (
       <div className="editorial-bleed">
         <main className="pb-20 md:pb-28">
           <PageHeader title="추천">
-            <div className="pt-5"><TabLinks tabs={tabs} active="people" label="추천 종류" /></div>
+            <div className="pt-5"><SegmentTabs segments={tabs} active="people" label="추천 종류" /></div>
           </PageHeader>
-          <section className="ed-container" aria-live="polite">
-            <div className="flex items-center justify-end py-4" style={{ borderTop: "1px solid var(--ed-line)" }}>
-              {viewer.loggedIn && <Link href="/archive/people" className="text-xs font-semibold hover:underline underline-offset-4">사람 찾기 →</Link>}
-            </div>
-            <Suspense fallback={<PeopleGridSkeleton />}>
-              <PeopleResults viewerId={viewer.userId} admin={viewer.admin} loggedIn={viewer.loggedIn} />
-            </Suspense>
+          <section className="ed-container pt-5" style={{ borderTop: "1px solid var(--ed-line)" }}>
+            <PeopleSearch initialQuery={who} initialResults={initialResults} autoFocus={sp.search === "1"}>
+              <Suspense fallback={<PeopleGridSkeleton />}>
+                <PeopleResults viewerId={viewer.userId} admin={viewer.admin} loggedIn={viewer.loggedIn} />
+              </Suspense>
+            </PeopleSearch>
           </section>
         </main>
         <SiteFooter admin={viewer.admin} />
@@ -143,7 +145,7 @@ export default async function FindPage({ searchParams }: Props) {
       {demoShown && <PrototypeBanner demo />}
       <main className="pb-20 md:pb-28">
         <PageHeader title="추천">
-          <div className="pt-5"><TabLinks tabs={tabs} active="space" label="추천 종류" /></div>
+          <div className="pt-5"><SegmentTabs segments={tabs} active="space" label="추천 종류" /></div>
           <h2 className="pt-5 pb-3 text-sm font-semibold">어디에서 찾고 있나요?</h2>
           {/* 사용자가 고르는 것은 지역 하나뿐 — 휴대폰은 한 줄 가로 스크롤, 데스크톱은 줄바꿈 */}
           <nav aria-label="지역" className="ed-scroll-x -mx-5 px-5 md:mx-0 md:px-0 flex gap-2 overflow-x-auto md:flex-wrap">

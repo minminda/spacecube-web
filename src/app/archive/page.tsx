@@ -106,31 +106,35 @@ export default async function ArchivePage({ searchParams }: Props) {
           tools={
             <>
               {ENABLE_NOTIFICATIONS && <NotificationBell initialUnreadCount={unreadNotificationCount} />}
+              {/* 새 정보구조에서는 톱니바퀴 없이 메뉴의 "설정"(/settings)으로. 예전 화면만 기존 패널 유지. */}
               {!editorial && <ShareArchiveButton userId={user.id} />}
-              <SettingsPanel
-                nickname={user.nickname}
-                nicknameUpdatedAt={user.nicknameUpdatedAt?.toISOString() ?? null}
-                profile={editorial ? { public: user.profilePublic, handle: user.profileHandle, bio: user.profileBio } : undefined}
-              />
+              {!editorial && (
+                <SettingsPanel nickname={user.nickname} nicknameUpdatedAt={user.nicknameUpdatedAt?.toISOString() ?? null} />
+              )}
             </>
           }
         >
-          {/* 핵심 행동 — Primary 공간 추가(검정) · Secondary 사람 찾기(테두리). 휴대폰은 같은 폭 두 칸. */}
-          <div className={`pt-6 grid gap-2 sm:flex sm:flex-wrap ${editorial ? "grid-cols-2" : "grid-cols-1"}`}>
-            <ArchiveAddSheet className="ed-btn ed-btn-primary w-full sm:w-auto sm:min-w-[160px]" />
-            {editorial && <Link href="/archive/people" className="ed-btn w-full sm:w-auto sm:min-w-[160px]">사람 찾기</Link>}
+          {/* 핵심 행동 — 1줄: 공간 추가(Primary, 한 줄 전체) / 2줄: 사람 찾기 · 내 아카이브 공유(Secondary, 1:1).
+              휴대폰 · 데스크톱 같은 위계, 데스크톱은 560px까지만 넓어진다. */}
+          <div className="pt-6 max-w-[560px] space-y-2">
+            <ArchiveAddSheet className="ed-btn ed-btn-primary w-full" />
+            {editorial && (
+              <div className="grid grid-cols-2 gap-2">
+                <Link href="/find?tab=people&search=1" className="ed-btn w-full">사람 찾기</Link>
+                {user.profilePublic && user.profileHandle ? (
+                  <ShareProfileButton path={profilePath(user.profileHandle)} name={user.nickname ?? user.profileHandle} label="내 아카이브 공유" fill />
+                ) : (
+                  <ShareNeedsProfileButton label="내 아카이브 공유" fill />
+                )}
+              </div>
+            )}
           </div>
           {editorial && (
-            // 공유 · 공개 프로필 · 관계 수 — 더 작은 행동 한 줄(인기 경쟁처럼 보이지 않게 숫자도 작게)
+            // 공개 주소 · 관계 수 — 작은 보조 줄(인기 경쟁처럼 보이지 않게 숫자도 작게). 공유 행동은 위 버튼 하나뿐.
             <div className="pt-2 flex flex-wrap items-center gap-x-5 text-xs" style={{ color: "var(--ed-dim)" }}>
-              {user.profilePublic && user.profileHandle ? (
-                <ShareProfileButton path={profilePath(user.profileHandle)} name={user.nickname ?? user.profileHandle} label="공유" variant="text" />
-              ) : (
-                <ShareNeedsProfileButton label="공유" variant="text" />
-              )}
               {user.profileHandle && (
                 <Link href={profilePath(user.profileHandle)} className="inline-flex items-center min-h-10 text-[13px] font-semibold underline underline-offset-4" style={{ color: "var(--ed-fg)" }}>
-                  {user.profilePublic ? "공개 프로필" : "공개 프로필(비공개)"}
+                  @{user.profileHandle}{user.profilePublic ? "" : " (비공개)"}
                 </Link>
               )}
               <Link href="/archive/following" className="inline-flex items-center min-h-10 hover:underline underline-offset-4">따라가는 취향 <span className="ml-1 tabular-nums">{followingCount}</span></Link>

@@ -44,8 +44,8 @@ export default async function PublicProfilePage({ params }: Props) {
       {self && !p.isPublic && (
         <div style={{ background: "#fff6e6", borderBottom: "1px solid var(--ed-line)" }}>
           <p className="ed-container py-2.5 text-xs" style={{ color: "#8a5a00" }}>
-            아직 비공개예요 — 지금은 나에게만 보여요. 내 아카이브의 설정(⚙)에서 공개할 수 있어요.
-            <Link href="/archive" className="ml-3 underline underline-offset-4">내 아카이브로</Link>
+            아직 비공개예요 — 지금은 나에게만 보여요.
+            <Link href="/settings" className="ml-3 underline underline-offset-4">공개 설정</Link>
           </p>
         </div>
       )}
@@ -63,7 +63,7 @@ export default async function PublicProfilePage({ params }: Props) {
               <RelationLine path={path} followingCount={p.followingCount} followerCount={p.followerCount} common={0} />
               <div className="pt-6 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-start">
                 {p.isPublic ? <ShareProfileButton path={path} name={p.name} label="공유" variant="solid" /> : <ShareNeedsProfileButton label="공유" />}
-                <Link href="/archive/people" className="ed-btn">사람 찾기</Link>
+                <Link href="/find?tab=people&search=1" className="ed-btn">사람 찾기</Link>
               </div>
             </>
           ) : (

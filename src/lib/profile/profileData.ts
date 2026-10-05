@@ -163,26 +163,34 @@ export interface PersonCard {
   bio: string | null;
   /** 최근 공개 공간 사진 몇 장(그 사람의 공개 사진 우선) — 태그 대신 사진으로 취향을 느끼게 */
   photos: { url: string | null; name: string }[];
+  /** 더미 계정(관리자 · 로컬 미리보기에서만 섞인다) */
+  demo: boolean;
 }
 
 async function personCards(users: ProfileUser[], photoCount = 3): Promise<PersonCard[]> {
   return Promise.all(
     users.map(async (u) => {
-      const rows = (await publicSpaceRows(u.id)).slice(0, photoCount);
+      const rows = photoCount > 0 ? (await publicSpaceRows(u.id)).slice(0, photoCount) : [];
       const cards = await cardsFor(u.id, rows);
       return {
         userId: u.id, handle: u.profileHandle!, name: displayName(u), image: u.image, bio: u.profileBio,
         photos: cards.map((c) => ({ url: c.photo, name: c.space.name })),
+        demo: u.isDemo,
       };
     }),
   );
 }
 
-/** 사람 찾기 — 공개 프로필만, 닉네임·주소로. 인기순·추천 없음(이름 가나다 순). */
-export async function searchPeople(q: string, viewerId: string | null): Promise<{ people: PersonCard[]; following: Set<string> }> {
+/**
+ * 사람 찾기 — 공개 프로필만, 닉네임·주소로. 인기순·추천 없음(이름 가나다 순).
+ * 추천 > 사람 탭의 검색이 이 함수를 그대로 쓴다(photos: 0 — 아바타 · 이름 카드라 사진 조회 생략).
+ * 더미 계정은 includeDemo(관리자 · 로컬 개발)일 때만.
+ */
+export async function searchPeople(q: string, viewerId: string | null, opts: { includeDemo?: boolean; photos?: number } = {}): Promise<{ people: PersonCard[]; following: Set<string> }> {
   const users = await prisma.user.findMany({
     where: {
-      profilePublic: true, isDemo: false, profileHandle: { not: null },
+      profilePublic: true, profileHandle: { not: null },
+      ...(opts.includeDemo ? {} : { isDemo: false }),
       OR: [{ nickname: { contains: q, mode: "insensitive" } }, { profileHandle: { contains: q.toLowerCase() } }],
     },
     select: PROFILE_USER_SELECT,
@@ -190,7 +198,7 @@ export async function searchPeople(q: string, viewerId: string | null): Promise<
     take: 20,
   });
   const [people, follows] = await Promise.all([
-    personCards(users),
+    personCards(users, opts.photos ?? 3),
     viewerId ? prisma.savedTaste.findMany({ where: { userId: viewerId, targetUserId: { in: users.map((u) => u.id) } }, select: { targetUserId: true } }) : Promise.resolve([]),
   ]);
   return { people, following: new Set(follows.map((f) => f.targetUserId)) };

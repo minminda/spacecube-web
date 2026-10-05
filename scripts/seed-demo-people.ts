@@ -12,7 +12,8 @@
  *   실제 사용자 · 아카이브는 읽지도 고치지도 않는다.
  * - 공간은 이미 있는 발행 canonical 공간(EditorialSpace)만 쓴다(새 공간 생성 없음). 없는 slug는 건너뛴다.
  * - 계정마다 아카이브를 지우고 다시 만든다(reset-then-seed) — 중복 실행해도 같은 상태.
- * - 닉네임은 unique라 실제 사용자가 이미 쓰는 이름이면 그 계정은 건너뛴다(덮어쓰지 않음).
+ * - 닉네임은 unique다. 실사용자가 쓰고 싶은 흔한 이름("민지")을 점유하지 않도록 "민지(데모)"처럼 표시를 붙인다.
+ *   그래도 이미 쓰는 사람이 있으면 그 계정은 건너뛴다(덮어쓰지 않음).
  */
 import { PrismaClient } from "@prisma/client";
 import { randomBytes } from "crypto";
@@ -45,28 +46,28 @@ interface DemoPerson {
     민지 · 유진 · 지우 · 도윤이 위, 하은 · 다은 · 서윤이 아래로 와야 한다. 하린(비공개)은 나오면 안 된다.
 */
 const PEOPLE: DemoPerson[] = [
-  { key: "minji", nickname: "민지", bio: "책과 음악이 있는 공간을 좋아합니다.", public: true,
+  { key: "minji", nickname: "민지(데모)", bio: "책과 음악이 있는 공간을 좋아합니다.", public: true,
     spaces: [["booknook-yeonnam", true], ["dasijeom", true], ["turndown-service", true], ["inner-discovery", false]] },
-  { key: "suhyun", nickname: "수현", bio: "음악이 먼저 들리는 곳을 찾아다녀요.", public: true,
+  { key: "suhyun", nickname: "수현(데모)", bio: "음악이 먼저 들리는 곳을 찾아다녀요.", public: true,
     spaces: [["turndown-service", true], ["aka-coffee-room", true], ["nokhwabutton", false]] },
-  { key: "jiwoo", nickname: "지우", bio: "작은 전시와 독립 공간을 찾아다닙니다.", public: true,
+  { key: "jiwoo", nickname: "지우(데모)", bio: "작은 전시와 독립 공간을 찾아다닙니다.", public: true,
     spaces: [["inner-discovery", true], ["booknook-yeonnam", true], ["dasijeom", false]] },
-  { key: "soyeon", nickname: "소연", bio: "작은 브랜드가 만든 독특한 공간을 모읍니다.", public: true,
+  { key: "soyeon", nickname: "소연(데모)", bio: "작은 브랜드가 만든 독특한 공간을 모읍니다.", public: true,
     spaces: [["dasijeom", true], ["nokhwabutton", true], ["aka-coffee-room", false]] },
-  { key: "haeun", nickname: "하은", bio: "커피 한 잔으로 오래 머물 수 있는 곳.", public: true,
+  { key: "haeun", nickname: "하은(데모)", bio: "커피 한 잔으로 오래 머물 수 있는 곳.", public: true,
     spaces: [["aka-coffee-room", true], ["nokhwabutton", true], ["turndown-service", false]] },
-  { key: "yujin", nickname: "유진", bio: "혼자 오래 머물 수 있는 곳을 모읍니다.", public: true,
+  { key: "yujin", nickname: "유진(데모)", bio: "혼자 오래 머물 수 있는 곳을 모읍니다.", public: true,
     spaces: [["booknook-yeonnam", true], ["inner-discovery", true], ["turndown-service", false], ["dasijeom", false]] },
-  { key: "seoyun", nickname: "서윤", bio: null, public: true,
+  { key: "seoyun", nickname: "서윤(데모)", bio: null, public: true,
     spaces: [["nokhwabutton", true], ["aka-coffee-room", false]] },
-  { key: "hyunwoo", nickname: "현우", bio: "LP와 책, 조용한 저녁.", public: true,
+  { key: "hyunwoo", nickname: "현우(데모)", bio: "LP와 책, 조용한 저녁.", public: true,
     spaces: [["turndown-service", true], ["inner-discovery", false], ["booknook-yeonnam", false]] },
-  { key: "doyun", nickname: "도윤", bio: "공간이 곧 이야기인 곳을 좋아해요.", public: true,
+  { key: "doyun", nickname: "도윤(데모)", bio: "공간이 곧 이야기인 곳을 좋아해요.", public: true,
     spaces: [["dasijeom", true], ["inner-discovery", true], ["aka-coffee-room", true], ["booknook-yeonnam", false]] },
-  { key: "daeun", nickname: "다은", bio: null, public: true,
+  { key: "daeun", nickname: "다은(데모)", bio: null, public: true,
     spaces: [["aka-coffee-room", true], ["turndown-service", true]] },
   // 비공개 프로필 — 보는 사람과 공간이 완전히 같지만 추천에 나오면 안 된다
-  { key: "harin", nickname: "하린", bio: "비공개 프로필", public: false,
+  { key: "harin", nickname: "하린(데모)", bio: "비공개 프로필", public: false,
     spaces: [["booknook-yeonnam", true], ["dasijeom", true], ["inner-discovery", true]] },
   // 테스트용 "보는 사람"(로그인 상태 화면 확인용, 비공개 · 닉네임 없음)
   { key: "viewer", nickname: null, bio: null, public: false,

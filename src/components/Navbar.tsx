@@ -146,6 +146,17 @@ export default function Navbar() {
           <Link href={archiveHref} aria-current={archiveActive ? "page" : undefined} className={CTA_CLASS} style={CTA_ARCHIVE}>
             내 아카이브
           </Link>
+          {/* 계정 — 화면마다 톱니바퀴를 두지 않고 여기(로그인했을 때만) */}
+          {viewer?.loggedIn && (
+            <Link
+              href="/settings"
+              aria-current={pathname.startsWith("/settings") ? "page" : undefined}
+              className="ml-3 text-[13px] whitespace-nowrap transition-opacity hover:opacity-100"
+              style={{ color: "#fff", opacity: pathname.startsWith("/settings") ? 1 : 0.55 }}
+            >
+              설정
+            </Link>
+          )}
         </div>
 
         <button
@@ -189,6 +200,20 @@ export default function Navbar() {
               </li>
             ))}
           </ul>
+          {/* Account — 콘텐츠 메뉴와 한 칸 띄워 따로(로그인했을 때만). 관리자는 아래 Secondary에 따로 둔다. */}
+          {viewer?.loggedIn && (
+            <div className="px-4 pt-6">
+              <Link
+                href="/settings"
+                onClick={() => setMenuOpenPath(null)}
+                aria-current={pathname.startsWith("/settings") ? "page" : undefined}
+                className="flex items-center min-h-11 text-base font-semibold"
+                style={{ color: "#fff", opacity: pathname.startsWith("/settings") ? 1 : 0.85 }}
+              >
+                설정
+              </Link>
+            </div>
+          )}
           {/* Secondary — 얇은 구분 아래 작은 글자 */}
           <ul className="px-4 pt-8 pb-10 mt-auto space-y-1 text-sm" style={{ color: "#999", paddingBottom: "calc(2.5rem + env(safe-area-inset-bottom))" }}>
             <li><Link href="/spacecube" onClick={() => setMenuOpenPath(null)} className="inline-flex items-center min-h-10" style={{ color: "#fff" }}>공간큐브</Link></li>
