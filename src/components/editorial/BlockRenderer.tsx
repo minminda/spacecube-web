@@ -48,7 +48,8 @@ function paragraphs(text: string): string[] {
 function Block({ block, spaces, saveState }: { block: EditorialBlock; spaces: Map<string, SpaceView>; saveState?: SaveState }) {
   switch (block.type) {
     case "HEADING":
-      return <h2 className={`${READ} text-xl md:text-2xl font-bold leading-snug tracking-tight`}>{block.text}</h2>;
+      // 소제목은 뒤따르는 본문과 한 덩어리로 보이게 블록 간격(40/56px)을 반(20/28px)으로 줄인다(v4 space-y는 margin-bottom이라 important로 덮음)
+      return <h2 className={`${READ} mb-5! md:mb-7! text-xl md:text-2xl font-bold leading-snug tracking-tight break-keep`}>{block.text}</h2>;
     case "TEXT":
       return block.small ? (
         <p className={`${READ} text-xs leading-relaxed whitespace-pre-line`} style={{ color: "var(--ed-dim)" }}>{block.text}</p>
@@ -64,7 +65,7 @@ function Block({ block, spaces, saveState }: { block: EditorialBlock; spaces: Ma
     case "QUOTE":
       return (
         <figure className="max-w-[820px] mx-auto py-4 md:py-8">
-          <blockquote className="text-2xl md:text-4xl font-bold leading-snug tracking-tight">“{block.text}”</blockquote>
+          <blockquote className="text-[22px] leading-[1.45] md:text-4xl md:leading-snug font-bold tracking-tight break-keep">“{block.text}”</blockquote>
           {block.cite && <figcaption className="mt-4 text-sm" style={{ color: "var(--ed-dim)" }}>— {block.cite}</figcaption>}
         </figure>
       );
@@ -72,16 +73,17 @@ function Block({ block, spaces, saveState }: { block: EditorialBlock; spaces: Ma
       return (
         <figure className={block.wide ? "" : "max-w-[900px] mx-auto"}>
           <EdImage image={img(block.image)} ratio={ratioOf(block.image, "3 / 2")} sizes="(min-width: 768px) 900px, 100vw" />
-          {block.image.caption && <figcaption className="mt-2 text-xs" style={{ color: "var(--ed-dim)" }}>{block.image.caption}</figcaption>}
+          {block.image.caption && <figcaption className="mt-2 text-[13px] leading-relaxed break-keep" style={{ color: "var(--ed-dim)" }}>{block.image.caption}</figcaption>}
         </figure>
       );
     case "GALLERY":
       return (
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-4">
+        // 두 장이면 두 칸(가로 3:2) — 세 칸 그리드에 두 장만 놓여 한 칸이 비지 않게
+        <div className={`grid grid-cols-2 gap-2 md:gap-4 ${block.images.length === 2 ? "max-w-[900px] mx-auto" : "md:grid-cols-3"}`}>
           {block.images.map((im, i) => (
             <figure key={i}>
-              <EdImage image={img(im)} ratio="4 / 5" sizes="(min-width: 768px) 33vw, 50vw" />
-              {im.caption && <figcaption className="mt-1.5 text-[11px]" style={{ color: "var(--ed-dim)" }}>{im.caption}</figcaption>}
+              <EdImage image={img(im)} ratio={block.images.length === 2 ? "3 / 2" : "4 / 5"} sizes={block.images.length === 2 ? "(min-width: 768px) 450px, 50vw" : "(min-width: 768px) 33vw, 50vw"} />
+              {im.caption && <figcaption className="mt-1.5 text-xs leading-snug break-keep" style={{ color: "var(--ed-dim)" }}>{im.caption}</figcaption>}
             </figure>
           ))}
         </div>
@@ -91,7 +93,7 @@ function Block({ block, spaces, saveState }: { block: EditorialBlock; spaces: Ma
         <div className={`max-w-[900px] mx-auto grid md:grid-cols-2 gap-6 md:gap-10 items-center ${block.reverse ? "md:[&>*:first-child]:order-2" : ""}`}>
           <figure>
             <EdImage image={img(block.image)} ratio="4 / 5" sizes="(min-width: 768px) 450px, 100vw" />
-            {block.image.caption && <figcaption className="mt-2 text-xs" style={{ color: "var(--ed-dim)" }}>{block.image.caption}</figcaption>}
+            {block.image.caption && <figcaption className="mt-2 text-[13px] leading-relaxed break-keep" style={{ color: "var(--ed-dim)" }}>{block.image.caption}</figcaption>}
           </figure>
           <div className="space-y-3">
             {block.title && <p className="text-lg md:text-xl font-bold leading-snug">{block.title}</p>}
