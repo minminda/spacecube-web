@@ -11,7 +11,7 @@ const NAV_HEIGHT = 57;
 /**
  * 상세 글 읽기 진행 바 — Navbar 바로 아래 전체 폭 4px(아주 연한 회색 바탕 위 검정). 링크로 들어오면 맨 위, 새로고침하면 읽던 위치(useArticleScroll). 감싼 영역(제목 ~ 마지막 본문 블록)만 기준으로 계산하므로
  * 아래의 관련 공간 · 다른 이야기 · 푸터는 진행률에 들어가지 않는다(본문 끝 = 100%).
- * StoryArticle · CurationArticle이 쓰므로 공개 상세와 관리자 미리보기(iframe)가 같다 — iframe 안에서는 그 문서의
+ * StoryArticle · CurationArticle과 Cube QR Episode(/space/[slug]/episodes/[id])가 같이 쓴다 — 공개 상세와 관리자 미리보기(iframe)가 같다 — iframe 안에서는 그 문서의
  * window로 계산되어 관리자 화면 스크롤과 섞이지 않는다.
  * React 상태 없이 rAF 한 번에 transform만 바꾼다(스크롤 중 리렌더 없음). 이미지 로딩 · 회전 · 리사이즈는
  * ResizeObserver와 resize로, 다른 글로 이동하면 pathname으로 다시 잰다. 시각 보조라 스크린리더에서는 숨긴다.
@@ -61,12 +61,13 @@ export default function ReadingProgress({ children }: { children: React.ReactNod
   return (
     <>
       <div ref={areaRef}>{children}</div>
-      {/* 연회색 바탕 선 위에 검정이 찬다 — 검정 Navbar 바로 아래라 바탕 선이 없으면 진행 끝이 보이지 않는다 */}
-      <div aria-hidden className="fixed inset-x-0 top-[57px] z-40 h-[4px] pointer-events-none" style={{ background: "var(--ed-soft)" }}>
+      {/* 연회색 바탕 선 위에 검정이 찬다 — 검정 Navbar 바로 아래라 바탕 선이 없으면 진행 끝이 보이지 않는다.
+          색은 에디토리얼 토큰, 토큰 밖(Cube Episode 화면)에서는 같은 값으로 대체 */}
+      <div aria-hidden className="fixed inset-x-0 top-[57px] z-40 h-[4px] pointer-events-none" style={{ background: "var(--ed-soft, #f2f2f2)" }}>
         <div
           ref={barRef}
           className="h-full origin-left transition-transform duration-75 ease-linear motion-reduce:transition-none"
-          style={{ background: "var(--ed-fg)", transform: "scaleX(0)" }}
+          style={{ background: "var(--ed-fg, #111111)", transform: "scaleX(0)" }}
         />
       </div>
     </>

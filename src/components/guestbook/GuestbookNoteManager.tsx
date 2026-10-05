@@ -20,6 +20,8 @@ interface Note {
   reactionCount: number;
   isHidden: boolean;
   isActive: boolean;
+  /** UI 검증용 샘플(관리자 화면에서만 온다) */
+  sample?: boolean;
 }
 
 type Mode = "newest" | "oldest" | "hidden";
@@ -105,6 +107,11 @@ export default function GuestbookNoteManager({ apiBasePath, notes }: { apiBasePa
                 {!note.isActive && (
                   <span className="text-[10px] px-1.5 py-0.5" style={{ border: "1px solid var(--border)", color: "var(--dim)" }}>
                     지난 방명록
+                  </span>
+                )}
+                {note.sample && (
+                  <span className="text-[10px] font-semibold px-1.5 py-0.5" style={{ background: "#111111", color: "#ffffff" }}>
+                    SAMPLE
                   </span>
                 )}
                 {note.isHidden && (

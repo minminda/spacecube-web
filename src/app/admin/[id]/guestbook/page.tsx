@@ -2,6 +2,7 @@ import { redirect, notFound } from "next/navigation";
 import { auth } from "@/auth";
 import { isAdmin } from "@/lib/admin";
 import { prisma } from "@/lib/prisma";
+import { REAL_GUESTBOOK_NOTE_WHERE } from "@/lib/demoData";
 import { GuestbookSessionStatus } from "@prisma/client";
 import { ENABLE_GUESTBOOK_IMAGE } from "@/lib/pilotFlags";
 import { normalizeCanvasSettingsRow } from "@/lib/guestbookSettingsInput";
@@ -91,13 +92,16 @@ export default async function GuestbookAdminRoutePage({ params }: Props) {
         clusterType: true,
         createdAt: true,
         isHidden: true,
+        user: { select: { isDemo: true } },
+        space: { select: { isDemo: true } },
         _count: { select: { reactions: true } },
         session: { select: { status: true } },
       },
     }),
   ]);
 
-  const activePostitCount = active ? await prisma.guestbookNote.count({ where: { guestbookSessionId: active.id } }) : 0;
+  // 실제 방문자 글만 센다 — 실제 공간의 UI 검증용 샘플(더미 계정 글)은 제외
+  const activePostitCount = active ? await prisma.guestbookNote.count({ where: { guestbookSessionId: active.id, ...REAL_GUESTBOOK_NOTE_WHERE } }) : 0;
 
   const settings = normalizeCanvasSettingsRow(settingsRow);
 
@@ -146,6 +150,8 @@ export default async function GuestbookAdminRoutePage({ params }: Props) {
           reactionCount: n._count.reactions,
           isHidden: n.isHidden,
           isActive: n.session.status === GuestbookSessionStatus.ACTIVE,
+          // 관리자 화면에서만 SAMPLE 표시로 보인다(운영자 화면에는 아예 오지 않음)
+          sample: !n.space.isDemo && !!n.user?.isDemo,
         }))}
       />
     </main>

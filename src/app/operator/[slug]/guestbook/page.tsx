@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { resolveOperatorSpaceOrRedirect } from "@/lib/operatorSession";
 import { prisma } from "@/lib/prisma";
+import { REAL_GUESTBOOK_NOTE_WHERE } from "@/lib/demoData";
 import { GuestbookSessionStatus } from "@prisma/client";
 import { normalizeCanvasSettingsRow } from "@/lib/guestbookSettingsInput";
 import { ENABLE_GUESTBOOK_IMAGE } from "@/lib/pilotFlags";
@@ -30,7 +31,8 @@ export default async function OperatorGuestbookPage({ params }: Props) {
     prisma.guestbookSession.findFirst({ where: { spaceId, status: GuestbookSessionStatus.ACTIVE } }),
     prisma.guestbookSettings.findUnique({ where: { spaceId } }),
     prisma.guestbookNote.findMany({
-      where: { spaceId, deletedAt: null },
+      // 운영자에게는 실제 방문자 글만 — UI 검증용 샘플(더미 계정 글)은 관리자 화면에서만 SAMPLE로 보인다
+      where: { spaceId, deletedAt: null, ...REAL_GUESTBOOK_NOTE_WHERE },
       orderBy: { createdAt: "desc" },
       select: {
         id: true,
@@ -45,7 +47,8 @@ export default async function OperatorGuestbookPage({ params }: Props) {
     }),
   ]);
 
-  const activePostitCount = active ? await prisma.guestbookNote.count({ where: { guestbookSessionId: active.id } }) : 0;
+  // 실제 방문자 글만 센다 — 실제 공간의 UI 검증용 샘플(더미 계정 글)은 제외
+  const activePostitCount = active ? await prisma.guestbookNote.count({ where: { guestbookSessionId: active.id, ...REAL_GUESTBOOK_NOTE_WHERE } }) : 0;
 
   const settings = normalizeCanvasSettingsRow(settingsRow);
 

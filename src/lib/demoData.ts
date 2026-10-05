@@ -8,6 +8,10 @@
    - User.isDemo: 더미 계정. KPI 집계·다른 사용자 목록에서 빠지고, 이 계정의 방명록
      흔적은 시연 공간 안에서만 보인다(실제 공간으로 되돌려도 더미 흔적이 섞이지 않음).
 
+   방명록 샘플(UI 검증용, scripts/seed-sample-guestbook.ts)도 같은 규칙이다 — 샘플 전용 더미 계정 하나가 쓴 글이라
+     실제 공간의 방문자 화면 · 운영자 화면 · KPI · 리포트 · 추천에서 빠지고, 관리자 · 로컬 개발 미리보기에서만
+     "샘플" 표시와 함께 보인다(previewGuestbookSamples). 실제 방문자 글과 위치가 겹쳐도 작성은 막지 않는다.
+
    Record·GuestbookNote·GuestbookReaction에는 별도 플래그를 두지 않는다 — "어느 공간에서,
    누가" 만든 데이터인지(위 두 플래그)로 파생된다. Tag는 기존 Tag.isActive(소프트 비활성)를
    그대로 쓴다. 관리자 /admin/demo-data에서 두 플래그를 언제든 되돌릴 수 있다.
@@ -31,6 +35,17 @@ export function guestbookAuthorFilter(spaceIsDemo: boolean): Prisma.GuestbookNot
   if (spaceIsDemo) return {};
   return { OR: [{ userId: null }, { user: { isDemo: false } }] };
 }
+
+/**
+ * 방명록 캔버스에 더미 계정 글(샘플)을 섞어 볼 수 있는가 — 관리자 또는 로컬 개발만(previewDemoUsers와 같은 기준).
+ * 운영의 일반 방문자 · 운영자 화면에는 실제 공간에서 샘플이 절대 보이지 않는다.
+ */
+export function previewGuestbookSamples(admin: boolean): boolean {
+  return admin || process.env.NODE_ENV === "development";
+}
+
+/** 실제 방문자 글만(KPI 밖 화면용) — 실제 공간이면 더미 계정 글(샘플)을 뺀다. 시연 공간은 그대로. space.isDemo를 몰라도 쓸 수 있는 형태. */
+export const REAL_GUESTBOOK_NOTE_WHERE = { OR: [{ userId: null }, { user: { isDemo: false } }, { space: { isDemo: true } }] } satisfies Prisma.GuestbookNoteWhereInput;
 
 /** 더미 계정 User.id 집합. */
 export async function getDemoUserIds(): Promise<Set<string>> {

@@ -9,7 +9,8 @@ import { resolveSpaceAccess, canBypassSpaceLock } from "@/lib/spaceUnlock";
 import { isAdmin } from "@/lib/admin";
 import SpaceLockNotice from "@/components/SpaceLockNotice";
 import StoryReadTracker from "@/components/StoryReadTracker";
-import SceneReadingProgress from "@/components/SceneReadingProgress";
+import SceneReachTracker from "@/components/SceneReachTracker";
+import ReadingProgress from "@/components/editorial/ReadingProgress";
 import SpaceUnlockScreen from "@/app/space/[slug]/SpaceUnlockScreen";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { LOCALE_COOKIE_NAME, resolveInitialLocale, availableLocalesForSpace } from "@/lib/localeResolve";
@@ -156,11 +157,17 @@ export default async function EpisodeDetailPage({ params }: Props) {
   // 이 행은 스토리 조회/완독/체류시간 KPI의 유일한 원본이라(다른 어떤 기능도 이 존재 여부에
   // 의존하지 않음), 아예 기록을 생성하지 않는 쪽이 집계 단계마다 별도 필터를 두는 것보다 안전하다.
   if (userId && !isAdmin(session?.user?.email)) {
-    await prisma.episodeRead.upsert({
-      where: { userId_episodeId: { userId, episodeId: episode.id } },
-      create: { userId, episodeId: episode.id },
-      update: {},
-    });
+    // QR 진입(CubeUnlockBridge)은 리다이렉트를 따라간 fetch와 router.replace가 이 페이지를 거의 동시에 두 번 그린다 —
+    // 첫 방문이면 두 upsert가 동시에 create를 시도해 unique 충돌(P2002)이 난다. 이미 기록됐다는 뜻이므로 무시한다.
+    await prisma.episodeRead
+      .upsert({
+        where: { userId_episodeId: { userId, episodeId: episode.id } },
+        create: { userId, episodeId: episode.id },
+        update: {},
+      })
+      .catch((e: unknown) => {
+        if ((e as { code?: string })?.code !== "P2002") throw e;
+      });
   }
 
   const [prevEpisode, nextEpisode] = await Promise.all([
@@ -199,176 +206,182 @@ export default async function EpisodeDetailPage({ params }: Props) {
         </div>
       </div>
 
-      <SceneReadingProgress sceneCount={episode.scenes.length} />
+      <SceneReachTracker sceneCount={episode.scenes.length} />
 
-      {usedContentFallback && (
-        <p className="text-xs leading-relaxed" style={{ color: "var(--border)" }}>
-          이 이야기는 아직 선택한 언어로 준비되지 않아 다른 언어로 보여드리고 있어요
-        </p>
-      )}
+      {/* 읽기 진행 — STORY · CURATION과 같은 하나의 연속 바(Navbar 아래 4px). 제목 ~ 마지막 Scene만 감싸
+          아래의 이전/다음 이야기 · 방명록 CTA는 진행률에 들어가지 않는다(마지막 Scene 끝 = 100%). */}
+      <ReadingProgress>
+        <div className="flex flex-col gap-8">
+          {usedContentFallback && (
+            <p className="text-xs leading-relaxed" style={{ color: "var(--border)" }}>
+              이 이야기는 아직 선택한 언어로 준비되지 않아 다른 언어로 보여드리고 있어요
+            </p>
+          )}
 
-      {/* 대표 사진은 공간 페이지에서 이미 보여줬으므로 여기서는 반복하지 않는다 —
-          "이제부터 이야기가 시작된다"는 느낌으로 제목만 간결하게 연다.
-          밑줄은 Episode 헤더 블록(제목+부제)에 밀착된 전용 구분선이다 — Scene 간 구분선과
-          같은 선 스타일(색상·두께)을 재사용하지만 간격은 완전히 다르다: space-y-2가 그대로
-          적용돼 부제 바로 아래 8px만 떨어져 붙는다(Scene 간 구분선의 pb-12+pt-12=96px와는
-          별개 규칙 — 헤더의 일부처럼 보이는 게 목적, Scene 구분선을 복사한 게 아니다). */}
-      <div className="space-y-2">
-        <h1 className="text-2xl font-bold leading-tight break-keep">{localizedTitle}</h1>
-        {localizedSubtitle && (
-          <p className="text-sm leading-relaxed break-keep" style={{ color: "var(--dim)" }}>{localizedSubtitle}</p>
-        )}
-        <div style={{ borderTop: "1px solid var(--border)" }} />
-      </div>
+          {/* 대표 사진은 공간 페이지에서 이미 보여줬으므로 여기서는 반복하지 않는다 —
+              "이제부터 이야기가 시작된다"는 느낌으로 제목만 간결하게 연다.
+              밑줄은 Episode 헤더 블록(제목+부제)에 밀착된 전용 구분선이다 — Scene 간 구분선과
+              같은 선 스타일(색상·두께)을 재사용하지만 간격은 완전히 다르다: space-y-2가 그대로
+              적용돼 부제 바로 아래 8px만 떨어져 붙는다(Scene 간 구분선의 pb-12+pt-12=96px와는
+              별개 규칙 — 헤더의 일부처럼 보이는 게 목적, Scene 구분선을 복사한 게 아니다). */}
+          <div className="space-y-2">
+            <h1 className="text-2xl font-bold leading-tight break-keep">{localizedTitle}</h1>
+            {localizedSubtitle && (
+              <p className="text-sm leading-relaxed break-keep" style={{ color: "var(--dim)" }}>{localizedSubtitle}</p>
+            )}
+            <div style={{ borderTop: "1px solid var(--border)" }} />
+          </div>
 
-      {/* 헤더 구분선과 SCENE 1 사이의 여백 — main의 gap-8 위에 살짝만 더 얹는다(Scene 간
-          구분선 리듬을 그대로 복사하지 않고 적당한 정도로). */}
-      <div className="flex flex-col mt-4">
-        {(() => {
-          let sceneNumber = 0;
-          return episode.scenes.map((scene, i) => {
-            const localized = localizedScenes[i];
-            const hasContent = !!localized.content;
-            if (hasContent) sceneNumber++;
-            // Story Complete 감시 지점 — Scene 개수는 Episode마다 다르므로 "5번째"를
-            // 하드코딩하지 않고 실제 마지막 Scene(배열의 끝)을 기준으로 삼는다. 본문 바로
-            // 뒤(이미지·강조 문장보다 앞)에 둬서, 완독 판정이 그 아래 요소(이미지, 강조 문장,
-            // Scene 여백, 다음 이야기 안내, 방명록 CTA, Footer)까지 스크롤해야만 되는 일을
-            // 막는다 — StoryReadTracker가 이 지점을 IntersectionObserver로 감시한다.
-            const isLastScene = i === episode.scenes.length - 1;
-            const storyCompleteAnchor = isLastScene ? (
-              <div data-story-complete-anchor aria-hidden style={{ height: 1 }} />
-            ) : null;
+          {/* 헤더 구분선과 SCENE 1 사이의 여백 — main의 gap-8 위에 살짝만 더 얹는다(Scene 간
+              구분선 리듬을 그대로 복사하지 않고 적당한 정도로). */}
+          <div className="flex flex-col mt-4">
+            {(() => {
+              let sceneNumber = 0;
+              return episode.scenes.map((scene, i) => {
+                const localized = localizedScenes[i];
+                const hasContent = !!localized.content;
+                if (hasContent) sceneNumber++;
+                // Story Complete 감시 지점 — Scene 개수는 Episode마다 다르므로 "5번째"를
+                // 하드코딩하지 않고 실제 마지막 Scene(배열의 끝)을 기준으로 삼는다. 본문 바로
+                // 뒤(이미지·강조 문장보다 앞)에 둬서, 완독 판정이 그 아래 요소(이미지, 강조 문장,
+                // Scene 여백, 다음 이야기 안내, 방명록 CTA, Footer)까지 스크롤해야만 되는 일을
+                // 막는다 — StoryReadTracker가 이 지점을 IntersectionObserver로 감시한다.
+                const isLastScene = i === episode.scenes.length - 1;
+                const storyCompleteAnchor = isLastScene ? (
+                  <div data-story-complete-anchor aria-hidden style={{ height: 1 }} />
+                ) : null;
 
-            // 본문은 입력된 내용을 그대로 보여준다(자동으로 마지막 문장을 잘라 요약처럼 쓰지 않는다).
-            // 강조 문장은 관리자가 별도로 입력한 summary만 쓴다 — 없으면 강조 영역 자체를 렌더하지 않는다.
-            const bodyText = localized.content;
-            const highlight = localized.summary && localized.summary.trim() ? localized.summary.trim() : null;
+                // 본문은 입력된 내용을 그대로 보여준다(자동으로 마지막 문장을 잘라 요약처럼 쓰지 않는다).
+                // 강조 문장은 관리자가 별도로 입력한 summary만 쓴다 — 없으면 강조 영역 자체를 렌더하지 않는다.
+                const bodyText = localized.content;
+                const highlight = localized.summary && localized.summary.trim() ? localized.summary.trim() : null;
 
-            // "원본 비율 사용"(contain)은 세로/정사각형 사진처럼 가로 프레임에 넣으면 의미가
-            // 훼손되는 경우를 위한 선택지 — 고정 비율 박스에 넣지 않고 사진 자체의 크기·비율
-            // 그대로, 왼쪽 정렬로 보여준다(회색 여백 없음, 잡지 에디토리얼처럼 사진이 하나의
-            // 오브젝트로 놓이는 느낌). crop metadata가 없는 기존 Scene은 imageFit이 null이라
-            // 기존과 동일하게 "직접 Crop"으로 취급된다.
-            //
-            // 높이를 "기존 가로 사진"(직접 Crop, 3:2 기준)이 모바일 콘텐츠 폭에서 실제로
-            // 차지하는 세로 높이(콘텐츠 폭 × 2/3 ≈ 220px, 330~336px 콘텐츠 폭 기준)와 맞춘다 —
-            // width/height 모두 auto라 이 max-height만으로 원본 비율이 유지된 채 크기가
-            // 정해진다: 가로로 넓은 사진은 max-width(100%)에 먼저 걸려 기존처럼 폭을 꽉 채우고
-            // (전형적인 가로 비율에서는 이 폭 기준 높이가 이미 220px 안팎이라 자연스럽게 맞음),
-            // 세로/정사각형처럼 좁은 사진은 이 max-height에 먼저 걸려 자연스럽게 좁아진다
-            // (별도 orientation 판정 로직 없이 CSS만으로 두 경우를 구분).
-            const isContain = scene.imageFit === "contain";
-            // Scene당 여러 장(최대 3장) — 관리자가 새 다중 이미지 UI로 실제 편집한 Scene만
-            // scene.images 행이 있다. 있으면 이걸로 에디토리얼 배치(landscape 단독 행 +
-            // narrow 2장씩 나란히, 각자 원본 crop 비율 그대로 유지)를 렌더한다. 없으면(기존
-            // 단일 이미지 Scene, 아직 손 안 댄 경우) 아래 기존 렌더 경로를 그대로 쓴다 — 두
-            // 경로가 섞이지 않으므로 기존 이미지가 깨질 일이 없다.
-            const layoutRows = scene.images.length > 0
-              ? layoutSceneImages(scene.images.map((img) => ({ imageUrl: img.imageUrl, width: img.width, height: img.height })))
-              : [];
+                // "원본 비율 사용"(contain)은 세로/정사각형 사진처럼 가로 프레임에 넣으면 의미가
+                // 훼손되는 경우를 위한 선택지 — 고정 비율 박스에 넣지 않고 사진 자체의 크기·비율
+                // 그대로, 왼쪽 정렬로 보여준다(회색 여백 없음, 잡지 에디토리얼처럼 사진이 하나의
+                // 오브젝트로 놓이는 느낌). crop metadata가 없는 기존 Scene은 imageFit이 null이라
+                // 기존과 동일하게 "직접 Crop"으로 취급된다.
+                //
+                // 높이를 "기존 가로 사진"(직접 Crop, 3:2 기준)이 모바일 콘텐츠 폭에서 실제로
+                // 차지하는 세로 높이(콘텐츠 폭 × 2/3 ≈ 220px, 330~336px 콘텐츠 폭 기준)와 맞춘다 —
+                // width/height 모두 auto라 이 max-height만으로 원본 비율이 유지된 채 크기가
+                // 정해진다: 가로로 넓은 사진은 max-width(100%)에 먼저 걸려 기존처럼 폭을 꽉 채우고
+                // (전형적인 가로 비율에서는 이 폭 기준 높이가 이미 220px 안팎이라 자연스럽게 맞음),
+                // 세로/정사각형처럼 좁은 사진은 이 max-height에 먼저 걸려 자연스럽게 좁아진다
+                // (별도 orientation 판정 로직 없이 CSS만으로 두 경우를 구분).
+                const isContain = scene.imageFit === "contain";
+                // Scene당 여러 장(최대 3장) — 관리자가 새 다중 이미지 UI로 실제 편집한 Scene만
+                // scene.images 행이 있다. 있으면 이걸로 에디토리얼 배치(landscape 단독 행 +
+                // narrow 2장씩 나란히, 각자 원본 crop 비율 그대로 유지)를 렌더한다. 없으면(기존
+                // 단일 이미지 Scene, 아직 손 안 댄 경우) 아래 기존 렌더 경로를 그대로 쓴다 — 두
+                // 경로가 섞이지 않으므로 기존 이미지가 깨질 일이 없다.
+                const layoutRows = scene.images.length > 0
+                  ? layoutSceneImages(scene.images.map((img) => ({ imageUrl: img.imageUrl, width: img.width, height: img.height })))
+                  : [];
 
-            const sceneImage = layoutRows.length > 0 ? (
-              <div>
-                {layoutRows.map((row, ri) => (
-                  <div key={ri} className="flex" style={{ gap: ROW_GAP, marginTop: ri > 0 ? ROW_MARGIN_TOP : undefined }}>
-                    {row.images.map((img, ii) => (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        key={ii}
-                        src={img.imageUrl}
-                        alt={localized.title ?? ""}
-                        loading="lazy"
-                        className="block flex-shrink-0"
-                        width={img.renderWidth}
-                        height={img.renderHeight}
-                        style={{ width: img.renderWidth, height: img.renderHeight }}
-                      />
+                const sceneImage = layoutRows.length > 0 ? (
+                  <div>
+                    {layoutRows.map((row, ri) => (
+                      <div key={ri} className="flex" style={{ gap: ROW_GAP, marginTop: ri > 0 ? ROW_MARGIN_TOP : undefined }}>
+                        {row.images.map((img, ii) => (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            key={ii}
+                            src={img.imageUrl}
+                            alt={localized.title ?? ""}
+                            loading="lazy"
+                            className="block flex-shrink-0"
+                            width={img.renderWidth}
+                            height={img.renderHeight}
+                            style={{ width: img.renderWidth, height: img.renderHeight }}
+                          />
+                        ))}
+                      </div>
                     ))}
                   </div>
-                ))}
-              </div>
-            ) : scene.imageUrl ? (
-              isContain ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={scene.imageUrl}
-                  alt={localized.title ?? ""}
-                  className="block"
-                  style={{ maxWidth: "100%", maxHeight: "220px", width: "auto", height: "auto" }}
-                />
-              ) : (
-                <div className="relative w-full overflow-hidden" style={{ aspectRatio: scene.imageAspectRatio ?? "3/2" }}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={scene.imageUrl}
-                    alt={localized.title ?? ""}
-                    className="w-full h-full object-cover"
-                    style={{
-                      objectPosition: `${(scene.imagePositionX ?? 0.5) * 100}% ${(scene.imagePositionY ?? 0.5) * 100}%`,
-                      transform: `scale(${scene.imageZoom ?? 1})`,
-                      transformOrigin: "center center",
-                    }}
-                  />
-                </div>
-              )
-            ) : null;
+                ) : scene.imageUrl ? (
+                  isContain ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={scene.imageUrl}
+                      alt={localized.title ?? ""}
+                      className="block"
+                      style={{ maxWidth: "100%", maxHeight: "220px", width: "auto", height: "auto" }}
+                    />
+                  ) : (
+                    <div className="relative w-full overflow-hidden" style={{ aspectRatio: scene.imageAspectRatio ?? "3/2" }}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={scene.imageUrl}
+                        alt={localized.title ?? ""}
+                        className="w-full h-full object-cover"
+                        style={{
+                          objectPosition: `${(scene.imagePositionX ?? 0.5) * 100}% ${(scene.imagePositionY ?? 0.5) * 100}%`,
+                          transform: `scale(${scene.imageZoom ?? 1})`,
+                          transformOrigin: "center center",
+                        }}
+                      />
+                    </div>
+                  )
+                ) : null;
 
-            return (
-              <div
-                key={scene.id}
-                // 첫 Scene 앞에는 이미 Episode 헤더 구분선이 있으므로 여기서 또 선을 긋지
-                // 않는다(first:pt-0으로 자기 몫의 위쪽 여백도 없앰 — 헤더 쪽 mt-4만 남는다).
-                // 마지막 Scene은 아래쪽 여백(py-12의 하단)을 없애 바로 다음 "다음 이야기"
-                // 구분선과 너무 멀어지지 않게 한다 — main의 gap-8만 남아 적당히 좁아진다.
-                // data-scene-order는 SceneReadingProgress가 각 Scene의 실제 DOM 영역을
-                // 측정해 상단 progress bar를 채우는 데만 쓰인다(렌더링 로직과는 무관).
-                data-scene-id={scene.id}
-                data-scene-order={i + 1}
-                className="py-12 first:pt-0 last:pb-0"
-                style={i > 0 ? { borderTop: "1px solid var(--border)" } : undefined}
-              >
-                {hasContent ? (
-                  // 글을 읽고(제목→본문) → 사진으로 보완하고(선택) → 대표 문장으로 여운을 남기는 순서.
-                  <div className="space-y-5 max-w-[36rem]">
-                    <p className="text-xs font-medium uppercase tracking-widest" style={{ color: "var(--dim)" }}>
-                      Scene {sceneNumber}
-                    </p>
-                    {localized.title && (
-                      <h2 className="text-xl font-bold leading-snug break-keep">{localized.title}</h2>
-                    )}
-                    {bodyText && (
-                      // 제목이 있을 때만 space-y-5의 기본 간격(1.25rem) 위에 살짝 더 얹어 위계를 분명히 한다.
-                      <p
-                        className="story-copy break-keep whitespace-pre-line"
-                        style={localized.title ? { marginTop: "1.75rem" } : undefined}
-                      >
-                        {bodyText}
-                      </p>
-                    )}
-                    {storyCompleteAnchor}
-                    {sceneImage}
-                    {highlight && (
-                      <p
-                        className="text-lg font-semibold leading-relaxed break-keep pl-4 whitespace-pre-line"
-                        style={{ borderLeft: "2px solid var(--fg)" }}
-                      >
-                        {highlight}
-                      </p>
+                return (
+                  <div
+                    key={scene.id}
+                    // 첫 Scene 앞에는 이미 Episode 헤더 구분선이 있으므로 여기서 또 선을 긋지
+                    // 않는다(first:pt-0으로 자기 몫의 위쪽 여백도 없앰 — 헤더 쪽 mt-4만 남는다).
+                    // 마지막 Scene은 아래쪽 여백(py-12의 하단)을 없애 바로 다음 "다음 이야기"
+                    // 구분선과 너무 멀어지지 않게 한다 — main의 gap-8만 남아 적당히 좁아진다.
+                    // data-scene-order는 SceneReadingProgress가 각 Scene의 실제 DOM 영역을
+                    // 측정해 상단 progress bar를 채우는 데만 쓰인다(렌더링 로직과는 무관).
+                    data-scene-id={scene.id}
+                    data-scene-order={i + 1}
+                    className="py-12 first:pt-0 last:pb-0"
+                    style={i > 0 ? { borderTop: "1px solid var(--border)" } : undefined}
+                  >
+                    {hasContent ? (
+                      // 글을 읽고(제목→본문) → 사진으로 보완하고(선택) → 대표 문장으로 여운을 남기는 순서.
+                      <div className="space-y-5 max-w-[36rem]">
+                        <p className="text-xs font-medium uppercase tracking-widest" style={{ color: "var(--dim)" }}>
+                          Scene {sceneNumber}
+                        </p>
+                        {localized.title && (
+                          <h2 className="text-xl font-bold leading-snug break-keep">{localized.title}</h2>
+                        )}
+                        {bodyText && (
+                          // 제목이 있을 때만 space-y-5의 기본 간격(1.25rem) 위에 살짝 더 얹어 위계를 분명히 한다.
+                          <p
+                            className="story-copy break-keep whitespace-pre-line"
+                            style={localized.title ? { marginTop: "1.75rem" } : undefined}
+                          >
+                            {bodyText}
+                          </p>
+                        )}
+                        {storyCompleteAnchor}
+                        {sceneImage}
+                        {highlight && (
+                          <p
+                            className="text-lg font-semibold leading-relaxed break-keep pl-4 whitespace-pre-line"
+                            style={{ borderLeft: "2px solid var(--fg)" }}
+                          >
+                            {highlight}
+                          </p>
+                        )}
+                      </div>
+                    ) : (
+                      // 글 없이 사진만 있는 Scene — 이야기 사이의 짧은 쉼표 역할, 번호를 매기지 않는다.
+                      <>
+                        {sceneImage}
+                        {storyCompleteAnchor}
+                      </>
                     )}
                   </div>
-                ) : (
-                  // 글 없이 사진만 있는 Scene — 이야기 사이의 짧은 쉼표 역할, 번호를 매기지 않는다.
-                  <>
-                    {sceneImage}
-                    {storyCompleteAnchor}
-                  </>
-                )}
-              </div>
-            );
-          });
-        })()}
-      </div>
+                );
+              });
+            })()}
+          </div>
+        </div>
+      </ReadingProgress>
 
       <StoryReadTracker episodeId={episode.id} loggedIn={!!userId} />
 

@@ -41,6 +41,8 @@ export interface GuestbookEditorNote {
   reactionCount: number;
   isHidden: boolean;
   isActive: boolean;
+  /** UI 검증용 샘플(관리자 화면에서만 온다) */
+  sample?: boolean;
 }
 
 interface ActiveSummary {

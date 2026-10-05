@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { buildWeightedTasteVector, rankSpacesByVector, getVectorReason, vectorTopTags } from "@/lib/recommend";
 import { getUserUnlockSets } from "@/lib/spaceUnlock";
 import { resolveSpaceTypeLabel } from "@/lib/spaceType";
-import { LISTED_SPACE_WHERE, TASTE_SIGNAL_RECORD_WHERE } from "@/lib/demoData";
+import { LISTED_SPACE_WHERE, TASTE_SIGNAL_RECORD_WHERE, REAL_GUESTBOOK_NOTE_WHERE } from "@/lib/demoData";
 
 export interface RewardTag {
   label: string;
@@ -56,7 +56,8 @@ const CANDIDATE_SELECT = {
  */
 export async function buildRewardSummary(userId: string, spaceId: string): Promise<RewardSummary> {
   const [postitCount, space, userRecords, unlockSets] = await Promise.all([
-    prisma.guestbookNote.count({ where: { spaceId } }),
+    // 실제 공간이면 더미 계정 글(UI 검증용 샘플)은 세지 않는다
+    prisma.guestbookNote.count({ where: { spaceId, ...REAL_GUESTBOOK_NOTE_WHERE } }),
     prisma.space.findUnique({ where: { id: spaceId }, select: { district: true } }),
     prisma.record.findMany({
       // 시연 공간 기록은 취향 신호에서 빼되(src/lib/demoData.ts), 지금 막 경험한 이 공간의 기록은

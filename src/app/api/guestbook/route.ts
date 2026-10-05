@@ -11,6 +11,7 @@ import { hasCollision, clusterLabelRect, POST_IT_WIDTH, POST_IT_HEIGHT, POST_IT_
 import { ENABLE_GUESTBOOK_IMAGE } from "@/lib/pilotFlags";
 import { getOrCreateAnonVisitorId } from "@/lib/anonVisitor";
 import { ANONYMOUS_NICKNAME } from "@/lib/anonNickname";
+import { guestbookAuthorFilter } from "@/lib/demoData";
 
 const MAX_CONTENT = 80;
 const DEFAULT_COLOR = "#F6E7A8"; // 관리자 설정이 없을 때 기본 노란 포스트잇
@@ -56,7 +57,7 @@ export async function POST(req: NextRequest) {
 
   const space = await prisma.space.findUnique({
     where: { id: spaceId },
-    select: { id: true, guestbookSettings: { select: { defaultPostitColor: true } } },
+    select: { id: true, isDemo: true, guestbookSettings: { select: { defaultPostitColor: true } } },
   });
   if (!space) {
     return NextResponse.json({ error: "Space not found" }, { status: 404 });
@@ -109,8 +110,9 @@ export async function POST(req: NextRequest) {
       }
 
       // 좌표 충돌 검사 — 현재 세션에 렌더링되는 모든 포스트잇 + 군집 라벨(고정 오브젝트) 기준.
+      // 실제 공간의 샘플(더미 계정 글)은 방문자에게 보이지 않으므로 자리를 차지하지 않는다(guestbookAuthorFilter).
       const sessionNotes = await tx.guestbookNote.findMany({
-        where: { guestbookSessionId: activeSession.id },
+        where: { guestbookSessionId: activeSession.id, ...guestbookAuthorFilter(space.isDemo) },
         select: { x: true, y: true },
       });
       const obstacles: Rect[] = [

@@ -4,7 +4,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
-import { guestbookAuthorFilter } from "@/lib/demoData";
+import { guestbookAuthorFilter, previewGuestbookSamples } from "@/lib/demoData";
 import { auth } from "@/auth";
 import { GuestbookSessionStatus, GuestbookFunnelStep } from "@prisma/client";
 import { getVisibleClusters } from "@/lib/guestbookSession";
@@ -168,14 +168,16 @@ export default async function GuestbookPage({ params }: Props) {
     );
   }
 
+  const previewSamples = previewGuestbookSamples(isAdmin(session?.user?.email));
   const [dbNotes, settingsRow, commentedThisVisitCount] = await Promise.all([
     prisma.guestbookNote.findMany({
-      // 더미 계정 흔적은 시연 공간에서만 보인다(src/lib/demoData.ts).
-      where: { guestbookSessionId: activeSession.id, isHidden: false, deletedAt: null, ...guestbookAuthorFilter(space.isDemo) },
+      // 더미 계정 흔적은 시연 공간에서만 보인다(src/lib/demoData.ts). 실제 공간의 UI 검증용 샘플은 관리자 · 로컬 개발 미리보기에서만.
+      where: { guestbookSessionId: activeSession.id, isHidden: false, deletedAt: null, ...guestbookAuthorFilter(space.isDemo || previewSamples) },
       orderBy: { createdAt: "asc" },
       select: {
         id: true, userId: true, anonId: true, recordId: true, content: true, nickname: true, imageUrl: true,
         x: true, y: true, rotation: true, color: true, createdAt: true,
+        user: { select: { isDemo: true } },
         _count: { select: { reactions: true, comments: true } },
         reactions: user
           ? { where: { userId: user.id }, select: { id: true } }
@@ -240,6 +242,8 @@ export default async function GuestbookPage({ params }: Props) {
     reactionCount: n._count.reactions,
     reactedByMe: Array.isArray(n.reactions) && n.reactions.length > 0,
     commentCount: n._count.comments,
+    // 실제 공간에 섞여 보이는 더미 계정 글 = UI 검증용 샘플(미리보기에서만 여기까지 온다)
+    sample: !space.isDemo && !!n.user?.isDemo,
   }));
 
   const clusters = getVisibleClusters(activeSession);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { computeSceneProgress, type SceneBounds } from "@/lib/readingProgress";
 
 interface Props {
@@ -27,19 +27,14 @@ interface SceneNode extends SceneBounds {
 }
 
 /**
- * Episode 상세 페이지 상단에 표시되는 Scene별 5분할(실제로는 Scene 개수만큼) Reading
- * Progress. 전체 문서 스크롤 비율이 아니라 각 Scene wrapper(`data-scene-order`)의 실제
- * DOM 영역을 기준으로 계산하므로 Scene마다 길이가 달라도 정확하다. 위로 스크롤하면
- * 진행도도 함께 줄어든다("최대 읽은 위치"가 아니라 "현재 위치"를 그대로 반영).
- *
- * 같은 스크롤 위치 신호를 이용해 Story Depth 분석(Scene 2 이상 최초 도달 기록)도 함께
- * 수행하지만, 이 둘은 서로 다른 상태다 — 화면에 그리는 `progress`(현재 위치, 위로
- * 스크롤하면 감소)와 서버에 기록하는 도달 이벤트(이번 방문의 최고 도달점, 한 번 기록되면
- * 취소되지 않음)를 절대 같은 값으로 취급하지 않는다. Story Complete/EpisodeRead 판정
- * 로직은 전혀 건드리지 않는다(StoryReadTracker가 별도로 담당).
+ * Episode 상세의 Story Depth 분석 — Scene 2 이상에 처음 도달하면 서버에 한 번 기록한다(화면에는 아무것도 그리지 않는다).
+ * 예전에는 Scene별 5분할 진행 표시를 함께 그렸지만, 2026-10-05부터 화면 진행 표시는 STORY · CURATION과 같은
+ * 하나의 연속 Reading Progress Bar(components/editorial/ReadingProgress)로 바뀌었다 — 이 컴포넌트는 계측만 남긴 것.
+ * 각 Scene wrapper(`data-scene-order`)의 실제 DOM 영역 기준으로 계산하므로 Scene마다 길이가 달라도 정확하다.
+ * 기록은 "이번 방문의 최고 도달점"이라 위로 스크롤해도 취소되지 않는다.
+ * Story Complete/EpisodeRead 판정 로직은 전혀 건드리지 않는다(StoryReadTracker가 별도로 담당).
  */
-export default function SceneReadingProgress({ sceneCount }: Props) {
-  const [progress, setProgress] = useState<number[]>(() => Array(sceneCount).fill(0));
+export default function SceneReachTracker({ sceneCount }: Props) {
   const nodesRef = useRef<SceneNode[]>([]);
   const rafRef = useRef<number | null>(null);
   // 이번 페이지 열람(마운트~언마운트)에서 이미 서버에 보고한 sceneId — 위로 스크롤해도
@@ -81,9 +76,7 @@ export default function SceneReadingProgress({ sceneCount }: Props) {
       // 곳이 없다"는 사실 자체를 별도로 판정해 마지막 Scene을 보정한다(readLine 계산식은
       // 그대로 두고, 이 경우에만 결과를 덮어쓴다).
       const isAtPageBottom = window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - PAGE_BOTTOM_THRESHOLD;
-      const next = computeSceneProgress(readLine, nodesRef.current, { isAtPageBottom });
-      setProgress(next);
-      recordReaches(next);
+      recordReaches(computeSceneProgress(readLine, nodesRef.current, { isAtPageBottom }));
     };
 
     const onScroll = () => {
@@ -118,25 +111,5 @@ export default function SceneReadingProgress({ sceneCount }: Props) {
     };
   }, [sceneCount]);
 
-  if (sceneCount === 0) return null;
-
-  return (
-    <div
-      aria-hidden="true"
-      className="sticky top-14 z-40"
-      style={{ background: "var(--bg)", pointerEvents: "none" }}
-    >
-      <div className="flex" style={{ gap: 3, paddingTop: 10, paddingBottom: 10 }}>
-        {progress.map((p, i) => (
-          <div
-            key={i}
-            className="flex-1 overflow-hidden"
-            style={{ height: 3, borderRadius: 1, background: "var(--border)" }}
-          >
-            <div style={{ width: `${p * 100}%`, height: "100%", background: "var(--fg)" }} />
-          </div>
-        ))}
-      </div>
-    </div>
-  );
+  return null;
 }

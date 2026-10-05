@@ -27,4 +27,6 @@ export interface GuestbookNoteData {
   reactedByMe?: boolean;
   /** 댓글 수 */
   commentCount?: number;
+  /** UI 검증용 샘플(실제 방문 기록 아님) — 관리자 · 로컬 개발 미리보기에서만 온다 */
+  sample?: boolean;
 }
