@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { profileShareUrl } from "@/lib/profile/publicProfile";
 
 /**
  * 취향 따라가기 — "이 사람의 공간 취향을 계속 참고한다". 프로필의 Primary CTA(검정 채움, 충분한 크기).
@@ -77,10 +78,9 @@ export function FollowTasteButton({ handle, initialFollowing, loggedIn, size = "
  * 다른 사람 프로필의 관계 영역 — 관계 수(작은 보조 문구, 각 목록으로 이동) + [취향 따라가기][공유].
  * 따라가기/해제하면 "나를 따라가는 사람" 수를 서버 결과에 맞춰 바로 고친다.
  */
-export function ProfileFollowArea({ handle, path, name, followingCount, followerCount, common, initialFollowing, loggedIn }: {
+export function ProfileFollowArea({ handle, path, followingCount, followerCount, common, initialFollowing, loggedIn }: {
   handle: string;
   path: string;
-  name: string;
   followingCount: number;
   followerCount: number;
   /** 함께 좋아하는 공간 수(보는 사람 기준) */
@@ -96,7 +96,7 @@ export function ProfileFollowArea({ handle, path, name, followingCount, follower
       <RelationLine path={path} followingCount={followingCount} followerCount={base + (following ? 1 : 0)} common={common} />
       <div className="pt-6 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-start">
         <FollowTasteButton handle={handle} initialFollowing={initialFollowing} loggedIn={loggedIn} onChange={setFollowing} />
-        <ShareProfileButton path={path} name={name} />
+        <ShareProfileButton handle={handle} />
       </div>
     </>
   );
@@ -126,36 +126,43 @@ function Toast({ children }: { children: React.ReactNode }) {
 }
 
 /**
- * 공유 — Web Share API가 있으면 시스템 공유, 없으면 주소 복사 후 "링크를 복사했어요." 토스트.
+ * 공유 — 누르면 바로 공개 프로필 주소를 복사하고 "링크를 복사했어요." 토스트(시스템 공유 창 · 확인 단계 없음).
  * 주소는 공개 프로필 /@handle로 고정(닉네임이 바뀌어도 링크 유지, 내부 사용자 id는 쓰지 않는다).
  * 공개 여부와 상관없이 공유할 수 있다 — 비공개면 받는 사람에게 "비공개 아카이브입니다."가 보인다(공개를 강요하지 않음).
  */
-export function ShareProfileButton({ path, name, label = "공유", variant = "outline", fill }: { path: string; name: string; label?: string; /** seg: 추천 세그먼트와 같은 크기의 전체 폭 Secondary(내 아카이브 상단) */ variant?: "outline" | "solid" | "text" | "seg"; /** 칸을 꽉 채운다(버튼 그리드) */ fill?: boolean }) {
+export function ShareProfileButton({ handle, label = "공유", variant = "outline", fill }: { handle: string; label?: string; /** seg: 추천 세그먼트와 같은 크기의 전체 폭 Secondary(내 아카이브 상단) */ variant?: "outline" | "solid" | "text" | "seg"; /** 칸을 꽉 채운다(버튼 그리드) */ fill?: boolean }) {
   const [copied, setCopied] = useState(false);
+  const timer = useRef<number | null>(null);
 
-  async function share() {
-    const url = `${window.location.origin}${path}`;
-    if (typeof navigator.share === "function") {
-      try {
-        await navigator.share({ title: `${name}의 공간 아카이브 — 공간큐브`, url });
-        return;
-      } catch (e) {
-        if ((e as Error).name === "AbortError") return; // 사용자가 공유 창을 닫음
-      }
-    }
+  async function copy() {
+    const url = profileShareUrl(window.location.origin, handle);
     try {
       await navigator.clipboard.writeText(url);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2400);
     } catch {
-      window.prompt("이 주소를 복사해주세요", url);
+      // 클립보드 권한이 없는 환경(오래된 브라우저 · 비보안 주소) — 숨긴 입력칸으로 복사
+      const ta = document.createElement("textarea");
+      ta.value = url;
+      ta.setAttribute("readonly", "");
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      const ok = document.execCommand("copy");
+      ta.remove();
+      if (!ok) {
+        window.prompt("이 주소를 복사해주세요", url);
+        return;
+      }
     }
+    setCopied(true);
+    if (timer.current) window.clearTimeout(timer.current);
+    timer.current = window.setTimeout(() => setCopied(false), 2000);
   }
 
   const size = fill ? "w-full" : "w-full sm:w-auto sm:min-w-[120px]";
   return (
     <>
-      <button type="button" onClick={share} className={variant === "text" ? TEXT_ACTION : variant === "seg" ? "ed-btn ed-btn-seg w-full" : variant === "solid" ? `ed-btn ed-btn-primary ${size}` : `ed-btn ${size}`}>
+      <button type="button" onClick={copy} className={variant === "text" ? TEXT_ACTION : variant === "seg" ? "ed-btn ed-btn-seg w-full" : variant === "solid" ? `ed-btn ed-btn-primary ${size}` : `ed-btn ${size}`}>
         {label}
       </button>
       {copied && <Toast>링크를 복사했어요.</Toast>}
@@ -174,8 +181,8 @@ interface ToggleState {
 }
 
 /**
- * 아카이브 공간 상세의 "공개 프로필에 보이기" — 공간 단위 공개. 사진 · 나의 한 줄 · 방문 시기는 각각 따로(기본 꺼짐).
- * 프로필 자체가 꺼져 있으면 골라 둘 수는 있지만 아무에게도 보이지 않는다고 알려준다.
+ * 아카이브 공간 상세의 "공개 프로필에 보이기" — 공간은 기본 공개(끄면 이 공간만 숨김). 사진 · 나의 한 줄 · 방문 시기는 각각 따로(기본 꺼짐).
+ * 프로필 자체가 비공개면 켜 두어도 아무에게도 보이지 않는다고 알려준다.
  */
 export function ProfileSpaceToggle({ spaceId, initial, hasPhotos, hasMemo, hasVisitDate, profilePublic, recordHref }: {
   spaceId: string;
@@ -223,7 +230,7 @@ export function ProfileSpaceToggle({ spaceId, initial, hasPhotos, hasMemo, hasVi
       <label className="flex items-center justify-between gap-4 cursor-pointer">
         <span className="space-y-0.5">
           <span className="block text-sm font-semibold">공개 프로필에 보이기</span>
-          <span className="block text-xs" style={{ color: "var(--ed-dim)" }}>기본은 공간 이름과 공간 사진만. 내 사진·한 줄·방문 시기는 아래에서 따로 골라요.</span>
+          <span className="block text-xs" style={{ color: "var(--ed-dim)" }}>공간 이름과 공간 사진만 보여요. 내 사진·한 줄·방문 시기는 아래에서 따로 골라요.</span>
         </span>
         <input type="checkbox" checked={st.public} disabled={busy} onChange={(e) => save({ ...st, public: e.target.checked })} className="w-5 h-5 shrink-0" />
       </label>
@@ -235,7 +242,7 @@ export function ProfileSpaceToggle({ spaceId, initial, hasPhotos, hasMemo, hasVi
         </div>
       )}
       {st.public && !profilePublic && (
-        <p className="text-xs" style={{ color: "var(--ed-dim)" }}>공개 프로필이 아직 꺼져 있어 지금은 아무에게도 보이지 않아요. <a href="/settings" className="underline underline-offset-4">설정</a>에서 켤 수 있어요.</p>
+        <p className="text-xs" style={{ color: "var(--ed-dim)" }}>프로필이 비공개라 지금은 아무에게도 보이지 않아요. <a href="/settings" className="underline underline-offset-4">설정</a>에서 켤 수 있어요.</p>
       )}
       {st.public && profilePublic && recordHref && (
         <a href={recordHref} className="inline-block text-xs underline underline-offset-4">다른 사람에게 보이는 모습 보기 →</a>

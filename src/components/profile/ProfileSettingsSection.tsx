@@ -12,7 +12,7 @@ export interface ProfileSettingsValue {
 /**
  * 설정 › 프로필 공개 — [공개 | 비공개] 세그먼트(누르면 바로 저장, 기본 공개) + 주소 · 한 줄 소개.
  * 비공개여도 /@주소는 열리고 "비공개 아카이브입니다."만 보인다(공유와 공개 설정은 별개).
- * 공개 프로필에는 고른 공간만 보이고 사진·메모는 기본 비공개. 공간 공개는 아카이브의 각 공간에서 고른다.
+ * 공개면 아카이브 공간이 기본으로 보이고(숨기고 싶은 공간은 각 공간에서 끈다), 내 사진·메모는 기본 비공개.
  */
 export default function ProfileSettingsSection({ initial }: { initial: ProfileSettingsValue }) {
   const router = useRouter();
@@ -90,7 +90,7 @@ export default function ProfileSettingsSection({ initial }: { initial: ProfileSe
         })}
       </div>
       <p className="text-xs leading-relaxed" style={{ color: "var(--dim)" }}>
-        {isPublic ? "아카이브에서 고른 공간만 보여요." : "주소로 들어와도 “비공개 아카이브입니다.”만 보여요."}
+        {isPublic ? "내 아카이브 공간이 보여요. 사진·메모는 보이지 않아요." : "주소로 들어와도 “비공개 아카이브입니다.”만 보여요."}
       </p>
 
       <div className="space-y-1.5">

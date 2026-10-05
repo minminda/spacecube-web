@@ -1577,13 +1577,16 @@ model EditorialHomeSettings {
 }
 
 // ─── 공개 취향 프로필: 공개한 공간 ─────────────────────────────────────────
-// 사용자가 "공개 프로필에 보이기"를 켠 canonical 공간(EditorialSpace) 하나. 공간을 복제하지 않는다.
+// 공간 하나의 공개 설정(canonical EditorialSpace). 공간을 복제하지 않는다.
+// 2026-10-05부터 아카이브 공간은 기본 공개 — 행이 없으면 "공개 · 사진/메모/방문 시기는 꺼짐". hidden=true면 이 공간만 숨김.
 // 내 아카이브에 실제로 있는 공간(저장·방문)일 때만 공개 화면에 나온다(아카이브에서 지우면 자동으로 안 보임).
-// 개인 기록(공간큐브에 없는 장소)은 공개할 수 없다. 사진·메모·방문 시기는 각각 따로 켤 때만 보인다(기본 전부 꺼짐).
+// 개인 기록(공간큐브에 없는 장소)은 공개하지 않는다. 사진·메모·방문 시기는 각각 따로 켤 때만 보인다(기본 전부 꺼짐).
 model ProfileSpace {
   id            String   @id @default(cuid())
   userId        String
   spaceId       String
+  // 이 공간만 공개 프로필에서 숨김(기본 공개)
+  hidden        Boolean  @default(false)
   showPhotos    Boolean  @default(false)
   // 공개 기록 상세(/@handle/s/[slug])에 나의 한 줄 · 방문 시기(월)를 보일지 — 각각 따로 켠다(기본 꺼짐)
   showMemo      Boolean  @default(false)

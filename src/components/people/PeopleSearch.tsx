@@ -6,11 +6,14 @@ import type { RecommendedPerson } from "@/lib/people/peopleData";
 import { PeopleGrid, PeopleGridSkeleton } from "./PeopleGrid";
 
 /**
- * 추천 > 사람 — 닉네임 검색 칸 하나 + 같은 자리의 그리드.
+ * 추천 > 사람 — 검색 칸 하나(@아이디 또는 닉네임) + 같은 자리의 그리드.
+ * 그리드 위 한 줄: 검색어 없으면 "내 취향과 가까운 사람들", 있으면 "검색 결과" — 같은 자리 · 같은 모양.
  * 검색어가 없으면(또는 2자 미만) 서버가 그린 추천(children), 있으면 같은 카드 모양의 검색 결과. 페이지 이동 없음.
  * 검색어는 주소(?who=)에 replace로만 남긴다 — 프로필에 갔다가 뒤로 오면 같은 검색 결과로 돌아온다(기록은 늘리지 않음).
  * 새 결과를 받는 동안 이전 결과를 흐리게 두어 레이아웃이 흔들리지 않게 한다.
  */
+const HEADING = "ed-subsection-title pb-4 md:pb-5";
+
 export default function PeopleSearch({ initialQuery, initialResults, autoFocus, children }: {
   initialQuery: string;
   /** 주소에 검색어가 있을 때 서버가 미리 찾은 결과 */
@@ -71,7 +74,7 @@ export default function PeopleSearch({ initialQuery, initialResults, autoFocus, 
           type="search"
           value={query}
           onChange={(e) => setQuery(e.target.value.slice(0, 30))}
-          placeholder="닉네임 검색"
+          placeholder="@아이디 또는 닉네임 검색"
           aria-label="사람 검색"
           autoFocus={autoFocus}
           autoComplete="off"
@@ -82,7 +85,7 @@ export default function PeopleSearch({ initialQuery, initialResults, autoFocus, 
       </form>
       {active ? (
         <div aria-live="polite" aria-busy={loading} style={{ opacity: loading && results ? 0.5 : 1, transition: "opacity 120ms" }}>
-          <p className="ed-label pb-4" style={{ color: "var(--ed-dim)" }}>검색 결과</p>
+          <h2 className={HEADING}>검색 결과</h2>
           {results === null ? (
             <PeopleGridSkeleton count={8} />
           ) : results.length === 0 ? (
@@ -92,7 +95,10 @@ export default function PeopleSearch({ initialQuery, initialResults, autoFocus, 
           )}
         </div>
       ) : (
-        children
+        <>
+          <h2 className={HEADING}>내 취향과 가까운 사람들</h2>
+          {children}
+        </>
       )}
     </>
   );

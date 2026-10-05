@@ -2,8 +2,9 @@
    내 아카이브 = 나만의 공간 기록(저장 · 방문 · 사진 · 메모 · 날짜).
    공개 프로필 = 내가 고른 공간이 쌓인 개인 공간 매거진(/@handle). 취향은 숫자·태그로 설명하지 않는다 —
    고른 공간과 사진을 보면 느껴지게 한다. 태그·취향 가중치는 추천 엔진 안에서만 쓴다(화면에 내보내지 않음).
-   - 기본은 전부 비공개. 프로필을 켜도 공간은 하나씩 직접 공개해야 보인다(ProfileSpace).
-   - 공개할 수 있는 건 canonical 공간(EditorialSpace, 발행·실공간)뿐 — 개인 기록·가상 공간은 공개 불가.
+   - 프로필은 기본 공개, 아카이브의 canonical 공간도 기본 공개(2026-10-05). 숨기고 싶은 공간만 ProfileSpace.hidden.
+     프로필을 비공개로 바꾸면 공간도 전부 안 보인다(주소에는 "비공개 아카이브입니다."만).
+   - 공개되는 건 canonical 공간(EditorialSpace, 발행·실공간)뿐 — 개인 기록·가상 공간은 나오지 않는다.
    - 사진 · 나의 한 줄 · 방문 시기는 공간마다 각각 켤 때만(기본 꺼짐).
    - 사람 사이 관계는 "취향 따라가기"(SavedTaste 재사용). 수는 작은 보조 문구로만. ── */
 
@@ -27,6 +28,11 @@ export function handleError(raw: string): string | null {
 
 export function profilePath(handle: string): string {
   return `/@${handle}`;
+}
+
+/** 공유용 절대 주소 — 항상 공개 프로필 주소(https://도메인/@handle). 내부 사용자 id는 쓰지 않는다. */
+export function profileShareUrl(origin: string, handle: string): string {
+  return `${origin.replace(/\/+$/, "")}${profilePath(normalizeHandle(handle))}`;
 }
 
 /* ── 설정 입력 ── */
@@ -93,23 +99,33 @@ export interface PublicSpaceRow extends PublicFlags {
   lastAt: Date;
 }
 
+/** 공간별 공개 설정(ProfileSpace) — 행이 없으면 공개 · 사진/메모/방문 시기 꺼짐 */
+export interface SpacePick extends PublicFlags {
+  spaceId: string;
+  hidden: boolean;
+}
+
 /**
- * 공개 프로필에 실제로 나올 공간 — 공개로 고른 공간(ProfileSpace) 중 지금도 내 아카이브에 있는 것만.
- * 아카이브에서 지웠거나, 공간이 비공개·가상으로 바뀌면 자동으로 빠진다. 최근에 기록한 순.
+ * 공개 프로필에 실제로 나올 공간 — 내 아카이브의 canonical 공간(저장·방문) 전부, 단 숨긴 공간(hidden)은 뺀다.
+ * spaces: 아카이브 slug로 찾은 EditorialSpace(발행 · 실공간만 공개). 아카이브에서 지웠거나 공간이 비공개·가상이면 빠진다. 최근에 기록한 순.
  */
 export function publicSpaces(
   library: LibraryLike[],
-  picks: (PublicFlags & { spaceId: string; space: { slug: string; status: string; isDemo: boolean } })[],
+  spaces: { id: string; slug: string; status: string; isDemo: boolean }[],
+  picks: SpacePick[],
 ): PublicSpaceRow[] {
-  const byKey = new Map(library.map((i) => [i.key, i]));
+  const bySlug = new Map(spaces.map((s) => [s.slug, s]));
+  const pickBy = new Map(picks.map((p) => [p.spaceId, p]));
   const out: PublicSpaceRow[] = [];
-  for (const p of picks) {
-    if (p.space.status !== "PUBLISHED" || p.space.isDemo) continue;
-    const it = byKey.get(`s-${p.space.slug}`);
-    if (!it || it.personal || it.demo || !(it.visited || it.saved)) continue;
+  for (const it of library) {
+    if (it.personal || it.demo || !(it.visited || it.saved) || !it.key.startsWith("s-")) continue;
+    const sp = bySlug.get(it.key.slice(2));
+    if (!sp || sp.status !== "PUBLISHED" || sp.isDemo) continue;
+    const p = pickBy.get(sp.id);
+    if (p?.hidden) continue;
     out.push({
-      spaceId: p.spaceId, slug: p.space.slug, visited: it.visited, lastAt: it.lastAt,
-      showPhotos: p.showPhotos, showMemo: p.showMemo, showVisitDate: p.showVisitDate,
+      spaceId: sp.id, slug: sp.slug, visited: it.visited, lastAt: it.lastAt,
+      showPhotos: p?.showPhotos ?? false, showMemo: p?.showMemo ?? false, showVisitDate: p?.showVisitDate ?? false,
     });
   }
   return out.sort((a, b) => b.lastAt.getTime() - a.lastAt.getTime());
@@ -154,4 +170,28 @@ export function canFollow(viewerId: string, target: { id: string; profilePublic:
 export function peopleQuery(raw: string | undefined): string | null {
   const q = (raw ?? "").trim().replace(/^@/, "").slice(0, 30);
   return q.length >= 2 ? q : null;
+}
+
+/**
+ * 사람 검색 순서 — 1) 주소 정확히 일치 2) 닉네임 정확히 일치 3) 주소 일부 4) 닉네임 일부. 같은 단계 안에서는 닉네임 · 주소 가나다 순.
+ * q는 peopleQuery로 정리된 값(@ 없음). 대소문자 무시. 어디에도 맞지 않으면 빠진다.
+ */
+export function rankPeopleSearch<T extends { nickname: string | null; profileHandle: string | null }>(q: string, users: T[]): T[] {
+  const needle = q.trim().replace(/^@/, "").toLowerCase();
+  if (!needle) return [];
+  const tier = (u: T): number => {
+    const h = (u.profileHandle ?? "").toLowerCase();
+    const n = (u.nickname ?? "").toLowerCase();
+    if (h === needle) return 0;
+    if (n === needle) return 1;
+    if (h.includes(needle)) return 2;
+    if (n.includes(needle)) return 3;
+    return -1;
+  };
+  const byName = (a: T, b: T) => (a.nickname ?? "").localeCompare(b.nickname ?? "", "ko") || (a.profileHandle ?? "").localeCompare(b.profileHandle ?? "");
+  return users
+    .map((u) => ({ u, t: tier(u) }))
+    .filter((x) => x.t >= 0)
+    .sort((a, b) => a.t - b.t || byName(a.u, b.u))
+    .map((x) => x.u);
 }

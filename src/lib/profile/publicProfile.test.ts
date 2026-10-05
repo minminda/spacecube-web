@@ -1,13 +1,13 @@
 import { describe, it, expect } from "vitest";
-import { canFollow, cardPhoto, commonSpaceIds, handleError, normalizeHandle, parseProfileSettings, peopleQuery, publicSpaces, visitMonth } from "./publicProfile";
+import { canFollow, cardPhoto, commonSpaceIds, handleError, normalizeHandle, parseProfileSettings, peopleQuery, profileShareUrl, publicSpaces, rankPeopleSearch, visitMonth } from "./publicProfile";
 
 const d = (s: string) => new Date(s);
 const lib = (key: string, o: Partial<{ visited: boolean; saved: boolean; personal: boolean; demo: boolean; lastAt: Date }> = {}) => ({
   key, visited: false, saved: true, personal: false, demo: false, lastAt: d("2026-10-01"), ...o,
 });
-const pick = (spaceId: string, slug: string, o: Partial<{ status: string; isDemo: boolean; showPhotos: boolean; showMemo: boolean; showVisitDate: boolean }> = {}) => ({
-  spaceId, showPhotos: o.showPhotos ?? false, showMemo: o.showMemo ?? false, showVisitDate: o.showVisitDate ?? false,
-  space: { slug, status: o.status ?? "PUBLISHED", isDemo: o.isDemo ?? false },
+const sp = (id: string, slug: string, o: Partial<{ status: string; isDemo: boolean }> = {}) => ({ id, slug, status: o.status ?? "PUBLISHED", isDemo: o.isDemo ?? false });
+const pick = (spaceId: string, o: Partial<{ hidden: boolean; showPhotos: boolean; showMemo: boolean; showVisitDate: boolean }> = {}) => ({
+  spaceId, hidden: o.hidden ?? false, showPhotos: o.showPhotos ?? false, showMemo: o.showMemo ?? false, showVisitDate: o.showVisitDate ?? false,
 });
 
 describe("프로필 주소(handle)", () => {
@@ -39,23 +39,35 @@ describe("설정 입력", () => {
 });
 
 describe("공개 공간", () => {
-  it("공개로 고른 공간 중 아카이브에 남아 있는 실공간만, 최근 순 — 공개 항목 플래그 유지", () => {
+  it("아카이브의 canonical 공간은 설정 없이도 기본 공개 — 다녀온 곳 · 가보고 싶은 곳 모두, 최근 순", () => {
     const library = [
       lib("s-booknook", { visited: true, lastAt: d("2026-10-02") }),
       lib("s-samul", { saved: true, lastAt: d("2026-10-03") }),
-      lib("s-private-only", { visited: true }),
       lib("e-personal", { personal: true }),
     ];
-    const rows = publicSpaces(library, [
-      pick("1", "booknook", { showPhotos: true, showMemo: true }),
-      pick("2", "samul"),
-      pick("3", "removed-from-archive"),
-      pick("4", "demo-space", { isDemo: true }),
-      pick("5", "draft-space", { status: "DRAFT" }),
-    ]);
+    const rows = publicSpaces(library, [sp("1", "booknook"), sp("2", "samul")], []);
+    expect(rows.map((r) => [r.slug, r.visited])).toEqual([["samul", false], ["booknook", true]]);
+    // 사진 · 한 줄 · 방문 시기는 기본 꺼짐
+    expect(rows.every((r) => !r.showPhotos && !r.showMemo && !r.showVisitDate)).toBe(true);
+  });
+
+  it("숨긴 공간 · 개인 기록 · 가상/미발행 공간 · 아카이브에 없는 공간은 빠지고, 공개 항목 플래그는 유지", () => {
+    const library = [
+      lib("s-booknook", { visited: true, lastAt: d("2026-10-02") }),
+      lib("s-samul", { saved: true, lastAt: d("2026-10-03") }),
+      lib("s-hidden-one", { visited: true }),
+      lib("s-demo-space", { visited: true }),
+      lib("s-draft-space", { visited: true }),
+      lib("s-cube-only", { visited: true }), // 공간큐브(Cube) 공간 중 EditorialSpace가 없는 곳
+      lib("e-personal", { personal: true }),
+    ];
+    const rows = publicSpaces(
+      library,
+      [sp("1", "booknook"), sp("2", "samul"), sp("3", "hidden-one"), sp("4", "demo-space", { isDemo: true }), sp("5", "draft-space", { status: "DRAFT" }), sp("6", "removed-from-archive")],
+      [pick("1", { showPhotos: true, showMemo: true }), pick("3", { hidden: true })],
+    );
     expect(rows.map((r) => r.slug)).toEqual(["samul", "booknook"]);
     expect(rows.find((r) => r.slug === "booknook")).toMatchObject({ visited: true, showPhotos: true, showMemo: true, showVisitDate: false });
-    expect(rows.some((r) => r.slug === "private-only")).toBe(false);
   });
 });
 
@@ -91,5 +103,27 @@ describe("관계 · 사람 찾기", () => {
     expect(peopleQuery(undefined)).toBeNull();
     expect(peopleQuery(" 동 ")).toBeNull();
     expect(peopleQuery("@dongmin")).toBe("dongmin");
+  });
+});
+
+describe("사람 검색 순서 · 공유 주소", () => {
+  const u = (nickname: string, profileHandle: string) => ({ nickname, profileHandle });
+  const users = [u("동민이", "aaa"), u("unq 팬", "unq66c6i-fan"), u("동민", "unq66c6i"), u("하린", "dongmin")];
+
+  it("@ 있이 · 없이 같은 결과, 주소 정확히 일치가 먼저", () => {
+    expect(peopleQuery("@unq66c6i")).toBe("unq66c6i");
+    expect(rankPeopleSearch("unq66c6i", users).map((x) => x.profileHandle)).toEqual(["unq66c6i", "unq66c6i-fan"]);
+    expect(rankPeopleSearch("@unq66c6i", users).map((x) => x.profileHandle)).toEqual(["unq66c6i", "unq66c6i-fan"]);
+  });
+
+  it("닉네임 정확히 → 주소 일부 → 닉네임 일부", () => {
+    expect(rankPeopleSearch("동민", users).map((x) => x.nickname)).toEqual(["동민", "동민이"]);
+    expect(rankPeopleSearch("dongmin", [u("dongmin", "zzz"), u("하린", "dongmin")]).map((x) => x.profileHandle)).toEqual(["dongmin", "zzz"]);
+    expect(rankPeopleSearch("없는사람", users)).toEqual([]);
+  });
+
+  it("공유 주소는 항상 공개 프로필 주소", () => {
+    expect(profileShareUrl("https://www.gonggancube.com", "unq66c6i")).toBe("https://www.gonggancube.com/@unq66c6i");
+    expect(profileShareUrl("https://www.gonggancube.com/", "@UNQ66C6I")).toBe("https://www.gonggancube.com/@unq66c6i");
   });
 });

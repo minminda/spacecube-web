@@ -21,7 +21,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 /**
- * 공개 프로필(/@handle → rewrite) — 이 사람이 고른 공간이 쌓인 개인 공간 매거진.
+ * 공개 프로필(/@handle → rewrite) — 이 사람의 아카이브 공간(기본 공개, 숨긴 공간 제외)이 쌓인 개인 공간 매거진.
  * 취향은 숫자·태그로 설명하지 않는다: 대표 취향·태그 통계·자주 찾는 곳 같은 분석 문구 없이, 공개한 공간 사진이 곧 취향.
  * 상단: 이름 · 한 줄 소개 · 관계(작게) · [취향 따라가기][공유] (본인은 [공유]).
  * 비로그인도 볼 수 있다(공유 링크). 공개하지 않은 공간·사진·메모는 조회 단계부터 제외.
@@ -83,12 +83,12 @@ export default async function PublicProfilePage({ params }: Props) {
             <>
               <RelationLine path={path} followingCount={p.followingCount} followerCount={p.followerCount} common={0} />
               <div className="pt-6">
-                <ShareProfileButton path={path} name={p.name} label="공유" variant="solid" />
+                <ShareProfileButton handle={p.handle} label="공유" variant="solid" />
               </div>
             </>
           ) : (
             <ProfileFollowArea
-              handle={p.handle} path={path} name={p.name} followingCount={p.followingCount} followerCount={p.followerCount}
+              handle={p.handle} path={path} followingCount={p.followingCount} followerCount={p.followerCount}
               common={ctx.common.length} initialFollowing={ctx.following} loggedIn={viewer.loggedIn}
             />
           )}
@@ -96,7 +96,7 @@ export default async function PublicProfilePage({ params }: Props) {
 
         {empty ? (
           <p className="ed-container py-14 text-sm" style={{ borderTop: "1px solid var(--ed-line)", color: "var(--ed-dim)" }}>
-            {self ? "아직 공개한 공간이 없어요. 공간 기록에서 “공개 프로필에 보이기”를 켜면 여기에 보여요." : "아직 공개한 공간이 없어요."}
+            {self ? "아직 아카이브에 공간이 없어요. 공간을 추가하면 여기에 보여요." : "아직 공개된 공간이 없어요."}
           </p>
         ) : (
           <>

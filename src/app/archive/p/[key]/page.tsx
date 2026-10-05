@@ -49,7 +49,7 @@ export default async function ArchiveDetailPage({ params }: Props) {
     publishable
       ? prisma.user.findUnique({
           where: { id: session.user.id },
-          select: { profilePublic: true, profileHandle: true, profileSpaces: { where: { spaceId: d.editorial!.id }, select: { showPhotos: true, showMemo: true, showVisitDate: true } } },
+          select: { profilePublic: true, profileHandle: true, profileSpaces: { where: { spaceId: d.editorial!.id }, select: { hidden: true, showPhotos: true, showMemo: true, showVisitDate: true } } },
         })
       : Promise.resolve(null),
   ]);
@@ -102,7 +102,7 @@ export default async function ArchiveDetailPage({ params }: Props) {
               <ProfileSpaceToggle
                 spaceId={d.editorial!.id}
                 initial={{
-                  public: profileState.profileSpaces.length > 0,
+                  public: !profileState.profileSpaces[0]?.hidden, // 기본 공개 — 숨긴 공간만 꺼짐
                   showPhotos: profileState.profileSpaces[0]?.showPhotos ?? false,
                   showMemo: profileState.profileSpaces[0]?.showMemo ?? false,
                   showVisitDate: profileState.profileSpaces[0]?.showVisitDate ?? false,

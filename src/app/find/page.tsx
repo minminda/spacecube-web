@@ -49,11 +49,6 @@ async function PeopleResults({ viewerId, admin, loggedIn }: { viewerId: string |
   const people = await recommendPeople(viewerId, { includeDemo: previewDemoUsers(admin) });
   return (
     <>
-      {people.some((p) => p.demo) && (
-        <p className="mb-5 px-3 py-2.5 text-xs leading-relaxed" style={{ background: "#fff6e6", color: "#8a5a00" }}>
-          더미 계정이 섞인 미리보기예요. 관리자 · 로컬 개발에서만 보여요.
-        </p>
-      )}
       {!loggedIn && people.length > 0 && (
         <p className="pb-5 text-xs" style={{ color: "var(--ed-dim)" }}>
           <Link href={`/login?callbackUrl=${encodeURIComponent("/find?tab=people")}`} className="font-semibold underline underline-offset-4" style={{ color: "var(--ed-fg)" }}>로그인</Link>하면 나와 비슷한 사람부터 보여드려요.

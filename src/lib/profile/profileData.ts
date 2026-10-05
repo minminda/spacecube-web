@@ -9,20 +9,21 @@ import { getSpacesByIds } from "@/lib/editorial/queries";
 import type { SpaceView } from "@/lib/editorial/types";
 import { isAdmin } from "@/lib/admin";
 import { avatarSeed } from "@/lib/people/avatar";
-import { cardPhoto, commonSpaceIds, publicSpaces, visitMonth, type PublicSpaceRow } from "./publicProfile";
+import { cardPhoto, commonSpaceIds, publicSpaces, rankPeopleSearch, visitMonth, type PublicSpaceRow } from "./publicProfile";
 
-const PICK_SELECT = {
-  spaceId: true, showPhotos: true, showMemo: true, showVisitDate: true,
-  space: { select: { slug: true, status: true, isDemo: true } },
-} as const;
+const PICK_SELECT = { spaceId: true, hidden: true, showPhotos: true, showMemo: true, showVisitDate: true } as const;
 
-/** 이 사용자가 지금 공개 프로필에 보여주는 공간(아카이브에 남아 있는 것만). */
+/** 이 사용자가 지금 공개 프로필에 보여주는 공간 — 아카이브의 canonical 공간 전부(기본 공개), 숨긴 공간 제외. */
 export async function publicSpaceRows(userId: string): Promise<PublicSpaceRow[]> {
   const [library, picks] = await Promise.all([
     getLibrary(userId, { includeDemo: false }),
     prisma.profileSpace.findMany({ where: { userId }, select: PICK_SELECT }),
   ]);
-  return publicSpaces(library, picks);
+  const slugs = library.filter((i) => !i.personal && !i.demo && i.key.startsWith("s-")).map((i) => i.key.slice(2));
+  const spaces = slugs.length
+    ? await prisma.editorialSpace.findMany({ where: { slug: { in: slugs } }, select: { id: true, slug: true, status: true, isDemo: true } })
+    : [];
+  return publicSpaces(library, spaces, picks);
 }
 
 /** 공개를 허용한 공간의 내 사진 — showPhotos인 공간만 조회한다. */
@@ -106,17 +107,16 @@ export interface PublicProfile {
 export async function getPublicProfile(handle: string, viewerId: string | null, opts: { curators: boolean; includeDemo?: boolean }): Promise<PublicProfile | null> {
   const user = await findViewable(handle, viewerId, opts.includeDemo);
   if (!user) return null;
-  const [rows, followingCount, followerCount, cp] = await Promise.all([
+  const [rows, counts, cp] = await Promise.all([
     publicSpaceRows(user.id),
-    prisma.savedTaste.count({ where: { userId: user.id } }),
-    prisma.savedTaste.count({ where: { targetUserId: user.id } }),
+    relationCounts([user.id]),
     opts.curators ? prisma.curatorProfile.findUnique({ where: { userId: user.id }, select: { slug: true, status: true, isDemo: true } }) : Promise.resolve(null),
   ]);
   const cards = await cardsFor(user.id, rows);
   return {
     userId: user.id, handle: user.profileHandle!, name: displayName(user), image: user.image, bio: user.profileBio,
     visited: cards.filter((c) => c.visited), wantToGo: cards.filter((c) => !c.visited),
-    followingCount, followerCount,
+    followingCount: counts.get(user.id)!.following, followerCount: counts.get(user.id)!.followers,
     curatorSlug: cp && cp.status === "PUBLISHED" && !cp.isDemo ? cp.slug : null,
     isPublic: user.profilePublic,
   };
@@ -200,7 +200,8 @@ async function personCards(users: ProfileUser[], photoCount = 3): Promise<Person
 }
 
 /**
- * 사람 찾기 — 공개 프로필만, 닉네임·주소로. 인기순·추천 없음(이름 가나다 순).
+ * 사람 찾기 — 공개 프로필만, 주소(@아이디) · 닉네임으로. 인기순·추천 없음.
+ * 순서: 주소 정확히 → 닉네임 정확히 → 주소 일부 → 닉네임 일부(rankPeopleSearch). 넉넉히 찾은 뒤 순서를 매겨 자른다.
  * 추천 > 사람 탭의 검색이 이 함수를 그대로 쓴다(photos: 0 — 아바타 · 이름 카드라 사진 조회 생략).
  * 더미 계정은 includeDemo(관리자 · 로컬 개발)일 때만.
  */
@@ -215,8 +216,8 @@ export async function searchPeople(q: string, viewerId: string | null, opts: { i
     },
     select: { ...PROFILE_USER_SELECT, email: true },
     orderBy: [{ nickname: "asc" }, { profileHandle: "asc" }],
-    take: 20,
-  }).then((rows) => rows.filter((u) => !isAdmin(u.email))); // 이메일은 판별에만 — personCards가 새 객체를 만들어 밖으로 나가지 않는다
+    take: 100,
+  }).then((rows) => rankPeopleSearch(q, rows.filter((u) => !isAdmin(u.email))).slice(0, 20)); // 이메일은 판별에만 — personCards가 새 객체를 만들어 밖으로 나가지 않는다
   const [people, follows] = await Promise.all([
     personCards(users, opts.photos ?? 3),
     viewerId ? prisma.savedTaste.findMany({ where: { userId: viewerId, targetUserId: { in: users.map((u) => u.id) } }, select: { targetUserId: true } }) : Promise.resolve([]),
@@ -241,4 +242,20 @@ export async function relationList(userId: string, kind: "following" | "follower
     viewerId ? prisma.savedTaste.findMany({ where: { userId: viewerId, targetUserId: { in: visible.map((u) => u.id) } }, select: { targetUserId: true } }) : Promise.resolve([]),
   ]);
   return { people, hidden: users.length - visible.length, following: new Set(follows.map((f) => f.targetUserId)) };
+}
+
+/**
+ * 관계 수 — 따라가는 취향(내가 따라가는 사람 수) · 나를 따라가는 사람(나를 따라가는 사람 수). 공개 프로필 숫자와 같은 기준(SavedTaste 그대로).
+ * 자기 자신 따라가기는 API가 막고(canFollow), 중복은 (userId, targetUserId) unique라 생기지 않는다.
+ */
+export async function relationCounts(userIds: string[]): Promise<Map<string, { following: number; followers: number }>> {
+  const out = new Map(userIds.map((id) => [id, { following: 0, followers: 0 }]));
+  if (userIds.length === 0) return out;
+  const [following, followers] = await Promise.all([
+    prisma.savedTaste.groupBy({ by: ["userId"], where: { userId: { in: userIds } }, _count: { _all: true } }),
+    prisma.savedTaste.groupBy({ by: ["targetUserId"], where: { targetUserId: { in: userIds } }, _count: { _all: true } }),
+  ]);
+  for (const r of following) out.get(r.userId)!.following = r._count._all;
+  for (const r of followers) out.get(r.targetUserId)!.followers = r._count._all;
+  return out;
 }

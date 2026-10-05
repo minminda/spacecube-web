@@ -1,6 +1,6 @@
 /* ── 추천 > 사람(서버 전용) ────────────────────────────────────────────────────
    별도의 큐레이터 개념 없이, 공개 프로필을 켠 일반 사용자 누구나 대상이다 — 고른 공간이 곧 그 사람의 취향.
-   비교에는 상대가 공개 프로필에 실제로 보여주는 공간만 쓴다(publicSpaceRows: ProfileSpace ∩ 현재 아카이브 ∩ 발행).
+   비교에는 상대가 공개 프로필에 실제로 보여주는 공간만 쓴다(publicSpaceRows: 현재 아카이브 ∩ 발행 실공간 − 숨긴 공간).
    비공개 공간 · 메모 · 개인 사진 · 방문 날짜는 조회하지도 않는다. 응답에는 이메일 · 역할 · 점수를 담지 않는다.
    제외: 나 자신 · 이미 따라가는 사람 · 비공개 프로필 · 관리자 계정 · 테스트 픽스처(@example.test) · 공개 공간 0곳 ·
    더미 계정(User.isDemo — 관리자 · 로컬 개발 미리보기에서만 포함). ── */
@@ -8,7 +8,7 @@
 import { prisma } from "@/lib/prisma";
 import { isAdmin } from "@/lib/admin";
 import { getLibrary } from "@/lib/archive/library";
-import { publicSpaceRows, searchPeople } from "@/lib/profile/profileData";
+import { publicSpaceRows, relationCounts, searchPeople } from "@/lib/profile/profileData";
 import { peopleQuery } from "@/lib/profile/publicProfile";
 import { avatarSeed } from "./avatar";
 import { PEOPLE_REASON_TEXT, rankPeople, type PersonCandidate, type SpaceFeatures, type ViewerTaste } from "./rankPeople";
@@ -22,8 +22,11 @@ export interface RecommendedPerson {
   handle: string;
   name: string;
   image: string | null;
-  /** "다녀온 공간이 비슷해요" 등 — 없으면 null. 점수 · 퍼센트는 내보내지 않는다. */
+  /** "다녀온 공간이 비슷해요" 등 — 없으면 null. 점수 · 퍼센트는 내보내지 않는다(카드에는 표시하지 않음 — 4열에서 복잡해서). */
   reason: string | null;
+  /** 따라가는 취향 수 · 나를 따라가는 사람 수 — 공개 프로필과 같은 숫자 */
+  followingCount: number;
+  followerCount: number;
   /** 더미 계정(관리자 · 로컬 미리보기에서만 섞여 나온다 — 화면에 미리보기 안내를 띄우는 데만 쓴다) */
   demo: boolean;
 }
@@ -77,28 +80,35 @@ export async function recommendPeople(viewerId: string | null, opts: { includeDe
   );
 
   const byId = new Map(eligible.map((u) => [u.id, u]));
-  return rankPeople(taste, candidates, features)
-    .slice(0, opts.limit ?? 48)
-    .map((r) => {
-      const u = byId.get(r.userId)!;
-      return {
-        avatarSeed: avatarSeed(u.id),
-        handle: u.profileHandle!,
-        name: u.nickname || `@${u.profileHandle}`,
-        image: u.image,
-        reason: r.reason ? PEOPLE_REASON_TEXT[r.reason] : null,
-        demo: u.isDemo,
-      };
-    });
+  const ranked = rankPeople(taste, candidates, features).slice(0, opts.limit ?? 48);
+  const counts = await relationCounts(ranked.map((r) => r.userId));
+  return ranked.map((r) => {
+    const u = byId.get(r.userId)!;
+    const c = counts.get(r.userId)!;
+    return {
+      avatarSeed: avatarSeed(u.id),
+      handle: u.profileHandle!,
+      name: u.nickname || `@${u.profileHandle}`,
+      image: u.image,
+      reason: r.reason ? PEOPLE_REASON_TEXT[r.reason] : null,
+      followingCount: c.following,
+      followerCount: c.followers,
+      demo: u.isDemo,
+    };
+  });
 }
 
 /**
- * 추천 > 사람 탭의 닉네임 검색 — 기존 사람 찾기(searchPeople)를 그대로 쓰고 같은 카드 모양으로만 바꾼다.
+ * 추천 > 사람 탭의 검색(@아이디 · 닉네임) — 기존 사람 찾기(searchPeople)를 그대로 쓰고 같은 카드 모양으로만 바꾼다.
  * 검색어가 2자 미만이면 null(= 추천을 보여준다).
  */
 export async function searchPeopleTiles(raw: string | undefined, viewerId: string | null, opts: { includeDemo: boolean }): Promise<RecommendedPerson[] | null> {
   const q = peopleQuery(raw);
   if (!q) return null;
   const { people } = await searchPeople(q, viewerId, { includeDemo: opts.includeDemo, photos: 0 });
-  return people.map((p) => ({ avatarSeed: avatarSeed(p.userId), handle: p.handle, name: p.name, image: p.image, reason: null, demo: p.demo }));
+  const counts = await relationCounts(people.map((p) => p.userId));
+  return people.map((p) => {
+    const c = counts.get(p.userId)!;
+    return { avatarSeed: avatarSeed(p.userId), handle: p.handle, name: p.name, image: p.image, reason: null, followingCount: c.following, followerCount: c.followers, demo: p.demo };
+  });
 }

@@ -116,7 +116,7 @@ export default async function ArchivePage({ searchParams }: Props) {
           <div className="pt-6 w-full md:max-w-[360px] flex flex-col gap-2">
             <ArchiveAddSheet className="ed-btn ed-btn-primary ed-btn-seg w-full" />
             {editorial && handle && (
-              <ShareProfileButton path={profilePath(handle)} name={user.nickname ?? handle} label="내 아카이브 공유" variant="seg" />
+              <ShareProfileButton handle={handle} label="내 아카이브 공유" variant="seg" />
             )}
           </div>
           {editorial && (
