@@ -1,5 +1,6 @@
 import Link from "next/link";
 import EdImage from "./EdImage";
+import ReadingProgress from "./ReadingProgress";
 import SpaceCard from "./SpaceCard";
 import BlockRenderer, { type SaveState } from "./BlockRenderer";
 import { curationEyebrow, type CurationView, type EditorialBlock, type LinkedSpace, type ResolvedImage, type SpaceView } from "@/lib/editorial/types";
@@ -31,36 +32,41 @@ export default function CurationArticle(p: Props) {
   const bodyHasSpaceCards = p.blocks.some((b) => b.type === "SPACE_CARD");
   return (
     <main>
-      <header className="ed-container pt-10 md:pt-16">
-        <Link href={p.backHref} className="text-xs hover:underline underline-offset-4" style={{ color: "var(--ed-dim)" }}>← {p.backLabel}</Link>
-        <div className="mt-8 md:mt-12 grid gap-6 md:grid-cols-12 md:items-end">
-          <div className="md:col-span-7 space-y-5">
-            <p className="ed-label" style={{ color: "var(--ed-dim)" }}>{p.eyebrow}</p>
-            {p.area ? (
-              <>
-                <h1 className="text-[64px] md:text-[112px] font-bold leading-[0.95] tracking-[-0.05em]">{p.area}</h1>
-                <p className="text-2xl md:text-3xl font-bold leading-snug tracking-tight">{p.title}</p>
-              </>
-            ) : (
-              <h1 className="text-[40px] md:text-[64px] font-bold leading-[1.08] tracking-[-0.04em]">{p.title}</h1>
-            )}
+      {/* 읽기 진행 바 기준 = 제목 ~ 마지막 본문 블록(아래 공간 · 다른 글은 제외) */}
+      <ReadingProgress>
+        <header className="ed-container pt-10 md:pt-16">
+          <Link href={p.backHref} className="text-xs hover:underline underline-offset-4" style={{ color: "var(--ed-dim)" }}>← {p.backLabel}</Link>
+          <div className="mt-8 md:mt-12 grid gap-6 md:grid-cols-12 md:items-end">
+            <div className="md:col-span-7 space-y-5">
+              <p className="ed-label" style={{ color: "var(--ed-dim)" }}>{p.eyebrow}</p>
+              {p.area ? (
+                <>
+                  <h1 className="text-[64px] md:text-[112px] font-bold leading-[0.95] tracking-[-0.05em]">{p.area}</h1>
+                  <p className="text-2xl md:text-3xl font-bold leading-snug tracking-tight">{p.title}</p>
+                </>
+              ) : (
+                <h1 className="text-[40px] md:text-[64px] font-bold leading-[1.08] tracking-[-0.04em]">{p.title}</h1>
+              )}
+            </div>
+            <div className="md:col-span-5 space-y-4">
+              <p className="text-base md:text-lg leading-relaxed" style={{ color: "var(--ed-dim)" }}>{p.summary}</p>
+              <p className="text-xs" style={{ color: "var(--ed-dim)" }}>{p.meta}</p>
+            </div>
           </div>
-          <div className="md:col-span-5 space-y-4">
-            <p className="text-base md:text-lg leading-relaxed" style={{ color: "var(--ed-dim)" }}>{p.summary}</p>
-            <p className="text-xs" style={{ color: "var(--ed-dim)" }}>{p.meta}</p>
-          </div>
+        </header>
+
+        <div className="ed-container pt-10 md:pt-14">
+          <EdImage image={p.cover} ratio="16 / 9" sizes="(min-width: 1200px) 1120px, 100vw" priority />
         </div>
-      </header>
 
-      <div className="ed-container pt-10 md:pt-14">
-        <EdImage image={p.cover} ratio="16 / 9" sizes="(min-width: 1200px) 1120px, 100vw" priority />
-      </div>
-
-      {p.blocks.length > 0 && (
-        <article className="ed-container py-16 md:py-24">
-          <BlockRenderer blocks={p.blocks} spaces={p.blockSpaces} saveState={p.saveState} />
-        </article>
-      )}
+        {p.blocks.length > 0 && (
+          <article className="ed-container pt-16 md:pt-24">
+            <BlockRenderer blocks={p.blocks} spaces={p.blockSpaces} saveState={p.saveState} />
+          </article>
+        )}
+      </ReadingProgress>
+      {/* 본문 아래 여백은 진행 바 기준 밖에 둔다 — 마지막 블록이 화면 아래에 닿는 순간이 정확히 100% */}
+      {p.blocks.length > 0 && <div aria-hidden className="h-16 md:h-24" />}
 
       {!bodyHasSpaceCards && p.spaces.length > 0 && (
         <section className="ed-container py-16 md:pb-20" style={{ borderTop: "1px solid var(--ed-line)" }}>

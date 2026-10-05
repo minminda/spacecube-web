@@ -1,5 +1,6 @@
 import Link from "next/link";
 import EdImage from "./EdImage";
+import ReadingProgress from "./ReadingProgress";
 import SpaceCard from "./SpaceCard";
 import BlockRenderer, { type SaveState } from "./BlockRenderer";
 import StoryCard, { INDEX_GRID_CLASS, INDEX_GRID_SIZES } from "./StoryCard";
@@ -32,25 +33,30 @@ export default function StoryArticle(p: Props) {
   const bodyHasSpaceCards = p.blocks.some((b) => b.type === "SPACE_CARD");
   return (
     <main>
-      <header className="ed-container pt-10 md:pt-16">
-        <Link href={p.backHref} className="text-xs hover:underline underline-offset-4" style={{ color: "var(--ed-dim)" }}>← {p.backLabel}</Link>
-        <div className="mt-8 md:mt-12 max-w-[900px] space-y-6">
-          <p className="ed-label" style={{ color: "var(--ed-dim)" }}>{p.eyebrow}</p>
-          <h1 className="text-[34px] md:text-[56px] font-bold leading-[1.15] tracking-[-0.03em] break-keep">{p.title}</h1>
-          <p className="text-base md:text-xl leading-relaxed break-keep" style={{ color: "var(--ed-dim)" }}>{p.summary}</p>
-          {p.date && <p className="text-xs tabular-nums" style={{ color: "var(--ed-dim)" }}>{p.date}</p>}
+      {/* 읽기 진행 바 기준 = 제목 ~ 마지막 본문 블록(아래 공간 · 다른 글은 제외) */}
+      <ReadingProgress>
+        <header className="ed-container pt-10 md:pt-16">
+          <Link href={p.backHref} className="text-xs hover:underline underline-offset-4" style={{ color: "var(--ed-dim)" }}>← {p.backLabel}</Link>
+          <div className="mt-8 md:mt-12 max-w-[900px] space-y-6">
+            <p className="ed-label" style={{ color: "var(--ed-dim)" }}>{p.eyebrow}</p>
+            <h1 className="text-[34px] md:text-[56px] font-bold leading-[1.15] tracking-[-0.03em] break-keep">{p.title}</h1>
+            <p className="text-base md:text-xl leading-relaxed break-keep" style={{ color: "var(--ed-dim)" }}>{p.summary}</p>
+            {p.date && <p className="text-xs tabular-nums" style={{ color: "var(--ed-dim)" }}>{p.date}</p>}
+          </div>
+        </header>
+
+        <div className="ed-container pt-10 md:pt-14">
+          <EdImage image={p.cover} ratio="16 / 9" sizes="(min-width: 1200px) 1120px, 100vw" priority />
         </div>
-      </header>
 
-      <div className="ed-container pt-10 md:pt-14">
-        <EdImage image={p.cover} ratio="16 / 9" sizes="(min-width: 1200px) 1120px, 100vw" priority />
-      </div>
-
-      {p.blocks.length > 0 && (
-        <article className="ed-container py-16 md:py-24">
-          <BlockRenderer blocks={p.blocks} spaces={p.blockSpaces} saveState={p.saveState} />
-        </article>
-      )}
+        {p.blocks.length > 0 && (
+          <article className="ed-container pt-16 md:pt-24">
+            <BlockRenderer blocks={p.blocks} spaces={p.blockSpaces} saveState={p.saveState} />
+          </article>
+        )}
+      </ReadingProgress>
+      {/* 본문 아래 여백은 진행 바 기준 밖에 둔다 — 마지막 블록이 화면 아래에 닿는 순간이 정확히 100% */}
+      {p.blocks.length > 0 && <div aria-hidden className="h-16 md:h-24" />}
 
       {!bodyHasSpaceCards && p.spaces.length > 0 && (
         <section className="ed-container py-16 md:pb-20" style={{ borderTop: "1px solid var(--ed-line)" }}>

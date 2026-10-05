@@ -209,7 +209,7 @@ export const CONTENT_KIND_LABEL: Record<ContentKind, string> = {
 export interface ContentItem {
   key: string;
   kind: ContentKind;
-  /** 유형을 한 번 포함한 머리줄(여러 유형이 섞인 곳용) — 예: "CURATION 001 · 연남", "PEOPLE 001", "SPACE · 연남 · 독립서점" */
+  /** 유형을 한 번 포함한 머리줄(여러 유형이 섞인 곳용) — 예: "CURATION 001 · 연남", "PEOPLE 001", "THOUGHT 002", "SPACE · 연남 · 독립서점" */
   eyebrow: string;
   /** 유형을 뺀 머리줄(위치가 유형을 알려 줄 때) — 예: "001 · 연남", "001", "연남 · 독립서점" */
   label: string;
@@ -239,9 +239,9 @@ export const STORY_TYPE_LABEL: Record<StoryType, { en: string; ko: string; descr
 export interface StoryItem {
   key: string;
   type: StoryType;
-  /** 유형 포함(ALL 등 섞인 목록) — 예: "PEOPLE 001 · 이름", "THOUGHT 002 · 비 오는 오후의 서점" */
+  /** 유형 포함(ALL 등 섞인 목록) — 번호만, 예: "PEOPLE 001", "THOUGHT 002" */
   eyebrow: string;
-  /** 유형 제외(PEOPLE · THOUGHT 구획 · 탭 안) — 번호만, 예: "001". 이름 · 장면은 휴대폰 3열에서 잘리므로 섞인 목록(eyebrow)에서만. */
+  /** 유형 제외(PEOPLE · THOUGHT 구획 · 탭 안) — 번호만, 예: "001". 이름 · 장면은 상세 머리줄에서만. */
   label: string;
   title: string;
   summary: string;
