@@ -47,3 +47,11 @@ export async function getKpiExcludedUserIds(): Promise<Set<string>> {
   const [admins, demos] = await Promise.all([getAdminUserIds(), getDemoUserIds()]);
   return new Set([...admins, ...demos]);
 }
+
+/**
+ * 더미 계정(User.isDemo)을 사람 추천 · 공개 프로필 · 취향 따라가기에서 볼 수 있는가 — 관리자 또는 로컬 개발만.
+ * 운영의 일반 방문자에게는 어떤 경우에도 더미 계정이 보이지 않는다(큐레이터 프로토타입의 includeDemo와 같은 원칙).
+ */
+export function previewDemoUsers(admin: boolean): boolean {
+  return admin || process.env.NODE_ENV === "development";
+}

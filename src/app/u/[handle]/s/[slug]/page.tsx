@@ -7,6 +7,7 @@ import SiteFooter from "@/components/editorial/SiteFooter";
 import { getEditorialViewer } from "@/lib/editorial/viewer";
 import { prisma } from "@/lib/prisma";
 import { getPublicRecord } from "@/lib/profile/profileData";
+import { previewDemoUsers } from "@/lib/demoData";
 import { normalizeHandle, profilePath } from "@/lib/profile/publicProfile";
 import { hasBatchim } from "@/lib/curators/finder";
 
@@ -24,7 +25,7 @@ export default async function PublicRecordPage({ params }: Props) {
   const [{ handle: raw, slug }, viewer] = await Promise.all([params, getEditorialViewer()]);
   if (!viewer.editorial) notFound();
   const handle = normalizeHandle(decodeURIComponent(raw));
-  const r = await getPublicRecord(handle, decodeURIComponent(slug), viewer.userId);
+  const r = await getPublicRecord(handle, decodeURIComponent(slug), viewer.userId, { includeDemo: previewDemoUsers(viewer.admin) });
   if (!r) notFound();
   const saved = viewer.userId
     ? !!(await prisma.savedEditorialSpace.findUnique({ where: { userId_spaceId: { userId: viewer.userId, spaceId: r.space.id } }, select: { id: true } }))

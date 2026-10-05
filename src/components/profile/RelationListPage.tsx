@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import SiteFooter from "@/components/editorial/SiteFooter";
 import PersonCard from "./PersonCard";
 import { getEditorialViewer } from "@/lib/editorial/viewer";
+import { previewDemoUsers } from "@/lib/demoData";
 import { getPublicProfile, relationList } from "@/lib/profile/profileData";
 import { normalizeHandle, profilePath } from "@/lib/profile/publicProfile";
 
@@ -19,7 +20,7 @@ export default async function RelationListPage({ rawHandle, kind }: { rawHandle:
   const viewer = await getEditorialViewer();
   if (!viewer.editorial) notFound();
   const handle = normalizeHandle(decodeURIComponent(rawHandle));
-  const p = await getPublicProfile(handle, viewer.userId, { curators: false });
+  const p = await getPublicProfile(handle, viewer.userId, { curators: false, includeDemo: previewDemoUsers(viewer.admin) });
   if (!p) notFound();
   const { people, hidden, following } = await relationList(p.userId, kind, viewer.userId);
   const c = COPY[kind];

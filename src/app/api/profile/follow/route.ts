@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { isAdmin } from "@/lib/admin";
+import { previewDemoUsers } from "@/lib/demoData";
 import { canFollow, normalizeHandle } from "@/lib/profile/publicProfile";
 
 export const dynamic = "force-dynamic";
@@ -16,7 +18,7 @@ export async function POST(req: Request) {
   const session = await auth();
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const t = await target(req);
-  const check = canFollow(session.user.id, t);
+  const check = canFollow(session.user.id, t, previewDemoUsers(isAdmin(session.user.email)));
   if (!check.ok) return NextResponse.json({ error: check.error }, { status: check.status });
   await prisma.savedTaste.upsert({
     where: { userId_targetUserId: { userId: session.user.id, targetUserId: t!.id } },

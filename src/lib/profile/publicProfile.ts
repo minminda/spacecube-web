@@ -142,9 +142,9 @@ export function commonSpaceIds(viewerSpaceSlugs: Set<string>, targetPublic: { sp
 
 export type FollowCheck = { ok: true } | { ok: false; status: 400 | 404; error: string };
 
-/** 자기 자신 · 없는 사용자 · 비공개 프로필 · 시연 계정은 따라갈 수 없다. 중복은 DB unique + upsert로 막는다. */
-export function canFollow(viewerId: string, target: { id: string; profilePublic: boolean; isDemo: boolean } | null): FollowCheck {
-  if (!target || target.isDemo) return { ok: false, status: 404, error: "프로필을 찾을 수 없어요." };
+/** 자기 자신 · 없는 사용자 · 비공개 프로필 · 시연 계정(includeDemo 제외)은 따라갈 수 없다. 중복은 DB unique + upsert로 막는다. */
+export function canFollow(viewerId: string, target: { id: string; profilePublic: boolean; isDemo: boolean } | null, includeDemo = false): FollowCheck {
+  if (!target || (target.isDemo && !includeDemo)) return { ok: false, status: 404, error: "프로필을 찾을 수 없어요." };
   if (target.id === viewerId) return { ok: false, status: 400, error: "내 취향은 따라갈 수 없어요." };
   if (!target.profilePublic) return { ok: false, status: 404, error: "공개되지 않은 프로필이에요." };
   return { ok: true };

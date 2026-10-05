@@ -58,10 +58,10 @@ const PROFILE_USER_SELECT = {
 
 type ProfileUser = { id: string; nickname: string | null; image: string | null; isDemo: boolean; profilePublic: boolean; profileHandle: string | null; profileBio: string | null };
 
-/** 공개로 볼 수 있는 사용자인지(본인은 비공개여도 미리보기 가능). */
-async function findViewable(handle: string, viewerId: string | null): Promise<ProfileUser | null> {
+/** 공개로 볼 수 있는 사용자인지(본인은 비공개여도 미리보기 가능). 더미 계정은 includeDemo(관리자 · 로컬 개발)일 때만. */
+async function findViewable(handle: string, viewerId: string | null, includeDemo = false): Promise<ProfileUser | null> {
   const user = await prisma.user.findUnique({ where: { profileHandle: handle }, select: PROFILE_USER_SELECT });
-  if (!user || user.isDemo || !user.profileHandle) return null;
+  if (!user || (user.isDemo && !includeDemo) || !user.profileHandle) return null;
   if (!user.profilePublic && user.id !== viewerId) return null;
   return user;
 }
@@ -84,9 +84,9 @@ export interface PublicProfile {
   isPublic: boolean;
 }
 
-/** handle로 공개 프로필 조회. 비공개면 null — 단 본인은 비공개 상태로도 미리 볼 수 있다. 시연 계정은 공개 화면에 없음. */
-export async function getPublicProfile(handle: string, viewerId: string | null, opts: { curators: boolean }): Promise<PublicProfile | null> {
-  const user = await findViewable(handle, viewerId);
+/** handle로 공개 프로필 조회. 비공개면 null — 단 본인은 비공개 상태로도 미리 볼 수 있다. 시연 계정은 공개 화면에 없음(includeDemo 제외). */
+export async function getPublicProfile(handle: string, viewerId: string | null, opts: { curators: boolean; includeDemo?: boolean }): Promise<PublicProfile | null> {
+  const user = await findViewable(handle, viewerId, opts.includeDemo);
   if (!user) return null;
   const [rows, followingCount, followerCount, cp] = await Promise.all([
     publicSpaceRows(user.id),
@@ -128,8 +128,8 @@ export interface PublicRecord {
 }
 
 /** 공개 기록 상세(/@handle/s/[slug]) — 공간과 사진 중심, 메모·방문 시기는 각각 허용했을 때만. */
-export async function getPublicRecord(handle: string, slug: string, viewerId: string | null): Promise<PublicRecord | null> {
-  const user = await findViewable(handle, viewerId);
+export async function getPublicRecord(handle: string, slug: string, viewerId: string | null, opts: { includeDemo?: boolean } = {}): Promise<PublicRecord | null> {
+  const user = await findViewable(handle, viewerId, opts.includeDemo);
   if (!user) return null;
   const row = (await publicSpaceRows(user.id)).find((r) => r.slug === slug);
   if (!row) return null;

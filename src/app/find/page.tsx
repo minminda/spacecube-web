@@ -1,9 +1,12 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import SiteFooter from "@/components/editorial/SiteFooter";
 import PageHeader from "@/components/editorial/PageHeader";
 import SpaceCard from "@/components/editorial/SpaceCard";
+import TabLinks from "@/components/editorial/TabLinks";
+import { PeopleGrid, PeopleGridSkeleton } from "@/components/people/PeopleGrid";
 import { SPACE_GRID_CLASS } from "@/components/editorial/SpaceTile";
 import { PrototypeBanner } from "@/components/curators/CuratorBits";
 import { getEditorialViewer } from "@/lib/editorial/viewer";
@@ -14,11 +17,13 @@ import { AFFINITY_LABEL } from "@/lib/curators/affinity";
 import { curatorDisplayName } from "@/lib/curators/finder";
 import { cardReason, filterCandidates, parseFinderQuery, rankCandidates, type FinderQuery } from "@/lib/finder/spaceFinder";
 import { getFinderPool, getFinderViewer } from "@/lib/finder/finderData";
+import { previewDemoUsers } from "@/lib/demoData";
+import { recommendPeople } from "@/lib/people/peopleData";
 
 export const metadata: Metadata = { title: "추천 — 공간큐브", description: "지역만 고르면, 지금까지의 공간 경험을 바탕으로 나에게 맞는 공간부터 보여드려요." };
 
 interface Props {
-  searchParams: Promise<{ area?: string; q?: string; feel?: string; for?: string; n?: string }>;
+  searchParams: Promise<{ tab?: string; area?: string; q?: string; feel?: string; for?: string; n?: string }>;
 }
 
 const PREFERRED_AREAS = ["연남", "망원", "서촌", "성수"];
@@ -31,6 +36,34 @@ function hrefFor(q: FinderQuery, n?: number): string {
   if (n) p.set("n", String(n));
   const s = p.toString();
   return s ? `/find?${s}` : "/find";
+}
+
+/** 사람 탭 주소 — 공간 탭에서 고른 지역은 그대로 들고 다닌다(사람 추천에는 쓰지 않고, 공간 탭으로 돌아올 때 유지). */
+function peopleHref(q: FinderQuery): string {
+  return q.area ? `/find?tab=people&area=${encodeURIComponent(q.area)}` : "/find?tab=people";
+}
+
+/**
+ * 추천 > 사람 — 나와 비슷한 공간을 고르는 사람(공개 프로필의 일반 사용자, 별도 큐레이터 없음).
+ * 카드 → 공개 프로필 → 그 사람이 고른 공간 → 내 아카이브에 저장 / 취향 따라가기. 점수 · 퍼센트는 보여주지 않는다.
+ */
+async function PeopleResults({ viewerId, admin, loggedIn }: { viewerId: string | null; admin: boolean; loggedIn: boolean }) {
+  const people = await recommendPeople(viewerId, { includeDemo: previewDemoUsers(admin) });
+  return (
+    <>
+      {people.some((p) => p.demo) && (
+        <p className="mb-5 px-3 py-2.5 text-xs leading-relaxed" style={{ background: "#fff6e6", color: "#8a5a00" }}>
+          더미 계정이 섞인 미리보기예요. 관리자 · 로컬 개발에서만 보여요.
+        </p>
+      )}
+      {!loggedIn && people.length > 0 && (
+        <p className="pb-5 text-xs" style={{ color: "var(--ed-dim)" }}>
+          <Link href={`/login?callbackUrl=${encodeURIComponent("/find?tab=people")}`} className="font-semibold underline underline-offset-4" style={{ color: "var(--ed-fg)" }}>로그인</Link>하면 나와 비슷한 사람부터 보여드려요.
+        </p>
+      )}
+      {people.length === 0 ? <p className="py-10 text-base font-semibold">아직 추천할 사람이 없어요.</p> : <PeopleGrid people={people} />}
+    </>
+  );
 }
 
 function AreaLink({ label, on, href }: { label: string; on: boolean; href: string }) {
@@ -62,6 +95,32 @@ export default async function FindPage({ searchParams }: Props) {
   if (!viewer.editorial) redirect("/");
   const access = curatorAccess(viewer);
   const q: FinderQuery = { ...parseFinderQuery(sp), moods: [], purposes: [] };
+  const tabs = [
+    { key: "space", label: "공간", href: hrefFor(q) },
+    { key: "people", label: "사람", href: peopleHref(q) },
+  ];
+
+  // 기본은 공간. 사람 탭은 지역 선택 · 검색 없이 추천 그리드만.
+  if (sp.tab === "people") {
+    return (
+      <div className="editorial-bleed">
+        <main className="pb-20 md:pb-28">
+          <PageHeader title="추천">
+            <div className="pt-5"><TabLinks tabs={tabs} active="people" label="추천 종류" /></div>
+          </PageHeader>
+          <section className="ed-container" aria-live="polite">
+            <div className="flex items-center justify-end py-4" style={{ borderTop: "1px solid var(--ed-line)" }}>
+              {viewer.loggedIn && <Link href="/archive/people" className="text-xs font-semibold hover:underline underline-offset-4">사람 찾기 →</Link>}
+            </div>
+            <Suspense fallback={<PeopleGridSkeleton />}>
+              <PeopleResults viewerId={viewer.userId} admin={viewer.admin} loggedIn={viewer.loggedIn} />
+            </Suspense>
+          </section>
+        </main>
+        <SiteFooter admin={viewer.admin} />
+      </div>
+    );
+  }
   const limit = Math.min(Math.max(Number(sp.n) || PAGE, PAGE), 300);
 
   const [pool, me, savedIds] = await Promise.all([
@@ -84,7 +143,8 @@ export default async function FindPage({ searchParams }: Props) {
       {demoShown && <PrototypeBanner demo />}
       <main className="pb-20 md:pb-28">
         <PageHeader title="추천">
-          <h2 className="pt-6 pb-3 text-sm font-semibold">어디에서 찾고 있나요?</h2>
+          <div className="pt-5"><TabLinks tabs={tabs} active="space" label="추천 종류" /></div>
+          <h2 className="pt-5 pb-3 text-sm font-semibold">어디에서 찾고 있나요?</h2>
           {/* 사용자가 고르는 것은 지역 하나뿐 — 휴대폰은 한 줄 가로 스크롤, 데스크톱은 줄바꿈 */}
           <nav aria-label="지역" className="ed-scroll-x -mx-5 px-5 md:mx-0 md:px-0 flex gap-2 overflow-x-auto md:flex-wrap">
             <AreaLink label="전체" on={!q.area} href={hrefFor({ ...q, area: null })} />

@@ -83,6 +83,8 @@ describe("관계 · 사람 찾기", () => {
     expect(canFollow("b", target)).toMatchObject({ ok: false, status: 400 });
     expect(canFollow("a", { ...target, profilePublic: false })).toMatchObject({ ok: false, status: 404 });
     expect(canFollow("a", { ...target, isDemo: true }).ok).toBe(false);
+    // 더미 계정은 관리자 · 로컬 개발 미리보기에서만 따라갈 수 있다
+    expect(canFollow("a", { ...target, isDemo: true }, true).ok).toBe(true);
     expect(canFollow("a", null).ok).toBe(false);
   });
   it("검색어는 2자 이상(빈 검색으로 사람 목록을 늘어놓지 않음)", () => {
