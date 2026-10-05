@@ -242,7 +242,7 @@ export default async function GuestbookPage({ params }: Props) {
     reactionCount: n._count.reactions,
     reactedByMe: Array.isArray(n.reactions) && n.reactions.length > 0,
     commentCount: n._count.comments,
-    // 실제 공간에 섞여 보이는 더미 계정 글 = UI 검증용 샘플(미리보기에서만 여기까지 온다)
+    // 실제 공간에 섞여 보이는 더미 계정 글 = UI 검증용 샘플(미리보기에서만 여기까지 온다). 내부 구분용 — 캔버스에는 표시하지 않는다
     sample: !space.isDemo && !!n.user?.isDemo,
   }));
 

@@ -10,7 +10,8 @@
 
    방명록 샘플(UI 검증용, scripts/seed-sample-guestbook.ts)도 같은 규칙이다 — 샘플 전용 더미 계정 하나가 쓴 글이라
      실제 공간의 방문자 화면 · 운영자 화면 · KPI · 리포트 · 추천에서 빠지고, 관리자 · 로컬 개발 미리보기에서만
-     "샘플" 표시와 함께 보인다(previewGuestbookSamples). 실제 방문자 글과 위치가 겹쳐도 작성은 막지 않는다.
+     보인다(previewGuestbookSamples). 캔버스에는 따로 표시를 붙이지 않고, 관리자 방명록 목록에만 SAMPLE로 구분된다.
+     실제 방문자 글과 위치가 겹쳐도 작성은 막지 않는다.
 
    Record·GuestbookNote·GuestbookReaction에는 별도 플래그를 두지 않는다 — "어느 공간에서,
    누가" 만든 데이터인지(위 두 플래그)로 파생된다. Tag는 기존 Tag.isActive(소프트 비활성)를

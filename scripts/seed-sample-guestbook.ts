@@ -1,5 +1,5 @@
 /**
- * 방명록 UI 검증용 샘플 — 활성 Cube 공간(Space.isActive && !isDemo, ACTIVE 방명록 세션이 있는 곳)마다 8~11개.
+ * 방명록 UI 검증용 샘플 — 활성 Cube 공간(Space.isActive && !isDemo, ACTIVE 방명록 세션이 있는 곳)마다 12~15개.
  *   npx tsx --env-file=.env scripts/seed-sample-guestbook.ts            미리보기(DB 변경 없음)
  *   npx tsx --env-file=.env scripts/seed-sample-guestbook.ts --apply    샘플 만들기(몇 번 실행해도 같은 개수 — 기존 샘플을 지우고 다시 만든다)
  *   npx tsx --env-file=.env scripts/seed-sample-guestbook.ts --cleanup  지울 개수 미리보기 / --cleanup --yes 로 샘플과 샘플 작성자 계정만 지우기
@@ -7,7 +7,8 @@
  * 실제 참여 데이터와 완전히 분리한다(스키마 추가 없음 — 기존 더미 계정 정책 src/lib/demoData.ts 재사용):
  *   - 작성자는 샘플 전용 더미 계정 하나(User.isDemo, 이메일 sample-guestbook@spacecube.local). 가짜 사용자를 여럿 만들지 않는다.
  *   - 더미 계정 글이라 실제 공간의 방문자 화면 · 운영자 화면 · KPI · 월간 리포트 · 퍼널 · 추천 · 공개 프로필에서 빠지고,
- *     관리자 · 로컬 개발 미리보기 캔버스에서만 "샘플" 표시로 보인다(관리자 방명록 목록에는 SAMPLE).
+ *     관리자 · 로컬 개발 미리보기 캔버스에서만 보인다. 캔버스에는 샘플 표시 없이 실제 방명록과 같은 모양이고,
+ *     구분은 내부에서만 한다(작성자 User.isDemo · 관리자 방명록 목록의 SAMPLE).
  *   - Record · 공감 · 댓글 · 퍼널 이벤트는 만들지 않는다(가짜 참여 없음). recomputeSpaceKPI도 부르지 않는다.
  *   - 실제 글은 읽기만 한다(배치할 때 겹치지 않게 피하는 장애물로만). 수정 · 삭제하는 건 이 작성자의 글뿐.
  * 문장은 각 공간의 실제 방명록 질문(현재 ACTIVE 세션)과 그 공간 이야기(Episode)에 맞춰 썼고, 공간에 대한 새 사실은 만들지 않는다.
@@ -15,6 +16,7 @@
  */
 import { PrismaClient, type ClusterType } from "@prisma/client";
 import { findFreePosition, clusterLabelRect, POST_IT_WIDTH, POST_IT_HEIGHT, type Rect } from "../src/lib/postitCollision";
+import { ANONYMOUS_NICKNAME } from "../src/lib/anonNickname";
 
 const prisma = new PrismaClient();
 const APPLY = process.argv.includes("--apply");
@@ -22,8 +24,8 @@ const CLEANUP = process.argv.includes("--cleanup");
 
 const AUTHOR_EMAIL = "sample-guestbook@spacecube.local";
 const AUTHOR_NICKNAME = "방명록샘플";
-/** 포스트잇 아래 이름 — 실제 방문자처럼 보이지 않게 모두 같은 표시 */
-const NOTE_NICKNAME = "샘플";
+/** 포스트잇 아래 이름 — 비로그인 방문자와 같은 고정 익명 이름(가짜 사용자 이름을 지어내지 않는다) */
+const NOTE_NICKNAME = ANONYMOUS_NICKNAME;
 const MAX_LEN = 80; // GuestbookNote.content VarChar(80)
 
 type Notes = Partial<Record<ClusterType, string[]>>;
@@ -44,10 +46,14 @@ const SAMPLES: Record<string, { q1: string | null; q2: string | null; notes: Not
         "혼자 조용한 곳에 앉아 있기. 오늘처럼요.",
         "산책하고 따뜻한 차 한 잔. 생각보다 별거 아닌 게 힘이 되더라고요.",
         "일기를 써요. 잘 안 풀린 날도 한 줄은 남겨두면 다음 날 조금 덜 무거워요.",
+        "푹 자기",
       ],
       FREE: [
         "조용히 책 읽다가 갑니다.",
         "꼭 책을 읽지 않아도 괜찮다는 말이 좋았어요. 오늘은 창밖만 오래 봤어요.",
+        "책장 넘기는 소리만 들리는 게 좋았어요.",
+        "읽다 만 책이 있어서 다음에 마저 읽으러 올게요.",
+        "비 오는 날 오니까 더 좋네요",
       ],
     },
   },
@@ -65,11 +71,15 @@ const SAMPLES: Record<string, { q1: string | null; q2: string | null; notes: Not
         "따뜻한 라떼",
         "산미 있는 핸드드립이요. 천천히 마시기 좋았어요.",
         "아이스 아메리카노. 날이 덥진 않았는데 그냥 시원한 게 마시고 싶었어요.",
+        "디카페인 라떼요. 저녁이라서",
       ],
       FREE: [
         "사라진 다리 이야기를 읽고 나니 동네가 조금 다르게 보이네요.",
         "남이 보는 나와 내가 보는 나 사이. 오늘은 그 사이를 조금 걸어본 기분이에요.",
         "다음엔 혼자 와볼게요",
+        "말없이 앉아 있어도 편한 곳이네요.",
+        "생각이 많을 때 오면 좋을 것 같아요.",
+        "오늘 하루 중 제일 느리게 흘러간 시간이었어요.",
       ],
     },
   },
@@ -83,11 +93,16 @@ const SAMPLES: Record<string, { q1: string | null; q2: string | null; notes: Not
         "요즘은 가사 없는 음악만 들어요. 생각할 틈이 생겨서요.",
         "아빠가 듣던 노래를 여기서 우연히 들었어요. 제목은 몰라도 멜로디는 기억나더라고요. 반가웠습니다.",
         "시티팝!",
+        "요즘은 계속 같은 앨범만 돌려 들어요. 질릴 때까지 들어보려고요.",
+        "영화 OST요. 그 장면이 같이 떠올라서 좋아요.",
       ],
       FREE: [
         "음악 들으면서 책 반 권 읽고 갑니다.",
         "판 바뀌는 소리까지 좋았어요",
         "조용히 음악 듣다 가기 좋은 곳이에요. 다음엔 좋아하는 앨범이 있는지 여쭤볼게요.",
+        "모르는 노래인데 계속 생각나요.",
+        "LP로 듣는 건 처음이었는데 소리가 생각보다 따뜻했어요.",
+        "혼자 왔는데 전혀 심심하지 않았어요. 또 올게요.",
       ],
     },
   },
@@ -99,16 +114,20 @@ const SAMPLES: Record<string, { q1: string | null; q2: string | null; notes: Not
         "엄마",
         "같이 영화 보던 친구가 떠올랐어요. 연락 한번 해봐야겠어요.",
         "아버지와 다시 찾아왔다는 이야기를 읽고 저도 아빠 생각이 났습니다. 이번 주말엔 전화드리려고요.",
+        "고등학교 때 단짝. 잘 지내고 있으려나",
       ],
       QUESTION_2: [
         "아침 산책",
         "좋아하는 영화를 몇 번이고 다시 보는 것. 볼 때마다 다른 장면이 남아요.",
         "필름 카메라요. 다 찍고 나서야 뭘 찍었는지 알게 되는 게 좋아요.",
+        "퇴근 후 혼자 걷는 30분",
       ],
       FREE: [
         "취향을 발견하는 게 나를 발견하는 일이라는 말, 오래 기억할 것 같아요.",
         "오늘은 시선을 안쪽으로 돌려본 날",
         "생각보다 오래 머물렀어요. 창가 자리가 특히 좋았습니다.",
+        "혼자 와도 어색하지 않았어요.",
+        "다음엔 엄마랑 같이 와야겠어요.",
       ],
     },
   },
@@ -121,16 +140,20 @@ const SAMPLES: Record<string, { q1: string | null; q2: string | null; notes: Not
         "여행 첫날 아침이요. 아직 아무 일도 안 일어났을 때가 제일 설레서요.",
         "친구들이랑 별 얘기 안 할 때. 나중에 보면 그런 장면이 제일 좋더라고요.",
         "노을 질 때 꼭 눌러요",
+        "강아지가 뛰어올 때요. 매번 흔들려서 제대로 찍힌 적은 없어요.",
       ],
       QUESTION_2: [
         "다시 보니까 그날 공기까지 기억났어요.",
         "화질이 선명하지 않아서 오히려 좋았어요. 기억이랑 비슷한 느낌이라서요.",
         "찍을 땐 몰랐는데 영상 속 내 목소리가 꽤 즐거워 보였다. 그날 좋았구나 싶음",
+        "화면 대신 눈으로 더 많이 보게 됐어요.",
       ],
       FREE: [
         "캠코더 고르는 데 한참 걸렸어요. 모델명 대신 감상이 적혀 있어서 고르기 편했습니다.",
         "다음엔 가족이랑 같이 빌리러 올게요.",
         "녹화 버튼 누르는 손맛이 있네요",
+        "어릴 때 집에 있던 캠코더랑 비슷해서 반가웠어요.",
+        "배터리 다 쓸 때까지 찍었어요 ㅎㅎ",
       ],
     },
   },
@@ -143,15 +166,20 @@ const SAMPLES: Record<string, { q1: string | null; q2: string | null; notes: Not
         "오랜만에 친구랑 마주 앉아 웃은 것.",
         "퇴근길에 잠깐 들러서 아무 생각 없이 앉아 있는 이 시간이요. 오늘은 이걸로 충분해요.",
         "날씨가 좋았다. 그거면 됐다",
+        "미뤄둔 일을 하나 끝냈어요.",
+        "점심 맛있게 먹은 것",
       ],
       QUESTION_2: [
         "편안함",
         "문 열고 들어왔을 때 조금 설렜어요.",
         "처음인데 오래 다닌 곳처럼 익숙했어요. 이유는 잘 모르겠지만 마음이 놓였습니다.",
+        "조용해서 조금 긴장했다가 금방 풀렸어요.",
       ],
       FREE: [
         "조금 아쉬운 채로 돌아갑니다. 그래서 또 올 것 같아요.",
         "행복하세요, 라는 말에 괜히 기분이 좋아졌어요.",
+        "다음 주에 또 올 것 같아요",
+        "커피 마시면서 한참 멍하니 있었어요.",
       ],
     },
   },
