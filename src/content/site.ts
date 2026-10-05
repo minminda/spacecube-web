@@ -6,40 +6,8 @@ export const BRAND_MESSAGE = "공간의 이해, 사람과의 연결.";
 export const CONTACT_EMAIL = "gonggancube@gmail.com";
 export const INSTAGRAM_URL = "https://www.instagram.com/gonggancube/";
 
-/**
- * 홈 EXPLORE SPACE에 노출할 홈페이지 SPACE(src/content/spaces.ts의 slug, 표시 순서).
- * /spaces 목록은 spaces.ts 전체를 보여준다. Cube 운영 DB와는 무관하다.
- */
-export const FEATURED_SPACE_SLUGS = [
-  "turndown-service",
-  "booknook-yeonnam",
-  "inner-discovery",
-  "dasijeom",
-  "nokhwabutton",
-  "aka-coffee-room",
-];
-
 /** 홈 FEATURED CURATION — 다른 지역으로 교체할 때 이 값만 바꾼다(없으면 가장 최근 번호) */
 export const FEATURED_CURATION_SLUG = "yeonnam-slow-alone";
-
-/** 홈 HERO 사진으로 빌려 쓸 홈페이지 SPACE */
-export const HERO_IMAGE_SPACE_SLUG = "aka-coffee-room";
-
-/**
- * 홈 LATEST STORIES 피드 — PEOPLE/SPACE/CURATION을 섞어 매거진처럼 보여준다(위에서부터).
- * SPACE 항목의 headline이 없으면 홈페이지 SPACE의 summary를 쓴다.
- */
-export type FeedItem =
-  | { kind: "people"; slug: string }
-  | { kind: "space"; slug: string; headline?: string }
-  | { kind: "curation"; slug: string };
-
-export const LATEST_FEED: FeedItem[] = [
-  { kind: "people", slug: "people-001" },
-  { kind: "space", slug: "turndown-service", headline: "음악을 들어봐주세요. 편히 쉬다가세요." },
-  { kind: "space", slug: "booknook-yeonnam", headline: "나만의 작은 공간 하나" },
-  { kind: "curation", slug: "mangwon-making" },
-];
 
 /* ── 참여(제안·제보·협업) — 1단계는 이메일(mailto)로 받는다.
    구글 폼 등으로 바꿀 때는 href만 교체하면 된다. ── */

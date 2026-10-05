@@ -58,7 +58,7 @@ export default async function CubeSpacesPage() {
             <p className="text-xs tabular-nums shrink-0" style={{ color: "var(--ed-dim)" }}>{spaces.length}곳</p>
           </div>
           {spaces.length === 0 ? (
-            <p className="text-base py-8" style={{ color: "var(--ed-dim)" }}>함께한 공간을 준비하고 있습니다.</p>
+            <p className="text-base py-8" style={{ color: "var(--ed-dim)" }}>함께한 공간을 준비하고 있어요.</p>
           ) : (
             <div className="grid grid-cols-2 gap-x-4 gap-y-12 md:grid-cols-3 md:gap-x-10 md:gap-y-16">
               {spaces.map((s, i) => (

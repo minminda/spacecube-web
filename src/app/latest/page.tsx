@@ -61,7 +61,7 @@ export default async function LatestPage({ searchParams }: Props) {
 
         <section className="ed-container pt-4 md:pt-6">
           {shown.length === 0 ? (
-            <p className="text-base py-10" style={{ color: "var(--ed-dim)" }}>새로운 이야기를 준비하고 있습니다.</p>
+            <p className="text-base py-10" style={{ color: "var(--ed-dim)" }}>새로운 이야기를 준비하고 있어요.</p>
           ) : (
             <ul>
               {shown.map((it, i) => (

@@ -71,7 +71,7 @@ export default async function CurationHubPage({ searchParams }: Props) {
         <section className="ed-container pt-8 md:pt-12">
           {shown.length === 0 ? (
             <p className="text-base py-6" style={{ color: "var(--ed-dim)" }}>
-              {area ? `${area} 큐레이션을 준비하고 있습니다.` : "첫 번째 큐레이션을 준비하고 있습니다."}
+              {area ? `${area} 큐레이션을 준비하고 있어요.` : "첫 번째 큐레이션을 준비하고 있어요."}
             </p>
           ) : (
             <div className={INDEX_GRID_CLASS}>

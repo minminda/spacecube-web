@@ -9,7 +9,7 @@ import ArchiveBottomNav from "@/components/archive/ArchiveBottomNav";
 
 export default async function ArchiveAllPage() {
   const session = await auth();
-  if (!session?.user?.id) redirect("/login");
+  if (!session?.user?.id) redirect("/login?callbackUrl=%2Farchive%2Fall");
 
   const user = await prisma.user.findUnique({ where: { id: session.user.id } });
   if (!user) redirect("/login");

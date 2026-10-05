@@ -2,7 +2,9 @@
 export function formatDotDate(input: Date | string | null | undefined): string {
   if (!input) return "—";
   const d = typeof input === "string" ? new Date(input) : input;
-  return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
+  if (Number.isNaN(d.getTime())) return "—";
+  // 항상 한국 시간 기준 — 서버(UTC)에서 그리면 KST 0~9시 기록이 전날로 보이고, 브라우저 렌더와도 달라진다
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit" }).format(d).replaceAll("-", ".");
 }
 
 /** 알림 목록 등에서 쓰는 상대 시간 표시 — "3시간 전", "1일 전" 처럼 표시하다가 일주일이 지나면 절대 날짜로 전환한다. */

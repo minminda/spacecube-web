@@ -13,7 +13,7 @@ interface Props {
 export default async function RecordDetailPage({ params }: Props) {
   const { recordId } = await params;
   const session = await auth();
-  if (!session?.user?.id) redirect("/login");
+  if (!session?.user?.id) redirect(`/login?callbackUrl=${encodeURIComponent(`/archive/${recordId}`)}`);
 
   const user = await prisma.user.findUnique({ where: { id: session.user.id } });
   if (!user) redirect("/login");
@@ -60,6 +60,7 @@ export default async function RecordDetailPage({ params }: Props) {
             year: "numeric",
             month: "long",
             day: "numeric",
+            timeZone: "Asia/Seoul",
           })}
         </p>
       </div>

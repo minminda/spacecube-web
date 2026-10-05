@@ -73,7 +73,7 @@ export default async function CuratorsPage() {
 
         <section className="ed-container pt-10 md:pt-14">
           {curators.length === 0 ? (
-            <p className="py-8 text-base" style={{ color: "var(--ed-dim)" }}>큐레이터를 준비하고 있습니다.</p>
+            <p className="py-8 text-base" style={{ color: "var(--ed-dim)" }}>큐레이터를 준비하고 있어요.</p>
           ) : (
             <ul className="grid md:grid-cols-2 md:gap-x-12">
               {curators.map((c) => (

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { formatRelativeTime } from "./time";
+import { formatDotDate, formatRelativeTime } from "./time";
 
 const NOW = new Date("2026-07-13T12:00:00.000Z");
 
@@ -18,5 +18,18 @@ describe("formatRelativeTime", () => {
   });
   it("7일 이상이면 절대 날짜(YYYY.MM.DD)", () => {
     expect(formatRelativeTime(new Date("2026-07-01T12:00:00.000Z"), NOW)).toBe("2026.07.01");
+  });
+});
+
+describe("formatDotDate — 한국 시간 기준", () => {
+  it("UTC 전날 밤(=KST 다음날 아침)은 KST 날짜로", () => {
+    expect(formatDotDate(new Date("2026-08-31T16:30:00Z"))).toBe("2026.09.01");
+  });
+  it("UTC 자정 저장 날짜(방문일)는 그대로", () => {
+    expect(formatDotDate(new Date("2026-09-01T00:00:00Z"))).toBe("2026.09.01");
+  });
+  it("없거나 잘못된 값은 —", () => {
+    expect(formatDotDate(null)).toBe("—");
+    expect(formatDotDate("not-a-date")).toBe("—");
   });
 });

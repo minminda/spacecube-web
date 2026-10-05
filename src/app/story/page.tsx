@@ -46,7 +46,7 @@ export default async function StoryHubPage({ searchParams }: Props) {
         <section className="ed-container pt-8 md:pt-12">
           {items.length === 0 ? (
             <p className="text-base py-10" style={{ color: "var(--ed-dim)" }}>
-              {type ? `첫 번째 ${STORY_TYPE_LABEL[type].en} 이야기를 준비하고 있습니다.` : "첫 번째 이야기를 준비하고 있습니다."}
+              {type ? `첫 번째 ${STORY_TYPE_LABEL[type].en} 이야기를 준비하고 있어요.` : "첫 번째 이야기를 준비하고 있어요."}
             </p>
           ) : (
             <div className={INDEX_GRID_CLASS}>

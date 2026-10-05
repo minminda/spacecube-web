@@ -117,7 +117,7 @@ export default async function SpaceDetailPage({ params }: Props) {
                 <p key={i} className="text-base md:text-[17px] leading-[1.85]">{para}</p>
               ))
             ) : (
-              <p className="text-base leading-[1.85]" style={{ color: "var(--ed-dim)" }}>공간 소개를 준비하고 있습니다.</p>
+              <p className="text-base leading-[1.85]" style={{ color: "var(--ed-dim)" }}>공간 소개를 준비하고 있어요.</p>
             )}
             {space.tags && space.tags.length > 0 && (
               <ul className="flex flex-wrap gap-2 pt-2">

@@ -371,7 +371,7 @@ export default function ArchiveAddSheet({ className = "ed-btn ed-btn-primary" }:
 
                   {mine.kind !== "none" && (
                     <p className="text-sm py-3 px-4 leading-relaxed" style={{ background: "var(--ed-soft)" }}>
-                      {mine.kind === "visited" ? `이미 다녀온 공간이에요 · ${mine.visits}번` : "이미 저장한 공간이에요"}
+                      {mine.kind === "visited" ? `이미 다녀온 공간이에요 · ${mine.visits}번` : "이미 가보고 싶은 곳에 있어요"}
                       <span style={{ color: "var(--ed-dim)" }}> · </span>
                       <Link href={`/archive/p/s-${picked.slug}`} onClick={close} className="underline underline-offset-4">기록 보기</Link>
                     </p>

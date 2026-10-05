@@ -78,7 +78,7 @@ export default async function EditorialHome({ admin, previewDrafts, userId }: { 
         ) : (
           <section className="ed-container py-10">
             <p className="ed-label pb-3" style={{ borderBottom: "1px solid var(--ed-fg)" }}>Latest</p>
-            <p className="pt-6 text-base" style={{ color: "var(--ed-dim)" }}>첫 번째 이야기를 준비하고 있습니다.</p>
+            <p className="pt-6 text-base" style={{ color: "var(--ed-dim)" }}>첫 번째 이야기를 준비하고 있어요.</p>
           </section>
         )}
 
@@ -87,7 +87,7 @@ export default async function EditorialHome({ admin, previewDrafts, userId }: { 
           <div className="ed-container py-10 md:py-14">
             <SectionHead label="CURATION" title="지역에서, 어떤 날과 어떤 마음으로 고른 공간" href="/curation" cta="큐레이션 보기" />
             {curationPreview.length === 0 ? (
-              <p className="py-4 text-sm" style={{ color: "var(--ed-dim)" }}>첫 번째 큐레이션을 준비하고 있습니다.</p>
+              <p className="py-4 text-sm" style={{ color: "var(--ed-dim)" }}>첫 번째 큐레이션을 준비하고 있어요.</p>
             ) : (
               <ul className={INDEX_GRID_CLASS}>
                 {curationPreview.map((c) => (
@@ -103,7 +103,7 @@ export default async function EditorialHome({ admin, previewDrafts, userId }: { 
           <div className="ed-container py-10 md:py-14">
             <SectionHead label="STORY · PEOPLE / THOUGHT" title="공간을 통해 사람과 생각을 읽습니다" href="/story" cta="스토리 보기" />
             {storyPreview.length === 0 ? (
-              <p className="py-4 text-sm" style={{ color: "var(--ed-dim)" }}>첫 번째 이야기를 준비하고 있습니다.</p>
+              <p className="py-4 text-sm" style={{ color: "var(--ed-dim)" }}>첫 번째 이야기를 준비하고 있어요.</p>
             ) : (
               <ul className={INDEX_GRID_CLASS}>
                 {storyPreview.map((s) => (

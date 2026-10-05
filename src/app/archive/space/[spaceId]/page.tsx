@@ -14,7 +14,7 @@ interface Props {
 export default async function ArchiveSpaceDetailPage({ params }: Props) {
   const { spaceId } = await params;
   const session = await auth();
-  if (!session?.user?.id) redirect("/login");
+  if (!session?.user?.id) redirect(`/login?callbackUrl=${encodeURIComponent(`/archive/space/${spaceId}`)}`);
 
   const user = await prisma.user.findUnique({ where: { id: session.user.id } });
   if (!user) redirect("/login");

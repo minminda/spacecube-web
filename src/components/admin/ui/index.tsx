@@ -175,7 +175,7 @@ export function AdminButtonLink({ href, variant, size, children, external }: {
 export function FilterBar({ q, placeholder = "검색", children }: { q?: string; placeholder?: string; children?: React.ReactNode }) {
   return (
     <form method="get" className="flex flex-wrap items-center gap-2 mb-4">
-      <input type="search" name="q" defaultValue={q} placeholder={placeholder} className="a-input max-w-xs" />
+      <input type="search" name="q" defaultValue={q} placeholder={placeholder} aria-label={placeholder ?? "검색"} className="a-input max-w-xs" />
       {children}
       <button type="submit" className={adminButtonClass("secondary")}>검색</button>
     </form>

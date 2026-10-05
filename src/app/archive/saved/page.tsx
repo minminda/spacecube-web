@@ -16,7 +16,7 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 
 export default async function ArchiveSavedPage() {
   const session = await auth();
-  if (!session?.user?.id) redirect("/login");
+  if (!session?.user?.id) redirect("/login?callbackUrl=%2Farchive%2Fsaved");
 
   const user = await prisma.user.findUnique({ where: { id: session.user.id } });
   if (!user) redirect("/login");

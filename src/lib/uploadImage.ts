@@ -14,6 +14,10 @@ export interface UploadedImage {
 }
 
 export async function uploadEditorialImage(file: File): Promise<UploadedImage> {
+  // 환경변수가 빠진 배포(로컬 .env 포함)에서 Cloudinary의 영어 오류 대신 무엇이 없는지 바로 알린다
+  if (!process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || !UPLOAD_PRESET) {
+    throw new Error("이미지 업로드 설정이 없어요(NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME / NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET). 배포 환경변수를 확인해주세요.");
+  }
   const compressed = await compressImage(file, 2400, 0.86).catch(() => file);
   const data = new FormData();
   data.append("file", compressed);

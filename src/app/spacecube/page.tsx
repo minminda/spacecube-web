@@ -77,7 +77,7 @@ export default async function SpaceCubeBrandHubPage() {
         <section className="ed-container pt-12 md:pt-16">
           <SectionHead label="Story · People / Thought" title="사람과 공간에서 시작된 이야기" body="한 사람이 머무는 공간(PEOPLE), 하나의 장면에서 시작한 생각(THOUGHT)을 기록합니다." href="/story" cta="스토리 보기" />
           {storyPreview.length === 0 ? (
-            <Empty text="첫 번째 이야기를 준비하고 있습니다." />
+            <Empty text="첫 번째 이야기를 준비하고 있어요." />
           ) : (
             <ul className="grid gap-8 md:grid-cols-3">
               {storyPreview.map((s) => (
@@ -98,7 +98,7 @@ export default async function SpaceCubeBrandHubPage() {
           <div style={{ borderTop: "1px solid var(--ed-line)" }} className="pt-12 md:pt-16">
             <SectionHead label="Curation" title="공간큐브가 직접 고른 공간" body="지역을 기본으로, 어떤 날의 상황(지역 × 상황)이나 하고 싶은 것(지역 × 취향·목적)에서 출발해 공간을 묶습니다." href="/curation" cta="큐레이션 보기" />
             {curationPreview.length === 0 ? (
-              <Empty text="첫 번째 큐레이션을 준비하고 있습니다." />
+              <Empty text="첫 번째 큐레이션을 준비하고 있어요." />
             ) : (
               <div className={INDEX_GRID_CLASS}>
                 {curationPreview.map((c) => <CurationCard key={c.id} c={c} />)}
@@ -112,7 +112,7 @@ export default async function SpaceCubeBrandHubPage() {
           <div style={{ borderTop: "1px solid var(--ed-line)" }} className="pt-12 md:pt-16">
             <SectionHead label="With Gonggancube" title="함께한 공간" body="공간큐브가 실제로 만나고 함께 이야기한 공간들. 이곳들에는 현장에 Cube가 있어요." href="/cube-spaces" cta="함께한 공간 보기" />
             {cubePreview.length === 0 ? (
-              <Empty text="함께한 공간을 준비하고 있습니다." />
+              <Empty text="함께한 공간을 준비하고 있어요." />
             ) : (
               <div className={SPACE_GRID_CLASS}>
                 {cubePreview.map((s) => (
