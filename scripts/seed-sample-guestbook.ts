@@ -18,15 +18,18 @@
  *   - 실제 글은 읽기만 한다(배치할 때 피하는 장애물로만). 수정 · 삭제하는 건 이 작성자의 글뿐이고,
  *     지금 질문에 맞지 않는 예전 샘플(자유 칸 · 바뀐 질문 · 중복)도 공감 · 댓글 · 알림 · 리포트 선정이 하나라도 있으면 지우지 않는다.
  *     이름 정리는 저장된 이름이 "샘플"인 이 작성자의 글만.
+ *   - 좌표(src/lib/sampleGuestbookLayout.ts): 샘플은 world 가운데 50% 안 · 회전 외곽까지 경계 안 · 실제 글/라벨/다른 샘플과 겹치지 않게 둔다.
+ *     이미 안전한 샘플은 그대로, 안전하지 않은 샘플만 note id로 고정된 자리로 옮긴다(실행할 때마다 흔들리지 않음). 실제 글 좌표는 읽기만.
  *
  * 자동 실행: Vercel production 배포 때 npm "postbuild"(scripts/vercel-sync-sample-guestbook.mjs)가 --apply로 실행한다.
  *   반영은 공간별 pg_advisory_xact_lock 트랜잭션 안에서 다시 읽어 계산하므로 배포가 겹쳐도 중복되지 않는다. 실패해도 배포는 막지 않는다.
  */
 import { PrismaClient, type ClusterType, type Prisma } from "@prisma/client";
-import { findFreePosition, clusterLabelRect, POST_IT_WIDTH, POST_IT_HEIGHT, type Rect } from "../src/lib/postitCollision";
 import { ANONYMOUS_NICKNAME } from "../src/lib/anonNickname";
 import { SAMPLE_GUESTBOOK_AUTHOR_EMAIL } from "../src/lib/sampleGuestbookAuthor";
 import { planSampleTopUp } from "../src/lib/sampleGuestbookPlan";
+import { layoutSampleNotes } from "../src/lib/sampleGuestbookLayout";
+import { getVisibleClusters } from "../src/lib/guestbookSession";
 import { SAMPLE_ANSWERS } from "./sample-guestbook-answers";
 
 const prisma = new PrismaClient();
@@ -131,7 +134,7 @@ async function ensureAuthor() {
       await prisma.guestbookNote.updateMany({ where: { userId: authorId!, nickname: LEGACY_NOTE_NICKNAME }, data: { nickname: NOTE_NICKNAME } });
     }
     const now = Date.now();
-    const totals = { spaces: 0, keep: 0, add: 0, stale: 0, staleKept: 0 };
+    const totals = { spaces: 0, keep: 0, add: 0, stale: 0, staleKept: 0, moved: 0 };
 
     for (const space of spaces) {
       const session = await prisma.guestbookSession.findFirst({ where: { spaceId: space.id, status: "ACTIVE" } });
@@ -159,9 +162,12 @@ async function ensureAuthor() {
                 id: true,
                 clusterType: true,
                 content: true,
+                x: true,
+                y: true,
+                rotation: true,
                 _count: { select: { reactions: true, comments: true, notifications: true, featuredIn: true } },
               },
-              orderBy: { createdAt: "asc" },
+              orderBy: [{ createdAt: "asc" }, { id: "asc" }],
             })
           : [];
         const plan = planSampleTopUp({ questions, existing, bank: SAMPLE_ANSWERS, target: TARGET });
@@ -190,43 +196,52 @@ async function ensureAuthor() {
             .join(" · ");
           console.log(`- ${space.name} (${space.slug}): 기존 ${plan.keep.length} + 추가 ${plan.add.length} = ${plan.keep.length + plan.add.length}개 (${byQ})  ${qs}${staleNote}`);
         }
+        // 좌표 정리 · 새 자리 — 실제 글 · 라벨은 장애물로만 읽고, 샘플 좌표만 계산한다(src/lib/sampleGuestbookLayout.ts).
+        // 이미 안전한 샘플은 그대로, 안전하지 않은 샘플만 note id로 고정된 자리로 → 다시 실행해도 좌표가 바뀌지 않는다.
+        const removed = new Set(staleRemovable.map((n) => n.id));
+        const remaining = existing.filter((n) => !removed.has(n.id));
+        const real = await db.guestbookNote.findMany({
+          where: { guestbookSessionId: session.id, deletedAt: null, ...(authorId ? { NOT: { userId: authorId } } : {}) },
+          select: { x: true, y: true, rotation: true, imageUrl: true },
+        });
+        const centers: Record<ClusterType, { x: number; y: number }> = {
+          FREE: { x: session.freeClusterX, y: session.freeClusterY },
+          QUESTION_1: { x: session.question1ClusterX, y: session.question1ClusterY },
+          QUESTION_2: { x: session.question2ClusterX, y: session.question2ClusterY },
+        };
+        const add = plan.status === "ok" ? plan.add : [];
+        const layout = layoutSampleNotes({
+          existing: remaining.map((n) => ({ id: n.id, x: n.x, y: n.y, rotation: n.rotation, clusterType: n.clusterType })),
+          add: add.map((a) => ({ cluster: a.cluster, seed: `${space.id}:${a.cluster}:${a.content}` })),
+          real: real.map((n) => ({ x: n.x, y: n.y, rotation: n.rotation, hasImage: !!n.imageUrl })),
+          clusterCenters: centers,
+          visibleLabels: getVisibleClusters(session).map((c) => ({ x: c.x, y: c.y })),
+        });
+        totals.moved += layout.moves.length;
+        if (layout.moves.length) console.log(`  · 안전하지 않은 위치의 샘플 ${layout.moves.length}개 → 중앙 안전 영역으로 이동${APPLY ? "" : "(미리보기)"}`);
         if (!APPLY) return;
 
         // 지우는 건 이 샘플 작성자(isDemo)의 글뿐 — id와 작성자를 함께 건다
         if (staleRemovable.length) {
           await db.guestbookNote.deleteMany({ where: { id: { in: staleRemovable.map((n) => n.id) }, userId: authorId! } });
         }
-        if (plan.status === "skip" || plan.add.length === 0) return;
-
-        // 장애물: 이 세션에 지금 남아 있는 모든 글(실제 글 + 유지한 샘플) + 보이는 군집 라벨. 실제 글은 읽기만 한다.
-        const placed = await db.guestbookNote.findMany({ where: { guestbookSessionId: session.id, deletedAt: null }, select: { x: true, y: true } });
-        const centers: Record<ClusterType, { x: number; y: number }> = {
-          FREE: { x: session.freeClusterX, y: session.freeClusterY },
-          QUESTION_1: { x: session.question1ClusterX, y: session.question1ClusterY },
-          QUESTION_2: { x: session.question2ClusterX, y: session.question2ClusterY },
-        };
-        const obstacles: Rect[] = [
-          ...placed.map((n) => ({ x: n.x, y: n.y, width: POST_IT_WIDTH, height: POST_IT_HEIGHT })),
-          ...Object.values(centers).map((c) => clusterLabelRect(c)),
-        ];
+        // 옮기는 것도 이 샘플 작성자의 글뿐 — 좌표만 바꾼다
+        for (const m of layout.moves) {
+          await db.guestbookNote.updateMany({ where: { id: m.id, userId: authorId! }, data: { x: m.x, y: m.y } });
+        }
+        if (add.length === 0) return;
 
         // 날짜: 최근 3주(세션 시작 이후)에 흩어 놓는다. 분석에는 들어가지 않는다.
         const from = Math.max(now - 21 * DAY, (session.startsAt ?? session.createdAt).getTime());
         const color = space.guestbookSettings?.defaultPostitColor ?? "#F6E7A8";
         const rows = [];
-        for (const item of plan.add) {
-          const rand = rng(`sample-guestbook:${space.slug}:${item.cluster}:${item.content}`);
-          const c = centers[item.cluster];
-          // 라벨 아래쪽 반원에 흩뿌린 뒤, 실제 캔버스와 같은 규칙(findFreePosition)으로 빈자리를 찾는다
-          const angle = Math.PI * (0.05 + 0.9 * rand());
-          const r = 260 + rand() * 420;
-          const desired = { x: c.x + Math.cos(angle) * r - POST_IT_WIDTH / 2, y: c.y + Math.sin(angle) * r * 0.9 };
-          const spot = findFreePosition(desired, POST_IT_WIDTH, POST_IT_HEIGHT, obstacles);
+        for (const [i, item] of add.entries()) {
+          const spot = layout.placements[i];
           if (!spot) {
             console.log(`  · 자리를 못 찾아 건너뜀: "${item.content}"`);
             continue;
           }
-          obstacles.push({ x: spot.x, y: spot.y, width: POST_IT_WIDTH, height: POST_IT_HEIGHT });
+          const rand = rng(`sample-guestbook:${space.slug}:${item.cluster}:${item.content}`);
           const createdAt = new Date(from + (now - from) * rand());
           rows.push({
             userId: authorId,
@@ -263,6 +278,7 @@ async function ensureAuthor() {
 
     console.log(
       `\n샘플을 채우는 공간 ${totals.spaces}곳 — 유지 ${totals.keep} + 추가 ${totals.add}개` +
+        (totals.moved ? ` · 위치 정리 ${totals.moved}개` : "") +
         (totals.stale || totals.staleKept ? ` · 질문에 안 맞는 예전 샘플 정리 ${totals.stale}개(실제 공감 · 댓글이 있어 유지 ${totals.staleKept}개)` : "") +
         ` ${APPLY ? "— 반영했어요" : "(미리보기 — 반영하려면 --apply)"}`,
     );

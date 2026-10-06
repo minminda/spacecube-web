@@ -26,6 +26,7 @@ import {
   type Rect,
 } from "@/lib/postitCollision";
 import { computeFitToContentViewport, pickHeroPoint } from "@/lib/guestbookViewport";
+import { clampNoteToWorld, noteSafeBounds } from "@/lib/guestbookNoteBounds";
 import { useToast } from "@/hooks/useToast";
 import { formatFetchException } from "@/lib/formatFetchError";
 
@@ -212,7 +213,11 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
     introRanRef.current = true;
 
     const { clientWidth, clientHeight } = viewport;
-    const notePoints = initialNotes.map((n) => ({ x: n.x + NOTE_W / 2, y: n.y + POST_IT_HEIGHT / 2 }));
+    // 화면에 실제로 그려지는 위치(world 경계 안으로 보정된 좌표) 기준으로 맞춘다
+    const notePoints = initialNotes.map((n) => {
+      const p = clampNoteToWorld(n);
+      return { x: p.x + NOTE_W / 2, y: p.y + POST_IT_HEIGHT / 2 };
+    });
     const allPoints = [...clusters.map((c) => ({ x: c.x, y: c.y })), ...notePoints];
 
     const { cx, cy, span } = computeFitToContentViewport(allPoints, { x: WORLD_W / 2, y: WORLD_H / 2 });
@@ -297,7 +302,8 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
 
   /** 특정 포스트잇으로 이동/확대 (딥링크·"내 기록 보기" 등에서 재사용) */
   const jumpToNote = useCallback((note: GuestbookNoteData, scale = 1, duration = 700) => {
-    focusOnPoint(note.x + NOTE_W / 2, note.y + 60, scale, duration);
+    const p = clampNoteToWorld(note);
+    focusOnPoint(p.x + NOTE_W / 2, p.y + 60, scale, duration);
   }, [focusOnPoint]);
 
   useEffect(() => {
@@ -387,10 +393,15 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
     preComposeTransformRef.current = null;
   }
 
-  /** 현재 캔버스에 렌더링되는 모든 포스트잇 + 군집 라벨(고정 오브젝트)을 충돌 검사 대상으로 만든다. */
+  /** 현재 캔버스에 렌더링되는 모든 포스트잇 + 군집 라벨(고정 오브젝트)을 충돌 검사 대상으로 만든다.
+      저장 좌표(서버 검증 기준)와 화면 위치(경계 보정 후)가 다른 글은 두 자리 모두 피한다. */
   function collisionObstacles(): Rect[] {
     return [
-      ...notes.map((n) => ({ x: n.x, y: n.y, width: NOTE_W, height: POST_IT_HEIGHT })),
+      ...notes.flatMap((n) => {
+        const p = clampNoteToWorld(n);
+        const stored = { x: n.x, y: n.y, width: NOTE_W, height: POST_IT_HEIGHT };
+        return p.x === n.x && p.y === n.y ? [stored] : [stored, { ...p, width: NOTE_W, height: POST_IT_HEIGHT }];
+      }),
       ...clusters.map((c) => clusterLabelRect(c)),
     ];
   }
@@ -421,8 +432,10 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
     const wy = (e.clientY - rect.top) / scale;
     const snapped = snapToGrid(wx - NOTE_W / 2, wy - 20);
 
-    const desiredX = Math.min(Math.max(snapped.x, 40), WORLD_W - NOTE_W - 40);
-    const desiredY = Math.min(Math.max(snapped.y, 40), WORLD_H - 220);
+    // 포스트잇 전체(회전 포함)가 world 안에 들어오는 범위로 당긴 뒤, 빈자리 탐색도 그 범위 안에서만 한다(경계에 잘리지 않게)
+    const safe = noteSafeBounds();
+    const desiredX = Math.min(Math.max(snapped.x, safe.minX), safe.maxX);
+    const desiredY = Math.min(Math.max(snapped.y, safe.minY), safe.maxY);
 
     // 기존 포스트잇/고정 오브젝트와 겹치면 가장 가까운 빈 위치를 찾는다 — 중심 좌표가 아니라 실제 영역 기준.
     const found = findFreePosition(
@@ -430,6 +443,7 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
       NOTE_W,
       POST_IT_HEIGHT,
       collisionObstacles(),
+      { bounds: safe },
     );
     if (!found) {
       showToast("이 주변에는 흔적이 가득합니다. 조금 다른 위치를 선택해주세요");
@@ -787,13 +801,15 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
               {allNotes.map((note) => {
                 const mine = note.id === myNoteId;
                 const isNew = !mine && !!note.isNew;
+                // 저장 좌표는 그대로 두고, 그리는 위치만 world 경계 안으로 보정 — 경계에 걸친 예전 글도 잘리지 않게
+                const pos = clampNoteToWorld(note);
                 return (
                   <div
                     key={note.id}
                     className={`absolute p-3 select-none transition-transform ${mine ? "note-glow" : isNew ? "note-new-glow" : ""}`}
                     style={{
-                      left: note.x,
-                      top: note.y,
+                      left: pos.x,
+                      top: pos.y,
                       width: NOTE_W,
                       background: note.color,
                       rotate: `${effectiveRotation(note.rotation)}deg`,
