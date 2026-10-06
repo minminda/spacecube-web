@@ -23,6 +23,9 @@ master(318ecf9) 기준 새 브랜치 `claude/guestbook-dummy-public`. 이전 `cl
   - 답은 질문 문장 기준(`scripts/sample-guestbook-answers.ts`, 질문 15개 × 12개). 보이는 질문이 모음에 없으면 그 공간은 생성 안 하고 로그.
   - 질문 칸에만 생성, 공간당 목표 12개, 부족한 만큼만 추가(멱등). 계획 로직은 순수 함수 `src/lib/sampleGuestbookPlan.ts`.
   - 예전 샘플 중 질문과 안 맞는 글(자유 칸 · 바뀐 질문 · 중복)은 정리하되 실제 방문자 공감 · 댓글이 달린 글은 유지. 샘플 글 이름은 모두 "익명의 방문자"로.
+- 배포와 seed 분리: seed는 선택 사항(빌드 · 배포에 포함 안 됨). seed를 안 돌려도 렌더링 단계에서 실제 공간의 더미 계정 글 이름을
+  "익명의 방문자"로 바꿔 보여준다(`guestbookDisplayNickname` — 방명록 캔버스 · 이전 방명록). 예전 "샘플" 이름이 화면에 나오지 않음.
+- PR #1로 master에 merge.
 
 ## Key files changed
 
@@ -35,12 +38,13 @@ master(318ecf9) 기준 새 브랜치 `claude/guestbook-dummy-public`. 이전 `cl
 ## DB / schema
 
 - Changed: no (스키마 변경 없음)
-- 운영 DB에는 아무것도 실행하지 않음(이 환경에 운영 DATABASE_URL 없음). 반영: `npx tsx --env-file=.env scripts/seed-sample-guestbook.ts`로 미리보기 후 `--apply`.
+- 운영 DB에는 아무것도 실행하지 않음(이 환경에 운영 DATABASE_URL 없음). seed는 선택: `npx tsx --env-file=.env scripts/seed-sample-guestbook.ts`로 미리보기 후 `--apply`.
+- seed 미실행 시: 운영 DB에 이미 있는 예전 샘플(있다면, 자유 칸 감상문 포함)이 그대로 방문자에게 보이고(이름은 익명), 공간당 12개 보강 · 새 질문 답은 생기지 않음.
 
 ## Verification
 
 - TypeScript: `tsc --noEmit` 통과
-- Tests: vitest 61 files / 598 tests 통과(신규 12개)
+- Tests: vitest 61 files / 599 tests 통과(신규 13개)
 - Lint: 변경 파일 eslint 통과
 - Seed + 쿼리: 임시 로컬 Postgres fixture(운영 공간 6 + 모르는 질문 공간 + 비공개 · 시연 · 세션 없는 공간, 실제 글 · 익명 글 · 다른 더미 계정 글 · 예전 샘플)로
   dry-run → `--apply` 2회 → 공간당 12개 고정, 비공개 · 시연 공간 미대상, 모르는 질문/세션 없음은 로그 후 건너뜀,

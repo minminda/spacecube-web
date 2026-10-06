@@ -4,7 +4,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
-import { guestbookVisibleAuthorFilter, previewGuestbookSamples } from "@/lib/demoData";
+import { guestbookDisplayNickname, guestbookVisibleAuthorFilter, previewGuestbookSamples } from "@/lib/demoData";
 import { auth } from "@/auth";
 import { GuestbookSessionStatus, GuestbookFunnelStep } from "@prisma/client";
 import { getVisibleClusters } from "@/lib/guestbookSession";
@@ -232,7 +232,7 @@ export default async function GuestbookPage({ params }: Props) {
     // 실제 공간의 더미 계정 글(방명록 샘플)은 비로그인 글처럼 작성자를 내보내지 않는다 — 내부 구분은 DB(User.isDemo)에만 남긴다
     userId: !space.isDemo && n.user?.isDemo ? undefined : n.userId ?? undefined,
     content: n.content,
-    nickname: n.nickname,
+    nickname: guestbookDisplayNickname(n.nickname, !!n.user?.isDemo, space.isDemo),
     imageUrl: n.imageUrl,
     x: n.x,
     y: n.y,

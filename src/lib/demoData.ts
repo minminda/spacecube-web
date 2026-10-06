@@ -22,6 +22,7 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getAdminUserIds } from "@/lib/kpiEligibility";
 import { SAMPLE_GUESTBOOK_AUTHOR_EMAIL } from "@/lib/sampleGuestbookAuthor";
+import { ANONYMOUS_NICKNAME } from "@/lib/anonNickname";
 
 /** 일반 사용자에게 "목록"으로 노출해도 되는 공간 — 공개 중이고 시연 공간이 아님. */
 export const LISTED_SPACE_WHERE = { isActive: true, isDemo: false } satisfies Prisma.SpaceWhereInput;
@@ -49,6 +50,14 @@ export { SAMPLE_GUESTBOOK_AUTHOR_EMAIL };
 export function guestbookVisibleAuthorFilter(spaceIsDemo: boolean): Prisma.GuestbookNoteWhereInput {
   if (spaceIsDemo) return {};
   return { OR: [{ userId: null }, { user: { isDemo: false } }, { user: { isDemo: true, email: SAMPLE_GUESTBOOK_AUTHOR_EMAIL } }] };
+}
+
+/**
+ * 방문자 화면에 보일 방명록 글 이름 — 실제 공간의 더미 계정 글(방명록 샘플)은 저장된 이름과 무관하게 "익명의 방문자"로 보인다.
+ * 예전 seed가 남긴 샘플은 이름이 "샘플"로 저장돼 있어서, seed를 다시 돌리지 않아도 화면에 그 표시가 나오지 않게 렌더링 단계에서 막는다.
+ */
+export function guestbookDisplayNickname(nickname: string | null, authorIsDemo: boolean, spaceIsDemo: boolean): string | null {
+  return !spaceIsDemo && authorIsDemo ? ANONYMOUS_NICKNAME : nickname;
 }
 
 /**

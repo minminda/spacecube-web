@@ -5,7 +5,7 @@ vi.mock("@/lib/prisma", () => ({
 }));
 vi.mock("@/lib/kpiEligibility", () => ({ getAdminUserIds: vi.fn(async () => new Set(["admin1"])) }));
 
-import { LISTED_SPACE_WHERE, REAL_GUESTBOOK_NOTE_WHERE, SAMPLE_GUESTBOOK_AUTHOR_EMAIL, TASTE_SIGNAL_RECORD_WHERE, guestbookAuthorFilter, guestbookVisibleAuthorFilter, getKpiExcludedUserIds, previewGuestbookSamples } from "./demoData";
+import { LISTED_SPACE_WHERE, REAL_GUESTBOOK_NOTE_WHERE, SAMPLE_GUESTBOOK_AUTHOR_EMAIL, TASTE_SIGNAL_RECORD_WHERE, guestbookAuthorFilter, guestbookDisplayNickname, guestbookVisibleAuthorFilter, getKpiExcludedUserIds, previewGuestbookSamples } from "./demoData";
 
 describe("시연 데이터 제외 정책", () => {
   it("공개 목록은 공개 중이면서 시연 공간이 아닌 공간만", () => {
@@ -53,6 +53,12 @@ describe("시연 데이터 제외 정책", () => {
     expect(JSON.stringify(guestbookAuthorFilter(false))).not.toContain(SAMPLE_GUESTBOOK_AUTHOR_EMAIL);
     // 방문자 화면 필터의 샘플 예외도 isDemo 계정으로만 한정된다(실제 사용자가 같은 이메일을 가질 수 없게)
     expect(guestbookVisibleAuthorFilter(false).OR).toContainEqual({ user: { isDemo: true, email: SAMPLE_GUESTBOOK_AUTHOR_EMAIL } });
+  });
+
+  it("방문자 화면 이름: 실제 공간의 더미 계정 글은 저장된 이름(예전 \"샘플\")과 무관하게 익명 방문자로", () => {
+    expect(guestbookDisplayNickname("샘플", true, false)).toBe("익명의 방문자");
+    expect(guestbookDisplayNickname("실제닉네임", false, false)).toBe("실제닉네임");
+    expect(guestbookDisplayNickname("시연사람", true, true)).toBe("시연사람");
   });
 
   it("운영자 화면 · 포스트잇 수 · 보상 화면은 실제 글만(실제 공간의 샘플 제외, 시연 공간은 그대로)", () => {
