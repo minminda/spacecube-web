@@ -63,17 +63,24 @@ async function ensureAuthor() {
     return found.id;
   }
   const nicknameTaken = await prisma.user.findFirst({ where: { nickname: AUTHOR_NICKNAME }, select: { id: true } });
-  const created = await prisma.user.create({
-    data: {
-      email: AUTHOR_EMAIL,
-      name: AUTHOR_NICKNAME,
-      nickname: nicknameTaken ? null : AUTHOR_NICKNAME,
-      isDemo: true,
-      profilePublic: false, // 프로필 · 사람 추천에 절대 나오지 않게(더미라 원래도 제외)
-    },
-    select: { id: true },
-  });
-  return created.id;
+  try {
+    const created = await prisma.user.create({
+      data: {
+        email: AUTHOR_EMAIL,
+        name: AUTHOR_NICKNAME,
+        nickname: nicknameTaken ? null : AUTHOR_NICKNAME,
+        isDemo: true,
+        profilePublic: false, // 프로필 · 사람 추천에 절대 나오지 않게(더미라 원래도 제외)
+      },
+      select: { id: true },
+    });
+    return created.id;
+  } catch (e) {
+    // 동시에 다른 배포가 먼저 만들었으면(이메일 unique) 그 계정을 쓴다
+    const raced = await findAuthor();
+    if (raced?.isDemo) return raced.id;
+    throw e;
+  }
 }
 
 (async () => {
@@ -255,6 +262,9 @@ async function ensureAuthor() {
         (totals.stale || totals.staleKept ? ` · 질문에 안 맞는 예전 샘플 정리 ${totals.stale}개(실제 공감 · 댓글이 있어 유지 ${totals.staleKept}개)` : "") +
         ` ${APPLY ? "— 반영했어요" : "(미리보기 — 반영하려면 --apply)"}`,
     );
+  } catch (e) {
+    console.error(`[sample-guestbook] 실패 — ${e instanceof Error ? e.message.trim().split("\n").slice(-3).join(" ") : String(e)}`);
+    process.exitCode = 1;
   } finally {
     await prisma.$disconnect();
   }

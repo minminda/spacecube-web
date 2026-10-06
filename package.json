@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "prisma db push && prisma generate && next build",
+    "postbuild": "node scripts/vercel-sync-sample-guestbook.mjs",
     "start": "next start",
     "lint": "eslint",
     "db:push": "prisma db push",
