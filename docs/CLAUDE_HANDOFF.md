@@ -1,6 +1,6 @@
 # Claude Code Latest Handoff
 
-Updated: 2026-10-06
+Updated: 2026-10-06 (자동 seed 추가)
 
 ## Status
 
@@ -26,6 +26,14 @@ master(318ecf9) 기준 새 브랜치 `claude/guestbook-dummy-public`. 이전 `cl
 - 배포와 seed 분리: seed는 선택 사항(빌드 · 배포에 포함 안 됨). seed를 안 돌려도 렌더링 단계에서 실제 공간의 더미 계정 글 이름을
   "익명의 방문자"로 바꿔 보여준다(`guestbookDisplayNickname` — 방명록 캔버스 · 이전 방명록). 예전 "샘플" 이름이 화면에 나오지 않음.
 - PR #1로 master에 merge.
+
+## 자동 seed(production 배포 전용)
+
+- `package.json` "postbuild" → `scripts/vercel-sync-sample-guestbook.mjs`: `VERCEL_ENV=production`일 때만 `seed-sample-guestbook.ts --apply` 실행(Preview · 로컬은 건너뜀).
+  Vercel production의 기존 `DATABASE_URL` 사용. 실패 · 180초 초과여도 로그만 남기고 exit 0(배포 계속, 다음 production 배포 때 재시도).
+- seed: 공간별 `pg_advisory_xact_lock` 트랜잭션(동시 배포에도 중복 없음), 목표 12개까지 부족분만(멱등), 샘플 작성자(isDemo) 글만 생성/정리,
+  이름은 "샘플"인 샘플 글만 "익명의 방문자"로, 질문에 안 맞는 예전 샘플은 공감 · 댓글 · 알림 · 리포트 선정이 없을 때만 삭제.
+- 사용자 승인(2026-10-06): 배포 시 운영 DB 자동 seed 실행 허용.
 
 ## Key files changed
 
