@@ -100,7 +100,7 @@ export default async function GuestbookAdminRoutePage({ params }: Props) {
     }),
   ]);
 
-  // 실제 방문자 글만 센다 — 실제 공간의 UI 검증용 샘플(더미 계정 글)은 제외
+  // 실제 방문자 글만 센다 — 실제 공간의 방명록 샘플(더미 계정 글)은 제외
   const activePostitCount = active ? await prisma.guestbookNote.count({ where: { guestbookSessionId: active.id, ...REAL_GUESTBOOK_NOTE_WHERE } }) : 0;
 
   const settings = normalizeCanvasSettingsRow(settingsRow);

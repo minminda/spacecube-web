@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { formatDotDate } from "@/lib/time";
 import { DEFAULT_SESSION_FIELDS, type GuestbookSessionInput } from "@/lib/guestbookSessionInput";
-import { DEFAULT_CANVAS_SETTINGS, type GuestbookCanvasSettingsInput } from "@/lib/guestbookSettingsInput";
+import { type GuestbookCanvasSettingsInput } from "@/lib/guestbookSettingsInput";
 import GuestbookSessionFieldsEditor from "@/components/guestbook/GuestbookSessionFieldsEditor";
 import GuestbookCanvasSettingsEditor from "@/components/guestbook/GuestbookCanvasSettingsEditor";
 import GuestbookNoteManager from "@/components/guestbook/GuestbookNoteManager";
@@ -41,7 +41,7 @@ export interface GuestbookEditorNote {
   reactionCount: number;
   isHidden: boolean;
   isActive: boolean;
-  /** UI 검증용 샘플(관리자 화면에서만 온다) */
+  /** 방명록 샘플(더미 계정 글) — 관리자 목록에서만 SAMPLE로 구분 */
   sample?: boolean;
 }
 

@@ -20,7 +20,7 @@ interface Note {
   reactionCount: number;
   isHidden: boolean;
   isActive: boolean;
-  /** UI 검증용 샘플(관리자 화면에서만 온다) */
+  /** 방명록 샘플(더미 계정 글) — 관리자 목록에서만 SAMPLE로 구분 */
   sample?: boolean;
 }
 

@@ -207,4 +207,14 @@ It must not inflate:
 - reports
 - real public participation metrics
 
-Do not create fake public engagement that is presented as real visitor activity.
+Do not create fake engagement (reactions, comments, visits, funnel events) or count dummy content as real visitor activity.
+
+### Guestbook sample notes (2026-10-06)
+
+Exception decided by the owner: guestbook sample notes may be shown to regular visitors so a space's guestbook does not look empty.
+
+- Visible on the visitor guestbook canvas and past guestbooks together with real notes, with no "샘플 / SAMPLE / 더미" marker; the author shows as "익명의 방문자".
+- Internally always identifiable: written by one dedicated `User.isDemo` account (`sample-guestbook@spacecube.local`). Only the admin guestbook list marks them SAMPLE.
+- Excluded from KPI, funnel, monthly reports (including reactions on sample notes), recommendation signals, rewards, operator screens/counts and public profiles.
+- Seeded automatically on Vercel production deploys only (`postbuild` → `scripts/seed-sample-guestbook.ts --apply`), for currently operating spaces (`isActive && !isDemo` + ACTIVE guestbook session), answering the session's current questions only, about 12 per space, idempotent. A seed failure never fails the deploy.
+- Real user notes, reactions, comments and visit records are never modified or deleted by the seed.

@@ -56,7 +56,7 @@ const CANDIDATE_SELECT = {
  */
 export async function buildRewardSummary(userId: string, spaceId: string): Promise<RewardSummary> {
   const [postitCount, space, userRecords, unlockSets] = await Promise.all([
-    // 실제 공간이면 더미 계정 글(UI 검증용 샘플)은 세지 않는다
+    // 실제 공간이면 더미 계정 글(방명록 샘플 포함)은 세지 않는다
     prisma.guestbookNote.count({ where: { spaceId, ...REAL_GUESTBOOK_NOTE_WHERE } }),
     prisma.space.findUnique({ where: { id: spaceId }, select: { district: true } }),
     prisma.record.findMany({
