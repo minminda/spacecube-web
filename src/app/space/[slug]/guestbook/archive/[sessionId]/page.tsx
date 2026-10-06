@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
-import { guestbookAuthorFilter } from "@/lib/demoData";
+import { guestbookVisibleAuthorFilter } from "@/lib/demoData";
 import { auth } from "@/auth";
 import { GuestbookSessionStatus } from "@prisma/client";
 import { formatDotDate as formatDate } from "@/lib/time";
@@ -51,8 +51,8 @@ export default async function GuestbookArchiveSessionPage({ params, searchParams
   }
 
   const notes = await prisma.guestbookNote.findMany({
-    // 더미 계정 흔적은 시연 공간에서만 보인다(src/lib/demoData.ts).
-    where: { guestbookSessionId: guestbookSession.id, isHidden: false, deletedAt: null, ...guestbookAuthorFilter(space.isDemo) },
+    // 방문자 캔버스와 같은 기준 — 실제 글 + 방명록 샘플(표시용). 다른 더미 계정 흔적은 시연 공간에서만(src/lib/demoData.ts).
+    where: { guestbookSessionId: guestbookSession.id, isHidden: false, deletedAt: null, ...guestbookVisibleAuthorFilter(space.isDemo) },
     orderBy: { createdAt: "asc" },
     select: {
       id: true,

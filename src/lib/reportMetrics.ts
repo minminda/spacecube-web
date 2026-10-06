@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { getKpiExcludedUserIds } from "@/lib/demoData";
+import { getKpiExcludedUserIds, REAL_GUESTBOOK_NOTE_WHERE } from "@/lib/demoData";
 import { buildHourlyTrend } from "@/lib/reportDateRange";
 
 /* ── 리포트 확장 지표 ────────────────────────────────────────────────
@@ -106,8 +106,9 @@ export async function getExtendedPeriodStats(
       where: { spaceId, visitedAt: { gte: periodStart, lt: periodEnd }, userId: notAdmin },
       select: { tasteScore: true },
     }),
+    // 방문자 화면에 보이는 방명록 샘플(더미 계정 글)에 달린 공감은 실제 참여 지표에 넣지 않는다
     prisma.guestbookReaction.count({
-      where: { post: { spaceId, createdAt: { gte: periodStart, lt: periodEnd } }, ...notAdminOrAnonymousReaction },
+      where: { post: { spaceId, createdAt: { gte: periodStart, lt: periodEnd }, ...REAL_GUESTBOOK_NOTE_WHERE }, ...notAdminOrAnonymousReaction },
     }),
   ]);
 

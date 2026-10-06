@@ -803,14 +803,6 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
                     }}
                     onClick={(e) => { e.stopPropagation(); openFocused(note); }}
                   >
-                    {note.sample && (
-                      <span
-                        className="absolute -top-2 -left-2 text-[9px] font-semibold px-1.5 py-0.5 leading-none"
-                        style={{ background: "#111111", color: "#ffffff" }}
-                      >
-                        샘플
-                      </span>
-                    )}
                     {isNew && (
                       <span
                         className="absolute -top-2 -right-2 text-[9px] font-semibold px-1.5 py-0.5 leading-none"
@@ -1038,9 +1030,6 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
                     <p className="text-sm mt-3" style={{ color: INK_DIM }}>— {focused.nickname}</p>
                   )}
                   <p className="text-xs mt-2" style={{ color: INK_DIM }}>{focused.createdAt}</p>
-                  {focused.sample && (
-                    <p className="text-xs mt-2" style={{ color: INK_DIM }}>샘플 기록 — 화면 확인용이에요. 관리자 · 미리보기에서만 보여요.</p>
-                  )}
 
                   {typeof focused.reactionCount === "number" && (
                     <button
