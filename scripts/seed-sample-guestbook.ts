@@ -1,5 +1,5 @@
 /**
- * 방명록 UI 검증용 샘플 — 활성 Cube 공간(Space.isActive && !isDemo, ACTIVE 방명록 세션이 있는 곳)마다 12~15개.
+ * 방명록 UI 검증용 샘플 — 활성 Cube 공간(Space.isActive && !isDemo, ACTIVE 방명록 세션이 있는 곳)마다 13~15개.
  *   npx tsx --env-file=.env scripts/seed-sample-guestbook.ts            미리보기(DB 변경 없음)
  *   npx tsx --env-file=.env scripts/seed-sample-guestbook.ts --apply    샘플 만들기(몇 번 실행해도 같은 개수 — 기존 샘플을 지우고 다시 만든다)
  *   npx tsx --env-file=.env scripts/seed-sample-guestbook.ts --cleanup  지울 개수 미리보기 / --cleanup --yes 로 샘플과 샘플 작성자 계정만 지우기
@@ -28,162 +28,192 @@ const AUTHOR_NICKNAME = "방명록샘플";
 const NOTE_NICKNAME = ANONYMOUS_NICKNAME;
 const MAX_LEN = 80; // GuestbookNote.content VarChar(80)
 
-type Notes = Partial<Record<ClusterType, string[]>>;
+/** 한 질문과 그 질문에 대한 답들 — question은 현재 ACTIVE 세션의 질문과 글자 그대로 같아야 한다 */
+type QuestionAnswers = { question: string; answers: string[] };
 
-/** 공간별: 확인용 질문(현재 세션과 같아야 실행) + 군집별 샘플 문장(짧음 · 중간 · 2~3문장, 말투 섞음) */
-const SAMPLES: Record<string, { q1: string | null; q2: string | null; notes: Notes }> = {
+/**
+ * 공간별 샘플 — 질문 1 · 질문 2 칸은 그 질문에 대한 답으로만 쓴다.
+ *   question1 / question2: GuestbookSession.question1 / question2(ACTIVE 세션)와 같은 질문 + 그 답. 질문이 없는 공간은 null.
+ *   free: 질문 없는 자유 칸 글(기존 문장만 — 새로 늘릴 때는 질문 칸에 답으로 추가한다).
+ * 운영에서 질문을 바꾸면 그 공간은 자동으로 건너뛰므로, 여기서 question과 answers를 같이 고치면 된다.
+ * 말투: 20~30대 방문자가 짧게 남긴 느낌 — 답이 먼저, 짧은 답 · 한두 문장 · 구체적인 장면 섞기, 광고 · 과장 표현 없이.
+ */
+type SpaceSamples = { question1: QuestionAnswers | null; question2: QuestionAnswers | null; free: string[] };
+
+const SAMPLES: Record<string, SpaceSamples> = {
   "booknook-yeonnam": {
-    q1: "요즘 고민은 무엇인가요?",
-    q2: "다시금 힘을 낼 수 있는 나만의 방법은 무엇인가요?",
-    notes: {
-      QUESTION_1: [
+    question1: {
+      question: "요즘 고민은 무엇인가요?",
+      answers: [
         "이직을 할지 말지.",
         "하고 싶은 일과 잘하는 일 사이에서 아직 고르는 중이에요.",
         "요즘은 쉬는 법을 잊어버린 것 같아요. 여기서 한 시간 동안 아무것도 안 하다가 그게 고민이었구나 했습니다.",
+        "돈 모으기… 생각보다 잘 안 모여요.",
+        "회사 사람들이랑 적당히 거리 두는 법이요.",
+        "자취 시작했는데 밥 챙겨 먹는 게 제일 어렵네요.",
       ],
-      QUESTION_2: [
+    },
+    question2: {
+      question: "다시금 힘을 낼 수 있는 나만의 방법은 무엇인가요?",
+      answers: [
         "좋아하는 책 첫 장 다시 읽기",
         "혼자 조용한 곳에 앉아 있기. 오늘처럼요.",
         "산책하고 따뜻한 차 한 잔. 생각보다 별거 아닌 게 힘이 되더라고요.",
         "일기를 써요. 잘 안 풀린 날도 한 줄은 남겨두면 다음 날 조금 덜 무거워요.",
         "푹 자기",
-      ],
-      FREE: [
-        "조용히 책 읽다가 갑니다.",
-        "꼭 책을 읽지 않아도 괜찮다는 말이 좋았어요. 오늘은 창밖만 오래 봤어요.",
-        "책장 넘기는 소리만 들리는 게 좋았어요.",
-        "읽다 만 책이 있어서 다음에 마저 읽으러 올게요.",
-        "비 오는 날 오니까 더 좋네요",
+        "주말 하루는 약속 없이 통째로 비워둬요.",
       ],
     },
+    free: [
+      "조용히 책 읽다가 갑니다.",
+      "꼭 책을 읽지 않아도 괜찮다는 말이 좋았어요. 오늘은 창밖만 오래 봤어요.",
+    ],
   },
   "inner-discovery": {
-    q1: "어떤 시간을 가지셨나요?",
-    q2: "어떤 커피를 드셨나요?",
-    notes: {
-      QUESTION_1: [
+    question1: {
+      question: "어떤 시간을 가지셨나요?",
+      answers: [
         "생각 정리하는 시간",
         "오랜만에 휴대폰을 거의 안 보고 앉아 있었어요.",
         "커피 한 잔 마시는 동안 나에 대해 생각해봤어요. 거창하진 않았지만 그래서 좋았습니다.",
         "친구랑 왔는데 서로 말없이 각자 시간을 보냈다. 그게 어색하지 않았음",
+        "밀린 카톡 답장 하나씩 보내는 시간이요.",
+        "다이어리 펴놓고 다음 달 계획 세웠어요.",
+        "그냥 멍 때렸어요. 진짜 오랜만에",
       ],
-      QUESTION_2: [
+    },
+    question2: {
+      question: "어떤 커피를 드셨나요?",
+      answers: [
         "따뜻한 라떼",
         "산미 있는 핸드드립이요. 천천히 마시기 좋았어요.",
         "아이스 아메리카노. 날이 덥진 않았는데 그냥 시원한 게 마시고 싶었어요.",
         "디카페인 라떼요. 저녁이라서",
-      ],
-      FREE: [
-        "사라진 다리 이야기를 읽고 나니 동네가 조금 다르게 보이네요.",
-        "남이 보는 나와 내가 보는 나 사이. 오늘은 그 사이를 조금 걸어본 기분이에요.",
-        "다음엔 혼자 와볼게요",
-        "말없이 앉아 있어도 편한 곳이네요.",
-        "생각이 많을 때 오면 좋을 것 같아요.",
-        "오늘 하루 중 제일 느리게 흘러간 시간이었어요.",
+        "바닐라라떼. 단 게 당기는 날이었어요",
       ],
     },
+    free: [
+      "사라진 다리 이야기를 읽고 나니 동네가 조금 다르게 보이네요.",
+      "남이 보는 나와 내가 보는 나 사이. 오늘은 그 사이를 조금 걸어본 기분이에요.",
+      "다음엔 혼자 와볼게요",
+    ],
   },
   "turndown-service": {
-    q1: "좋아하는 음악이 있나요?",
-    q2: null,
-    notes: {
-      QUESTION_1: [
+    question1: {
+      question: "좋아하는 음악이 있나요?",
+      answers: [
         "재즈 피아노",
         "비 오는 날엔 오래된 가요를 들어요. 여기서 LP로 들으니 더 좋았어요.",
         "요즘은 가사 없는 음악만 들어요. 생각할 틈이 생겨서요.",
         "아빠가 듣던 노래를 여기서 우연히 들었어요. 제목은 몰라도 멜로디는 기억나더라고요. 반가웠습니다.",
         "시티팝!",
-        "요즘은 계속 같은 앨범만 돌려 들어요. 질릴 때까지 들어보려고요.",
-        "영화 OST요. 그 장면이 같이 떠올라서 좋아요.",
-      ],
-      FREE: [
-        "음악 들으면서 책 반 권 읽고 갑니다.",
-        "판 바뀌는 소리까지 좋았어요",
-        "조용히 음악 듣다 가기 좋은 곳이에요. 다음엔 좋아하는 앨범이 있는지 여쭤볼게요.",
-        "모르는 노래인데 계속 생각나요.",
-        "LP로 듣는 건 처음이었는데 소리가 생각보다 따뜻했어요.",
-        "혼자 왔는데 전혀 심심하지 않았어요. 또 올게요.",
+        "요즘은 같은 앨범만 계속 돌려 들어요. 질릴 때까지 들어보려고요.",
+        "영화 OST요. 들으면 그 장면이 같이 떠올라서요.",
+        "새벽에 듣는 인디 밴드 노래들",
+        "보사노바. 틀어두면 방 공기가 좀 느슨해지는 느낌이라",
+        "하나만 꼽긴 어렵고, 요즘은 출근길 플레이리스트가 제일 좋아요.",
       ],
     },
+    question2: null,
+    free: [
+      "음악 들으면서 책 반 권 읽고 갑니다.",
+      "판 바뀌는 소리까지 좋았어요",
+      "조용히 음악 듣다 가기 좋은 곳이에요. 다음엔 좋아하는 앨범이 있는지 여쭤볼게요.",
+    ],
   },
   dasijeom: {
-    q1: "이곳에서 문득 떠오른 사람이 있나요?",
-    q2: "요즘 나를 가장 나답게 만드는 것이 있나요?",
-    notes: {
-      QUESTION_1: [
+    question1: {
+      question: "이곳에서 문득 떠오른 사람이 있나요?",
+      answers: [
         "엄마",
         "같이 영화 보던 친구가 떠올랐어요. 연락 한번 해봐야겠어요.",
         "아버지와 다시 찾아왔다는 이야기를 읽고 저도 아빠 생각이 났습니다. 이번 주말엔 전화드리려고요.",
         "고등학교 때 단짝. 잘 지내고 있으려나",
+        "할머니요. 이렇게 조용한 데 좋아하셨거든요.",
       ],
-      QUESTION_2: [
+    },
+    question2: {
+      question: "요즘 나를 가장 나답게 만드는 것이 있나요?",
+      answers: [
         "아침 산책",
         "좋아하는 영화를 몇 번이고 다시 보는 것. 볼 때마다 다른 장면이 남아요.",
         "필름 카메라요. 다 찍고 나서야 뭘 찍었는지 알게 되는 게 좋아요.",
-        "퇴근 후 혼자 걷는 30분",
-      ],
-      FREE: [
-        "취향을 발견하는 게 나를 발견하는 일이라는 말, 오래 기억할 것 같아요.",
-        "오늘은 시선을 안쪽으로 돌려본 날",
-        "생각보다 오래 머물렀어요. 창가 자리가 특히 좋았습니다.",
-        "혼자 와도 어색하지 않았어요.",
-        "다음엔 엄마랑 같이 와야겠어요.",
+        "퇴근하고 혼자 걷는 30분",
+        "주말마다 하는 요리요. 망쳐도 그게 또 재밌어요.",
       ],
     },
+    free: [
+      "취향을 발견하는 게 나를 발견하는 일이라는 말, 오래 기억할 것 같아요.",
+      "오늘은 시선을 안쪽으로 돌려본 날",
+      "생각보다 오래 머물렀어요. 창가 자리가 특히 좋았습니다.",
+    ],
   },
   nokhwabutton: {
-    q1: "당신은 언제 녹화버튼을 누르시나요?",
-    q2: "촬영 후, 나에게 어떤 경험이 좋았나요?",
-    notes: {
-      QUESTION_1: [
+    question1: {
+      question: "당신은 언제 녹화버튼을 누르시나요?",
+      answers: [
         "아이가 웃을 때",
         "여행 첫날 아침이요. 아직 아무 일도 안 일어났을 때가 제일 설레서요.",
         "친구들이랑 별 얘기 안 할 때. 나중에 보면 그런 장면이 제일 좋더라고요.",
         "노을 질 때 꼭 눌러요",
-        "강아지가 뛰어올 때요. 매번 흔들려서 제대로 찍힌 적은 없어요.",
+        "강아지가 저 보고 뛰어올 때요. 매번 흔들려서 제대로 찍힌 적은 없어요.",
+        "친구 생일 케이크 들고 들어갈 때!",
       ],
-      QUESTION_2: [
+    },
+    question2: {
+      question: "촬영 후, 나에게 어떤 경험이 좋았나요?",
+      answers: [
         "다시 보니까 그날 공기까지 기억났어요.",
         "화질이 선명하지 않아서 오히려 좋았어요. 기억이랑 비슷한 느낌이라서요.",
         "찍을 땐 몰랐는데 영상 속 내 목소리가 꽤 즐거워 보였다. 그날 좋았구나 싶음",
-        "화면 대신 눈으로 더 많이 보게 됐어요.",
-      ],
-      FREE: [
-        "캠코더 고르는 데 한참 걸렸어요. 모델명 대신 감상이 적혀 있어서 고르기 편했습니다.",
-        "다음엔 가족이랑 같이 빌리러 올게요.",
-        "녹화 버튼 누르는 손맛이 있네요",
-        "어릴 때 집에 있던 캠코더랑 비슷해서 반가웠어요.",
-        "배터리 다 쓸 때까지 찍었어요 ㅎㅎ",
+        "같이 간 친구랑 영상 돌려 보면서 한참 웃었어요.",
+        "찍는 동안 오히려 그 장면을 더 오래 보게 된 거요.",
       ],
     },
+    free: [
+      "캠코더 고르는 데 한참 걸렸어요. 모델명 대신 감상이 적혀 있어서 고르기 편했습니다.",
+      "다음엔 가족이랑 같이 빌리러 올게요.",
+      "녹화 버튼 누르는 손맛이 있네요",
+    ],
   },
   "aka-coffee-room": {
-    q1: "오늘, 당신의 행복은 무엇인가요?",
-    q2: "공간에서 처음 느낀 감정은 무엇인가요?",
-    notes: {
-      QUESTION_1: [
+    question1: {
+      question: "오늘, 당신의 행복은 무엇인가요?",
+      answers: [
         "따뜻한 커피 한 잔",
         "오랜만에 친구랑 마주 앉아 웃은 것.",
         "퇴근길에 잠깐 들러서 아무 생각 없이 앉아 있는 이 시간이요. 오늘은 이걸로 충분해요.",
         "날씨가 좋았다. 그거면 됐다",
-        "미뤄둔 일을 하나 끝냈어요.",
+        "미뤄둔 일 하나 끝낸 거요.",
         "점심 맛있게 먹은 것",
+        "오늘 퇴근 30분 일찍 했어요 ㅎㅎ",
       ],
-      QUESTION_2: [
+    },
+    question2: {
+      question: "공간에서 처음 느낀 감정은 무엇인가요?",
+      answers: [
         "편안함",
         "문 열고 들어왔을 때 조금 설렜어요.",
         "처음인데 오래 다닌 곳처럼 익숙했어요. 이유는 잘 모르겠지만 마음이 놓였습니다.",
-        "조용해서 조금 긴장했다가 금방 풀렸어요.",
-      ],
-      FREE: [
-        "조금 아쉬운 채로 돌아갑니다. 그래서 또 올 것 같아요.",
-        "행복하세요, 라는 말에 괜히 기분이 좋아졌어요.",
-        "다음 주에 또 올 것 같아요",
-        "커피 마시면서 한참 멍하니 있었어요.",
+        "약간 긴장? 너무 조용해서요. 금방 풀리긴 했어요.",
+        "반가움. 예전에 자주 가던 카페가 생각났어요.",
       ],
     },
+    free: [
+      "조금 아쉬운 채로 돌아갑니다. 그래서 또 올 것 같아요.",
+      "행복하세요, 라는 말에 괜히 기분이 좋아졌어요.",
+    ],
   },
 };
+
+/** 배치 계획 — 질문 칸 답 + 자유 칸 글을 군집과 함께 펼친다 */
+function planFor(def: SpaceSamples): { cluster: ClusterType; content: string }[] {
+  return [
+    ...(def.question1?.answers ?? []).map((content) => ({ cluster: "QUESTION_1" as const, content })),
+    ...(def.question2?.answers ?? []).map((content) => ({ cluster: "QUESTION_2" as const, content })),
+    ...def.free.map((content) => ({ cluster: "FREE" as const, content })),
+  ];
+}
 
 /* ── 재현 가능한 난수(같은 공간이면 실행할 때마다 같은 배치 · 날짜) ── */
 function rng(seedText: string) {
@@ -227,9 +257,7 @@ async function ensureAuthor() {
   try {
     // 문장 길이 확인(VarChar 80)
     for (const [slug, s] of Object.entries(SAMPLES)) {
-      for (const list of Object.values(s.notes)) {
-        for (const t of list!) if (t.length > MAX_LEN) throw new Error(`${slug}: ${MAX_LEN}자 초과 문장 — "${t}"`);
-      }
+      for (const { content } of planFor(s)) if (content.length > MAX_LEN) throw new Error(`${slug}: ${MAX_LEN}자 초과 문장 — "${content}"`);
     }
 
     if (CLEANUP) {
@@ -266,15 +294,17 @@ async function ensureAuthor() {
         console.log(`- ${space.name}: ${!def ? "샘플 문장 없음" : "진행 중인 방명록 없음"} — 건너뜀`);
         continue;
       }
-      if ((session.question1 ?? null) !== def.q1 || (session.question2 ?? null) !== def.q2) {
+      const q1 = def.question1?.question ?? null;
+      const q2 = def.question2?.question ?? null;
+      if ((session.question1 ?? null) !== q1 || (session.question2 ?? null) !== q2) {
         console.log(`- ${space.name}: 방명록 질문이 바뀌어 건너뜀(현재: ${session.question1} / ${session.question2})`);
         continue;
       }
 
       const existingSamples = author ? await prisma.guestbookNote.count({ where: { spaceId: space.id, userId: author } }) : 0;
-      const plan = (Object.entries(def.notes) as [ClusterType, string[]][]).flatMap(([cluster, list]) => list.map((content) => ({ cluster, content })));
+      const plan = planFor(def);
       total += plan.length;
-      console.log(`- ${space.name}: 샘플 ${plan.length}개 (기존 샘플 ${existingSamples}개 → 지우고 다시)  Q1 "${def.q1}"${def.q2 ? ` · Q2 "${def.q2}"` : ""}`);
+      console.log(`- ${space.name}: 샘플 ${plan.length}개 (기존 샘플 ${existingSamples}개 → 지우고 다시)  Q1 "${q1}"${q2 ? ` · Q2 "${q2}"` : ""}`);
       if (!APPLY || !author) continue;
 
       // 같은 공간의 기존 샘플만 지운다(이 작성자의 글만 — 실제 글은 조건에 걸릴 수 없다)
