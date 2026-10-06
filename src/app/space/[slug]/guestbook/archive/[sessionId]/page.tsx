@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
-import { guestbookAuthorFilter } from "@/lib/demoData";
+import { guestbookDisplayNickname, guestbookVisibleAuthorFilter } from "@/lib/demoData";
 import { auth } from "@/auth";
 import { GuestbookSessionStatus } from "@prisma/client";
 import { formatDotDate as formatDate } from "@/lib/time";
@@ -51,13 +51,14 @@ export default async function GuestbookArchiveSessionPage({ params, searchParams
   }
 
   const notes = await prisma.guestbookNote.findMany({
-    // 더미 계정 흔적은 시연 공간에서만 보인다(src/lib/demoData.ts).
-    where: { guestbookSessionId: guestbookSession.id, isHidden: false, deletedAt: null, ...guestbookAuthorFilter(space.isDemo) },
+    // 방문자 캔버스와 같은 기준 — 실제 글 + 방명록 샘플(표시용). 다른 더미 계정 흔적은 시연 공간에서만(src/lib/demoData.ts).
+    where: { guestbookSessionId: guestbookSession.id, isHidden: false, deletedAt: null, ...guestbookVisibleAuthorFilter(space.isDemo) },
     orderBy: { createdAt: "asc" },
     select: {
       id: true,
       content: true,
       nickname: true,
+      user: { select: { isDemo: true } },
       createdAt: true,
       _count: { select: { reactions: true, comments: true } },
       reactions: user ? { where: { userId: user.id }, select: { id: true } } : false,
@@ -95,7 +96,7 @@ export default async function GuestbookArchiveSessionPage({ params, searchParams
           notes={notes.map((n) => ({
             id: n.id,
             content: n.content,
-            nickname: n.nickname,
+            nickname: guestbookDisplayNickname(n.nickname, !!n.user?.isDemo, space.isDemo),
             createdAt: formatDate(n.createdAt),
             reactionCount: n._count.reactions,
             reactedByMe: Array.isArray(n.reactions) && n.reactions.length > 0,

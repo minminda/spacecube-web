@@ -5,7 +5,7 @@ vi.mock("@/lib/prisma", () => ({
 }));
 vi.mock("@/lib/kpiEligibility", () => ({ getAdminUserIds: vi.fn(async () => new Set(["admin1"])) }));
 
-import { LISTED_SPACE_WHERE, REAL_GUESTBOOK_NOTE_WHERE, TASTE_SIGNAL_RECORD_WHERE, guestbookAuthorFilter, getKpiExcludedUserIds, previewGuestbookSamples } from "./demoData";
+import { LISTED_SPACE_WHERE, REAL_GUESTBOOK_NOTE_WHERE, SAMPLE_GUESTBOOK_AUTHOR_EMAIL, TASTE_SIGNAL_RECORD_WHERE, guestbookAuthorFilter, guestbookDisplayNickname, guestbookVisibleAuthorFilter, getKpiExcludedUserIds, previewGuestbookSamples } from "./demoData";
 
 describe("시연 데이터 제외 정책", () => {
   it("공개 목록은 공개 중이면서 시연 공간이 아닌 공간만", () => {
@@ -28,19 +28,37 @@ describe("시연 데이터 제외 정책", () => {
     expect([...(await getKpiExcludedUserIds())].sort()).toEqual(["admin1", "demo1", "demo2"]);
   });
 
-  it("방명록 샘플(더미 계정 글)은 운영의 일반 방문자에게 안 보이고 관리자 · 로컬 개발 미리보기에서만", () => {
+  it("일반 방문자 방명록 화면: 실제 공간에서 실제 글 + 방명록 샘플 계정 글만 보이고, 다른 더미 계정 글은 빠진다", () => {
     const env = process.env.NODE_ENV;
     try {
       (process.env as Record<string, string>).NODE_ENV = "production";
       expect(previewGuestbookSamples(false)).toBe(false);
       expect(previewGuestbookSamples(true)).toBe(true);
-      // 운영 방문자 화면 필터 = guestbookAuthorFilter(space.isDemo || 미리보기) → 실제 공간에서는 샘플 제외
-      expect(guestbookAuthorFilter(false || previewGuestbookSamples(false))).toEqual({ OR: [{ userId: null }, { user: { isDemo: false } }] });
+      // 운영 방문자 화면 필터 = guestbookVisibleAuthorFilter(space.isDemo || 미리보기)
+      expect(guestbookVisibleAuthorFilter(false || previewGuestbookSamples(false))).toEqual({
+        OR: [{ userId: null }, { user: { isDemo: false } }, { user: { isDemo: true, email: SAMPLE_GUESTBOOK_AUTHOR_EMAIL } }],
+      });
+      // 관리자 · 시연 공간은 모든 더미 흔적까지
+      expect(guestbookVisibleAuthorFilter(true)).toEqual({});
       (process.env as Record<string, string>).NODE_ENV = "development";
       expect(previewGuestbookSamples(false)).toBe(true);
     } finally {
       (process.env as Record<string, string>).NODE_ENV = env as string;
     }
+  });
+
+  it("방명록 샘플 계정도 더미(isDemo)라 집계 · 운영자 화면 필터에서는 그대로 빠진다", () => {
+    // 집계 · 운영자 화면은 isDemo로만 거른다 — 샘플 계정 이메일 예외가 섞이면 안 된다
+    expect(JSON.stringify(REAL_GUESTBOOK_NOTE_WHERE)).not.toContain(SAMPLE_GUESTBOOK_AUTHOR_EMAIL);
+    expect(JSON.stringify(guestbookAuthorFilter(false))).not.toContain(SAMPLE_GUESTBOOK_AUTHOR_EMAIL);
+    // 방문자 화면 필터의 샘플 예외도 isDemo 계정으로만 한정된다(실제 사용자가 같은 이메일을 가질 수 없게)
+    expect(guestbookVisibleAuthorFilter(false).OR).toContainEqual({ user: { isDemo: true, email: SAMPLE_GUESTBOOK_AUTHOR_EMAIL } });
+  });
+
+  it("방문자 화면 이름: 실제 공간의 더미 계정 글은 저장된 이름(예전 \"샘플\")과 무관하게 익명 방문자로", () => {
+    expect(guestbookDisplayNickname("샘플", true, false)).toBe("익명의 방문자");
+    expect(guestbookDisplayNickname("실제닉네임", false, false)).toBe("실제닉네임");
+    expect(guestbookDisplayNickname("시연사람", true, true)).toBe("시연사람");
   });
 
   it("운영자 화면 · 포스트잇 수 · 보상 화면은 실제 글만(실제 공간의 샘플 제외, 시연 공간은 그대로)", () => {

@@ -4,7 +4,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
-import { guestbookAuthorFilter, previewGuestbookSamples } from "@/lib/demoData";
+import { guestbookDisplayNickname, guestbookVisibleAuthorFilter, previewGuestbookSamples } from "@/lib/demoData";
 import { auth } from "@/auth";
 import { GuestbookSessionStatus, GuestbookFunnelStep } from "@prisma/client";
 import { getVisibleClusters } from "@/lib/guestbookSession";
@@ -171,8 +171,8 @@ export default async function GuestbookPage({ params }: Props) {
   const previewSamples = previewGuestbookSamples(isAdmin(session?.user?.email));
   const [dbNotes, settingsRow, commentedThisVisitCount] = await Promise.all([
     prisma.guestbookNote.findMany({
-      // 더미 계정 흔적은 시연 공간에서만 보인다(src/lib/demoData.ts). 실제 공간의 UI 검증용 샘플은 관리자 · 로컬 개발 미리보기에서만.
-      where: { guestbookSessionId: activeSession.id, isHidden: false, deletedAt: null, ...guestbookAuthorFilter(space.isDemo || previewSamples) },
+      // 실제 공간이면 실제 글 + 방명록 샘플(표시용)만. 다른 더미 계정 흔적은 시연 공간 · 관리자 · 로컬 개발 미리보기에서만(src/lib/demoData.ts).
+      where: { guestbookSessionId: activeSession.id, isHidden: false, deletedAt: null, ...guestbookVisibleAuthorFilter(space.isDemo || previewSamples) },
       orderBy: { createdAt: "asc" },
       select: {
         id: true, userId: true, anonId: true, recordId: true, content: true, nickname: true, imageUrl: true,
@@ -229,9 +229,10 @@ export default async function GuestbookPage({ params }: Props) {
 
   const initialNotes: GuestbookNoteData[] = dbNotes.map((n) => ({
     id: n.id,
-    userId: n.userId ?? undefined,
+    // 실제 공간의 더미 계정 글(방명록 샘플)은 비로그인 글처럼 작성자를 내보내지 않는다 — 내부 구분은 DB(User.isDemo)에만 남긴다
+    userId: !space.isDemo && n.user?.isDemo ? undefined : n.userId ?? undefined,
     content: n.content,
-    nickname: n.nickname,
+    nickname: guestbookDisplayNickname(n.nickname, !!n.user?.isDemo, space.isDemo),
     imageUrl: n.imageUrl,
     x: n.x,
     y: n.y,
@@ -242,8 +243,6 @@ export default async function GuestbookPage({ params }: Props) {
     reactionCount: n._count.reactions,
     reactedByMe: Array.isArray(n.reactions) && n.reactions.length > 0,
     commentCount: n._count.comments,
-    // 실제 공간에 섞여 보이는 더미 계정 글 = UI 검증용 샘플(미리보기에서만 여기까지 온다)
-    sample: !space.isDemo && !!n.user?.isDemo,
   }));
 
   const clusters = getVisibleClusters(activeSession);
