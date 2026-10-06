@@ -2,9 +2,8 @@
 
 import { POST_IT_WIDTH } from "@/lib/postitCollision";
 
-// 정사각형 + 대폭 확장 — 상하좌우 어느 방향으로도 동일하게 자유로운 팬
-export const WORLD_W = 5000;
-export const WORLD_H = 5000;
+// 정사각형 + 대폭 확장 — 상하좌우 어느 방향으로도 동일하게 자유로운 팬. 크기는 경계 보정과 같은 값을 써야 하므로 guestbookNoteBounds.ts가 단일 출처
+export { WORLD_W, WORLD_H } from "@/lib/guestbookNoteBounds";
 export const NOTE_W = POST_IT_WIDTH; // 충돌 판정과 같은 값을 써야 하므로 postitCollision.ts를 단일 출처로 재사용
 export const POSTIT_COLOR = "#F6E7A8"; // MVP 대표 노란색 (따뜻한 베이지 노랑)
 

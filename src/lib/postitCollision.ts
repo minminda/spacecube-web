@@ -72,6 +72,8 @@ export interface FindFreePositionOptions {
   /** 최대 탐색 링 수 — 이 범위 안에서 빈 자리를 못 찾으면 실패(null). */
   maxRings?: number;
   gap?: number;
+  /** 허용되는 top-left 범위(포함). 주면 이 밖의 후보는 고르지 않고, 원하는 위치도 먼저 이 안으로 당긴다 — world 경계에 잘리지 않게. */
+  bounds?: { minX: number; minY: number; maxX: number; maxY: number };
 }
 
 /**
@@ -89,8 +91,11 @@ export function findFreePosition(
   const step = options.step ?? width + POST_IT_GAP;
   const maxRings = options.maxRings ?? 10;
   const gap = options.gap ?? POST_IT_GAP;
+  const b = options.bounds;
+  if (b) desired = { x: Math.min(Math.max(desired.x, b.minX), b.maxX), y: Math.min(Math.max(desired.y, b.minY), b.maxY) };
+  const inBounds = (p: Point) => !b || (p.x >= b.minX && p.x <= b.maxX && p.y >= b.minY && p.y <= b.maxY);
 
-  const fits = (p: Point) => !hasCollision({ x: p.x, y: p.y, width, height }, obstacles, gap);
+  const fits = (p: Point) => inBounds(p) && !hasCollision({ x: p.x, y: p.y, width, height }, obstacles, gap);
 
   if (fits(desired)) return desired;
 

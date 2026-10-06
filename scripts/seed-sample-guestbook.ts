@@ -27,6 +27,7 @@ import { findFreePosition, clusterLabelRect, POST_IT_WIDTH, POST_IT_HEIGHT, type
 import { ANONYMOUS_NICKNAME } from "../src/lib/anonNickname";
 import { SAMPLE_GUESTBOOK_AUTHOR_EMAIL } from "../src/lib/sampleGuestbookAuthor";
 import { planSampleTopUp } from "../src/lib/sampleGuestbookPlan";
+import { centerBiased, centralBounds, noteSafeBounds } from "../src/lib/guestbookNoteBounds";
 import { SAMPLE_ANSWERS } from "./sample-guestbook-answers";
 
 const prisma = new PrismaClient();
@@ -41,6 +42,17 @@ const NOTE_NICKNAME = ANONYMOUS_NICKNAME;
 /** 예전 seed가 쓰던 포스트잇 이름 — 이 이름인 샘플만 NOTE_NICKNAME으로 바꾼다 */
 const LEGACY_NOTE_NICKNAME = "샘플";
 const MAX_LEN = 80; // GuestbookNote.content VarChar(80)
+/** 새 샘플을 놓을 수 있는 top-left 범위 — world 가운데 70% ∩ 경계에 잘리지 않는 안전 범위 */
+const PLACEMENT_BOUNDS = (() => {
+  const central = centralBounds(0.7);
+  const safe = noteSafeBounds();
+  return {
+    minX: Math.max(central.minX, safe.minX),
+    minY: Math.max(central.minY, safe.minY),
+    maxX: Math.min(central.maxX, safe.maxX),
+    maxY: Math.min(central.maxY, safe.maxY),
+  };
+})();
 
 /* ── 재현 가능한 난수(같은 공간 · 같은 문장이면 실행할 때마다 같은 배치 · 날짜) ── */
 function rng(seedText: string) {
@@ -218,10 +230,12 @@ async function ensureAuthor() {
           const rand = rng(`sample-guestbook:${space.slug}:${item.cluster}:${item.content}`);
           const c = centers[item.cluster];
           // 라벨 아래쪽 반원에 흩뿌린 뒤, 실제 캔버스와 같은 규칙(findFreePosition)으로 빈자리를 찾는다
+          // 거리는 가까운 쪽이 더 자주 나오게(centerBiased) — 군집 근처에 모이고 바깥으로 갈수록 성기다
           const angle = Math.PI * (0.05 + 0.9 * rand());
-          const r = 260 + rand() * 420;
+          const r = 220 + centerBiased(rand(), rand()) * 480;
           const desired = { x: c.x + Math.cos(angle) * r - POST_IT_WIDTH / 2, y: c.y + Math.sin(angle) * r * 0.9 };
-          const spot = findFreePosition(desired, POST_IT_WIDTH, POST_IT_HEIGHT, obstacles);
+          // world 가운데 70% 안 · 경계에 잘리지 않는 범위 안에서만 자리를 찾는다
+          const spot = findFreePosition(desired, POST_IT_WIDTH, POST_IT_HEIGHT, obstacles, { bounds: PLACEMENT_BOUNDS });
           if (!spot) {
             console.log(`  · 자리를 못 찾아 건너뜀: "${item.content}"`);
             continue;
