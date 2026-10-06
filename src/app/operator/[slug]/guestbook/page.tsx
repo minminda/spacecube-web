@@ -31,7 +31,7 @@ export default async function OperatorGuestbookPage({ params }: Props) {
     prisma.guestbookSession.findFirst({ where: { spaceId, status: GuestbookSessionStatus.ACTIVE } }),
     prisma.guestbookSettings.findUnique({ where: { spaceId } }),
     prisma.guestbookNote.findMany({
-      // 운영자에게는 실제 방문자 글만 — UI 검증용 샘플(더미 계정 글)은 관리자 화면에서만 SAMPLE로 보인다
+      // 운영자에게는 실제 방문자 글만 — 방명록 샘플(더미 계정 글)은 운영자 화면 · 집계에서 빠지고 관리자 목록에서만 SAMPLE로 보인다
       where: { spaceId, deletedAt: null, ...REAL_GUESTBOOK_NOTE_WHERE },
       orderBy: { createdAt: "desc" },
       select: {
@@ -47,7 +47,7 @@ export default async function OperatorGuestbookPage({ params }: Props) {
     }),
   ]);
 
-  // 실제 방문자 글만 센다 — 실제 공간의 UI 검증용 샘플(더미 계정 글)은 제외
+  // 실제 방문자 글만 센다 — 실제 공간의 방명록 샘플(더미 계정 글)은 제외
   const activePostitCount = active ? await prisma.guestbookNote.count({ where: { guestbookSessionId: active.id, ...REAL_GUESTBOOK_NOTE_WHERE } }) : 0;
 
   const settings = normalizeCanvasSettingsRow(settingsRow);

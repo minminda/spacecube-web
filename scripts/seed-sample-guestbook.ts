@@ -16,7 +16,11 @@
  *     공개 프로필에서는 빠진다(getKpiExcludedUserIds / REAL_GUESTBOOK_NOTE_WHERE). 관리자 방명록 목록에만 SAMPLE로 표시.
  *   - Record · 공감 · 댓글 · 퍼널 이벤트는 만들지 않는다. recomputeSpaceKPI도 부르지 않는다.
  *   - 실제 글은 읽기만 한다(배치할 때 피하는 장애물로만). 수정 · 삭제하는 건 이 작성자의 글뿐이고,
- *     지금 질문에 맞지 않는 예전 샘플(자유 칸 · 바뀐 질문 · 중복)도 실제 방문자의 공감 · 댓글이 달려 있으면 지우지 않는다.
+ *     지금 질문에 맞지 않는 예전 샘플(자유 칸 · 바뀐 질문 · 중복)도 공감 · 댓글 · 알림 · 리포트 선정이 하나라도 있으면 지우지 않는다.
+ *     이름 정리는 저장된 이름이 "샘플"인 이 작성자의 글만.
+ *
+ * 자동 실행: Vercel production 배포 때 npm "postbuild"(scripts/vercel-sync-sample-guestbook.mjs)가 --apply로 실행한다.
+ *   반영은 공간별 pg_advisory_xact_lock 트랜잭션 안에서 다시 읽어 계산하므로 배포가 겹쳐도 중복되지 않는다. 실패해도 배포는 막지 않는다.
  */
 import { PrismaClient, type ClusterType, type Prisma } from "@prisma/client";
 import { findFreePosition, clusterLabelRect, POST_IT_WIDTH, POST_IT_HEIGHT, type Rect } from "../src/lib/postitCollision";
