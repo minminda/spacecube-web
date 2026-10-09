@@ -1,5 +1,5 @@
 "use client";
-import { useState, useRef } from "react";
+import { useState, useRef, useId } from "react";
 import { useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { canChangeNickname, nextNicknameChangeAt } from "@/lib/nickname";
@@ -25,6 +25,7 @@ export default function SettingsForm({ nickname, nicknameUpdatedAt, profile, onS
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
+  const nicknameId = useId();
 
   const lastChangedAt = nicknameUpdatedAt ? new Date(nicknameUpdatedAt) : null;
   const cooldownActive = !canChangeNickname(lastChangedAt);
@@ -49,25 +50,29 @@ export default function SettingsForm({ nickname, nicknameUpdatedAt, profile, onS
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8 md:space-y-10">
       <div className="space-y-5">
-        <p className="text-xs uppercase tracking-widest" style={{ color: "var(--fg)" }}>프로필</p>
+        <div className="space-y-2">
+          <h2 className="text-lg font-semibold" style={{ color: "var(--fg)" }}>프로필</h2>
+          <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>공간큐브에서 사용할 이름이에요. 30일마다 바꿀 수 있어요.</p>
+        </div>
 
         <div className="space-y-2">
-          <p className="text-xs" style={{ color: "var(--dim)" }}>닉네임</p>
+          <label htmlFor={nicknameId} className="block text-sm font-medium" style={{ color: "var(--fg)" }}>닉네임</label>
           <input
+            id={nicknameId}
             ref={inputRef}
             autoFocus={autoFocus}
             value={nickValue}
             onChange={(e) => setNickValue(e.target.value.slice(0, 12))}
             placeholder="2~12자"
             maxLength={12}
-            className="w-full text-base md:text-sm bg-transparent border-b outline-none pb-2"
+            className="w-full min-h-12 text-base bg-transparent border-b outline-none py-3"
             style={{ borderColor: "var(--border)", color: "var(--fg)" }}
             onKeyDown={(e) => { if (e.key === "Enter") handleSave(); }}
           />
           {nextChangeAt && (
-            <p className="text-xs" style={{ color: "var(--dim)" }}>
+            <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>
               다음 변경 가능일: {formatDotDate(nextChangeAt)}
             </p>
           )}
@@ -78,22 +83,23 @@ export default function SettingsForm({ nickname, nicknameUpdatedAt, profile, onS
         <button
           onClick={handleSave}
           disabled={!dirty || saving || !changeAllowed}
-          className="w-full text-sm font-medium py-3 border transition-colors disabled:opacity-40 hover:enabled:bg-[var(--fg)] hover:enabled:text-[var(--bg)]"
+          className="w-full min-h-12 text-base font-medium px-5 py-3 border transition-colors disabled:opacity-40 hover:enabled:bg-[var(--tag-bg)]"
           style={{ borderColor: "var(--fg)", color: "var(--fg)" }}
         >
           {saving ? "저장 중..." : savedFlash ? "저장됨 ✓" : "저장"}
         </button>
-        {error && <p className="text-xs" style={{ color: "var(--dim)" }}>{error}</p>}
+        {error && <p role="alert" className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>{error}</p>}
       </div>
 
       {profile && <ProfileSettingsSection initial={profile} />}
 
-      <div className="space-y-2 pt-2" style={{ borderTop: "1px solid var(--border)" }}>
-        <p className="text-xs uppercase tracking-widest" style={{ color: "var(--fg)" }}>계정</p>
+      <div className="space-y-5 pt-8 md:pt-10" style={{ borderTop: "1px solid var(--border)" }}>
+        <h2 className="text-lg font-semibold" style={{ color: "var(--fg)" }}>계정</h2>
         <button
+          type="button"
           onClick={() => signOut({ callbackUrl: "/" })}
-          className="text-xs w-full text-left py-2"
-          style={{ color: "var(--dim)" }}
+          className="w-full min-h-12 px-5 py-3 text-base font-medium border transition-colors hover:bg-[var(--tag-bg)]"
+          style={{ color: "var(--fg)", borderColor: "var(--border)" }}
         >
           로그아웃
         </button>

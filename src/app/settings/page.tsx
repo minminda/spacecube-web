@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import type { CSSProperties } from "react";
 import type { Metadata } from "next";
 import PageHeader from "@/components/editorial/PageHeader";
 import SiteFooter from "@/components/editorial/SiteFooter";
@@ -22,18 +23,25 @@ export default async function SettingsPage() {
   if (!user) redirect("/login?callbackUrl=%2Fsettings");
 
   return (
-    <div className="editorial-bleed">
+    <div className="editorial-bleed" style={{ "--dim": "var(--ed-dim)", "--border": "var(--ed-line)", "--tag-bg": "var(--ed-soft)" } as CSSProperties}>
       <main className="pb-20 md:pb-28">
-        <PageHeader title="설정" />
-        <section className="ed-container">
-          <div className="max-w-[480px] pt-6" style={{ borderTop: "1px solid var(--ed-line)" }}>
-            <SettingsForm
-              nickname={user.nickname}
-              nicknameUpdatedAt={user.nicknameUpdatedAt?.toISOString() ?? null}
-              profile={viewer.editorial ? { public: user.profilePublic, handle: user.profileHandle, bio: user.profileBio } : undefined}
-            />
-          </div>
-        </section>
+        <div className="max-w-[720px] mx-auto">
+          <PageHeader title="설정" description="내 프로필과 아카이브 공개 범위를 관리해요." />
+          <section className="ed-container">
+            <div className="pt-6 md:pt-8" style={{ borderTop: "1px solid var(--ed-line)" }}>
+              <div className="pb-8 md:pb-10 space-y-2">
+                <p className="text-sm" style={{ color: "var(--ed-dim)" }}>내 계정</p>
+                <p className="text-xl md:text-2xl font-semibold break-words">{user.nickname || "공간큐브 회원"}</p>
+                <p className="text-sm leading-relaxed" style={{ color: "var(--ed-dim)" }}>로그인되어 있어요.</p>
+              </div>
+              <SettingsForm
+                nickname={user.nickname}
+                nicknameUpdatedAt={user.nicknameUpdatedAt?.toISOString() ?? null}
+                profile={viewer.editorial ? { public: user.profilePublic, handle: user.profileHandle, bio: user.profileBio } : undefined}
+              />
+            </div>
+          </section>
+        </div>
       </main>
       <SiteFooter admin={viewer.admin} />
     </div>

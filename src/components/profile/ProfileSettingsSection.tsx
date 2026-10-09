@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useId } from "react";
 import { useRouter } from "next/navigation";
 
 export interface ProfileSettingsValue {
@@ -21,6 +21,9 @@ export default function ProfileSettingsSection({ initial }: { initial: ProfileSe
   const [bio, setBio] = useState(initial.bio ?? "");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  const handleId = useId();
+  const bioId = useId();
+  const handleHelpId = useId();
   const dirty = handle.trim() !== (initial.handle ?? "") || bio.trim() !== (initial.bio ?? "");
 
   async function setVisibility(next: boolean) {
@@ -68,8 +71,11 @@ export default function ProfileSettingsSection({ initial }: { initial: ProfileSe
 
   const savedHandle = initial.handle;
   return (
-    <div className="space-y-4 pt-2" style={{ borderTop: "1px solid var(--border)" }}>
-      <p className="text-xs uppercase tracking-widest pt-2" style={{ color: "var(--fg)" }}>프로필 공개</p>
+    <div className="space-y-6 pt-8 md:pt-10" style={{ borderTop: "1px solid var(--border)" }}>
+      <div className="space-y-2">
+        <h2 className="text-lg font-semibold" style={{ color: "var(--fg)" }}>프로필 공개</h2>
+        <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>다른 사람에게 보여줄 아카이브와 소개를 설정해요.</p>
+      </div>
       <div role="radiogroup" aria-label="프로필 공개" className="grid grid-cols-2" style={{ border: "1px solid var(--fg)" }}>
         {[{ v: true, label: "공개" }, { v: false, label: "비공개" }].map(({ v, label }, i) => {
           const on = isPublic === v;
@@ -81,7 +87,7 @@ export default function ProfileSettingsSection({ initial }: { initial: ProfileSe
               aria-checked={on}
               disabled={busy}
               onClick={() => setVisibility(v)}
-              className="h-[46px] text-sm font-semibold transition-colors disabled:opacity-60"
+              className="min-h-12 px-4 py-3 text-base font-semibold transition-colors disabled:opacity-60"
               style={{ background: on ? "var(--fg)" : "var(--bg)", color: on ? "var(--bg)" : "var(--fg)", borderLeft: i > 0 ? "1px solid var(--fg)" : undefined }}
             >
               {label}
@@ -89,51 +95,54 @@ export default function ProfileSettingsSection({ initial }: { initial: ProfileSe
           );
         })}
       </div>
-      <p className="text-xs leading-relaxed" style={{ color: "var(--dim)" }}>
+      <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>
         {isPublic ? "내 아카이브 공간이 보여요. 사진·메모는 보이지 않아요." : "주소로 들어와도 “비공개 아카이브입니다.”만 보여요."}
       </p>
 
-      <div className="space-y-1.5">
-        <p className="text-xs" style={{ color: "var(--dim)" }}>프로필 주소</p>
-        <div className="flex items-baseline gap-1 border-b pb-2" style={{ borderColor: "var(--border)" }}>
-          <span className="text-sm" style={{ color: "var(--dim)" }}>/@</span>
+      <div className="space-y-2">
+        <label htmlFor={handleId} className="block text-sm font-medium" style={{ color: "var(--fg)" }}>프로필 주소</label>
+        <div className="flex items-center gap-1 border-b" style={{ borderColor: "var(--border)" }}>
+          <span className="text-base" style={{ color: "var(--dim)" }}>/@</span>
           <input
+            id={handleId}
+            aria-describedby={handleHelpId}
             value={handle}
             onChange={(e) => setHandle(e.target.value.toLowerCase().slice(0, 24))}
             placeholder="dongmin"
-            className="flex-1 min-w-0 text-sm bg-transparent outline-none"
+            className="flex-1 min-w-0 min-h-12 py-3 text-base bg-transparent outline-none"
             style={{ color: "var(--fg)" }}
             autoCapitalize="none"
             spellCheck={false}
           />
         </div>
-        <p className="text-[11px]" style={{ color: "var(--dim)" }}>영문 소문자·숫자·._- 3~24자. 공유 링크가 되므로 바꾸면 예전 링크가 끊겨요.</p>
+        <p id={handleHelpId} className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>영문 소문자·숫자·._- 3~24자. 공유 링크가 되므로 바꾸면 예전 링크가 끊겨요.</p>
       </div>
 
-      <div className="space-y-1.5">
-        <p className="text-xs" style={{ color: "var(--dim)" }}>한 줄 소개</p>
+      <div className="space-y-2">
+        <label htmlFor={bioId} className="block text-sm font-medium" style={{ color: "var(--fg)" }}>한 줄 소개</label>
         <input
+          id={bioId}
           value={bio}
           onChange={(e) => setBio(e.target.value.slice(0, 120))}
           placeholder="조용한 공간에서 오래 머무는 시간을 좋아합니다."
-          className="w-full text-sm bg-transparent border-b outline-none pb-2"
+          className="w-full min-h-12 py-3 text-base bg-transparent border-b outline-none"
           style={{ borderColor: "var(--border)", color: "var(--fg)" }}
         />
       </div>
 
-      <div className="flex items-center justify-between gap-3">
-        {savedHandle ? <a href={`/@${savedHandle}`} className="text-xs underline underline-offset-4" style={{ color: "var(--fg)" }}>내 프로필 보기 →</a> : <span />}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        {savedHandle ? <a href={`/@${savedHandle}`} className="inline-flex items-center min-h-12 text-sm underline underline-offset-4" style={{ color: "var(--fg)" }}>내 프로필 보기 →</a> : <span />}
         <button
           type="button"
           onClick={save}
           disabled={!dirty || busy}
-          className="text-sm font-medium px-4 py-2 border transition-colors disabled:opacity-40"
+          className="w-full sm:w-auto min-h-12 text-base font-medium px-5 py-3 border transition-colors disabled:opacity-40 hover:enabled:bg-[var(--tag-bg)]"
           style={{ borderColor: "var(--fg)", color: "var(--fg)" }}
         >
           {busy ? "저장 중..." : "프로필 저장"}
         </button>
       </div>
-      {msg && <p className="text-xs" style={{ color: "var(--dim)" }}>{msg}</p>}
+      {msg && <p role="status" className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>{msg}</p>}
     </div>
   );
 }

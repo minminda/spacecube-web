@@ -151,7 +151,7 @@ export default function Navbar() {
             <Link
               href="/settings"
               aria-current={pathname.startsWith("/settings") ? "page" : undefined}
-              className="ml-3 text-[13px] whitespace-nowrap transition-opacity hover:opacity-100"
+              className="ml-1 inline-flex items-center justify-center min-h-12 px-3 text-sm whitespace-nowrap transition-opacity hover:opacity-100"
               style={{ color: "#fff", opacity: pathname.startsWith("/settings") ? 1 : 0.55 }}
             >
               설정
@@ -207,7 +207,7 @@ export default function Navbar() {
                 href="/settings"
                 onClick={() => setMenuOpenPath(null)}
                 aria-current={pathname.startsWith("/settings") ? "page" : undefined}
-                className="flex items-center min-h-11 text-base font-semibold"
+                className="flex items-center min-h-12 py-3 text-lg font-semibold"
                 style={{ color: "#fff", opacity: pathname.startsWith("/settings") ? 1 : 0.85 }}
               >
                 설정
