@@ -3,6 +3,7 @@ import { isAdmin } from "@/lib/admin";
 import { ENABLE_EDITORIAL_HOME } from "@/lib/features";
 import LegacyHome from "./LegacyHome";
 import EditorialHome from "./EditorialHome";
+import { getSavedRegions } from "@/lib/regions/savedRegions";
 
 interface Props {
   searchParams: Promise<{ legacy?: string; preview?: string; area?: string }>;
@@ -24,6 +25,7 @@ export default async function Home({ searchParams }: Props) {
 
   if (editorial && !(admin && legacy === "1")) {
     const previewAllowed = admin || process.env.NODE_ENV === "development";
+    const savedRegions = await getSavedRegions(session?.user?.id ?? null);
     return (
       <EditorialHome
         admin={admin}
@@ -31,6 +33,7 @@ export default async function Home({ searchParams }: Props) {
         fixtures={previewAllowed && preview === "fixtures"}
         userId={session?.user?.id ?? null}
         area={typeof area === "string" ? area.slice(0, 30) : null}
+        savedRegions={savedRegions}
       />
     );
   }

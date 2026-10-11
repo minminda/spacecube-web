@@ -35,7 +35,7 @@ export async function PUT(req: Request) {
   if (!space || space.status !== "PUBLISHED" || space.isDemo) return NextResponse.json({ error: "공개할 수 없는 공간이에요." }, { status: 400 });
   const library = await getLibrary(userId, { includeDemo: false });
   if (!library.some((i) => i.key === `s-${space.slug}` && !i.personal)) {
-    return NextResponse.json({ error: "내 아카이브에 있는 공간만 공개할 수 있어요." }, { status: 400 });
+    return NextResponse.json({ error: "내 공간에 담은 공간만 공개할 수 있어요." }, { status: 400 });
   }
 
   // 넘어온 항목만 바꾼다. 새로 공개할 때 넘어오지 않은 항목은 기본값(꺼짐).

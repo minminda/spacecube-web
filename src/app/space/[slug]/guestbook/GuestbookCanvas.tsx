@@ -681,7 +681,7 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
     // full-bleed: 공용 레이아웃(layout.tsx)의 max-w-sm/md:max-w-2xl 중앙 정렬 wrapper를 뚫고
     // 뷰포트 폭 전체를 채운다(768px 미만에서만 적용, 데스크톱은 기존 중앙 정렬 폭 그대로 —
     // globals.css 참고, 대표사진에 이미 쓰이던 것과 동일한 유틸리티를 그대로 재사용).
-    <div className="full-bleed flex flex-col" style={{ height: "calc(100dvh - 3.5rem)", background: worldBg }}>
+    <div className="full-bleed flex flex-col" style={{ height: "calc(100dvh - var(--nav-h))", background: worldBg }}>
 
       {/* ── 상단 ── */}
       <div className="flex items-center justify-between px-6 py-4 gap-3">

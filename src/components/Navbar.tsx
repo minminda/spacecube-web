@@ -6,6 +6,8 @@ import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { ENABLE_NAV_DISCOVER_LINK, ENABLE_NAV_RECOMMENDATION_LINK, ENABLE_EDITORIAL_HOME } from "@/lib/features";
 import { BRAND_NAME, CONTACT_EMAIL, INSTAGRAM_URL, PARTICIPATION } from "@/content/site";
+import { useSiteViewer } from "@/lib/client/useSiteViewer";
+import { ChevronRightIcon, CloseIcon, LogInIcon, LogOutIcon, MenuIcon, SearchIcon } from "@/components/icons";
 // 모든 화면에 있는 Navbar에서 이동 종류(링크/뒤로가기) 감지를 미리 켠다 — 목록에서 상세로 처음 들어갈 때도 동작하도록
 import "@/components/editorial/useArticleScroll";
 
@@ -15,68 +17,47 @@ const LEGACY_NAV_ITEMS = [
   { label: "추천 방식", href: "/recommendation", match: (p: string) => p.startsWith("/recommendation"), enabled: ENABLE_NAV_RECOMMENDATION_LINK },
 ].filter((item) => item.enabled);
 
-/* ── 상단 내비게이션(2026-10 최종) ────────────────────────────────────────
-   큐레이션 · 스토리(텍스트 링크) + [추천](검정) [내 아카이브](흰색) — 두 CTA는 서로 흑백 반전된 한 쌍.
-   - 추천 = /find(지역만 고르면 내 취향 데이터로 정렬). /recommend는 /find로 이어진다.
-   - LATEST는 홈 섹션 + /latest 피드일 뿐 상단 메뉴가 아니다.
-   - 큐레이터(프로토타입)·함께한 공간·공간 제안하기는 상단에 두지 않는다(제안은 푸터·모바일 하단 보조 영역).
-   - 홈은 콘텐츠(LATEST · CURATION · STORY) 중심 — 추천·아카이브는 홈 섹션이 아니라 여기의 핵심 Action이다. ── */
-const EDITORIAL_NAV_ITEMS = [
-  { label: "큐레이션", href: "/curation", match: (p: string) => p.startsWith("/curation") },
-  { label: "스토리", href: "/story", match: (p: string) => p === "/story" || p.startsWith("/people") || p.startsWith("/thought") },
+/* ── 상단 내비게이션(2026-10 개편) ─────────────────────────────────────────
+   서비스의 최상위는 HOME · 검색 · 내 공간 셋뿐이다. 추천은 별도 목적지가 아니라 HOME을 개인화하는 원리라 메뉴에서 뺐다.
+   - 데스크톱 · 모바일 모두 [로고 ···  (검색) ☰] — 메뉴는 ☰ 하나로 통일. 데스크톱은 오른쪽에서 열리는 패널, 모바일은 전체 화면.
+     데스크톱 상단 바는 모바일(56px)보다 조금 두껍다(68px, --nav-h). 모바일은 하단 탭(홈 · 검색 · 내 공간)이 있어 상단에 검색을 두지 않는다.
+   - 메뉴 구성: 콘텐츠(CURATION · STORY) / 탐색(지역 · 테마 둘러보기) / 사용자(내 공간 · 설정) + 로그인 · 로그아웃, 아래에 보조 링크.
+   - 큐레이터(프로토타입)·함께한 공간은 상단에 두지 않는다(HOME 선반에서 만난다). 공간 제안하기는 메뉴 하단 보조 영역 · 푸터. ── */
+
+const CONTENT_ROWS = [
+  { label: "CURATION", href: "/curation", match: (p: string) => p.startsWith("/curation") },
+  { label: "STORY", href: "/story", match: (p: string) => p === "/story" || p.startsWith("/people") || p.startsWith("/thought") },
 ];
-const RECOMMEND_HREF = "/find";
-const isRecommendPath = (p: string) => p.startsWith("/find") || p.startsWith("/recommend");
+// 지역 · 테마 둘러보기는 검색 첫 화면의 "추천 지역" · "추천 테마" 구획으로 간다(검색어 없이 열었을 때 보이는 입구).
+const EXPLORE_ROWS = [
+  { label: "지역 둘러보기", href: "/search#regions" },
+  { label: "테마 둘러보기", href: "/search#themes" },
+];
 
-// 두 CTA 공용 치수 — 예전 상단 "공간 제안하기" 버튼(text-xs · px-3.5 · py-2 · 1px 테두리 · 각진 모서리)을 그대로 쓴다.
-// 추천은 검정 Navbar 위에서도 버튼으로 읽히도록 흰 1px 테두리만 최소로 둔다. 아카이브도 같은 두께의 흰 테두리라 높이가 같다.
-// 데스크톱 전용 — 휴대폰 상단 바에는 로고와 ☰만 두고, 추천 · 내 아카이브는 메뉴 안에서 다른 메뉴와 함께 보여준다.
-const CTA_CLASS = "inline-flex items-center justify-center min-w-[88px] text-xs font-semibold px-3.5 py-2 whitespace-nowrap transition-opacity hover:opacity-85";
-const CTA_RECOMMEND = { background: "#000", color: "#fff", border: "1px solid #fff" } as const;
-const CTA_ARCHIVE = { background: "#fff", color: "#000", border: "1px solid #fff" } as const;
-
-interface Viewer {
-  loggedIn: boolean;
-  admin: boolean;
-  editorial: boolean;
-  /** 큐레이터 프로토타입 표시 여부(ENABLE_CURATOR_PROTOTYPE 또는 관리자·로컬 미리보기) — 상단 메뉴에는 쓰지 않는다 */
-  curators?: boolean;
-}
-
-
-// 페이지 이동마다 다시 묻지 않도록 탭 단위로 한 번만 조회한다(로그인/로그아웃은 전체 리로드를 동반).
-let viewerPromise: Promise<Viewer | null> | null = null;
-function fetchViewer(): Promise<Viewer | null> {
-  if (!viewerPromise) {
-    viewerPromise = fetch("/api/site/viewer", { cache: "no-store" })
-      .then((r) => (r.ok ? (r.json() as Promise<Viewer>) : null))
-      .catch(() => null);
-  }
-  return viewerPromise;
-}
+const isSearchPath = (p: string) => p.startsWith("/search") || p.startsWith("/find") || p.startsWith("/recommend");
 
 export default function Navbar() {
   const pathname = usePathname();
-  const [viewer, setViewer] = useState<Viewer | null>(null);
-  // 모바일 메뉴는 "열었던 경로"를 기억해, 다른 페이지로 이동하면 자동으로 닫힌 상태가 된다.
+  // 메뉴는 "열었던 경로"를 기억해, 다른 페이지로 이동하면 자동으로 닫힌 상태가 된다.
   const [menuOpenPath, setMenuOpenPath] = useState<string | null>(null);
   const [signingOut, setSigningOut] = useState(false);
   const menuOpen = menuOpenPath === pathname;
 
   const hiddenArea = pathname.startsWith("/admin") || pathname.startsWith("/operator");
-
-  useEffect(() => {
-    if (hiddenArea) return;
-    let alive = true;
-    fetchViewer().then((v) => { if (alive) setViewer(v); });
-    return () => { alive = false; };
-  }, [hiddenArea]);
+  const viewer = useSiteViewer(!hiddenArea);
 
   useEffect(() => {
     if (!menuOpen) return;
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    return () => { document.body.style.overflow = prev; };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMenuOpenPath(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = prev;
+      window.removeEventListener("keydown", onKey);
+    };
   }, [menuOpen]);
 
   // 운영자 화면(/admin, /operator)은 완전히 분리된 레이아웃·헤더를 쓰므로 일반 사용자 Navbar는
@@ -86,11 +67,11 @@ export default function Navbar() {
   const editorial = ENABLE_EDITORIAL_HOME || !!viewer?.editorial;
   const isHome = pathname === "/";
 
-  // 높이(h-14 = 56px)는 방명록 캔버스가 calc(100dvh - 3.5rem)으로 전제하고 있으므로 두 모드 모두 유지한다.
+  // 높이는 --nav-h(모바일 56px / 데스크톱 68px). 방명록 캔버스도 같은 값을 쓴다.
   if (!editorial) {
     return (
       <nav className="sticky top-0 z-50 w-full" style={{ background: "#000", borderBottom: "1px solid #1a1a1a" }}>
-        <div className="max-w-2xl mx-auto px-6 flex items-center h-14 gap-8">
+        <div className="max-w-2xl mx-auto px-6 flex items-center gap-8" style={{ height: "var(--nav-h)" }}>
           <Link href="/" aria-label="홈으로 이동" className="mr-auto p-2 -m-2 text-[13px] font-bold tracking-[0.14em] transition-opacity" style={{ color: "#fff", opacity: isHome ? 1 : 0.6 }}>
             {BRAND_NAME}
           </Link>
@@ -112,157 +93,137 @@ export default function Navbar() {
     );
   }
 
-  const navItems = EDITORIAL_NAV_ITEMS;
-  // 비로그인이면 기존 로그인 화면을 거쳐 아카이브로 돌아온다(새 인증 흐름 없음).
-  const archiveHref = viewer && !viewer.loggedIn ? "/login?callbackUrl=%2Farchive" : "/archive";
-  const archiveActive = pathname.startsWith("/archive");
+  const close = () => setMenuOpenPath(null);
+  // 비로그인이면 기존 로그인 화면을 거쳐 내 공간으로 돌아온다(새 인증 흐름 없음).
+  const myHref = viewer && !viewer.loggedIn ? "/login?callbackUrl=%2Farchive" : "/archive";
   const suggestHref = PARTICIPATION[0].href;
   // 로그인 후 지금 보던 화면으로 돌아온다(기존 로그인 화면 그대로)
   const loginHref = `/login?callbackUrl=${encodeURIComponent(pathname || "/")}`;
-  // 로그인 화면에서는 숨긴다 — 그 화면의 callbackUrl(방명록 · 아카이브 등 돌아갈 곳)을 /login으로 덮어쓰지 않게
+  // 로그인 화면에서는 숨긴다 — 그 화면의 callbackUrl(방명록 · 내 공간 등 돌아갈 곳)을 /login으로 덮어쓰지 않게
   const showLogin = !!viewer && !viewer.loggedIn && !pathname.startsWith("/login");
 
+  const row = (label: string, href: string, active: boolean) => (
+    <li key={label} style={{ borderBottom: "1px solid #232323" }}>
+      <Link
+        href={href}
+        onClick={close}
+        aria-current={active ? "page" : undefined}
+        className="flex items-center justify-between min-h-14 md:min-h-12 py-2 text-[20px] md:text-[17px] font-semibold tracking-[-0.01em]"
+        style={{ color: "#fff", opacity: active ? 1 : 0.88 }}
+      >
+        {label}
+        <ChevronRightIcon className="w-5 h-5 shrink-0" strokeWidth={1.6} />
+      </Link>
+    </li>
+  );
+  const groupLabel = (text: string) => (
+    <p className="px-0 pt-6 pb-1 text-[11px] font-semibold tracking-[0.14em]" style={{ color: "#8a8a8a" }}>{text}</p>
+  );
+
   return (
-    <nav className="sticky top-0 z-50 w-full" style={{ background: "#000", borderBottom: "1px solid #1a1a1a" }}>
-      <div className="ed-wide flex items-center h-14 gap-8">
-        <Link href="/" aria-label="GONGGANCUBE 홈" className="mr-auto py-2 text-[13px] font-bold tracking-[0.14em]" style={{ color: "#fff" }}>
+    <nav className="ed-chrome sticky top-0 z-50 w-full" style={{ background: "var(--ed-chrome)", borderBottom: "1px solid var(--ed-chrome-line)" }}>
+      <div className="ed-wide flex items-center gap-1" style={{ height: "var(--nav-h)" }}>
+        <Link href="/" aria-label="GONGGANCUBE 홈" className="mr-auto py-2 text-[13px] md:text-[16px] font-bold tracking-[0.14em]" style={{ color: "#fff" }}>
           {BRAND_NAME}
         </Link>
 
-        <div className="hidden md:flex items-center gap-7">
-          {navItems.map(({ label, href, match }) => {
-            const active = match(pathname);
-            return (
-              <Link
-                key={href}
-                href={href}
-                className="text-[13px] tracking-[0.02em] whitespace-nowrap transition-opacity hover:opacity-100"
-                style={{ color: "#fff", opacity: active ? 1 : 0.55, fontWeight: active ? 600 : 500 }}
-              >
-                {label}
-              </Link>
-            );
-          })}
-        </div>
-
-        <div className="hidden md:flex items-center gap-2">
-          <Link href={RECOMMEND_HREF} aria-current={isRecommendPath(pathname) ? "page" : undefined} className={CTA_CLASS} style={CTA_RECOMMEND}>
-            추천
-          </Link>
-          <Link href={archiveHref} aria-current={archiveActive ? "page" : undefined} className={CTA_CLASS} style={CTA_ARCHIVE}>
-            내 아카이브
-          </Link>
-          {/* 계정 — 화면마다 톱니바퀴를 두지 않고 여기. 비로그인이면 로그인 */}
-          {showLogin && (
-            <Link
-              href={loginHref}
-              className="ml-3 text-[13px] whitespace-nowrap transition-opacity hover:opacity-100"
-              style={{ color: "#fff", opacity: 0.75 }}
-            >
-              로그인
-            </Link>
-          )}
-          {viewer?.loggedIn && (
-            <Link
-              href="/settings"
-              aria-current={pathname.startsWith("/settings") ? "page" : undefined}
-              className="ml-3 text-[13px] whitespace-nowrap transition-opacity hover:opacity-100"
-              style={{ color: "#fff", opacity: pathname.startsWith("/settings") ? 1 : 0.55 }}
-            >
-              설정
-            </Link>
-          )}
-        </div>
+        {/* 데스크톱의 검색 진입 — 모바일은 하단 탭에 검색이 있어 두지 않는다 */}
+        <Link
+          href="/search"
+          aria-label="검색"
+          aria-current={isSearchPath(pathname) ? "page" : undefined}
+          className="hidden md:flex w-12 h-12 items-center justify-center transition-opacity hover:opacity-100"
+          style={{ color: "#fff", opacity: isSearchPath(pathname) ? 1 : 0.8 }}
+        >
+          <SearchIcon className="w-[22px] h-[22px]" />
+        </Link>
 
         <button
           type="button"
-          className="md:hidden -mr-3 w-12 h-12 flex items-center justify-center"
+          className="-mr-3 md:-mr-3 w-12 h-12 flex items-center justify-center transition-opacity hover:opacity-100"
+          style={{ color: "#fff", opacity: menuOpen ? 1 : 0.9 }}
           aria-label={menuOpen ? "메뉴 닫기" : "메뉴 열기"}
           aria-expanded={menuOpen}
+          aria-controls="site-menu"
           onClick={() => setMenuOpenPath(menuOpen ? null : pathname)}
         >
-          <svg viewBox="0 0 24 24" className="w-6 h-6" style={{ color: "#fff" }} aria-hidden>
-            {menuOpen ? (
-              <path d="M6 6 L18 18 M18 6 L6 18" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-            ) : (
-              <path d="M4 7 H20 M4 12 H20 M4 17 H20" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-            )}
-          </svg>
+          {menuOpen ? <CloseIcon className="w-6 h-6" strokeWidth={1.5} /> : <MenuIcon className="w-6 h-6" strokeWidth={1.5} />}
         </button>
       </div>
 
       {menuOpen && (
-        <div className="md:hidden fixed inset-x-0 top-14 bottom-0 z-50 flex flex-col overflow-y-auto" style={{ background: "#000" }}>
-          {/* Primary — 데스크톱 상단 메뉴와 같은 네 가지, 같은 순서. 추천 · 내 아카이브는 "기능"이라 화살표 표식으로만 구분 */}
-          <ul className="px-4 pt-4">
-            {[
-              ...navItems.map((n) => ({ ...n, action: false })),
-              { label: "추천", href: RECOMMEND_HREF, match: isRecommendPath, action: true },
-              { label: "내 아카이브", href: archiveHref, match: (p: string) => p.startsWith("/archive"), action: true },
-            ].map(({ label, href, match, action }) => (
-              <li key={label} style={{ borderBottom: "1px solid #222" }}>
+        <>
+          {/* 데스크톱: 패널 바깥을 누르면 닫힌다(모바일은 메뉴가 화면 전체) */}
+          <button
+            type="button"
+            aria-label="메뉴 닫기"
+            tabIndex={-1}
+            onClick={close}
+            className="hidden md:block fixed inset-x-0 bottom-0 z-40 cursor-default"
+            style={{ top: "var(--nav-h)", background: "rgba(0,0,0,0.4)" }}
+          />
+          <div
+            id="site-menu"
+            role="dialog"
+            aria-label="메뉴"
+            className="fixed inset-x-0 bottom-0 z-50 flex flex-col overflow-y-auto md:left-auto md:w-[400px]"
+            style={{ top: "var(--nav-h)", background: "var(--ed-chrome)", borderLeft: "1px solid var(--ed-chrome-line)", overscrollBehavior: "contain" }}
+          >
+            <div className="px-5 md:px-7 pb-2">
+              {groupLabel("콘텐츠")}
+              <ul>{CONTENT_ROWS.map((r) => row(r.label, r.href, r.match(pathname)))}</ul>
+              {groupLabel("탐색")}
+              <ul>{EXPLORE_ROWS.map((r) => row(r.label, r.href, false))}</ul>
+              {groupLabel("사용자")}
+              <ul>
+                {row("내 공간", myHref, pathname.startsWith("/archive"))}
+                {row("설정", "/settings", pathname.startsWith("/settings"))}
+              </ul>
+            </div>
+
+            {/* 계정 — 로그인 · 로그아웃은 기존 흐름 그대로(/login, next-auth signOut) */}
+            <div className="px-5 md:px-7 pt-5">
+              {showLogin && (
                 <Link
-                  href={href}
-                  onClick={() => setMenuOpenPath(null)}
-                  aria-current={match(pathname) ? "page" : undefined}
-                  className="flex items-center justify-between py-4 text-[22px] font-bold tracking-[-0.01em]"
-                  style={{ color: "#fff", opacity: match(pathname) ? 1 : 0.85 }}
+                  href={loginHref}
+                  onClick={close}
+                  className="flex items-center justify-center gap-2 w-full h-12 text-base font-semibold"
+                  style={{ background: "#fff", color: "#000" }}
                 >
-                  {label}
-                  {/* 추천 · 내 아카이브 = 데스크톱의 반전 CTA와 같은 표식(흰 칸 화살표), 나머지는 회색 화살표 */}
-                  <span aria-hidden className="inline-flex items-center justify-center w-7 h-7 text-sm" style={action ? { background: "#fff", color: "#000" } : { color: "#666" }}>→</span>
+                  <LogInIcon className="w-5 h-5" />
+                  로그인
                 </Link>
-              </li>
-            ))}
-          </ul>
-          {/* Account — 콘텐츠 메뉴와 한 칸 띄워 따로. 비로그인: 로그인 / 로그인: 설정 · 로그아웃(누르기 쉬운 크기, 과하게 강조하지 않음).
-              로그인 · 로그아웃은 기존 흐름 그대로(/login, next-auth signOut). 관리자는 아래 Secondary에 따로 둔다. */}
-          <div className="px-4 pt-7">
-            {showLogin && (
-              <Link
-                href={loginHref}
-                onClick={() => setMenuOpenPath(null)}
-                className="flex items-center justify-center w-full h-12 text-base font-semibold"
-                style={{ background: "#fff", color: "#000" }}
-              >
-                로그인
-              </Link>
-            )}
-            {viewer?.loggedIn && (
-              <div className="grid grid-cols-2 gap-2">
-                <Link
-                  href="/settings"
-                  onClick={() => setMenuOpenPath(null)}
-                  aria-current={pathname.startsWith("/settings") ? "page" : undefined}
-                  className="flex items-center justify-center h-12 text-[15px] font-semibold"
-                  style={{ border: "1px solid #444", color: "#fff" }}
-                >
-                  설정
-                </Link>
+              )}
+              {viewer?.loggedIn && (
                 <button
                   type="button"
                   onClick={() => { if (!signingOut) { setSigningOut(true); signOut({ callbackUrl: "/" }); } }}
                   disabled={signingOut}
-                  className="flex items-center justify-center h-12 text-[15px] font-semibold disabled:opacity-60"
+                  className="flex items-center justify-center gap-2 w-full h-12 text-[15px] font-semibold disabled:opacity-60"
                   style={{ border: "1px solid #444", color: "#bbb" }}
                 >
+                  <LogOutIcon className="w-5 h-5" />
                   {signingOut ? "로그아웃 중..." : "로그아웃"}
                 </button>
-              </div>
-            )}
+              )}
+            </div>
+
+            {/* 보조 — 작은 글자 */}
+            <ul
+              className="px-5 md:px-7 pt-8 mt-auto space-y-1 text-sm"
+              style={{ color: "#999", paddingBottom: "calc(2.5rem + env(safe-area-inset-bottom))" }}
+            >
+              <li><Link href="/spacecube" onClick={close} className="inline-flex items-center min-h-10" style={{ color: "#fff" }}>공간큐브</Link></li>
+              <li><Link href="/about" onClick={close} className="inline-flex items-center min-h-10">공간큐브 소개</Link></li>
+              <li><a href={suggestHref} className="inline-flex items-center min-h-10">공간 제안하기</a></li>
+              <li className="flex gap-6">
+                <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer" className="inline-flex items-center min-h-10">Instagram ↗</a>
+                <a href={`mailto:${CONTACT_EMAIL}`} className="inline-flex items-center min-h-10">Contact</a>
+              </li>
+              {viewer?.admin && <li><Link href="/admin" onClick={close} className="inline-flex items-center min-h-10">관리자</Link></li>}
+            </ul>
           </div>
-          {/* Secondary — 얇은 구분 아래 작은 글자 */}
-          <ul className="px-4 pt-8 pb-10 mt-auto space-y-1 text-sm" style={{ color: "#999", paddingBottom: "calc(2.5rem + env(safe-area-inset-bottom))" }}>
-            <li><Link href="/spacecube" onClick={() => setMenuOpenPath(null)} className="inline-flex items-center min-h-10" style={{ color: "#fff" }}>공간큐브</Link></li>
-            <li><Link href="/about" onClick={() => setMenuOpenPath(null)} className="inline-flex items-center min-h-10">공간큐브 소개</Link></li>
-            <li><a href={suggestHref} className="inline-flex items-center min-h-10">공간 제안하기</a></li>
-            <li className="flex gap-6">
-              <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer" className="inline-flex items-center min-h-10">Instagram ↗</a>
-              <a href={`mailto:${CONTACT_EMAIL}`} className="inline-flex items-center min-h-10">Contact</a>
-            </li>
-            {viewer?.admin && <li><Link href="/admin" onClick={() => setMenuOpenPath(null)} className="inline-flex items-center min-h-10">관리자</Link></li>}
-          </ul>
-        </div>
+        </>
       )}
     </nav>
   );

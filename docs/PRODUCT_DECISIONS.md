@@ -103,18 +103,18 @@ All normal users can function as taste references through the spaces they choose
 
 ## Archive actions
 
-Archive top actions:
+Archive top actions (the page is now called 내 공간 in UI):
 1. `공간 추가` — primary
-2. `내 아카이브 공유` — secondary
+2. `내 공간 공유` — secondary
 
 Remove `사람 찾기` from Archive because people discovery lives in 추천 > 사람.
 
 Settings should not be a gear icon scattered across Archive/Profile.
-Settings belongs in the menu below `내 아카이브`, separated by spacing/divider.
+Settings belongs in the menu under 사용자 (next to 내 공간) and as a row at the bottom of 내 공간.
 
 ## Archive sharing
 
-`내 아카이브 공유` should immediately copy the current user's canonical public-profile URL to clipboard.
+`내 공간 공유` should immediately copy the current user's canonical public-profile URL to clipboard.
 No share-sheet/modal is required for this action.
 
 Success feedback:
@@ -175,27 +175,41 @@ The Space Add first screen should keep both canonical search and direct registra
 
 Do not casually revert these densities without an explicit decision.
 
-## Menu
+## Top-level structure (2026-10-11): HOME · 검색 · 내 공간
 
-Mobile header:
-- Logo + menu icon only
+The user-facing top level is exactly three things:
+- **HOME** — SpaceCube shows spaces to the user (discovery hub with shelves).
+- **검색** (`/search`) — the user searches regions/spaces/taste directly.
+- **내 공간** (route stays `/archive`) — saved / visited / recorded spaces accumulate here. Formerly "내 아카이브"; the old wording is retired in UI (routes, variables, DB models are not renamed).
 
-Drawer primary:
-- 큐레이션
-- 스토리
-- 추천
-- 내 아카이브
+`추천` is no longer a top-level destination. Recommendation is the principle that personalizes HOME:
+- `회원님을 위해 엄선한 공간` (existing ranking), `관심 지역에서 발견한 공간`, `나와 비슷한 사람들이 좋아한 공간`, small `취향이 비슷한 사람` row.
+- People are a *reason to discover spaces*, not a social feed. HOME shows spaces first; the people row is avatar + nickname only (no counts/follow).
+- `/find` (공간 탭 + 사람 탭, now titled "탐색") and `/recommend` → `/find` redirect are kept for compatibility but are not in navigation. People search / `@handle` / follow still live at `/find?tab=people`.
+- `/recommendation` (legacy "추천 방식" explainer) is kept, unlinked.
 
-Separated account item:
-- 설정
+### Navigation
+- Header (desktop and mobile): logo + hamburger. Desktop also has a search icon. Desktop header is taller (68px, `--nav-h`); mobile stays 56px.
+- Hamburger menu (same content desktop/mobile; desktop = right panel, mobile = full screen):
+  - 콘텐츠: CURATION, STORY
+  - 탐색: 지역 둘러보기 (`/search#regions`), 테마 둘러보기 (`/search#themes`)
+  - 사용자: 내 공간, 설정
+  - 로그인 (logged out) / 로그아웃 (logged in)
+  - Secondary: 공간큐브, 공간큐브 소개, 공간 제안하기, Instagram, Contact, 관리자 (admin only)
+- Mobile bottom tab bar (md and below): 홈 · 검색 · 내 공간, vector icons (no emoji), safe-area aware. Not shown on Cube/QR (`/space/…`, `/c/…`), login, admin, operator.
+- 설정 is reachable logged out too (theme is a device setting); account sections need login.
 
-Secondary:
-- 공간큐브
-- 소개
-- 공간 제안하기
-- Instagram
-- Contact
-- 관리자 (admin only)
+### Search
+- Corpus per space: name, region (normalized), category, tags, one-liner, description, curation titles/summaries, curation selection reasons. Ranking is a pure, explainable score (`src/lib/search/spaceSearch.ts`): name exact > name prefix/word > region exact > category exact > tag exact > theme > name partial > … > description. Multi-word queries sum per-word scores (no hard AND). `연남동` = `연남`.
+- Landing (no query): 추천 지역 + 추천 테마. No separate search infrastructure.
+
+### Saved regions (관심 지역)
+- Star (vector, filled when saved) in region picker, search region results, region HOME heading, 내 공간.
+- Logged in: `SavedRegion` table (additive). Logged out: cookie `sc_regions` (no merge on login).
+- HOME puts one combined "관심 지역에서 발견한 공간" shelf ahead of generic region shelves; saved regions are removed from generic area shelves.
+
+### Theme
+- 라이트 / 다크 in Settings, stored per device (`localStorage` key `sc-theme`, applied before first paint). Dark = charcoal tokens scoped to editorial surfaces and header/tab/footer chrome; Cube/QR on-site screens stay light.
 
 ## Sample/demo data
 

@@ -14,6 +14,23 @@
   --border: #d8d6d0;
   --tag-bg: #eeece8;
   --accent: #404038;
+  /* 상단 바 높이 — 모바일 56px, 데스크톱은 조금 더 두껍게(68px). 방명록 캔버스 · 읽기 진행 바 · 고정 배너가 이 값을 따른다 */
+  --nav-h: 56px;
+  /* 모바일 하단 탭 바 높이(safe-area는 따로 더한다) */
+  --tab-h: 56px;
+  /* 에디토리얼 색 토큰(라이트) — 다크 팔레트는 아래 [data-ed-theme="dark"]에서 .editorial-bleed · .ed-chrome 안에서만 바뀐다 */
+  --ed-bg: #ffffff;
+  --ed-fg: #111111;
+  --ed-dim: #6f6f6f;
+  --ed-line: #e4e4e4;
+  --ed-soft: #f2f2f2;
+  --ed-body: #333333;
+  /* 상단 바 · 푸터 바탕(라이트는 검정) */
+  --ed-chrome: #000000;
+  --ed-chrome-line: #1a1a1a;
+}
+@media (min-width: 768px) {
+  :root { --nav-h: 68px; }
 }
 
 [data-theme="dark"] {
@@ -125,20 +142,36 @@ body {
 .editorial-bleed {
   width: 100vw;
   margin-left: calc(50% - 50vw);
-  --ed-bg: #ffffff;
-  --ed-fg: #111111;
-  --ed-dim: #6f6f6f;
-  --ed-line: #e4e4e4;
-  --ed-soft: #f2f2f2;
-  /* QrScanSheet 등 기존 컴포넌트가 쓰는 공용 변수도 이 영역 안에서는 흰 바탕 기준으로 맞춘다 */
-  --bg: #ffffff;
-  --fg: #111111;
+  /* QrScanSheet 등 기존 컴포넌트가 쓰는 공용 변수도 이 영역 안에서는 에디토리얼 팔레트 기준으로 맞춘다 */
+  --bg: var(--ed-bg);
+  --fg: var(--ed-fg);
   background: var(--ed-bg);
   color: var(--ed-fg);
 }
+/* ── 다크 테마 ─────────────────────────────────────────────────────────────
+   html[data-ed-theme="dark"](src/lib/theme.ts)일 때 에디토리얼 화면(.editorial-bleed)과 상단 · 하단 바(.ed-chrome)의 색만 바뀐다.
+   순수한 검정이 아니라 charcoal — 공간 사진이 배경에서 자연스럽게 살아나게. 경계선은 낮은 대비, 글자는 충분한 대비.
+   Cube(QR 현장) 화면은 이 범위 밖이라 라이트 그대로. 색 반전(filter: invert)은 쓰지 않는다. */
+[data-ed-theme="dark"] .editorial-bleed,
+[data-ed-theme="dark"] .ed-chrome {
+  --ed-bg: #161616;
+  --ed-fg: #ecebe8;
+  --ed-dim: #a09f9a;
+  --ed-line: #2f2f2d;
+  --ed-soft: #222221;
+  --ed-body: #cfcec9;
+  --ed-chrome: #0e0e0e;
+  --ed-chrome-line: #262625;
+  --dim: #a09f9a;
+  --border: #2f2f2d;
+  --tag-bg: #222221;
+}
+html[data-ed-theme="dark"]:has(.editorial-bleed) { color-scheme: dark; }
+/* body의 배경은 layout.tsx가 인라인으로 주므로 !important가 필요하다(탭 바 빈 칸 · 끝까지 당겼을 때 라이트 바탕이 비치지 않게) */
+[data-ed-theme="dark"] body:has(.editorial-bleed) { background: #161616 !important; }
 /* 콘텐츠가 짧아도 푸터 아래로 기본 배경(--bg)이 드러나지 않도록 본문이 최소 한 화면을 채운다(56px = Navbar) */
 .editorial-bleed > main {
-  min-height: calc(100vh - 3.5rem);
+  min-height: calc(100vh - var(--nav-h));
 }
 .ed-container {
   max-width: 1200px;
@@ -261,6 +294,7 @@ body {
 .ed-shelf-space { --shelf-card: 40vw; }
 .ed-shelf-story { --shelf-card: 44vw; }
 .ed-shelf-curation { --shelf-card: 64vw; }
+.ed-shelf-person { --shelf-card: 88px; }
 @media (min-width: 640px) {
   .ed-shelf-space { --shelf-card: 28vw; }
   .ed-shelf-story { --shelf-card: 30vw; }
@@ -272,6 +306,7 @@ body {
   .ed-shelf-space { --shelf-card: 22vw; }
   .ed-shelf-story { --shelf-card: 24vw; }
   .ed-shelf-curation { --shelf-card: 31vw; }
+  .ed-shelf-person { --shelf-card: 120px; }
 }
 @media (min-width: 1024px) {
   .ed-shelf-space { --shelf-card: clamp(200px, 18vw, 290px); }

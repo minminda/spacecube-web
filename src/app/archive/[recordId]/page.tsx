@@ -31,7 +31,7 @@ export default async function RecordDetailPage({ params }: Props) {
         <Link href="/archive" className="text-xs" style={{ color: "var(--dim)" }}>
           ←
         </Link>
-        <p className="text-xs" style={{ color: "var(--dim)" }}>아카이브</p>
+        <p className="text-xs" style={{ color: "var(--dim)" }}>내 공간</p>
         <div style={{ width: "1rem" }} />
       </nav>
 

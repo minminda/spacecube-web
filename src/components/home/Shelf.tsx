@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { ChevronLeftIcon, ChevronRightIcon } from "@/components/icons";
 
 interface Props {
   id?: string;
@@ -11,7 +12,7 @@ interface Props {
   href?: string;
   cta?: string;
   /** 카드 폭 종류(globals.css .ed-shelf-*) */
-  kind: "space" | "story" | "curation";
+  kind: "space" | "story" | "curation" | "person";
   children: React.ReactNode;
 }
 
@@ -59,7 +60,7 @@ export default function Shelf({ id, title, description, href, cta = "전체 보�
           <div className="shrink-0 flex items-center gap-3">
             {href && (
               <Link href={href} className="inline-flex items-center min-h-10 text-xs md:text-sm font-semibold hover:underline underline-offset-4">
-                {cta} <span aria-hidden className="ml-1">→</span>
+                {cta} <ChevronRightIcon className="w-4 h-4 ml-0.5" strokeWidth={2} />
               </Link>
             )}
             {scrollable && (
@@ -74,7 +75,7 @@ export default function Shelf({ id, title, description, href, cta = "전체 보�
                     className="w-9 h-9 flex items-center justify-center border transition-opacity disabled:opacity-25"
                     style={{ borderColor: "var(--ed-line)" }}
                   >
-                    <span aria-hidden className="text-sm">{dir === -1 ? "←" : "→"}</span>
+                    {dir === -1 ? <ChevronLeftIcon className="w-4 h-4" strokeWidth={2} /> : <ChevronRightIcon className="w-4 h-4" strokeWidth={2} />}
                   </button>
                 ))}
               </span>

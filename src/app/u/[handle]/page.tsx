@@ -96,7 +96,7 @@ export default async function PublicProfilePage({ params }: Props) {
 
         {empty ? (
           <p className="ed-container py-14 text-sm" style={{ borderTop: "1px solid var(--ed-line)", color: "var(--ed-dim)" }}>
-            {self ? "아직 아카이브에 공간이 없어요. 공간을 추가하면 여기에 보여요." : "아직 공개된 공간이 없어요."}
+            {self ? "아직 내 공간에 담은 곳이 없어요. 공간을 추가하면 여기에 보여요." : "아직 공개된 공간이 없어요."}
           </p>
         ) : (
           <>

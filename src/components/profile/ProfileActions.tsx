@@ -117,7 +117,7 @@ export function RelationLine({ path, followingCount, followerCount, common }: { 
 /** 화면 아래 짧은 안내(토스트) — 버튼 줄의 레이아웃을 밀지 않는다. 몇 초 뒤 사라진다. */
 function Toast({ children }: { children: React.ReactNode }) {
   return (
-    <div role="status" className="fixed inset-x-0 bottom-6 z-[70] flex justify-center px-4 pointer-events-none">
+    <div role="status" className="fixed inset-x-0 bottom-[calc(var(--tab-h)+env(safe-area-inset-bottom)+16px)] md:bottom-6 z-[70] flex justify-center px-4 pointer-events-none">
       <div className="pointer-events-auto inline-flex items-center gap-4 px-4 py-3 text-sm" style={{ background: "var(--ed-fg)", color: "var(--ed-bg)" }}>
         {children}
       </div>

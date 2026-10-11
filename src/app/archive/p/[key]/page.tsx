@@ -17,7 +17,7 @@ import { ProfileSpaceToggle } from "@/components/profile/ProfileActions";
 import { prisma } from "@/lib/prisma";
 import { profilePath } from "@/lib/profile/publicProfile";
 
-export const metadata: Metadata = { title: "내 아카이브 — 공간큐브", robots: { index: false } };
+export const metadata: Metadata = { title: "내 공간 — 공간큐브", robots: { index: false } };
 
 interface Props {
   params: Promise<{ key: string }>;
@@ -61,7 +61,7 @@ export default async function ArchiveDetailPage({ params }: Props) {
     <div className="editorial-bleed">
       <main className="pb-20 md:pb-28">
         <div className="ed-container pt-8 md:pt-12">
-          <Link href="/archive" className="text-xs hover:underline underline-offset-4" style={{ color: "var(--ed-dim)" }}>← 내 아카이브</Link>
+          <Link href="/archive" className="text-xs hover:underline underline-offset-4" style={{ color: "var(--ed-dim)" }}>← 내 공간</Link>
         </div>
 
         <div className="ed-container pt-6 grid gap-8 md:grid-cols-12 md:gap-12">

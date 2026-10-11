@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 
 // 아카이브는 기록에 집중한다 — 취향 기반 추천은 별도 페이지(/recommend)로 분리됐다(2026-10).
 const TABS = [
-  { href: "/archive", label: "내 아카이브" },
+  { href: "/archive", label: "내 공간" },
   { href: "/archive/all", label: "다녀온 공간" },
   { href: "/archive/saved", label: "저장한 공간" },
 ] as const;

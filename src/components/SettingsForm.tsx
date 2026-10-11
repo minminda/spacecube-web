@@ -6,6 +6,7 @@ import { canChangeNickname, nextNicknameChangeAt } from "@/lib/nickname";
 import { formatDotDate } from "@/lib/time";
 import ProfileSettingsSection, { type ProfileSettingsValue } from "@/components/profile/ProfileSettingsSection";
 import SettingsSection from "@/components/settings/SettingsSection";
+import ThemeSetting from "@/components/settings/ThemeSetting";
 
 export interface SettingsFormProps {
   nickname: string | null;
@@ -19,7 +20,7 @@ export interface SettingsFormProps {
 }
 
 /**
- * 설정 내용 — 닉네임 · 공개 프로필 · 계정(로그아웃). 설정 페이지(/settings)에서 쓴다.
+ * 설정 내용 — 닉네임 · 공개 프로필 · 화면 테마 · 계정(로그아웃). 설정 페이지(/settings)에서 쓴다.
  * 저장 · 로그아웃 동작은 그대로(/api/users/me PATCH, next-auth signOut) — 화면만 사용자 화면 디자인 언어로.
  */
 export default function SettingsForm({ nickname, nicknameUpdatedAt, profile, onSaved, autoFocus }: SettingsFormProps) {
@@ -81,6 +82,8 @@ export default function SettingsForm({ nickname, nicknameUpdatedAt, profile, onS
       </SettingsSection>
 
       {profile && <ProfileSettingsSection initial={profile} />}
+
+      <ThemeSetting />
 
       <SettingsSection title="계정">
         <button

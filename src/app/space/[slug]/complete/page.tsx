@@ -93,7 +93,7 @@ export default async function VisitCompletePage({ params, searchParams }: Props)
         </Link>
         {session?.user?.id ? (
           <Link href="/archive" className="text-xs text-center py-1" style={{ color: "var(--dim)" }}>
-            내 아카이브
+            내 공간
           </Link>
         ) : (
           <Link href="/" className="text-xs text-center py-1" style={{ color: "var(--dim)" }}>

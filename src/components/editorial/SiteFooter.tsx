@@ -20,7 +20,7 @@ const LINKS = [
  */
 export default function SiteFooter({ admin }: Props) {
   return (
-    <footer className="editorial-bleed" style={{ background: "#000", color: "#fff" }}>
+    <footer className="editorial-bleed" style={{ background: "var(--ed-chrome)", color: "#fff" }}>
       <div className="ed-container py-8 md:py-12">
         <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between md:gap-12">
           <div className="space-y-1.5">
@@ -42,7 +42,7 @@ export default function SiteFooter({ admin }: Props) {
             </li>
           </ul>
         </div>
-        <div className="mt-6 pt-4 flex flex-wrap items-center justify-between gap-3" style={{ borderTop: "1px solid #262626" }}>
+        <div className="mt-6 pt-4 flex flex-wrap items-center justify-between gap-3" style={{ borderTop: "1px solid var(--ed-chrome-line)" }}>
           <p className="text-xs" style={{ color: "#777" }}>© {BRAND_NAME}. 현재 파일럿 운영 중입니다.</p>
           {admin && (
             <Link href="/admin" className="text-xs" style={{ color: "#555" }}>관리자</Link>

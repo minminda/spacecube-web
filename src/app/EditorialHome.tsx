@@ -6,6 +6,9 @@ import CurationCard from "@/components/editorial/CurationCard";
 import Shelf from "@/components/home/Shelf";
 import HomeSpaceCard from "@/components/home/HomeSpaceCard";
 import RegionPicker from "@/components/home/RegionPicker";
+import RegionStar from "@/components/home/RegionStar";
+import SimilarPeopleShelf from "@/components/home/SimilarPeopleShelf";
+import { SearchIcon, StarIcon } from "@/components/icons";
 import { getHomeData, type HomeSpaceShelf } from "@/lib/home/homeData";
 import { homeHref } from "@/lib/home/shelves";
 import QrScanSheet from "./QrScanSheet";
@@ -18,7 +21,9 @@ import QrScanSheet from "./QrScanSheet";
    - 공간 하나가 여러 선반(지역 · 유형 · 테마 · 추천)에 동시에 나올 수 있다.
    - 지역을 고르면(/?area=후암) 선반이 그 지역 중심으로 바뀐다. 공간이 부족한 선반은 만들지 않는다.
    - 별점 · 순위 · 퍼센트는 없다. 카드에는 "왜 이 공간인가" 한 줄(큐레이션 선정 이유 · 추천 이유 · 한 줄 소개).
-   - 상단 메뉴(큐레이션 · 스토리 · 추천 · 내 아카이브)는 목적지를 아는 사람의 직접 이동, HOME은 둘러보며 발견하는 곳.
+   - 최상위는 HOME · 검색 · 내 공간. HOME은 공간큐브가 나에게 골라 보여주는 곳(추천은 별도 페이지가 아니라 선반의 순서 · 이유로 녹아 있다),
+     검색은 내가 직접 찾는 곳, 내 공간은 저장 · 방문 · 기록이 쌓이는 곳.
+   - 관심 지역(별표) → "관심 지역에서 발견한 공간" 선반이 일반 지역 선반보다 먼저. 취향이 비슷한 사람이 고른 공간 → "나와 비슷한 사람들이 좋아한 공간".
    - 임시 공간(src/lib/home/fixtures.ts)은 관리자 · 로컬의 /?preview=fixtures에서만 섞인다. ── */
 
 interface Props {
@@ -28,6 +33,8 @@ interface Props {
   fixtures: boolean;
   userId: string | null;
   area: string | null;
+  /** 별표한 관심 지역(최근 순) */
+  savedRegions: string[];
 }
 
 function SpaceShelf({ shelf, savedIds, loggedIn, id }: { shelf: HomeSpaceShelf; savedIds: Set<string>; loggedIn: boolean; id?: string }) {
@@ -42,8 +49,8 @@ function SpaceShelf({ shelf, savedIds, loggedIn, id }: { shelf: HomeSpaceShelf; 
   );
 }
 
-export default async function EditorialHome({ admin, previewDrafts, fixtures, userId, area }: Props) {
-  const d = await getHomeData({ userId, admin, previewDrafts, fixtures, area });
+export default async function EditorialHome({ admin, previewDrafts, fixtures, userId, area, savedRegions }: Props) {
+  const d = await getHomeData({ userId, admin, previewDrafts, fixtures, area, savedRegions });
   const preview = fixtures ? "fixtures" : previewDrafts ? "drafts" : null;
   const shelf = (s: HomeSpaceShelf, id?: string) => <SpaceShelf key={s.key} id={id ?? s.key} shelf={s} savedIds={d.savedIds} loggedIn={d.loggedIn} />;
   const lead = d.spaceShelves.filter((s) => !s.key.startsWith("theme-"));
@@ -73,7 +80,7 @@ export default async function EditorialHome({ admin, previewDrafts, fixtures, us
   return (
     <div className="editorial-bleed">
       {(previewDrafts || fixtures) && (
-        <div className="sticky top-14 z-40" style={{ background: "#fff6e6", borderBottom: "1px solid #f0dcb0" }}>
+        <div className="sticky top-[var(--nav-h)] z-40" style={{ background: "#fff6e6", borderBottom: "1px solid #f0dcb0" }}>
           <p className="ed-wide py-2.5 text-xs" style={{ color: "#8a5a00" }}>
             <strong className="font-semibold">미리보기 · {fixtures ? "임시 공간 포함" : "초안 포함"}</strong>
             <span className="ml-2">{fixtures ? "‘임시 ·’로 시작하는 카드는 UI 확인용입니다. 일반 방문자에게는 보이지 않아요." : "초안 콘텐츠가 함께 표시됩니다. 일반 방문자에게는 발행된 콘텐츠만 보여요."}</span>
@@ -93,19 +100,40 @@ export default async function EditorialHome({ admin, previewDrafts, fixtures, us
         )}
 
         {/* ── 지역 · 테마 입구 — "오늘 어느 지역의 공간을 볼까?" ── */}
-        <section id="discover" className="scroll-mt-16" style={{ borderTop: "1px solid var(--ed-line)" }}>
+        <section id="discover" className="scroll-mt-[calc(var(--nav-h)+8px)]" style={{ borderTop: "1px solid var(--ed-line)" }}>
           <div className="ed-wide pt-6 pb-2 md:pt-9">
             <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
-              <h2 className="text-lg md:text-[28px] font-bold tracking-[-0.03em] break-keep mr-auto">
+              <h2 className="text-lg md:text-[28px] font-bold tracking-[-0.03em] break-keep mr-auto inline-flex items-center gap-1">
                 {d.area ? <>{d.area}의 공간</> : <>오늘은 어떤 공간을 발견해 볼까요?</>}
+                {/* 지역 화면에서 바로 관심 지역으로 저장 · 해제 */}
+                {d.area && <RegionStar area={d.area} initialSaved={d.savedRegions.includes(d.area)} loggedIn={d.loggedIn} refresh />}
               </h2>
-              <RegionPicker options={d.areaOptions} current={d.area} preview={preview} />
+              <RegionPicker options={d.areaOptions} current={d.area} preview={preview} savedRegions={d.savedRegions} loggedIn={d.loggedIn} />
             </div>
+            {/* 검색 입구 — 직접 찾고 싶을 때(HOME은 골라 보여주는 곳, 검색은 직접 찾는 곳) */}
+            <Link
+              href="/search"
+              className="mt-4 flex items-center gap-3 h-12 px-4 max-w-[560px] border text-sm transition-colors hover:bg-[var(--ed-soft)]"
+              style={{ borderColor: "var(--ed-line)", color: "var(--ed-dim)" }}
+            >
+              <SearchIcon className="w-[18px] h-[18px] shrink-0" />
+              지역, 공간, 취향을 검색해보세요
+            </Link>
             {d.area && d.areaCounts && !d.areaEmpty && (
               <p className="pt-2 text-xs md:text-sm" style={{ color: "var(--ed-dim)" }}>
                 공간 {d.areaCounts.spaces}곳{d.areaCounts.curations > 0 ? ` · 큐레이션 ${d.areaCounts.curations}편` : ""}
                 <Link href={homeHref({ preview })} scroll={false} className="ml-3 font-semibold underline underline-offset-4" style={{ color: "var(--ed-fg)" }}>전체 지역 보기</Link>
               </p>
+            )}
+            {!d.area && d.savedRegions.length > 0 && (
+              <nav aria-label="관심 지역" className="-mx-5 md:mx-0 px-5 md:px-0 pt-4 flex gap-2 overflow-x-auto ed-scroll-x">
+                {d.savedRegions.map((a) => (
+                  <Link key={a} href={homeHref({ area: a, preview })} scroll={false} className="shrink-0 inline-flex items-center gap-1.5 h-9 pl-3 pr-3.5 text-[13px] font-semibold border transition-colors hover:bg-[var(--ed-soft)]" style={{ borderColor: "var(--ed-fg)" }}>
+                    <StarIcon filled className="w-3.5 h-3.5" strokeWidth={1.6} />
+                    {a}
+                  </Link>
+                ))}
+              </nav>
             )}
             {d.themeChips.length > 0 && (
               <nav aria-label="테마로 찾기" className="-mx-5 md:mx-0 px-5 md:px-0 pt-4 flex gap-2 overflow-x-auto ed-scroll-x">
@@ -128,6 +156,9 @@ export default async function EditorialHome({ admin, previewDrafts, fixtures, us
         )}
 
         {d.forYou && shelf(d.forYou)}
+        {d.interest && shelf(d.interest)}
+        {d.similar && shelf(d.similar)}
+        {d.similarPeople.length >= 2 && <SimilarPeopleShelf people={d.similarPeople} />}
 
         {/* 계정 데이터가 필요한 선반 — 비로그인은 한 줄 안내로 대신한다 */}
         {d.saved ? shelf(d.saved) : !d.loggedIn && (
@@ -173,7 +204,7 @@ export default async function EditorialHome({ admin, previewDrafts, fixtures, us
             <div className="md:col-span-5 flex flex-col gap-3 md:items-end">
               <div className="w-full max-w-sm space-y-3">
                 <QrScanSheet />
-                <Link href="/about" className="tap-target flex items-center justify-center w-full text-sm font-semibold border transition-colors hover:bg-white" style={{ borderColor: "var(--ed-fg)" }}>
+                <Link href="/about" className="tap-target flex items-center justify-center w-full text-sm font-semibold border transition-colors hover:bg-[var(--ed-bg)]" style={{ borderColor: "var(--ed-fg)" }}>
                   공간큐브 소개 →
                 </Link>
               </div>

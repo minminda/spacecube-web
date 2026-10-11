@@ -88,7 +88,7 @@ export default async function LegacyHome({ session }: { session: Session | null 
         {session ? (
           <>
             <Link href="/archive" className="block text-sm" style={{ color: "var(--dim)" }}>
-              내 아카이브
+              내 공간
             </Link>
             <HomeLogoutButton />
             {admin && (

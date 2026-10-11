@@ -8,7 +8,7 @@ import { STATUS_LABEL, type EditorialStatusValue } from "@/lib/editorial/types";
 export default function PreviewBanner({ status, editHref }: { status: EditorialStatusValue; editHref: string }) {
   if (status === "PUBLISHED") return null;
   return (
-    <div className="sticky top-14 z-40 w-full" style={{ background: "#fff6e6", borderBottom: "1px solid #f0dcb0" }}>
+    <div className="sticky top-[var(--nav-h)] z-40 w-full" style={{ background: "#fff6e6", borderBottom: "1px solid #f0dcb0" }}>
       <div className="ed-container flex flex-wrap items-center justify-between gap-2 py-2.5 text-xs" style={{ color: "#8a5a00" }}>
         <p>
           <strong className="font-semibold">미리보기 · {STATUS_LABEL[status]}</strong>

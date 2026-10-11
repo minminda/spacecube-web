@@ -73,7 +73,7 @@ export default async function PublicRecordPage({ params }: Props) {
               <Link href={`/spaces/${r.space.slug}`} className="tap-target inline-flex items-center px-4 text-sm" style={{ border: "1px solid var(--ed-line)" }}>공간 자세히 보기 →</Link>
             </div>
             <p className="text-xs leading-relaxed break-keep" style={{ color: "var(--ed-dim)" }}>
-              저장하면 내 아카이브에 같은 공간으로 담겨요.{own ? "" : " 사진은 공간큐브의 공간 사진이에요."}
+              저장하면 내 공간에 같은 공간으로 담겨요.{own ? "" : " 사진은 공간큐브의 공간 사진이에요."}
             </p>
           </div>
         </div>

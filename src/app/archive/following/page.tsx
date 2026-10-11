@@ -22,7 +22,7 @@ export default async function MyFollowingPage() {
     <div className="editorial-bleed">
       <main className="pb-24 md:pb-32">
         <div className="ed-container pt-8 md:pt-12 flex justify-between gap-4">
-          <Link href="/archive" className="text-xs hover:underline underline-offset-4" style={{ color: "var(--ed-dim)" }}>← 내 아카이브</Link>
+          <Link href="/archive" className="text-xs hover:underline underline-offset-4" style={{ color: "var(--ed-dim)" }}>← 내 공간</Link>
           <Link href="/find?tab=people&search=1" className="text-xs font-semibold hover:underline underline-offset-4">사람 찾기 →</Link>
         </div>
         <header className="ed-container pt-6 pb-6">

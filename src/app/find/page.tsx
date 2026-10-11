@@ -19,7 +19,7 @@ import { getFinderPool, getFinderViewer } from "@/lib/finder/finderData";
 import { previewDemoUsers } from "@/lib/demoData";
 import { recommendPeople, searchPeopleTiles } from "@/lib/people/peopleData";
 
-export const metadata: Metadata = { title: "추천 — 공간큐브", description: "지역만 고르면, 지금까지의 공간 경험을 바탕으로 나에게 맞는 공간부터 보여드려요." };
+export const metadata: Metadata = { title: "탐색 — 공간큐브", description: "지역만 고르면, 지금까지의 공간 경험을 바탕으로 나에게 맞는 공간부터 보여드려요." };
 
 interface Props {
   searchParams: Promise<{ tab?: string; who?: string; search?: string; area?: string; category?: string; q?: string; feel?: string; for?: string; n?: string }>;
@@ -57,7 +57,8 @@ async function PeopleResults({ viewerId, admin, loggedIn }: { viewerId: string |
 }
 
 /**
- * 추천 — 공간을 찾는 전체 과정. 사용자가 고르는 것은 지역 · 카테고리(각각 접힌 버튼 하나) · 검색어.
+ * 탐색(옛 "추천" — 주소 /find는 그대로) — 공간을 찾는 전체 과정. 상단 메뉴 · 하단 탭에는 없고(추천은 HOME을 개인화하는 원리가 됐다), HOME 선반의 "더 보기"와 옛 링크로 온다.
+ * 사용자가 고르는 것은 지역 · 카테고리(각각 접힌 버튼 하나) · 검색어.
  * 지역 Pool → 저장·방문·아카이브·Cube 경험·큐레이터 관계로 쌓인 취향을 자동으로 적용 → 나에게 맞는 순서로 전부 보여준다.
  * 분위기·유형·목적 같은 수동 필터는 이번 단계에서 두지 않는다(태그는 정렬 엔진 안에서 계속 쓰인다).
  *   옛 링크의 feel/for 파라미터는 읽되 적용하지 않는다 — 화면에 없는 조건으로 후보가 줄어들지 않게.
@@ -83,8 +84,8 @@ export default async function FindPage({ searchParams }: Props) {
     return (
       <div className="editorial-bleed">
         <main className="pb-20 md:pb-28">
-          <PageHeader title="추천">
-            <div className="pt-5"><SegmentTabs segments={tabs} active="people" label="추천 종류" /></div>
+          <PageHeader title="탐색">
+            <div className="pt-5"><SegmentTabs segments={tabs} active="people" label="탐색 종류" /></div>
           </PageHeader>
           <section className="ed-container pt-5" style={{ borderTop: "1px solid var(--ed-line)" }}>
             <PeopleSearch initialQuery={who} initialResults={initialResults} autoFocus={sp.search === "1"}>
@@ -118,8 +119,8 @@ export default async function FindPage({ searchParams }: Props) {
   return (
     <div className="editorial-bleed">
       <main className="pb-20 md:pb-28">
-        <PageHeader title="추천">
-          <div className="pt-5"><SegmentTabs segments={tabs} active="space" label="추천 종류" /></div>
+        <PageHeader title="탐색">
+          <div className="pt-5"><SegmentTabs segments={tabs} active="space" label="탐색 종류" /></div>
           <h2 className="pt-5 pb-3 text-sm font-semibold">어디에서 찾고 있나요?</h2>
           <FinderFilters query={{ area: q.area, category: q.category, q: q.q }} areas={areas} categories={categories} />
         </PageHeader>

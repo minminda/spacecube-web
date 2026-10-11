@@ -71,7 +71,7 @@ export default function ProfileSettingsSection({ initial }: { initial: ProfileSe
   const field = "w-full h-12 px-3.5 text-base border outline-none focus:border-[var(--ed-fg)]";
   const fieldStyle = { borderColor: "var(--ed-line)", background: "var(--ed-bg)", color: "var(--ed-fg)" } as const;
   return (
-    <SettingsSection title="공개 프로필" description="공개하면 내 아카이브의 공간이 프로필 주소에서 보여요. 사진 · 메모는 항상 나만 봐요.">
+    <SettingsSection title="공개 프로필" description="공개하면 내 공간에 담은 곳이 프로필 주소에서 보여요. 사진 · 메모는 항상 나만 봐요.">
       <div role="radiogroup" aria-label="프로필 공개" className="grid grid-cols-2" style={{ border: "1px solid var(--ed-fg)" }}>
         {[{ v: true, label: "공개" }, { v: false, label: "비공개" }].map(({ v, label }, i) => {
           const on = isPublic === v;
@@ -92,7 +92,7 @@ export default function ProfileSettingsSection({ initial }: { initial: ProfileSe
         })}
       </div>
       <p className="pt-2.5 text-sm leading-relaxed" style={{ color: "var(--ed-dim)" }}>
-        {isPublic ? "내 아카이브 공간이 보여요. 사진·메모는 보이지 않아요." : "주소로 들어와도 “비공개 아카이브입니다.”만 보여요."}
+        {isPublic ? "내 공간에 담은 곳이 보여요. 사진·메모는 보이지 않아요." : "주소로 들어와도 “비공개 아카이브입니다.”만 보여요."}
       </p>
 
       <div className="pt-6 space-y-2">

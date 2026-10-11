@@ -59,6 +59,7 @@ model User {
   curatorProfile        CuratorProfile?
   archiveEntries        ArchiveEntry[]
   profileSpaces         ProfileSpace[]
+  savedRegions          SavedRegion[]
 }
 
 model Account {
@@ -1599,4 +1600,21 @@ model ProfileSpace {
   @@unique([userId, spaceId])
   @@index([spaceId])
   @@map("profile_spaces")
+}
+
+// ─── 관심 지역 ─────────────────────────────────────────────────────────────
+// 로그인 사용자가 별표로 저장한 지역(HOME 개인화 · 내 공간에 쓴다). Region 테이블은 아직 없어 지역 이름(normalizeArea 결과)을 그대로 저장한다.
+// 비로그인 사용자는 쿠키(sc_regions)로 같은 동작을 한다 — 로그인 후 병합은 하지 않는다.
+// 새 테이블일 뿐 기존 테이블 · 데이터는 바꾸지 않는다(추가 전용).
+model SavedRegion {
+  id        String   @id @default(cuid())
+  userId    String
+  area      String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, area])
+  @@index([userId, createdAt])
+  @@map("saved_regions")
 }

@@ -109,7 +109,7 @@ function Block({ block, spaces, saveState }: { block: EditorialBlock; spaces: Ma
           {block.items.map((item, i) => (
             <div key={i} className="space-y-2">
               <dt className="text-base font-bold leading-snug">Q. {item.q}</dt>
-              <dd className="text-base leading-[1.85] whitespace-pre-line" style={{ color: "#333" }}>{item.a}</dd>
+              <dd className="text-base leading-[1.85] whitespace-pre-line" style={{ color: "var(--ed-body)" }}>{item.a}</dd>
             </div>
           ))}
         </dl>

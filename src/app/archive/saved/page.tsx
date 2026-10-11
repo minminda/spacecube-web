@@ -59,7 +59,7 @@ export default async function ArchiveSavedPage() {
     <div className="editorial-bleed">
     <main className="ed-container flex flex-col pt-8 pb-16" style={{ maxWidth: 960 }}>
       <nav className="flex justify-between items-center mb-10">
-        <Link href="/archive" className="text-xs" style={{ color: "var(--dim)" }}>← 내 아카이브</Link>
+        <Link href="/archive" className="text-xs" style={{ color: "var(--dim)" }}>← 내 공간</Link>
         <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>저장한 공간</p>
       </nav>
 

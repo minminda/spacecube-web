@@ -51,7 +51,7 @@ export default async function LoginPage({ searchParams }: Props) {
       <div className="space-y-4">
         <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>공간큐브</p>
         <h1 className="text-3xl font-bold leading-tight whitespace-pre-line">
-          {isGuestbookFlow ? <>방명록을 남기려면{"\n"}로그인이 필요해요</> : <>로그인하고{"\n"}내 아카이브를 이어가세요</>}
+          {isGuestbookFlow ? <>방명록을 남기려면{"\n"}로그인이 필요해요</> : <>로그인하고{"\n"}내 공간을 이어가세요</>}
         </h1>
         <p className="text-sm leading-relaxed" style={{ color: "var(--dim)" }}>
           {isGuestbookFlow ? "로그인 후 바로 남길 수 있어요." : "저장한 공간과 다녀온 기록이 한곳에 쌓여요."}

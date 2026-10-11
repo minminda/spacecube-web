@@ -5,8 +5,11 @@ import { usePathname } from "next/navigation";
 import { readingProgress } from "@/lib/editorial/readingProgress";
 import { useArticleScroll } from "./useArticleScroll";
 
-/** Navbar 높이(h-14 56px + 아래 테두리 1px). 진행 바는 그 바로 아래에 붙고, 0%는 글 위쪽이 이 선에 닿은 상태다. */
-const NAV_HEIGHT = 57;
+/** Navbar 높이(--nav-h: 모바일 56px / 데스크톱 68px + 아래 테두리 1px). 진행 바는 그 바로 아래에 붙고, 0%는 글 위쪽이 이 선에 닿은 상태다. */
+function navHeight(): number {
+  const v = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--nav-h"));
+  return (Number.isFinite(v) && v > 0 ? v : 56) + 1;
+}
 
 /**
  * 상세 글 읽기 진행 바 — Navbar 바로 아래 전체 폭 4px(아주 연한 회색 바탕 위 검정). 링크로 들어오면 맨 위, 새로고침하면 읽던 위치(useArticleScroll). 감싼 영역(제목 ~ 마지막 본문 블록)만 기준으로 계산하므로
@@ -36,7 +39,7 @@ export default function ReadingProgress({ children }: { children: React.ReactNod
         viewportHeight: window.innerHeight,
         articleTop: rect.top + y,
         articleBottom: rect.bottom + y,
-        topOffset: NAV_HEIGHT,
+        topOffset: navHeight(),
       });
       bar.style.transform = `scaleX(${p})`;
     };
@@ -63,7 +66,7 @@ export default function ReadingProgress({ children }: { children: React.ReactNod
       <div ref={areaRef}>{children}</div>
       {/* 연회색 바탕 선 위에 검정이 찬다 — 검정 Navbar 바로 아래라 바탕 선이 없으면 진행 끝이 보이지 않는다.
           색은 에디토리얼 토큰, 토큰 밖(Cube Episode 화면)에서는 같은 값으로 대체 */}
-      <div aria-hidden className="fixed inset-x-0 top-[57px] z-40 h-[4px] pointer-events-none" style={{ background: "var(--ed-soft, #f2f2f2)" }}>
+      <div aria-hidden className="fixed inset-x-0 top-[calc(var(--nav-h)+1px)] z-40 h-[4px] pointer-events-none" style={{ background: "var(--ed-soft, #f2f2f2)" }}>
         <div
           ref={barRef}
           className="h-full origin-left transition-transform duration-75 ease-linear motion-reduce:transition-none"

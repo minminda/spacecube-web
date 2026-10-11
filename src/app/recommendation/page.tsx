@@ -249,7 +249,7 @@ export default function RecommendationPage() {
           공간 탐색하기 →
         </Link>
         <Link href="/archive" style={{ color: "var(--dim)" }}>
-          내 아카이브 →
+          내 공간 →
         </Link>
       </div>
 

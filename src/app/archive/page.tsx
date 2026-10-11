@@ -21,8 +21,11 @@ import { curatorAccess } from "@/lib/curators/access";
 import { profilePath } from "@/lib/profile/publicProfile";
 import { ShareProfileButton } from "@/components/profile/ProfileActions";
 import { ensureProfileHandle } from "@/lib/profile/handle";
+import { getSavedRegions } from "@/lib/regions/savedRegions";
+import RegionStar from "@/components/home/RegionStar";
+import { ChevronRightIcon } from "@/components/icons";
 
-export const metadata = { title: "내 아카이브 — 공간큐브", robots: { index: false } };
+export const metadata = { title: "내 공간 — 공간큐브", robots: { index: false } };
 
 interface Props {
   searchParams: Promise<{ space?: string; view?: string; q?: string; area?: string; tag?: string; n?: string }>;
@@ -44,7 +47,9 @@ function hrefWith(f: LibraryFilter, patch: Partial<LibraryFilter> & { n?: number
 }
 
 /**
- * 내 아카이브 — 내가 발견하고 머물렀던 공간이 사진 중심으로 쌓이는 개인 라이브러리.
+ * 내 공간(주소는 그대로 /archive) — 내가 발견하고 머물렀던 공간이 사진 중심으로 쌓이는 개인 공간.
+ * 위에서부터: 핵심 행동(공간 추가 · 공유) → 담은 공간(전체 · 다녀온 곳 · 가보고 싶은 곳) → 공간큐브와 함께한 공간 → 이 취향과 비슷한 공간(HOME으로)
+ * → 관심 지역(별표) → 나의 흔적(방명록) → 설정. 새 저장소 없이 기존 데이터를 재배치한 것이다.
  * 공간큐브 안의 저장 · Cube 방문 · 큐레이터 컬렉션에서의 저장 · 사진/링크로 직접 추가한 공간이 한 그리드에 모인다
  * (src/lib/archive/library.ts가 공간 기준으로 합친다). + 공간 추가로 몇 초 만에 기록하고, 쌓인 기록은 취향과 추천으로 이어진다.
  * 모든 내용은 본인에게만 보인다.
@@ -72,7 +77,7 @@ export default async function ArchivePage({ searchParams }: Props) {
     ? await prisma.notification.count({ where: { receiverId: user.id, isRead: false } })
     : 0;
 
-  const [library, guestbookNotes, discovery, followingCount, followerCount] = await Promise.all([
+  const [library, guestbookNotes, discovery, followingCount, followerCount, savedRegions] = await Promise.all([
     getLibrary(user.id, { includeDemo }),
     prisma.guestbookNote.findMany({
       where: { userId: user.id, deletedAt: null },
@@ -83,7 +88,10 @@ export default async function ArchivePage({ searchParams }: Props) {
     getUserDiscoveryContext(user.id, { includeDemo: access.includeDemo }),
     editorial ? prisma.savedTaste.count({ where: { userId: user.id } }) : Promise.resolve(0),
     editorial ? prisma.savedTaste.count({ where: { targetUserId: user.id } }) : Promise.resolve(0),
+    getSavedRegions(user.id),
   ]);
+  // 공간큐브(Cube)로 현장을 다녀온 공간 — 내가 Cube로 방문한 기록이 있는 공간
+  const cubeItems = library.filter((i) => i.cubeVisits > 0 && !i.personal);
 
   const shown = filterLibrary(library, filter);
   const counts = {
@@ -100,8 +108,8 @@ export default async function ArchivePage({ searchParams }: Props) {
     <div className="editorial-bleed">
       <main className="pb-20 md:pb-28">
         <PageHeader
-          label={`Archive${user.nickname ? ` · ${user.nickname}` : ""}`}
-          title="내 아카이브"
+          label={user.nickname ?? undefined}
+          title="내 공간"
           tools={
             <>
               {ENABLE_NOTIFICATIONS && <NotificationBell initialUnreadCount={unreadNotificationCount} />}
@@ -110,13 +118,13 @@ export default async function ArchivePage({ searchParams }: Props) {
             </>
           }
         >
-          {/* 핵심 행동 두 가지 — 공간 추가(Primary) · 내 아카이브 공유(Secondary)를 세로로.
+          {/* 핵심 행동 두 가지 — 공간 추가(Primary) · 내 공간 공유(Secondary)를 세로로.
               크기는 추천의 공간/사람 세그먼트와 같다(휴대폰 전체 폭, 데스크톱 360px · 높이 46px).
               공유는 공개 여부와 상관없이 항상 내 /@handle — 비공개면 받는 사람에게 "비공개 아카이브입니다."가 보인다. */}
           <div className="pt-6 w-full md:max-w-[360px] flex flex-col gap-2">
             <ArchiveAddSheet className="ed-btn ed-btn-primary ed-btn-seg w-full" />
             {editorial && handle && (
-              <ShareProfileButton handle={handle} label="내 아카이브 공유" variant="seg" />
+              <ShareProfileButton handle={handle} label="내 공간 공유" variant="seg" />
             )}
           </div>
           {editorial && (
@@ -168,7 +176,7 @@ export default async function ArchivePage({ searchParams }: Props) {
           {library.length === 0 ? (
             <div className="py-12 space-y-4">
               <p className="text-base font-semibold">아직 담은 공간이 없어요.</p>
-              {editorial && <Link href="/find" className="ed-btn ed-btn-sm">추천에서 찾아보기</Link>}
+              {editorial && <Link href="/search" className="ed-btn ed-btn-sm">검색에서 찾아보기</Link>}
             </div>
           ) : shown.length === 0 ? (
             <p className="py-12 text-sm" style={{ color: "var(--ed-dim)" }}>조건에 맞는 공간이 없어요.</p>
@@ -202,10 +210,49 @@ export default async function ArchivePage({ searchParams }: Props) {
         {/* 쌓인 기록 → 다음 공간 — 취향을 태그·통계로 보여주지 않고 추천으로만 잇는다 */}
         {hasTaste && editorial && (
           <section className="ed-container pt-14">
-            <Link href="/find" className="group flex items-center justify-between gap-4 py-5" style={{ borderTop: "1px solid var(--ed-fg)", borderBottom: "1px solid var(--ed-line)" }}>
+            <Link href="/#for-you" className="group flex items-center justify-between gap-4 py-5" style={{ borderTop: "1px solid var(--ed-fg)", borderBottom: "1px solid var(--ed-line)" }}>
               <span className="text-base md:text-lg font-semibold break-keep group-hover:underline underline-offset-4">이 취향과 비슷한 공간</span>
-              <span aria-hidden className="text-sm">추천 →</span>
+              <span className="inline-flex items-center text-sm">홈에서 보기 <ChevronRightIcon className="w-4 h-4 ml-0.5" strokeWidth={2} /></span>
             </Link>
+          </section>
+        )}
+
+        {/* 공간큐브와 함께한 공간 — Cube로 현장을 다녀온 곳 */}
+        {editorial && cubeItems.length > 0 && (
+          <section className="ed-container pt-12">
+            <p className="ed-label pb-3" style={{ color: "var(--ed-dim)" }}>공간큐브와 함께한 공간</p>
+            <ul className={SPACE_GRID_CLASS}>
+              {cubeItems.slice(0, 8).map((it) => (
+                <li key={it.key} className="min-w-0">
+                  <SpaceTile href={libraryHref(it.key)} image={{ src: it.cover, alt: it.name }} name={it.name} meta={normalizeArea(it.area) ?? ""} sizes={SPACE_GRID_SIZES} />
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        {/* 관심 지역 — 별표한 지역. HOME이 이 지역의 공간을 먼저 보여준다 */}
+        {editorial && (
+          <section className="ed-container pt-12" id="regions">
+            <p className="ed-label pb-2" style={{ color: "var(--ed-dim)" }}>관심 지역</p>
+            {savedRegions.length === 0 ? (
+              <div className="py-3 space-y-3">
+                <p className="text-sm break-keep" style={{ color: "var(--ed-dim)" }}>지역에 별표를 하면 여기에 모이고, 홈에서 그 지역의 공간을 먼저 보여드려요.</p>
+                <Link href="/search#regions" className="ed-btn ed-btn-sm">지역 둘러보기</Link>
+              </div>
+            ) : (
+              <ul style={{ borderTop: "1px solid var(--ed-line)" }}>
+                {savedRegions.map((a) => (
+                  <li key={a} className="flex items-center" style={{ borderBottom: "1px solid var(--ed-line)" }}>
+                    <Link href={`/?area=${encodeURIComponent(a)}`} className="flex-1 min-w-0 flex items-center justify-between min-h-14 text-base font-semibold hover:underline underline-offset-4">
+                      {a}
+                      <ChevronRightIcon className="w-5 h-5" strokeWidth={1.6} />
+                    </Link>
+                    <RegionStar area={a} initialSaved loggedIn refresh />
+                  </li>
+                ))}
+              </ul>
+            )}
           </section>
         )}
 
@@ -227,6 +274,16 @@ export default async function ArchivePage({ searchParams }: Props) {
                 </li>
               ))}
             </ul>
+          </section>
+        )}
+
+        {/* 설정 진입 — 화면마다 톱니바퀴를 두지 않고 여기 · 메뉴에서만 */}
+        {editorial && (
+          <section className="ed-container pt-12">
+            <Link href="/settings" className="group flex items-center justify-between gap-4 py-5" style={{ borderTop: "1px solid var(--ed-line)", borderBottom: "1px solid var(--ed-line)" }}>
+              <span className="text-base font-semibold group-hover:underline underline-offset-4">설정 <span className="text-xs font-normal" style={{ color: "var(--ed-dim)" }}>닉네임 · 공개 프로필 · 화면 테마</span></span>
+              <ChevronRightIcon className="w-5 h-5" strokeWidth={1.6} />
+            </Link>
           </section>
         )}
       </main>

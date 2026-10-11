@@ -16,31 +16,21 @@ Core value:
 
 ## Public information architecture
 
-Primary navigation:
-- 큐레이션
-- 스토리
-- 추천
-- 내 아카이브
+Top level (2026-10-11): **HOME · 검색 · 내 공간**.
+- HOME = SpaceCube discovers spaces for the user (recommendation is the personalization principle, not a destination).
+- 검색 (`/search`) = the user looks for regions/spaces/taste directly.
+- 내 공간 (`/archive`) = saved, visited and recorded spaces.
 
-Mobile header:
-- Logo + menu only
+Header: logo + hamburger (desktop adds a search icon; desktop header is taller). Mobile also has a bottom tab bar (홈 · 검색 · 내 공간).
 
-Mobile drawer primary:
-- 큐레이션
-- 스토리
-- 추천
-- 내 아카이브
+Hamburger menu:
+- 콘텐츠: CURATION, STORY
+- 탐색: 지역 둘러보기, 테마 둘러보기
+- 사용자: 내 공간, 설정
+- 로그인 / 로그아웃
+- Secondary: 공간큐브, 소개, 공간 제안하기, Instagram, Contact, 관리자 (admin only)
 
-Then separated:
-- 설정
-
-Secondary:
-- 공간큐브
-- 소개
-- 공간 제안하기
-- Instagram
-- Contact
-- 관리자 (admin only)
+See `docs/PRODUCT_DECISIONS.md` "Top-level structure".
 
 ## Editorial content
 
@@ -70,7 +60,7 @@ Visual tone:
 
 ## Recommendation
 
-Route: `/find`
+Route: `/find` (titled 탐색; not in navigation since 2026-10-11 — HOME shelves link to it, old links keep working)
 
 Two tabs:
 - 공간 (default)
@@ -117,7 +107,7 @@ Directly registered personal spaces remain private/personal and should not leak 
 
 Archive top actions should focus on:
 - 공간 추가
-- 내 아카이브 공유
+- 내 공간 공유
 
 People discovery belongs under 추천 > 사람, not Archive.
 

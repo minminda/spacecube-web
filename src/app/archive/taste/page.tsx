@@ -63,7 +63,7 @@ export default async function ArchiveTastePage() {
 
   const header = (
     <nav className="flex justify-between items-center mb-10">
-      <Link href="/archive" className="text-xs" style={{ color: "var(--dim)" }}>← 내 아카이브</Link>
+      <Link href="/archive" className="text-xs" style={{ color: "var(--dim)" }}>← 내 공간</Link>
       <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>내 취향</p>
     </nav>
   );
