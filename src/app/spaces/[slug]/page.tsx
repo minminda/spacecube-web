@@ -14,6 +14,8 @@ import { getSpaceBySlug, getStoriesForSpace, listSpaces, personStoryItem, though
 import { curationEyebrow, spaceCoverImage } from "@/lib/editorial/types";
 import { getSavedEditorialSpaceIds } from "@/lib/editorial/saves";
 import { countPartnerGuestbookTraces } from "@/lib/editorial/partnerTrace";
+import { getPartnerEpisodes } from "@/lib/editorial/partnerEpisodes";
+import LockIcon from "@/components/LockIcon";
 import { normalizeArea } from "@/lib/editorial/area";
 import { INSTAGRAM_URL } from "@/content/site";
 import { curatorAccess } from "@/lib/curators/access";
@@ -46,11 +48,12 @@ export default async function SpaceDetailPage({ params }: Props) {
   const space = await getSpaceBySlug(slug, { preview: viewer.admin, allowDemo: access.includeDemo });
   if (!space) notFound();
 
-  const [{ curations, people, thoughts }, published, savedIds, traces] = await Promise.all([
+  const [{ curations, people, thoughts }, published, savedIds, traces, partnerEp] = await Promise.all([
     getStoriesForSpace(space.id),
     listSpaces(),
     getSavedEditorialSpaceIds(viewer.userId),
     space.cubeAvailable ? countPartnerGuestbookTraces(space.slug) : Promise.resolve(0),
+    space.cubeAvailable ? getPartnerEpisodes(space.slug) : Promise.resolve(null),
   ]);
   const area = normalizeArea(space.area);
   const nearby = published.filter((s) => s.id !== space.id && normalizeArea(s.area) === area).slice(0, 3);
@@ -92,11 +95,6 @@ export default async function SpaceDetailPage({ params }: Props) {
             )}
             <div className="md:col-span-12 flex flex-wrap items-start gap-x-6 gap-y-3">
               <SaveButton spaceId={space.id} spaceName={space.name} initialSaved={savedIds.has(space.id)} loggedIn={viewer.loggedIn} variant="text" />
-              {space.mapUrl && (
-                <a href={space.mapUrl} target="_blank" rel="noopener noreferrer" className="tap-target inline-flex items-center gap-2 text-sm font-semibold underline underline-offset-[6px] decoration-1">
-                  지도에서 보기 ↗
-                </a>
-              )}
             </div>
           </div>
         </header>
@@ -137,8 +135,13 @@ export default async function SpaceDetailPage({ params }: Props) {
                   </div>
                 ))}
               </dl>
-              {links.length > 0 && (
+              {(space.mapUrl || links.length > 0) && (
                 <div className="flex flex-wrap gap-x-5 gap-y-2 pt-4">
+                  {space.mapUrl && (
+                    <a href={space.mapUrl} target="_blank" rel="noopener noreferrer" className="text-sm font-medium hover:underline underline-offset-4">
+                      지도에서 보기 ↗
+                    </a>
+                  )}
                   {links.map((l) => (
                     <a key={l.label} href={l.href} target="_blank" rel="noopener noreferrer" className="text-sm font-medium hover:underline underline-offset-4">
                       {l.label} ↗
@@ -149,15 +152,37 @@ export default async function SpaceDetailPage({ params }: Props) {
             </div>
 
             {space.cubeAvailable && (
-              <div className="p-6 space-y-3" style={{ background: "var(--ed-soft)" }}>
-                <PartnerMark size={20} label />
-                <p className="text-base font-bold leading-snug">이 공간에는 GONGGANCUBE가 있습니다.</p>
-                <p className="text-sm leading-relaxed" style={{ color: "var(--ed-dim)" }}>
-                  현장의 Cube는 웹 이야기의 뒷부분이 아니라, 그 자리에 있어야 보이는 1~2분의 디테일을 들려줍니다.
-                  이야기가 끝나면 방명록으로 이어져요.
+              <div>
+                <p className="ed-label pb-3 inline-flex items-center gap-2 w-full" style={{ color: "var(--ed-dim)", borderBottom: "1px solid var(--ed-fg)" }}>
+                  Episode <PartnerMark size={13} />
                 </p>
+                {partnerEp && (
+                  <ul>
+                    {partnerEp.episodes.map((ep) => {
+                      const open = partnerEp.unlocked && ep.state !== "LOCKED";
+                      const row = (
+                        <span className="flex items-center gap-3 py-3.5 text-sm" style={{ borderBottom: "1px solid var(--ed-line)" }}>
+                          <span className="text-xs shrink-0" style={{ color: "var(--ed-dim)" }}>EP.{ep.episodeNumber}</span>
+                          <span className="flex-1 min-w-0 font-semibold break-keep" style={{ color: open ? undefined : "var(--ed-dim)" }}>{ep.title}</span>
+                          {open ? <span aria-hidden>→</span> : <LockIcon className="w-4 h-4 shrink-0" />}
+                        </span>
+                      );
+                      return (
+                        <li key={ep.id}>
+                          {open ? <Link href={`/space/${space.slug}/episodes/${ep.id}`} className="block hover:underline underline-offset-4">{row}</Link> : row}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+                {partnerEp && !partnerEp.unlocked && (
+                  <p className="pt-3 text-sm leading-relaxed break-keep" style={{ color: "var(--ed-dim)" }}>이 공간에서 QR을 스캔하면 이야기가 열립니다.</p>
+                )}
+                {partnerEp?.unlocked && (
+                  <Link href={`/space/${space.slug}/record`} className="tap-target mt-4 inline-flex items-center text-sm font-semibold underline underline-offset-[6px] decoration-1">방명록 열기</Link>
+                )}
                 {traces > 0 && (
-                  <p className="text-xs tabular-nums pt-1" style={{ color: "var(--ed-dim)" }}>지금까지 방명록에 남은 흔적 {traces}개</p>
+                  <p className="text-xs tabular-nums pt-3" style={{ color: "var(--ed-dim)" }}>지금까지 방명록에 남은 흔적 {traces}개</p>
                 )}
               </div>
             )}

@@ -5,7 +5,7 @@ import SaveButton from "@/components/editorial/SaveButton";
 import { spaceHref } from "@/lib/editorial/types";
 import type { HomeSpace } from "@/lib/home/shelves";
 
-export const HOME_SPACE_SIZES = "(min-width: 1024px) 290px, (min-width: 768px) 22vw, 40vw";
+export const HOME_SPACE_SIZES = "(min-width: 1024px) 220px, (min-width: 768px) 16vw, (min-width: 640px) 22vw, 31vw";
 
 interface Props {
   space: HomeSpace;
@@ -25,12 +25,12 @@ export default function HomeSpaceCard({ space, reason, save, priority }: Props) 
   const meta = [space.area, space.category].filter(Boolean).join(" · ");
   const body = (
     <>
-      <span className="flex items-baseline gap-1 pt-2 md:pt-2.5">
-        <span className="text-sm md:text-[15px] leading-snug font-semibold break-keep line-clamp-2 group-hover:underline underline-offset-4">{space.name}</span>
+      <span className="flex items-baseline gap-1 pt-1.5 md:pt-2">
+        <span className="text-[13px] md:text-sm leading-snug font-semibold break-keep line-clamp-2 group-hover:underline underline-offset-4">{space.name}</span>
         {space.partner && <PartnerMark size={13} />}
       </span>
-      {meta && <span className="block pt-0.5 text-xs truncate" style={{ color: "var(--ed-dim)" }}>{meta}</span>}
-      {reason && <span className="block pt-1.5 text-xs md:text-[13px] leading-snug break-keep line-clamp-2">{reason}</span>}
+      {meta && <span className="block pt-0.5 text-[11px] md:text-xs truncate" style={{ color: "var(--ed-dim)" }}>{meta}</span>}
+      {reason && <span className="block pt-1 text-[11px] md:text-xs leading-snug break-keep line-clamp-2">{reason}</span>}
     </>
   );
 

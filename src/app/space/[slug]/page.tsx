@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { Suspense } from "react";
@@ -23,9 +23,12 @@ import { LOCALE_COOKIE_NAME, resolveInitialLocale, availableLocalesForSpace } fr
 import { resolveLocalizedField } from "@/lib/i18nContent";
 import { DEFAULT_LOCALE, type LocaleCode } from "@/lib/locales";
 import { ENABLE_MULTILINGUAL } from "@/lib/pilotFlags";
+import { getEditorialViewer } from "@/lib/editorial/viewer";
+import { getSpaceBySlug } from "@/lib/editorial/queries";
 
 interface Props {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ src?: string }>;
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -40,8 +43,16 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-export default async function SpacePage({ params }: Props) {
-  const { slug } = await params;
+export default async function SpacePage({ params, searchParams }: Props) {
+  const [{ slug }, { src }] = await Promise.all([params, searchParams]);
+
+  // 공개 SPACE 상세(/spaces/[slug])가 일반 · 함께한 공간의 단일 상세다. QR 진입(?src=qr)이 아닌
+  // 방문은 그쪽으로 보낸다 — QR 주소(/c/[code] → 이 경로의 episodes)는 그대로 열린다.
+  // 공개 상세가 없는 운영 공간(Editorial 미등록)은 기존 화면을 그대로 쓴다.
+  if (src !== "qr") {
+    const viewer = await getEditorialViewer();
+    if (viewer.editorial && (await getSpaceBySlug(slug, { preview: viewer.admin }))) redirect(`/spaces/${slug}`);
+  }
 
   const [space, session] = await Promise.all([
     prisma.space.findUnique({ where: { slug, isActive: true } }),

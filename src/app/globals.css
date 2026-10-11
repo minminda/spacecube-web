@@ -290,26 +290,26 @@ html[data-ed-theme="dark"]:has(.editorial-bleed) { color-scheme: dark; }
   min-width: 0;
   scroll-snap-align: start;
 }
-/* 카드 폭 — 공간 카드(4:5)는 휴대폰에서 두 장 반, 데스크톱에서 여섯 장 남짓 */
-.ed-shelf-space { --shelf-card: 40vw; }
+/* 카드 폭 — 공간 카드(4:5)는 STORY/CURATION 안의 공간 타일 밀도에 맞춘다: 휴대폰에서 세 장 남짓(다음 카드가 걸쳐 보임), 데스크톱에서 여덟 장 안팎 */
+.ed-shelf-space { --shelf-card: 31vw; }
 .ed-shelf-story { --shelf-card: 44vw; }
 .ed-shelf-curation { --shelf-card: 64vw; }
 .ed-shelf-person { --shelf-card: 88px; }
 @media (min-width: 640px) {
-  .ed-shelf-space { --shelf-card: 28vw; }
+  .ed-shelf-space { --shelf-card: 22vw; }
   .ed-shelf-story { --shelf-card: 30vw; }
   .ed-shelf-curation { --shelf-card: 40vw; }
 }
 @media (min-width: 768px) {
   .ed-wide { padding-left: 40px; padding-right: 40px; }
   .ed-shelf { gap: 20px; scroll-padding-left: 40px; margin-left: -40px; margin-right: -40px; padding-left: 40px; padding-right: 40px; }
-  .ed-shelf-space { --shelf-card: 22vw; }
+  .ed-shelf-space { --shelf-card: 16vw; }
   .ed-shelf-story { --shelf-card: 24vw; }
   .ed-shelf-curation { --shelf-card: 31vw; }
   .ed-shelf-person { --shelf-card: 120px; }
 }
 @media (min-width: 1024px) {
-  .ed-shelf-space { --shelf-card: clamp(200px, 18vw, 290px); }
+  .ed-shelf-space { --shelf-card: clamp(160px, 13vw, 220px); }
   .ed-shelf-story { --shelf-card: clamp(240px, 22vw, 340px); }
   .ed-shelf-curation { --shelf-card: clamp(300px, 29vw, 440px); }
 }
