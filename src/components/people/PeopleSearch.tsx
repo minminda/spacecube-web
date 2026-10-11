@@ -31,7 +31,7 @@ export default function PeopleSearch({ initialQuery, initialResults, autoFocus, 
   // 결과를 이미 가진 검색어 — 같은 검색어로 다시 요청하지 않는다
   const fetchedFor = useRef<string | null>(startQuery === initialQuery && initialResults ? initialQuery.trim() : null);
 
-  const active = query.trim().replace(/^@/, "").length >= 2;
+  const active = query.trim().replace(/^@/, "").length >= 1;
 
   useEffect(() => {
     const url = new URL(window.location.href);

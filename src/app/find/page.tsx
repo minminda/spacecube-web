@@ -5,7 +5,6 @@ import type { Metadata } from "next";
 import SiteFooter from "@/components/editorial/SiteFooter";
 import PageHeader from "@/components/editorial/PageHeader";
 import SpaceCard from "@/components/editorial/SpaceCard";
-import SegmentTabs from "@/components/editorial/SegmentTabs";
 import { PeopleGrid, PeopleGridSkeleton } from "@/components/people/PeopleGrid";
 import PeopleSearch from "@/components/people/PeopleSearch";
 import { SPACE_GRID_CLASS } from "@/components/editorial/SpaceTile";
@@ -29,14 +28,6 @@ const PREFERRED_AREAS = ["연남", "망원", "서촌", "성수"];
 const PAGE = 30;
 
 const hrefFor = (q: FinderQuery, n?: number) => finderHref(q, n);
-
-/** 사람 탭 주소 — 공간 탭에서 고른 지역 · 카테고리는 그대로 들고 다닌다(사람 추천에는 쓰지 않고, 공간 탭으로 돌아올 때 유지). */
-function peopleHref(q: FinderQuery): string {
-  const p = new URLSearchParams({ tab: "people" });
-  if (q.area) p.set("area", q.area);
-  if (q.category) p.set("category", q.category);
-  return `/find?${p}`;
-}
 
 /**
  * 추천 > 사람 — 나와 비슷한 공간을 고르는 사람(공개 프로필의 일반 사용자, 별도 큐레이터 없음).
@@ -72,23 +63,16 @@ export default async function FindPage({ searchParams }: Props) {
   if (!viewer.editorial) redirect("/");
   const access = curatorAccess(viewer);
   const q: FinderQuery = { ...parseFinderQuery(sp), moods: [], purposes: [] };
-  const tabs = [
-    { key: "space", label: "공간", href: hrefFor(q) },
-    { key: "people", label: "사람", href: peopleHref(q) },
-  ];
 
-  // 기본은 공간. 사람 탭 = 닉네임 검색 칸 + 추천 그리드(검색어가 있으면 같은 자리에 검색 결과). 지역 선택 없음.
+  // 기본은 공간. 사람(?tab=people) = 독립 페이지 — 검색 칸 + 추천 그리드(검색어가 있으면 같은 자리에 검색 결과). 공간 탐색 UI(탭 · 제목)는 없다.
   if (sp.tab === "people") {
     const who = (sp.who ?? "").slice(0, 30);
     const initialResults = await searchPeopleTiles(who, viewer.userId, { includeDemo: previewDemoUsers(viewer.admin) });
     return (
       <div className="editorial-bleed">
         <main className="pb-20 md:pb-28">
-          <PageHeader title="탐색">
-            <div className="pt-5"><SegmentTabs segments={tabs} active="people" label="탐색 종류" /></div>
-          </PageHeader>
+          <PageHeader title="사람" description="나와 비슷한 공간 취향을 가진 사람을 만나보세요." />
           <section className="ed-container pt-5" style={{ borderTop: "1px solid var(--ed-line)" }}>
-            <p className="pb-4 text-sm break-keep" style={{ color: "var(--ed-dim)" }}>나와 비슷한 공간 취향을 가진 사람을 만나보세요.</p>
             <PeopleSearch initialQuery={who} initialResults={initialResults} autoFocus={sp.search === "1"}>
               <Suspense fallback={<PeopleGridSkeleton />}>
                 <PeopleResults viewerId={viewer.userId} admin={viewer.admin} loggedIn={viewer.loggedIn} />
@@ -121,7 +105,6 @@ export default async function FindPage({ searchParams }: Props) {
     <div className="editorial-bleed">
       <main className="pb-20 md:pb-28">
         <PageHeader title="탐색">
-          <div className="pt-5"><SegmentTabs segments={tabs} active="space" label="탐색 종류" /></div>
           <h2 className="pt-5 pb-3 text-sm font-semibold">어디에서 찾고 있나요?</h2>
           <FinderFilters query={{ area: q.area, category: q.category, q: q.q }} areas={areas} categories={categories} />
         </PageHeader>

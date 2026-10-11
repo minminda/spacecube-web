@@ -27,9 +27,9 @@ const LEGACY_NAV_ITEMS = [
 const CONTENT_ROWS = [
   { label: "CURATION", href: "/curation", match: (p: string) => p.startsWith("/curation") },
   { label: "STORY", href: "/story", match: (p: string) => p === "/story" || p.startsWith("/people") || p.startsWith("/thought") },
-  // 사람 = 취향이 비슷한 사람을 찾는 탐색 축(기존 /find 사람 탭). /people은 STORY의 PEOPLE 인터뷰 주소라 쓰지 않는다.
-  { label: "사람", href: "/find?tab=people", match: () => false },
 ];
+// 사람 = 콘텐츠가 아니라 개인 탐색 기능(사용자 그룹, 내 공간과 설정 사이). /people은 STORY의 PEOPLE 인터뷰 주소라 /find?tab=people을 쓴다.
+const PEOPLE_HREF = "/find?tab=people";
 const isSearchPath = (p: string) => p.startsWith("/search") || p.startsWith("/find") || p.startsWith("/recommend");
 
 export default function Navbar() {
@@ -171,6 +171,7 @@ export default function Navbar() {
               {groupLabel("사용자")}
               <ul>
                 {row("내 공간", myHref, pathname.startsWith("/archive"))}
+                {row("사람", PEOPLE_HREF, false)}
                 {row("설정", "/settings", pathname.startsWith("/settings"))}
               </ul>
             </div>

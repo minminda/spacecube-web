@@ -41,7 +41,7 @@ export default function SearchView({ initialQuery, initialResult, areaOptions, t
   const [result, setResult] = useState<SearchResponse | null>(startQuery === initialQuery ? initialResult : null);
   const fetchedFor = useRef<string | null>(startQuery === initialQuery && initialResult ? initialQuery.trim() : null);
   const inputRef = useRef<HTMLInputElement>(null);
-  // 사람 결과 — 공간 검색(/api/search)과 따로 가져와 공간 결과의 순서 · 속도에 영향을 주지 않는다. 2자 미만이면 찾지 않는다.
+  // 사람 결과 — 공간 검색(/api/search)과 따로 가져와 공간 결과의 순서 · 속도에 영향을 주지 않는다. 1글자부터 찾는다(서버 검색 · 최대 20명).
   const [people, setPeople] = useState<{ q: string; list: RecommendedPerson[] } | null>(null);
 
   const trimmed = query.trim();
@@ -80,7 +80,7 @@ export default function SearchView({ initialQuery, initialResult, areaOptions, t
   }, [trimmed, active, fixtures]);
 
   useEffect(() => {
-    if (trimmed.replace(/^@/, "").length < 2) return;
+    if (trimmed.replace(/^@/, "").length < 1) return;
     const ctrl = new AbortController();
     const t = window.setTimeout(async () => {
       try {
@@ -120,8 +120,8 @@ export default function SearchView({ initialQuery, initialResult, areaOptions, t
             type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value.slice(0, 40))}
-            placeholder="지역, 공간, 취향을 검색해보세요"
-            aria-label="지역, 공간, 취향 검색"
+            placeholder="지역, 공간, 취향, 사람을 검색해보세요"
+            aria-label="지역, 공간, 취향, 사람 검색"
             enterKeyHint="search"
             inputMode="search"
             autoComplete="off"

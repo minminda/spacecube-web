@@ -169,7 +169,7 @@ export function canFollow(viewerId: string, target: { id: string; profilePublic:
 /** 사람 찾기 검색어 — 앞뒤 공백·@ 제거, 2자 이상 30자 이하. 짧으면 검색하지 않는다(전체 목록·인기순 노출 없음). */
 export function peopleQuery(raw: string | undefined): string | null {
   const q = (raw ?? "").trim().replace(/^@/, "").slice(0, 30);
-  return q.length >= 2 ? q : null;
+  return q.length >= 1 ? q : null; // 1글자부터 — 전체 목록처럼 되지 않게 서버 검색 · 최대 20명으로 제한(searchPeople)
 }
 
 /**

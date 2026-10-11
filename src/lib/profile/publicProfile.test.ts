@@ -101,7 +101,8 @@ describe("관계 · 사람 찾기", () => {
   });
   it("검색어는 2자 이상(빈 검색으로 사람 목록을 늘어놓지 않음)", () => {
     expect(peopleQuery(undefined)).toBeNull();
-    expect(peopleQuery(" 동 ")).toBeNull();
+    expect(peopleQuery(" 동 ")).toBe("동");
+    expect(peopleQuery(" @ ")).toBeNull();
     expect(peopleQuery("@dongmin")).toBe("dongmin");
   });
 });
