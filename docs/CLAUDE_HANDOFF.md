@@ -4,42 +4,46 @@ Updated: 2026-10-11
 
 ## Status
 
-HOME 1차 구조 개편 — "공간을 발견하는 경험"을 전면으로. 브랜치 `claude/home-discovery-hub`(master `335142a` 기준, 미merge).
-DB · 스키마 · 관리자 · 추천 알고리즘은 바꾸지 않았다.
+HOME 2차 개편 완료 — 서비스의 최상위를 **HOME · 검색 · 내 공간**으로 정리. commit `c0f0079` (master, push됨).
+1차 HOME Discovery Hub(`claude/home-discovery-hub`)는 그대로 두고 그 위에서 진행했다(선반 · RegionPicker · HomeSpaceCard 재사용).
 
 ## Completed
 
-- HOME(`src/app/EditorialHome.tsx`)을 발견 허브로: LATEST(Hero) → 지역 · 테마 입구 → 선반들(가로 스크롤) → Experience.
-  - 선반: 회원님을 위해 엄선한 공간(로그인 + 취향 데이터) / 공간큐브가 엄선한 공간(그 외) · 내가 찜한 공간 · 새롭게 소개한 공간 · {지역}에서 머물고 싶은 곳 · 최근 CURATION · 테마 선반(책 · 음악 · 영화 · 커피 · 전시 · 혼자 · 대화 · 저녁 · 작은 숍, 공간이 3곳 이상일 때만) · 새로운 STORY · 다시 떠올려볼 공간(다녀온 곳) · 공간큐브와 함께한 공간.
-  - 공간 하나가 여러 선반에 동시에 나온다. 카드: 사진(없으면 플레이스홀더) · 이름 · 지역 · 유형 · 이유 한 줄(큐레이션 선정 이유 > 추천 이유 > 한 줄 소개). 별점 · 순위 · 퍼센트 없음.
-  - 지역 선택(`RegionPicker`): 휴대폰 바텀시트 / 데스크톱 모달, 검색 + 추천 지역(망원 · 연남 · 후암 · 서촌 · 성수) + 등록된 지역. `/?area=후암`이면 선반이 그 지역 중심(먼저 가볼 공간 · {지역}의 {유형} · {지역}에서 {테마} · 지역 큐레이션). 공간이 없는 지역은 안내 문구.
-  - 비로그인은 계정 선반 대신 한 줄 로그인 안내. 데이터가 부족한 선반은 만들지 않는다.
-- 넓은 화면: `.ed-wide`(최대 1680px, 좌우 20/40/56px)와 `.ed-shelf`(가로 스크롤, 화면 끝에서 다음 카드가 잘려 보임, 데스크톱 ← → 버튼). 읽는 화면의 `.ed-container`(1200px)는 그대로. Navbar도 `.ed-wide`.
-- 메뉴(☰): 비로그인 하단 "로그인"(48px), 로그인 하단 "설정 · 로그아웃"(48px, 로그아웃은 회색 톤). 데스크톱 상단에도 비로그인 "로그인". 로그인 · 로그아웃은 기존 `/login` · `signOut` 그대로.
-- 설정: 닉네임 · 공개 프로필 · 계정 세 구획(제목 + 설명), 48px 입력 · 버튼, 로그아웃 큰 버튼. API · 동작은 그대로.
+- **Navigation**
+  - 상단 바: 데스크톱 · 모바일 모두 `로고 + ☰`(데스크톱은 검색 아이콘 추가). 데스크톱 높이 68px / 모바일 56px — `--nav-h` CSS 변수(방명록 캔버스 · 읽기 진행 바 · 고정 배너가 이 값을 따른다).
+  - ☰ 메뉴(데스크톱은 오른쪽 400px 패널, 모바일은 전체 화면, 내용 동일): 콘텐츠(CURATION · STORY) / 탐색(지역 둘러보기 `/search#regions` · 테마 둘러보기 `/search#themes`) / 사용자(내 공간 · 설정) / 로그인 · 로그아웃 / 보조 링크.
+  - 모바일 하단 탭 `홈 · 검색 · 내 공간`(`BottomTabBar`): 벡터 아이콘, safe-area, 문서 끝 spacer. `/space/…` `/c/…` `/login` `/admin` `/operator` `/preview`에서는 숨김. 비로그인 `내 공간`은 `/login?callbackUrl=/archive`.
+  - `추천` 메뉴 제거. `/find`(제목 "탐색") · `/recommend`(→ /find) · `/recommendation`은 주소만 유지.
+- **HOME**: `회원님을 위해 엄선한 공간`(기존) → `관심 지역에서 발견한 공간`(별표한 지역을 합친 선반, 일반 지역 선반에서 해당 지역 제외) → `나와 비슷한 사람들이 좋아한 공간`(rankPeople에서 이유가 있는 사람들의 공개 공간 중 내가 안 가본 곳) → `취향이 비슷한 사람`(아바타 + 이름만) → 기존 선반. 검색 입구 한 줄 · 관심 지역 칩 추가.
+- **검색 `/search`**: 이름 · 지역 · 유형 · 태그 · 한 줄 소개 · 상세 설명 · 큐레이션 제목/요약 · 선정 이유를 합쳐 관련도 순으로. 점수는 순수 함수(`src/lib/search/spaceSearch.ts`) — 이름 정확 100 > 이름 앞부분/단어 80 > 지역 정확 75 > 유형 정확 65 > 태그 정확 60 > 테마 50 > 이름 일부 45 > … > 설명 10, 여러 단어는 합산(+모두 맞으면 30). `연남동`=`연남`, 한 글자 단어는 정확 일치/테마만. 지역 결과("망원 둘러보기")가 공간 결과 위. 검색어 없으면 추천 지역 · 추천 테마. `/api/search?q=`.
+- **관심 지역(별표)**: `RegionStar`(윤곽선/채운 벡터 별). RegionPicker · 검색 지역 결과 · 지역 HOME 제목 · 내 공간 관심 지역에서 저장/해제. 로그인 = `SavedRegion` 테이블(`/api/regions`), 비로그인 = 쿠키 `sc_regions`(로그인 후 병합 없음). 최대 12곳.
+- **내 공간**(`/archive` 라우트 유지): 사용자 문구 "내 아카이브" → "내 공간" 전부. 공간큐브와 함께한 공간 · 관심 지역 · 설정 진입 추가, "이 취향과 비슷한 공간" → 홈으로.
+- **다크 모드**: 설정 › 화면 테마(라이트/다크). 저장은 기기(localStorage `sc-theme`), `layout.tsx` head 스크립트가 첫 페인트 전에 `html[data-ed-theme="dark"]` 적용. 토큰은 `globals.css`(`:root` 라이트 + `[data-ed-theme="dark"] .editorial-bleed, .ed-chrome` 다크, charcoal `#161616`). **Cube(QR 현장) 화면은 라이트 유지.** `/settings`는 비로그인도 열린다(테마만 + 로그인 안내).
+- 아이콘: 이모지 없이 `src/components/icons.tsx`(Lucide 스타일 직접 작성 — 프로젝트에 아이콘 라이브러리 없음).
 
-## 데이터
+## Key files
 
-- 기존 재사용: `getFinderPool` → `getFinderViewer` → `rankCandidates` → `cardReason`(추천 > 공간과 같은 정렬 · 이유), 큐레이션 공간별 선정 이유(`EditorialCurationSpace.note`), 찜(`SavedEditorialSpace`), 방문(`visitedSlugs`), `listAreas` · `normalizeArea`, `listContentStream`(LATEST), `listCurations` · `listStoryItems` · `listCubeSpaces`.
-- 지역 · 테마는 새 테이블 없이 `EditorialSpace.area · category · tags`에서 만든다(`src/lib/home/shelves.ts` — 이후 Region/Theme 데이터로 바꿀 때 입력만 교체).
-- 임시 공간: `src/lib/home/fixtures.ts`(이름 "임시 · …", 사진 없음, 상세 링크 없음). 관리자 · 로컬의 `/?preview=fixtures`에서만 선반에 섞이고, 운영 일반 방문자에게는 절대 보이지 않는다. 운영 DB에 넣지 않았다.
-
-## Key files changed
-
-- 신규: `src/lib/home/shelves.ts`(+test), `src/lib/home/homeData.ts`, `src/lib/home/fixtures.ts`, `src/components/home/Shelf.tsx`, `HomeSpaceCard.tsx`, `RegionPicker.tsx`, `src/components/settings/SettingsSection.tsx`
-- 수정: `src/app/EditorialHome.tsx`, `src/app/page.tsx`(area · preview=fixtures), `src/app/globals.css`, `src/components/Navbar.tsx`, `src/components/SettingsForm.tsx`, `src/components/profile/ProfileSettingsSection.tsx`, `src/app/settings/page.tsx`, `src/components/editorial/LatestSlider.tsx`(containerClassName 옵션만)
+- 신규: `src/app/search/page.tsx`, `src/components/search/SearchView.tsx`, `src/lib/search/{spaceSearch,searchData}.ts`(+test), `src/app/api/{search,regions}/route.ts`, `src/lib/regions/{saved,savedRegions}.ts`(+test), `src/components/{BottomTabBar,icons}.tsx`, `src/components/home/{RegionStar,SimilarPeopleShelf}.tsx`, `src/components/settings/ThemeSetting.tsx`, `src/lib/theme.ts`(+test), `src/lib/client/useSiteViewer.ts`, `src/lib/people/similarPeople.test.ts`
+- 수정: `Navbar.tsx`, `layout.tsx`, `globals.css`, `EditorialHome.tsx`, `src/app/page.tsx`, `src/lib/home/homeData.ts`, `src/lib/people/peopleData.ts`(loadRankedPeople 추출 + `similarPeopleForHome`), `RegionPicker.tsx`, `Shelf.tsx`, `archive/page.tsx`, `settings/page.tsx`, `SettingsForm.tsx`, `find/page.tsx`, "내 공간" 문구 치환 파일들
 
 ## DB / schema
 
-- Changed: no
+- Changed: **yes — additive only.** 새 테이블 `SavedRegion`(`saved_regions`: id · userId→User(cascade) · area · createdAt, unique(userId, area), index(userId, createdAt)). 기존 테이블 · 데이터 변경 없음. 빌드(`prisma db push`)가 배포 때 자동 반영하며, 로컬 dev가 운영 DB를 쓰므로 이미 반영됨(`migrate diff`로 CREATE TABLE만 확인 후).
+- 테마는 스키마 없이 localStorage(기기 단위).
 
 ## Verification
 
-- TypeScript 통과 / vitest 64 files · 630 tests 통과(신규 14) / 변경 파일 eslint 통과 / `next build` 성공
-- 로컬 dev + 임시 Postgres(공개 공간 12 · 큐레이션 2 · PEOPLE 2 · THOUGHT 1 · 로그인 세션 · 찜 2)로 Playwright 375 · 390 · 768 · 1440 확인:
-  가로 넘침 없음, 선반 가로 스크롤 · 다음 카드 잘려 보임, 지역 시트 검색(“후암동” → 후암) · 선택 후 지역 선반, 빈 지역 안내, 메뉴 로그인/설정/로그아웃 48px, 설정 모바일 · 데스크톱, 콘텐츠 0편일 때 준비 중 문구, 주요 라우트 200.
+- TypeScript 통과 / vitest 96 files · 942 tests 통과(신규: 검색 랭킹 19 · 관심 지역 · 테마 · 비슷한 사람 5) / 변경 파일 eslint — 내가 건드리지 않은 `recommendation/page.tsx`의 기존 3건(`jsx-no-comment-textnodes`, HEAD에도 동일)만 / `next build` 성공.
+- 로컬 dev + 데모 뷰어 세션(검증 후 삭제)으로 390 · 375 · 768 · 1440 확인: HOME(로그인/비로그인), 메뉴(모바일 전체 · 데스크톱 패널), 하단 탭, 검색 랜딩 · 결과(`망원 LP` · `LP` · `책` · `연남동` · 결과 없음), 별표 저장(쿠키 · 계정), 관심 지역 선반 · 칩, 내 공간, 설정 테마 토글 · 새로고침 유지, 지역 시트, 다크 모드(HOME · 검색 · 탐색 · 공간 상세 · STORY · 설정).
+- 테스트 데이터(SavedRegion 2건 · 세션)는 모두 삭제.
 
-## Problems found / 다음 단계(구현하지 않음)
+## Problems found / 사용자 결정이 필요한 것
 
-- Navbar는 넓은 컨테이너, 다른 페이지 본문은 1200px — 큰 화면에서 로고와 본문 왼쪽 시작점이 다르다. CURATION · 추천 목록도 넓힐지 결정 필요.
-- 실제 운영을 위한 다음 단계 우선순위: ① Space 개별 등록 정리(사진 · 한 줄 · 선정 이유) ② Space ↔ 여러 Curation/Theme 연결 관리(지금은 태그 키워드) ③ Region 정규화(동네 이름 · 추천 지역 순서를 관리자에서) ④ Theme 관리(선반 제목 · 노출 순서 · 공간 지정) ⑤ HOME 선반 순서 · 노출 관리(Admin) ⑥ "새롭게 소개한" 기준을 publishedAt으로(현재는 생성 순).
+- 다크 모드는 에디토리얼 화면 + 상단/하단 바에만 적용(Cube QR 현장 화면 · 로그인 · 소개 등 옛 화면은 라이트). 로그인/소개/Cube까지 다크로 할지 결정 필요.
+- 테마 · 비로그인 관심 지역은 기기 단위 — 계정 기반 테마(User 필드)와 로그인 후 쿠키 지역 병합은 구현하지 않았다.
+- `/find`(탐색)에 지역 · 카테고리 필터가 남아 있어 `/search`와 기능이 겹친다. 합칠지(필터를 검색으로) 결정 필요.
+- "내가 저장한 공간과 비슷한 곳" 선반은 따로 만들지 않았다(기존 `회원님을 위해 엄선한 공간` 정렬이 저장 · 방문 신호를 이미 쓴다).
+- CURATION · STORY는 검색 대상이 아니다(구조만 확장 가능: `SearchDoc`과 같은 모양의 문서를 더 만들면 됨).
+- `similarPeopleForHome`은 후보를 최대 40명으로 자르고 사람마다 공개 공간을 조회한다(기존 `recommendPeople`의 N+1과 같은 구조 — 사용자가 늘면 배치 조회로).
+- 데스크톱 상단 바(`ed-wide`)와 본문(1200px)의 왼쪽 시작점 차이는 1차 handoff 그대로.
+- 검색 결과 상한 48곳(전체 개수는 표시) — 더 보기는 아직 없다.
