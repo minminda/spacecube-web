@@ -229,6 +229,60 @@ body {
 }
 .ed-scroll-x::-webkit-scrollbar { display: none; }
 
+/* ── 발견 화면(HOME) 넓은 컨테이너 + 가로 선반 ──────────────────────────────
+   읽는 화면(STORY 본문 등)은 기존 .ed-container(1200px) 그대로. 공간을 둘러보는 HOME만 화면 폭을 넓게 쓴다.
+   선반(.ed-shelf)은 컨테이너 좌우 여백까지 밀어 화면 끝에서 카드가 잘려 보이게 한다(옆으로 더 있다는 신호). */
+.ed-wide {
+  max-width: 1680px;
+  margin: 0 auto;
+  padding-left: 20px;
+  padding-right: 20px;
+}
+.ed-shelf {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+  scroll-padding-left: 20px;
+  margin-left: -20px;
+  margin-right: -20px;
+  padding-left: 20px;
+  padding-right: 20px;
+  scrollbar-width: none;
+}
+.ed-shelf::-webkit-scrollbar { display: none; }
+.ed-shelf > li {
+  flex: 0 0 var(--shelf-card, 42vw);
+  min-width: 0;
+  scroll-snap-align: start;
+}
+/* 카드 폭 — 공간 카드(4:5)는 휴대폰에서 두 장 반, 데스크톱에서 여섯 장 남짓 */
+.ed-shelf-space { --shelf-card: 40vw; }
+.ed-shelf-story { --shelf-card: 44vw; }
+.ed-shelf-curation { --shelf-card: 64vw; }
+@media (min-width: 640px) {
+  .ed-shelf-space { --shelf-card: 28vw; }
+  .ed-shelf-story { --shelf-card: 30vw; }
+  .ed-shelf-curation { --shelf-card: 40vw; }
+}
+@media (min-width: 768px) {
+  .ed-wide { padding-left: 40px; padding-right: 40px; }
+  .ed-shelf { gap: 20px; scroll-padding-left: 40px; margin-left: -40px; margin-right: -40px; padding-left: 40px; padding-right: 40px; }
+  .ed-shelf-space { --shelf-card: 22vw; }
+  .ed-shelf-story { --shelf-card: 24vw; }
+  .ed-shelf-curation { --shelf-card: 31vw; }
+}
+@media (min-width: 1024px) {
+  .ed-shelf-space { --shelf-card: clamp(200px, 18vw, 290px); }
+  .ed-shelf-story { --shelf-card: clamp(240px, 22vw, 340px); }
+  .ed-shelf-curation { --shelf-card: clamp(300px, 29vw, 440px); }
+}
+@media (min-width: 1280px) {
+  .ed-wide { padding-left: 56px; padding-right: 56px; }
+  .ed-shelf { gap: 24px; scroll-padding-left: 56px; margin-left: -56px; margin-right: -56px; padding-left: 56px; padding-right: 56px; }
+}
+
 /* ── 관리자 / 운영자 UI(Admin Workspace) ──────────────────────────────────
    /admin, /operator 전용. 흰 바탕 + 검정 + 라이트 그레이, 1px 선, 그림자·둥근 모서리 최소.
    기존 관리 컴포넌트들이 인라인으로 쓰는 공용 변수(--bg/--fg/--dim/--border/--tag-bg)도

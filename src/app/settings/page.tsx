@@ -9,8 +9,8 @@ import { getEditorialViewer } from "@/lib/editorial/viewer";
 export const metadata: Metadata = { title: "설정 — 공간큐브", robots: { index: false } };
 
 /**
- * 설정 — 메뉴의 "설정"으로 들어온다(화면마다 톱니바퀴를 두지 않는다). 내용은 예전 설정 패널과 같은 SettingsForm:
- * 닉네임 · 공개 프로필(공개 여부 · 주소 · 소개) · 로그아웃. 로그인한 사람만 — 아니면 로그인 후 여기로 돌아온다.
+ * 설정 — 메뉴의 "설정"으로 들어온다(화면마다 톱니바퀴를 두지 않는다). SettingsForm:
+ * 닉네임 · 공개 프로필(공개 여부 · 주소 · 소개) · 계정(로그아웃). 로그인한 사람만 — 아니면 로그인 후 여기로 돌아온다.
  */
 export default async function SettingsPage() {
   const viewer = await getEditorialViewer();
@@ -26,7 +26,7 @@ export default async function SettingsPage() {
       <main className="pb-20 md:pb-28">
         <PageHeader title="설정" />
         <section className="ed-container">
-          <div className="max-w-[480px] pt-6" style={{ borderTop: "1px solid var(--ed-line)" }}>
+          <div className="max-w-[560px]">
             <SettingsForm
               nickname={user.nickname}
               nicknameUpdatedAt={user.nicknameUpdatedAt?.toISOString() ?? null}

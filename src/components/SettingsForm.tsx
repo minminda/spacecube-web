@@ -5,6 +5,7 @@ import { signOut } from "next-auth/react";
 import { canChangeNickname, nextNicknameChangeAt } from "@/lib/nickname";
 import { formatDotDate } from "@/lib/time";
 import ProfileSettingsSection, { type ProfileSettingsValue } from "@/components/profile/ProfileSettingsSection";
+import SettingsSection from "@/components/settings/SettingsSection";
 
 export interface SettingsFormProps {
   nickname: string | null;
@@ -17,12 +18,16 @@ export interface SettingsFormProps {
   autoFocus?: boolean;
 }
 
-/** 설정 내용 — 닉네임 · 공개 프로필 · 로그아웃. 설정 페이지(/settings)와 예전 화면의 설정 패널이 같은 폼을 쓴다. */
+/**
+ * 설정 내용 — 닉네임 · 공개 프로필 · 계정(로그아웃). 설정 페이지(/settings)에서 쓴다.
+ * 저장 · 로그아웃 동작은 그대로(/api/users/me PATCH, next-auth signOut) — 화면만 사용자 화면 디자인 언어로.
+ */
 export default function SettingsForm({ nickname, nicknameUpdatedAt, profile, onSaved, autoFocus }: SettingsFormProps) {
   const [nickValue, setNickValue] = useState(nickname ?? "");
   const [saving, setSaving] = useState(false);
   const [savedFlash, setSavedFlash] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [signingOut, setSigningOut] = useState(false);
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -49,55 +54,45 @@ export default function SettingsForm({ nickname, nicknameUpdatedAt, profile, onS
   }
 
   return (
-    <div className="space-y-6">
-      <div className="space-y-5">
-        <p className="text-xs uppercase tracking-widest" style={{ color: "var(--fg)" }}>프로필</p>
-
-        <div className="space-y-2">
-          <p className="text-xs" style={{ color: "var(--dim)" }}>닉네임</p>
+    <div>
+      <SettingsSection title="닉네임" description="방명록과 공개 프로필에 보이는 이름이에요. 30일에 한 번 바꿀 수 있어요.">
+        <label htmlFor="settings-nickname" className="sr-only">닉네임</label>
+        <div className="flex flex-col sm:flex-row gap-2.5">
           <input
+            id="settings-nickname"
             ref={inputRef}
             autoFocus={autoFocus}
             value={nickValue}
             onChange={(e) => setNickValue(e.target.value.slice(0, 12))}
             placeholder="2~12자"
             maxLength={12}
-            className="w-full text-base md:text-sm bg-transparent border-b outline-none pb-2"
-            style={{ borderColor: "var(--border)", color: "var(--fg)" }}
+            className="w-full sm:flex-1 min-w-0 h-12 px-3.5 text-base border outline-none focus:border-[var(--ed-fg)]"
+            style={{ borderColor: "var(--ed-line)", background: "var(--ed-bg)", color: "var(--ed-fg)" }}
             onKeyDown={(e) => { if (e.key === "Enter") handleSave(); }}
           />
-          {nextChangeAt && (
-            <p className="text-xs" style={{ color: "var(--dim)" }}>
-              다음 변경 가능일: {formatDotDate(nextChangeAt)}
-            </p>
-          )}
+          <button type="button" onClick={handleSave} disabled={!dirty || saving || !changeAllowed} className="ed-btn ed-btn-primary sm:w-28">
+            {saving ? "저장 중..." : savedFlash ? "저장됨 ✓" : "저장"}
+          </button>
         </div>
-      </div>
-
-      <div className="space-y-2">
-        <button
-          onClick={handleSave}
-          disabled={!dirty || saving || !changeAllowed}
-          className="w-full text-sm font-medium py-3 border transition-colors disabled:opacity-40 hover:enabled:bg-[var(--fg)] hover:enabled:text-[var(--bg)]"
-          style={{ borderColor: "var(--fg)", color: "var(--fg)" }}
-        >
-          {saving ? "저장 중..." : savedFlash ? "저장됨 ✓" : "저장"}
-        </button>
-        {error && <p className="text-xs" style={{ color: "var(--dim)" }}>{error}</p>}
-      </div>
+        {nextChangeAt && (
+          <p className="pt-2 text-sm" style={{ color: "var(--ed-dim)" }}>다음 변경 가능일: {formatDotDate(nextChangeAt)}</p>
+        )}
+        {error && <p className="pt-2 text-sm" role="alert" style={{ color: "#b42318" }}>{error}</p>}
+      </SettingsSection>
 
       {profile && <ProfileSettingsSection initial={profile} />}
 
-      <div className="space-y-2 pt-2" style={{ borderTop: "1px solid var(--border)" }}>
-        <p className="text-xs uppercase tracking-widest" style={{ color: "var(--fg)" }}>계정</p>
+      <SettingsSection title="계정">
         <button
-          onClick={() => signOut({ callbackUrl: "/" })}
-          className="text-xs w-full text-left py-2"
-          style={{ color: "var(--dim)" }}
+          type="button"
+          onClick={() => { if (!signingOut) { setSigningOut(true); signOut({ callbackUrl: "/" }); } }}
+          disabled={signingOut}
+          className="ed-btn w-full sm:w-auto sm:min-w-40"
+          style={{ borderColor: "var(--ed-line)" }}
         >
-          로그아웃
+          {signingOut ? "로그아웃 중..." : "로그아웃"}
         </button>
-      </div>
+      </SettingsSection>
     </div>
   );
 }
