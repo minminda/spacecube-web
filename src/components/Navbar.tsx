@@ -119,6 +119,8 @@ export default function Navbar() {
   const suggestHref = PARTICIPATION[0].href;
   // 로그인 후 지금 보던 화면으로 돌아온다(기존 로그인 화면 그대로)
   const loginHref = `/login?callbackUrl=${encodeURIComponent(pathname || "/")}`;
+  // 로그인 화면에서는 숨긴다 — 그 화면의 callbackUrl(방명록 · 아카이브 등 돌아갈 곳)을 /login으로 덮어쓰지 않게
+  const showLogin = !!viewer && !viewer.loggedIn && !pathname.startsWith("/login");
 
   return (
     <nav className="sticky top-0 z-50 w-full" style={{ background: "#000", borderBottom: "1px solid #1a1a1a" }}>
@@ -151,7 +153,7 @@ export default function Navbar() {
             내 아카이브
           </Link>
           {/* 계정 — 화면마다 톱니바퀴를 두지 않고 여기. 비로그인이면 로그인 */}
-          {viewer && !viewer.loggedIn && (
+          {showLogin && (
             <Link
               href={loginHref}
               className="ml-3 text-[13px] whitespace-nowrap transition-opacity hover:opacity-100"
@@ -216,7 +218,7 @@ export default function Navbar() {
           {/* Account — 콘텐츠 메뉴와 한 칸 띄워 따로. 비로그인: 로그인 / 로그인: 설정 · 로그아웃(누르기 쉬운 크기, 과하게 강조하지 않음).
               로그인 · 로그아웃은 기존 흐름 그대로(/login, next-auth signOut). 관리자는 아래 Secondary에 따로 둔다. */}
           <div className="px-4 pt-7">
-            {viewer && !viewer.loggedIn && (
+            {showLogin && (
               <Link
                 href={loginHref}
                 onClick={() => setMenuOpenPath(null)}
