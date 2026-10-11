@@ -127,8 +127,7 @@ export default async function EditorialHome({ admin, previewDrafts, fixtures, us
           <LatestSlider items={d.latest} allHref="/latest" containerClassName="ed-wide" />
         ) : (
           <section className="ed-wide pt-8 pb-6">
-            <h2 className="ed-section-title pb-1">LATEST</h2>
-            <p className="pt-6 text-base" style={{ color: "var(--ed-dim)" }}>첫 번째 이야기를 준비하고 있어요.</p>
+            <p className="pt-2 text-base" style={{ color: "var(--ed-dim)" }}>첫 번째 이야기를 준비하고 있어요.</p>
           </section>
         )}
 

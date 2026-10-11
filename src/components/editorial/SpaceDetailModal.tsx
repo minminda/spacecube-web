@@ -38,7 +38,7 @@ export default function SpaceDetailModal({ children }: { children: React.ReactNo
     const bar = window.innerWidth - document.documentElement.clientWidth;
     body.style.overflow = "hidden";
     if (bar > 0) body.style.paddingRight = `${bar}px`;
-    panelRef.current?.focus();
+    panelRef.current?.focus({ preventScroll: true });
 
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") { e.preventDefault(); router.back(); return; }
@@ -64,8 +64,8 @@ export default function SpaceDetailModal({ children }: { children: React.ReactNo
 
   return (
     <div
-      className="fixed inset-0 z-[70] overflow-y-auto"
-      style={{ background: "rgba(0,0,0,0.55)", overscrollBehavior: "contain" }}
+      className="ed-modal-backdrop fixed inset-0 z-[70] overflow-y-auto"
+      style={{ background: "rgba(0,0,0,0.38)", backdropFilter: "blur(2px)", overscrollBehavior: "contain" }}
       onMouseDown={(e) => { if (e.target === e.currentTarget) router.back(); }}
     >
       <div
@@ -74,18 +74,20 @@ export default function SpaceDetailModal({ children }: { children: React.ReactNo
         aria-modal="true"
         aria-label="공간 상세"
         tabIndex={-1}
-        className="ed-modal-panel relative mx-auto my-8 w-[min(1120px,calc(100%-48px))] min-h-[60vh] rounded-[var(--ed-radius-lg)] outline-none overflow-hidden"
+        className="ed-modal-panel relative mx-auto mt-12 w-[min(1280px,calc(100%-64px))] min-h-[calc(100vh-48px)] rounded-t-[var(--ed-radius-lg)] outline-none"
         style={{ background: "var(--ed-bg)", color: "var(--ed-fg)" }}
       >
-        <button
-          type="button"
-          onClick={() => router.back()}
-          aria-label="공간 상세 닫기"
-          className="absolute right-3 top-3 z-20 w-11 h-11 inline-flex items-center justify-center rounded-[var(--ed-radius)] backdrop-blur-sm"
-          style={{ background: "color-mix(in srgb, var(--ed-bg) 88%, transparent)", color: "var(--ed-fg)", border: "1px solid var(--ed-line)" }}
-        >
-          <CloseIcon className="w-5 h-5" />
-        </button>
+        <div className="sticky top-3 z-20 h-0 flex justify-end pr-3 pointer-events-none">
+          <button
+            type="button"
+            onClick={() => router.back()}
+            aria-label="공간 상세 닫기"
+            className="pointer-events-auto mt-3 w-11 h-11 inline-flex items-center justify-center rounded-[var(--ed-radius)] backdrop-blur-sm"
+            style={{ background: "color-mix(in srgb, var(--ed-bg) 88%, transparent)", color: "var(--ed-fg)", border: "1px solid var(--ed-line)" }}
+          >
+            <CloseIcon className="w-5 h-5" />
+          </button>
+        </div>
         {children}
       </div>
     </div>

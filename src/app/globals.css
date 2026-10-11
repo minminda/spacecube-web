@@ -258,6 +258,13 @@ html[data-ed-theme="dark"]:has(.editorial-bleed) { color-scheme: dark; }
 .ed-btn-sm { height: 40px; padding: 0 16px; font-size: 13px; }
 /* 추천의 공간/사람 세그먼트(SegmentTabs)와 같은 높이 · 글자 — 내 아카이브 상단 행동이 같은 크기로 보이게 */
 .ed-btn-seg { height: 46px; font-size: 14px; }
+@keyframes ed-modal-in { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+@keyframes ed-modal-fade { from { opacity: 0; } to { opacity: 1; } }
+.ed-modal-backdrop { animation: ed-modal-fade 0.2s ease-out; }
+.ed-modal-panel { animation: ed-modal-in 0.22s ease-out; }
+@media (prefers-reduced-motion: reduce) {
+  .ed-modal-backdrop, .ed-modal-panel { animation: none; }
+}
 .ed-modal-panel {
   --bg: var(--ed-bg);
   --fg: var(--ed-fg);

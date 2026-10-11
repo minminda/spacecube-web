@@ -54,12 +54,12 @@ export default function Shelf({ id, title, description, href, cta = "전체 보�
       <div className="ed-wide">
         <div className="flex items-end justify-between gap-4 pb-2.5 md:pb-3.5">
           <div className="min-w-0">
-            <h2 className="text-xl leading-snug md:text-[28px] font-bold tracking-[-0.025em] break-keep">{title}</h2>
+            <h2 className="text-[22px] leading-snug md:text-[30px] font-bold tracking-[-0.025em] break-keep">{title}</h2>
             {description && <p className="pt-1 text-xs md:text-sm leading-relaxed break-keep" style={{ color: "var(--ed-dim)" }}>{description}</p>}
           </div>
           <div className="shrink-0 flex items-center gap-3">
             {href && (
-              <Link href={href} className="inline-flex items-center min-h-10 text-xs md:text-sm font-semibold hover:underline underline-offset-4">
+              <Link href={href} className="inline-flex items-center min-h-10 text-sm md:text-base font-bold hover:underline underline-offset-4">
                 {cta} <ChevronRightIcon className="w-4 h-4 ml-0.5" strokeWidth={2} />
               </Link>
             )}

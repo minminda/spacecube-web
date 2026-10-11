@@ -17,7 +17,7 @@ import type { ContentItem } from "@/lib/editorial/types";
    슬라이더만 클라이언트 컴포넌트다 — HOME 나머지는 서버 컴포넌트. ── */
 
 const INTERVAL_MS = 6000;
-const CTA: Record<ContentItem["kind"], string> = { curation: "Explore", person: "Read", thought: "Read", space: "View" };
+const CTA: Record<ContentItem["kind"], string> = { curation: "보기", person: "Read", thought: "Read", space: "View" };
 
 function advance(s: { index: number; seen: Set<number> }, next: number, count: number) {
   const index = ((next % count) + count) % count;
@@ -101,19 +101,7 @@ export default function LatestSlider({ items, allHref, containerClassName = "ed-
         if (Math.abs(dx) > 48) go(index + (dx < 0 ? 1 : -1));
       }}
     >
-      <div className="flex items-center justify-between pb-1 md:pb-2">
-        <h2 className="ed-section-title">LATEST</h2>
-        <div className="flex items-center gap-4 md:gap-6">
-          {multi && (
-            <p className="ed-label tabular-nums" style={{ color: "var(--ed-dim)" }}>
-              <span style={{ color: "var(--ed-fg)" }}>{pad(index + 1)}</span> / {pad(count)}
-            </p>
-          )}
-          {allHref && <Link href={allHref} className="text-xs md:text-sm font-semibold hover:underline underline-offset-4">전체 보기 →</Link>}
-        </div>
-      </div>
-
-      <div className="relative pt-2 md:pt-4">
+      <div className="relative">
         {/* 이미지 — 모든 슬라이드를 겹쳐 두고 opacity만 바꾼다(첫 장만 priority, 나머지 lazy) */}
         <div className="grid gap-4 md:grid-cols-12 md:gap-10 md:items-stretch">
           <div className="md:col-span-5 md:order-1 order-2 flex flex-col">
@@ -128,24 +116,31 @@ export default function LatestSlider({ items, allHref, containerClassName = "ed-
                   aria-label={`${i + 1} / ${count}`}
                 >
                   {/* 유형 + 번호를 한 줄로("CURATION 003 · 연남") — 유형 라벨을 따로 두지 않는다 */}
-                  <p className="ed-label line-clamp-1" style={{ color: "var(--ed-dim)" }}>
+                  <p className="text-[11px] md:text-xs font-semibold tracking-[0.1em] uppercase line-clamp-1" style={{ color: "var(--ed-dim)" }}>
                     {it.eyebrow}
                     {it.partner && <PartnerMark size={14} className="ml-3 align-[-3px]" />}
                   </p>
-                  <h3 className="mt-1.5 md:mt-4 text-[22px] leading-[1.25] line-clamp-2 md:line-clamp-none md:text-[40px] md:leading-[1.15] font-bold tracking-[-0.03em]">
+                  <h3 className="mt-1.5 md:mt-4 text-[22px] leading-[1.25] line-clamp-2 md:line-clamp-none md:text-[44px] md:leading-[1.15] font-bold tracking-[-0.03em]">
                     <Link href={it.href} tabIndex={i === index ? 0 : -1} className="hover:underline underline-offset-[6px] decoration-2">
                       {it.title}
                     </Link>
                   </h3>
                   {it.summary && <p className="mt-2 md:mt-4 text-sm md:text-lg leading-relaxed line-clamp-2 md:line-clamp-none" style={{ color: "var(--ed-dim)" }}>{it.summary}</p>}
-                  {it.meta && <p className="hidden md:block mt-4 text-sm" style={{ color: "var(--ed-dim)" }}>{it.meta}</p>}
-                  <div className="hidden md:block md:mt-auto md:pt-10">
-                    <Link href={it.href} tabIndex={i === index ? 0 : -1} className="inline-flex items-center gap-2 text-sm font-semibold hover:underline underline-offset-4">
+                  <div className="hidden md:block md:pt-8">
+                    <Link href={it.href} tabIndex={i === index ? 0 : -1} className="inline-flex items-center gap-2 text-base font-bold hover:underline underline-offset-4">
                       {CTA[it.kind]} <span aria-hidden>→</span>
                     </Link>
                   </div>
                 </div>
               ))}
+            </div>
+            <div className="mt-4 md:mt-auto md:pt-10 flex items-center gap-4 md:gap-6">
+              {multi && (
+                <p className="ed-label tabular-nums" style={{ color: "var(--ed-dim)" }}>
+                  <span style={{ color: "var(--ed-fg)" }}>{pad(index + 1)}</span> / {pad(count)}
+                </p>
+              )}
+              {allHref && <Link href={allHref} className="text-xs md:text-sm font-semibold hover:underline underline-offset-4">전체 보기 →</Link>}
             </div>
           </div>
 
