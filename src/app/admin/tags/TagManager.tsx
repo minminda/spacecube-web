@@ -1,22 +1,26 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/useToast";
 import Toast from "@/components/Toast";
+import AdminModal from "@/components/admin/ui/AdminModal";
 
 type SelectionType = "SINGLE" | "MULTI";
 
-interface TagRow {
+export interface TagRow {
   id: string;
   name: string;
   description: string;
   isActive: boolean;
   useForRecommendation: boolean;
-  usageCount: number;
+  /** 방문 기록에 붙은 횟수 */
+  recordCount: number;
+  /** 이 태그를 쓰는 공간(운영 공간 + 공간 등록, slug 기준 중복 제거) */
+  spaces: { name: string; slug: string; where: string }[];
 }
 
-interface CategoryRow {
+export interface CategoryRow {
   id: string;
   name: string;
   selectionType: SelectionType;
@@ -31,48 +35,55 @@ interface Props {
 
 const UNCLASSIFIED = "__unclassified__";
 
+async function errorOf(res: Response, fallback: string): Promise<string> {
+  const data = await res.json().catch(() => ({}));
+  if (res.status === 401) return "로그인이 만료되었어요. 다시 로그인해주세요.";
+  return data.error ?? fallback;
+}
+
 export default function TagManager({ initialCategories, initialUnclassified }: Props) {
   const [categories, setCategories] = useState(initialCategories);
   const [unclassified, setUnclassified] = useState(initialUnclassified);
+  const [q, setQ] = useState("");
+  const [unusedOnly, setUnusedOnly] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState("");
   const [newCategoryType, setNewCategoryType] = useState<SelectionType>("MULTI");
-  const [creatingCategory, setCreatingCategory] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<{ tag: TagRow; categoryId: string | null } | null>(null);
   const { toast, showToast } = useToast();
   const router = useRouter();
 
   const categoryOptions = categories.map((c) => ({ id: c.id, name: c.name }));
+  const allTags = [...categories.flatMap((c) => c.tags), ...unclassified];
+  const unusedCount = allTags.filter((t) => t.spaces.length === 0 && t.recordCount === 0).length;
+  const needle = q.trim();
+  const matches = (t: TagRow) => (!needle || t.name.includes(needle)) && (!unusedOnly || (t.spaces.length === 0 && t.recordCount === 0));
+
+  const setList = (categoryId: string | null) =>
+    categoryId === null
+      ? setUnclassified
+      : (updater: (tags: TagRow[]) => TagRow[]) => setCategories((prev) => prev.map((c) => (c.id === categoryId ? { ...c, tags: updater(c.tags) } : c)));
+
+  async function api(url: string, method: string, body?: unknown) {
+    return fetch(url, { method, headers: { "Content-Type": "application/json" }, body: body === undefined ? undefined : JSON.stringify(body) });
+  }
 
   async function createCategory() {
     const name = newCategoryName.trim();
     if (!name) return;
-    setCreatingCategory(true);
-    const res = await fetch("/api/categories", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, selectionType: newCategoryType }),
-    });
-    setCreatingCategory(false);
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      showToast(data.error ?? "카테고리 생성에 실패했어요.");
-      return;
-    }
+    const res = await api("/api/categories", "POST", { name, selectionType: newCategoryType });
+    if (!res.ok) return showToast(await errorOf(res, "카테고리를 만들지 못했어요."));
     const created = await res.json();
     setCategories((prev) => [...prev, { id: created.id, name: created.name, selectionType: created.selectionType, isActive: true, tags: [] }]);
     setNewCategoryName("");
   }
 
   async function moveCategory(id: string, direction: "up" | "down") {
-    const res = await fetch(`/api/categories/${id}/move`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ direction }),
-    });
-    if (!res.ok) return showToast("순서 변경에 실패했어요.");
+    const res = await api(`/api/categories/${id}/move`, "POST", { direction });
+    if (!res.ok) return showToast("순서를 바꾸지 못했어요.");
     setCategories((prev) => {
       const i = prev.findIndex((c) => c.id === id);
       const j = direction === "up" ? i - 1 : i + 1;
-      if (i === -1 || j < 0 || j >= prev.length) return prev;
+      if (i < 0 || j < 0 || j >= prev.length) return prev;
       const next = [...prev];
       [next[i], next[j]] = [next[j], next[i]];
       return next;
@@ -80,69 +91,34 @@ export default function TagManager({ initialCategories, initialUnclassified }: P
   }
 
   async function patchCategory(id: string, data: Partial<Pick<CategoryRow, "name" | "selectionType" | "isActive">>) {
-    const res = await fetch(`/api/categories/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    });
-    if (res.ok) {
-      setCategories((prev) => prev.map((c) => (c.id === id ? { ...c, ...data } : c)));
-    } else {
-      const err = await res.json().catch(() => ({}));
-      showToast(err.error ?? "변경에 실패했어요.");
-    }
-    return res.ok;
+    const res = await api(`/api/categories/${id}`, "PATCH", data);
+    if (!res.ok) { showToast(await errorOf(res, "변경하지 못했어요.")); return false; }
+    setCategories((prev) => prev.map((c) => (c.id === id ? { ...c, ...data } : c)));
+    return true;
   }
 
-  async function removeCategory(category: CategoryRow) {
-    if (category.tags.length > 0) {
-      showToast("하위 태그가 있는 카테고리는 삭제할 수 없어요. 태그를 먼저 옮기거나 삭제해주세요.");
-      return;
-    }
-    const res = await fetch(`/api/categories/${category.id}`, { method: "DELETE" });
-    if (res.ok) {
-      setCategories((prev) => prev.filter((c) => c.id !== category.id));
-      showToast("카테고리가 삭제되었습니다.");
-    } else {
-      const data = await res.json().catch(() => ({}));
-      showToast(data.error ?? "삭제에 실패했어요.");
-    }
+  async function removeCategory(c: CategoryRow) {
+    if (c.tags.length > 0) return showToast("태그가 들어 있는 분류는 삭제할 수 없어요. 태그를 먼저 옮기거나 삭제해주세요.");
+    const res = await api(`/api/categories/${c.id}`, "DELETE");
+    if (!res.ok) return showToast(await errorOf(res, "삭제하지 못했어요."));
+    setCategories((prev) => prev.filter((x) => x.id !== c.id));
   }
 
-  function tagListSetter(categoryId: string | null) {
-    return categoryId === null ? setUnclassified : (updater: (tags: TagRow[]) => TagRow[]) => {
-      setCategories((prev) => prev.map((c) => (c.id === categoryId ? { ...c, tags: updater(c.tags) } : c)));
-    };
-  }
-
-  async function createTag(categoryId: string | null, name: string) {
-    if (!name.trim()) return;
-    const res = await fetch("/api/tags", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: name.trim(), categoryId }),
-    });
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      showToast(data.error ?? "태그 생성에 실패했어요.");
-      return;
-    }
+  async function createTag(categoryId: string | null, name: string): Promise<boolean> {
+    const res = await api("/api/tags", "POST", { name, categoryId });
+    if (!res.ok) { showToast(await errorOf(res, "태그를 추가하지 못했어요.")); return false; }
     const created = await res.json();
-    const row: TagRow = { id: created.id, name: created.name, description: created.description ?? "", isActive: true, useForRecommendation: true, usageCount: 0 };
-    tagListSetter(categoryId)((prev) => [...prev, row]);
+    setList(categoryId)((prev) => [...prev, { id: created.id, name: created.name, description: "", isActive: true, useForRecommendation: true, recordCount: 0, spaces: [] }]);
+    return true;
   }
 
   async function moveTag(categoryId: string | null, tagId: string, direction: "up" | "down") {
-    const res = await fetch(`/api/tags/${tagId}/move`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ direction }),
-    });
-    if (!res.ok) return showToast("순서 변경에 실패했어요.");
-    tagListSetter(categoryId)((prev) => {
+    const res = await api(`/api/tags/${tagId}/move`, "POST", { direction });
+    if (!res.ok) return showToast("순서를 바꾸지 못했어요.");
+    setList(categoryId)((prev) => {
       const i = prev.findIndex((t) => t.id === tagId);
       const j = direction === "up" ? i - 1 : i + 1;
-      if (i === -1 || j < 0 || j >= prev.length) return prev;
+      if (i < 0 || j < 0 || j >= prev.length) return prev;
       const next = [...prev];
       [next[i], next[j]] = [next[j], next[i]];
       return next;
@@ -150,80 +126,63 @@ export default function TagManager({ initialCategories, initialUnclassified }: P
   }
 
   async function patchTag(categoryId: string | null, id: string, data: Partial<Pick<TagRow, "name" | "description" | "isActive" | "useForRecommendation">>) {
-    const res = await fetch(`/api/tags/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    });
-    if (res.ok) {
-      tagListSetter(categoryId)((prev) => prev.map((t) => (t.id === id ? { ...t, ...data } : t)));
-    } else {
-      showToast("변경에 실패했어요.");
-    }
-    return res.ok;
+    const res = await api(`/api/tags/${id}`, "PATCH", data);
+    if (!res.ok) { showToast(await errorOf(res, "변경하지 못했어요.")); return false; }
+    const updated = await res.json();
+    setList(categoryId)((prev) => prev.map((t) => (t.id === id ? { ...t, ...data, name: updated.name ?? t.name } : t)));
+    if (data.name && updated.renamedSpaces > 0) showToast(`이름을 바꾸고 공간 ${updated.renamedSpaces}곳의 태그도 함께 바꿨어요.`);
+    return true;
   }
 
-  async function removeOrDeactivateTag(categoryId: string | null, tag: TagRow) {
-    if (tag.usageCount > 0) {
-      await patchTag(categoryId, tag.id, { isActive: false });
-      showToast("이미 사용된 태그라 비활성화했습니다.");
-      return;
-    }
-    const res = await fetch(`/api/tags/${tag.id}`, { method: "DELETE" });
-    if (res.ok) {
-      tagListSetter(categoryId)((prev) => prev.filter((t) => t.id !== tag.id));
-      showToast("태그가 삭제되었습니다.");
-    } else {
-      const data = await res.json().catch(() => ({}));
-      showToast(data.error ?? "삭제에 실패했어요.");
-    }
-  }
-
-  async function reassignTag(fromCategoryId: string | null, tag: TagRow, toCategoryId: string | null) {
-    if (toCategoryId === fromCategoryId) return;
-    const res = await fetch(`/api/tags/${tag.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ categoryId: toCategoryId }),
-    });
-    if (!res.ok) {
-      showToast("카테고리 이동에 실패했어요.");
-      return;
-    }
-    tagListSetter(fromCategoryId)((prev) => prev.filter((t) => t.id !== tag.id));
-    tagListSetter(toCategoryId)((prev) => [...prev, tag]);
+  async function reassignTag(from: string | null, tag: TagRow, to: string | null) {
+    if (from === to) return;
+    const res = await api(`/api/tags/${tag.id}`, "PATCH", { categoryId: to });
+    if (!res.ok) return showToast(await errorOf(res, "분류를 옮기지 못했어요."));
+    setList(from)((prev) => prev.filter((t) => t.id !== tag.id));
+    setList(to)((prev) => [...prev, tag]);
     router.refresh();
   }
 
+  async function confirmDelete() {
+    if (!deleteTarget) return;
+    const { tag, categoryId } = deleteTarget;
+    const inUse = tag.spaces.length > 0 || tag.recordCount > 0;
+    if (inUse) {
+      // 쓰는 곳이 있으면 지우지 않고 비활성화(새로 고를 수 없게)만 한다
+      if (await patchTag(categoryId, tag.id, { isActive: false })) showToast("사용 중인 태그라 비활성화했어요.");
+    } else {
+      const res = await api(`/api/tags/${tag.id}`, "DELETE");
+      if (!res.ok) { showToast(await errorOf(res, "삭제하지 못했어요.")); return; }
+      setList(categoryId)((prev) => prev.filter((t) => t.id !== tag.id));
+      showToast("태그를 삭제했어요.");
+    }
+    setDeleteTarget(null);
+  }
+
+  const rowProps = (categoryId: string | null) => ({
+    categoryOptions,
+    categoryId,
+    onPatch: (id: string, d: Parameters<typeof patchTag>[2]) => patchTag(categoryId, id, d),
+    onMove: (id: string, dir: "up" | "down") => moveTag(categoryId, id, dir),
+    onDelete: (tag: TagRow) => setDeleteTarget({ tag, categoryId }),
+    onReassign: (tag: TagRow, to: string | null) => reassignTag(categoryId, tag, to),
+  });
+
   return (
     <div className="flex flex-col gap-8">
-      {/* 새 카테고리 추가 */}
-      <div className="flex gap-3 flex-wrap p-4 border" style={{ borderColor: "var(--border)" }}>
-        <input
-          value={newCategoryName}
-          onChange={(e) => setNewCategoryName(e.target.value)}
-          placeholder="새 카테고리 이름 (예: 분위기)"
-          className="flex-1 min-w-[10rem] bg-transparent border px-3 py-2 text-sm outline-none focus:border-[var(--fg)]"
-          style={{ borderColor: "var(--border)", color: "var(--fg)" }}
-          onKeyDown={(e) => { if (e.key === "Enter") createCategory(); }}
-        />
-        <select
-          value={newCategoryType}
-          onChange={(e) => setNewCategoryType(e.target.value as SelectionType)}
-          className="bg-transparent border px-3 py-2 text-sm outline-none focus:border-[var(--fg)]"
-          style={{ borderColor: "var(--border)", color: "var(--fg)" }}
-        >
-          <option value="MULTI">다중 선택</option>
-          <option value="SINGLE">단일 선택</option>
-        </select>
-        <button
-          onClick={createCategory}
-          disabled={creatingCategory || !newCategoryName.trim()}
-          className="text-sm px-4 py-2 border transition-colors hover:bg-[var(--fg)] hover:text-[var(--bg)] disabled:opacity-40"
-          style={{ borderColor: "var(--fg)" }}
-        >
-          {creatingCategory ? "추가 중..." : "+ 카테고리 추가"}
-        </button>
+      {/* 한눈에 보기 */}
+      <div className="grid grid-cols-3 gap-3">
+        <Stat label="전체 태그" value={allTags.length} />
+        <Stat label="사용 중" value={allTags.length - unusedCount} />
+        <Stat label="미사용" value={unusedCount} hint={unusedCount > 0 ? "정리 후보" : undefined} />
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="태그 검색" aria-label="태그 검색" className="a-input" style={{ maxWidth: 240, height: 40 }} />
+        <label className="flex items-center gap-2 text-sm cursor-pointer px-1" style={{ minHeight: 40 }}>
+          <input type="checkbox" checked={unusedOnly} onChange={(e) => setUnusedOnly(e.target.checked)} />
+          사용되지 않는 태그만 ({unusedCount})
+        </label>
       </div>
 
       {categories.map((category, i) => (
@@ -232,241 +191,221 @@ export default function TagManager({ initialCategories, initialUnclassified }: P
           category={category}
           index={i}
           total={categories.length}
-          categoryOptions={categoryOptions}
+          visibleTags={category.tags.filter(matches)}
+          rowProps={rowProps(category.id)}
           onMove={(dir) => moveCategory(category.id, dir)}
-          onPatch={(data) => patchCategory(category.id, data)}
+          onPatch={(d) => patchCategory(category.id, d)}
           onRemove={() => removeCategory(category)}
           onCreateTag={(name) => createTag(category.id, name)}
-          onMoveTag={(tagId, dir) => moveTag(category.id, tagId, dir)}
-          onPatchTag={(tagId, data) => patchTag(category.id, tagId, data)}
-          onRemoveTag={(tag) => removeOrDeactivateTag(category.id, tag)}
-          onReassignTag={(tag, toCategoryId) => reassignTag(category.id, tag, toCategoryId)}
         />
       ))}
 
       {unclassified.length > 0 && (
-        <div className="space-y-3">
-          <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>미분류</p>
-          <p className="text-xs" style={{ color: "var(--dim)" }}>카테고리를 정해주지 않은 태그입니다. 아래에서 카테고리를 골라 옮겨주세요.</p>
-          <div className="space-y-3">
-            {unclassified.map((tag) => (
-              <TagCard
-                key={tag.id}
-                tag={tag}
-                index={0}
-                total={1}
-                categoryOptions={categoryOptions}
-                currentCategoryId={null}
-                onMove={() => {}}
-                onPatch={(data) => patchTag(null, tag.id, data)}
-                onRemove={() => removeOrDeactivateTag(null, tag)}
-                onReassign={(toCategoryId) => reassignTag(null, tag, toCategoryId)}
-                hideMove
-              />
-            ))}
+        <section className="a-card p-4 sm:p-5 space-y-3">
+          <div className="space-y-1">
+            <h2 className="text-[15px] font-semibold">미분류</h2>
+            <p className="text-xs" style={{ color: "var(--a-dim)" }}>분류가 정해지지 않은 태그예요. 오른쪽의 분류 선택에서 알맞은 곳으로 옮겨주세요.</p>
           </div>
-        </div>
+          <ul className="divide-y" style={{ borderColor: "var(--a-line)" }}>
+            {unclassified.filter(matches).map((tag, i, arr) => (
+              <TagItem key={tag.id} tag={tag} index={i} total={arr.length} hideMove {...rowProps(null)} />
+            ))}
+          </ul>
+        </section>
       )}
+
+      {/* 새 분류 */}
+      <section className="a-card p-4 sm:p-5 space-y-3">
+        <h2 className="text-[15px] font-semibold">분류 추가</h2>
+        <form className="flex flex-col sm:flex-row gap-2" onSubmit={(e) => { e.preventDefault(); void createCategory(); }}>
+          <input value={newCategoryName} onChange={(e) => setNewCategoryName(e.target.value)} placeholder="분류 이름 (예: 분위기)" aria-label="새 분류 이름" className="a-input" style={{ height: 44 }} />
+          <select value={newCategoryType} onChange={(e) => setNewCategoryType(e.target.value as SelectionType)} aria-label="선택 방식" className="a-input" style={{ height: 44, width: "auto" }}>
+            <option value="MULTI">여러 개 선택</option>
+            <option value="SINGLE">하나만 선택</option>
+          </select>
+          <button type="submit" className="a-btn a-btn-primary" style={{ height: 44, minWidth: 96 }} disabled={!newCategoryName.trim()}>추가</button>
+        </form>
+      </section>
+
+      <AdminModal
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        title={deleteTarget && (deleteTarget.tag.spaces.length > 0 || deleteTarget.tag.recordCount > 0) ? `'${deleteTarget.tag.name}' 태그를 비활성화할까요?` : `'${deleteTarget?.tag.name}' 태그를 삭제할까요?`}
+        footer={
+          <>
+            <button type="button" className="a-btn" onClick={() => setDeleteTarget(null)}>취소</button>
+            <button type="button" className="a-btn a-btn-danger" onClick={confirmDelete}>
+              {deleteTarget && (deleteTarget.tag.spaces.length > 0 || deleteTarget.tag.recordCount > 0) ? "비활성화" : "삭제"}
+            </button>
+          </>
+        }
+      >
+        {deleteTarget && (deleteTarget.tag.spaces.length > 0 || deleteTarget.tag.recordCount > 0)
+          ? `이 태그는 현재 ${deleteTarget.tag.spaces.length}개 공간${deleteTarget.tag.recordCount > 0 ? `과 방문 기록 ${deleteTarget.tag.recordCount}건` : ""}에서 사용 중입니다. 지우지 않고 비활성화만 해서, 새 공간에는 고를 수 없지만 기존 연결은 유지돼요.`
+          : "쓰는 곳이 없는 태그예요."}
+      </AdminModal>
 
       <Toast message={toast} />
     </div>
   );
 }
 
-function CategorySection({
-  category, index, total, categoryOptions, onMove, onPatch, onRemove,
-  onCreateTag, onMoveTag, onPatchTag, onRemoveTag, onReassignTag,
-}: {
-  category: CategoryRow;
-  index: number;
-  total: number;
-  categoryOptions: { id: string; name: string }[];
-  onMove: (direction: "up" | "down") => void;
-  onPatch: (data: Partial<Pick<CategoryRow, "name" | "selectionType" | "isActive">>) => Promise<boolean>;
-  onRemove: () => void;
-  onCreateTag: (name: string) => void;
-  onMoveTag: (tagId: string, direction: "up" | "down") => void;
-  onPatchTag: (tagId: string, data: Partial<Pick<TagRow, "name" | "description" | "isActive" | "useForRecommendation">>) => Promise<boolean>;
-  onRemoveTag: (tag: TagRow) => void;
-  onReassignTag: (tag: TagRow, toCategoryId: string | null) => void;
-}) {
-  const [name, setName] = useState(category.name);
-  const [newTagName, setNewTagName] = useState("");
-
-  const dirty = name !== category.name;
-
+function Stat({ label, value, hint }: { label: string; value: number; hint?: string }) {
   return (
-    <div className="space-y-4 p-4 border" style={{ borderColor: "var(--border)", opacity: category.isActive ? 1 : 0.5 }}>
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div className="flex items-center gap-2">
-          <div className="flex gap-1 text-xs">
-            <button onClick={() => onMove("up")} disabled={index === 0} className="border px-2 py-1 disabled:opacity-30" style={{ borderColor: "var(--border)", color: "var(--dim)" }}>▲</button>
-            <button onClick={() => onMove("down")} disabled={index === total - 1} className="border px-2 py-1 disabled:opacity-30" style={{ borderColor: "var(--border)", color: "var(--dim)" }}>▼</button>
-          </div>
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            onBlur={() => dirty && name.trim() && onPatch({ name: name.trim() })}
-            className="bg-transparent border px-3 py-1.5 text-sm font-medium outline-none focus:border-[var(--fg)]"
-            style={{ borderColor: "var(--border)", color: "var(--fg)" }}
-          />
-          <select
-            value={category.selectionType}
-            onChange={(e) => onPatch({ selectionType: e.target.value as SelectionType })}
-            className="bg-transparent border px-2 py-1.5 text-xs outline-none focus:border-[var(--fg)]"
-            style={{ borderColor: "var(--border)", color: "var(--dim)" }}
-          >
-            <option value="MULTI">다중 선택</option>
-            <option value="SINGLE">단일 선택</option>
-          </select>
-        </div>
-        <div className="flex items-center gap-4">
-          <label className="flex items-center gap-2 text-xs cursor-pointer" style={{ color: "var(--dim)" }}>
-            <input type="checkbox" checked={category.isActive} onChange={(e) => onPatch({ isActive: e.target.checked })} />
-            활성화
-          </label>
-          <button
-            onClick={onRemove}
-            className="text-xs px-3 py-1 border transition-colors hover:border-red-500 hover:text-red-500"
-            style={{ borderColor: "var(--border)", color: "var(--dim)" }}
-          >
-            카테고리 삭제
-          </button>
-        </div>
-      </div>
-
-      <div className="flex gap-3">
-        <input
-          value={newTagName}
-          onChange={(e) => setNewTagName(e.target.value)}
-          placeholder="새 태그 이름"
-          className="flex-1 bg-transparent border px-3 py-2 text-sm outline-none focus:border-[var(--fg)]"
-          style={{ borderColor: "var(--border)", color: "var(--fg)" }}
-          onKeyDown={(e) => { if (e.key === "Enter") { onCreateTag(newTagName); setNewTagName(""); } }}
-        />
-        <button
-          onClick={() => { onCreateTag(newTagName); setNewTagName(""); }}
-          disabled={!newTagName.trim()}
-          className="text-sm px-4 py-2 border transition-colors hover:bg-[var(--fg)] hover:text-[var(--bg)] disabled:opacity-40"
-          style={{ borderColor: "var(--fg)" }}
-        >
-          + 태그 추가
-        </button>
-      </div>
-
-      {category.tags.length === 0 ? (
-        <p className="text-sm" style={{ color: "var(--dim)" }}>아직 태그가 없어요.</p>
-      ) : (
-        <div className="space-y-3">
-          {category.tags.map((tag, i) => (
-            <TagCard
-              key={tag.id}
-              tag={tag}
-              index={i}
-              total={category.tags.length}
-              categoryOptions={categoryOptions}
-              currentCategoryId={category.id}
-              onMove={(dir) => onMoveTag(tag.id, dir)}
-              onPatch={(data) => onPatchTag(tag.id, data)}
-              onRemove={() => onRemoveTag(tag)}
-              onReassign={(toCategoryId) => onReassignTag(tag, toCategoryId)}
-            />
-          ))}
-        </div>
-      )}
+    <div className="a-card p-4 flex flex-col gap-2 min-h-[88px]">
+      <p className="text-xs" style={{ color: "var(--a-dim)" }}>{label}</p>
+      <p className="text-[26px] font-bold tracking-tight leading-none tabular-nums">{value}</p>
+      {hint && <p className="text-[11px]" style={{ color: "var(--a-faint)" }}>{hint}</p>}
     </div>
   );
 }
 
-function TagCard({
-  tag, index, total, categoryOptions, currentCategoryId, onMove, onPatch, onRemove, onReassign, hideMove,
+interface RowShared {
+  categoryOptions: { id: string; name: string }[];
+  categoryId: string | null;
+  onPatch: (id: string, d: Partial<Pick<TagRow, "name" | "description" | "isActive" | "useForRecommendation">>) => Promise<boolean>;
+  onMove: (id: string, dir: "up" | "down") => void;
+  onDelete: (tag: TagRow) => void;
+  onReassign: (tag: TagRow, to: string | null) => void;
+}
+
+function CategorySection({
+  category, index, total, visibleTags, rowProps, onMove, onPatch, onRemove, onCreateTag,
 }: {
-  tag: TagRow;
+  category: CategoryRow;
   index: number;
   total: number;
-  categoryOptions: { id: string; name: string }[];
-  currentCategoryId: string | null;
-  onMove: (direction: "up" | "down") => void;
-  onPatch: (data: Partial<Pick<TagRow, "name" | "description" | "isActive" | "useForRecommendation">>) => Promise<boolean>;
+  visibleTags: TagRow[];
+  rowProps: RowShared;
+  onMove: (d: "up" | "down") => void;
+  onPatch: (d: Partial<Pick<CategoryRow, "name" | "selectionType" | "isActive">>) => Promise<boolean>;
   onRemove: () => void;
-  onReassign: (toCategoryId: string | null) => void;
-  hideMove?: boolean;
+  onCreateTag: (name: string) => Promise<boolean>;
 }) {
-  const [name, setName] = useState(tag.name);
-  const [description, setDescription] = useState(tag.description);
-  const [saving, setSaving] = useState(false);
-  const router = useRouter();
+  const [name, setName] = useState(category.name);
+  const [newTag, setNewTag] = useState("");
+  const [open, setOpen] = useState(false);
 
-  const dirty = name !== tag.name || description !== tag.description;
-
-  async function save() {
-    setSaving(true);
-    await onPatch({ name, description: description || undefined });
-    setSaving(false);
-    router.refresh();
+  async function add() {
+    const v = newTag.trim();
+    if (!v) return;
+    if (await onCreateTag(v)) setNewTag("");
   }
 
   return (
-    <div className="p-3 border space-y-3" style={{ borderColor: "var(--border)", opacity: tag.isActive ? 1 : 0.5 }}>
-      <div className="flex items-center justify-between flex-wrap gap-2">
-        <div className="flex gap-2 text-xs items-center">
-          {!hideMove && (
-            <div className="flex gap-1">
-              <button onClick={() => onMove("up")} disabled={index === 0} className="border px-2 py-1 disabled:opacity-30" style={{ borderColor: "var(--border)", color: "var(--dim)" }}>▲</button>
-              <button onClick={() => onMove("down")} disabled={index === total - 1} className="border px-2 py-1 disabled:opacity-30" style={{ borderColor: "var(--border)", color: "var(--dim)" }}>▼</button>
-            </div>
-          )}
-          <select
-            value={currentCategoryId ?? UNCLASSIFIED}
-            onChange={(e) => onReassign(e.target.value === UNCLASSIFIED ? null : e.target.value)}
-            className="bg-transparent border px-2 py-1 text-xs outline-none focus:border-[var(--fg)]"
-            style={{ borderColor: "var(--border)", color: "var(--dim)" }}
-          >
-            <option value={UNCLASSIFIED}>미분류</option>
-            {categoryOptions.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+    <section className="a-card p-4 sm:p-5 space-y-4" style={{ opacity: category.isActive ? 1 : 0.6 }}>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="text-[16px] font-semibold">{category.name} <span className="font-normal text-sm" style={{ color: "var(--a-dim)" }}>{category.tags.length}개 · {category.selectionType === "SINGLE" ? "하나만 선택" : "여러 개 선택"}{!category.isActive && " · 비활성"}</span></h2>
+        </div>
+        <button type="button" className="a-btn a-btn-ghost a-btn-sm" onClick={() => setOpen((v) => !v)} aria-expanded={open}>{open ? "분류 설정 닫기" : "분류 설정"}</button>
+      </div>
+
+      {open && (
+        <div className="flex flex-wrap items-center gap-2 p-3 rounded-md" style={{ background: "var(--a-soft)" }}>
+          <button type="button" className="a-btn a-btn-sm" disabled={index === 0} onClick={() => onMove("up")} aria-label="분류 위로">▲</button>
+          <button type="button" className="a-btn a-btn-sm" disabled={index === total - 1} onClick={() => onMove("down")} aria-label="분류 아래로">▼</button>
+          <input value={name} onChange={(e) => setName(e.target.value)} onBlur={() => name.trim() && name.trim() !== category.name && onPatch({ name: name.trim() })} aria-label="분류 이름" className="a-input" style={{ maxWidth: 180, height: 34 }} />
+          <select value={category.selectionType} onChange={(e) => onPatch({ selectionType: e.target.value as SelectionType })} aria-label="선택 방식" className="a-input" style={{ width: "auto", height: 34, fontSize: 12 }}>
+            <option value="MULTI">여러 개 선택</option>
+            <option value="SINGLE">하나만 선택</option>
           </select>
+          <label className="flex items-center gap-1.5 text-xs cursor-pointer"><input type="checkbox" checked={category.isActive} onChange={(e) => onPatch({ isActive: e.target.checked })} />활성</label>
+          <button type="button" className="a-btn a-btn-danger a-btn-sm ml-auto" onClick={onRemove}>분류 삭제</button>
         </div>
-        <span className="text-xs" style={{ color: "var(--dim)" }}>
-          사용됨 {tag.usageCount}건 {!tag.isActive && "· 비활성"}
-        </span>
+      )}
+
+      {visibleTags.length === 0 ? (
+        <p className="text-sm py-2" style={{ color: "var(--a-dim)" }}>{category.tags.length === 0 ? "아직 태그가 없어요." : "조건에 맞는 태그가 없어요."}</p>
+      ) : (
+        <ul className="divide-y" style={{ borderColor: "var(--a-line)" }}>
+          {visibleTags.map((tag, i) => (
+            <TagItem key={tag.id} tag={tag} index={i} total={visibleTags.length} {...rowProps} />
+          ))}
+        </ul>
+      )}
+
+      <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); void add(); }}>
+        <input value={newTag} onChange={(e) => setNewTag(e.target.value)} placeholder={`${category.name}에 태그 추가`} aria-label={`${category.name} 새 태그`} className="a-input" style={{ height: 42 }} />
+        <button type="submit" className="a-btn a-btn-primary" style={{ height: 42, minWidth: 80 }} disabled={!newTag.trim()}>추가</button>
+      </form>
+    </section>
+  );
+}
+
+function TagItem({ tag, index, total, hideMove, categoryOptions, categoryId, onPatch, onMove, onDelete, onReassign }: RowShared & { tag: TagRow; index: number; total: number; hideMove?: boolean }) {
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState(tag.name);
+  const [description, setDescription] = useState(tag.description);
+  const [saving, setSaving] = useState(false);
+  const spaceCount = tag.spaces.length;
+  const unused = spaceCount === 0 && tag.recordCount === 0;
+  const dirty = name.trim() !== tag.name || description !== tag.description;
+  const spacesLabel = useMemo(() => tag.spaces.map((s) => s.name).join(", "), [tag.spaces]);
+
+  async function save() {
+    setSaving(true);
+    await onPatch(tag.id, { name: name.trim(), description });
+    setSaving(false);
+  }
+
+  return (
+    <li className="py-3" style={{ opacity: tag.isActive ? 1 : 0.55 }}>
+      <div className="flex items-center gap-3">
+        <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} className="flex-1 min-w-0 text-left flex flex-wrap items-center gap-x-3 gap-y-1" style={{ minHeight: 40 }}>
+          <span className="text-[15px] font-medium">{tag.name}</span>
+          <span className="text-xs" style={{ color: unused ? "var(--a-faint)" : "var(--a-dim)" }}>
+            {unused ? "사용 안 함" : `공간 ${spaceCount}곳${tag.recordCount > 0 ? ` · 기록 ${tag.recordCount}건` : ""}`}
+          </span>
+          {!tag.isActive && <span className="text-[11px] px-1.5 rounded" style={{ background: "var(--a-soft)", color: "var(--a-dim)" }}>비활성</span>}
+        </button>
+        <button type="button" className="a-btn a-btn-sm shrink-0" onClick={() => setOpen((v) => !v)}>{open ? "닫기" : "관리"}</button>
       </div>
 
-      <div className="grid sm:grid-cols-2 gap-3">
-        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="태그 이름"
-          className="bg-transparent border px-3 py-2 text-sm outline-none focus:border-[var(--fg)]" style={{ borderColor: "var(--border)", color: "var(--fg)" }} />
-        <input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="설명 (선택)"
-          className="bg-transparent border px-3 py-2 text-sm outline-none focus:border-[var(--fg)]" style={{ borderColor: "var(--border)", color: "var(--fg)" }} />
-      </div>
+      {open && (
+        <div className="mt-3 space-y-4 p-3 sm:p-4 rounded-md" style={{ background: "var(--a-soft)" }}>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="space-y-1 text-xs" style={{ color: "var(--a-dim)" }}>이름
+              <input value={name} onChange={(e) => setName(e.target.value)} className="a-input" style={{ color: "var(--a-fg)" }} />
+            </label>
+            <label className="space-y-1 text-xs" style={{ color: "var(--a-dim)" }}>설명 (선택)
+              <input value={description} onChange={(e) => setDescription(e.target.value)} className="a-input" style={{ color: "var(--a-fg)" }} />
+            </label>
+          </div>
+          {spaceCount > 0 && name.trim() !== tag.name && (
+            <p className="text-xs" style={{ color: "#b54708" }}>이 태그는 현재 {spaceCount}개 공간에서 사용 중이에요. 이름을 바꾸면 공간에 붙은 태그도 함께 바뀌어요.</p>
+          )}
 
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div className="flex items-center gap-4">
-          <label className="flex items-center gap-2 text-xs cursor-pointer" style={{ color: "var(--dim)" }}>
-            <input type="checkbox" checked={tag.useForRecommendation} onChange={(e) => onPatch({ useForRecommendation: e.target.checked })} />
-            추천 계산에 포함
-          </label>
-          <label className="flex items-center gap-2 text-xs cursor-pointer" style={{ color: "var(--dim)" }}>
-            <input type="checkbox" checked={tag.isActive} onChange={(e) => onPatch({ isActive: e.target.checked })} />
-            활성화
-          </label>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <label className="flex items-center gap-1.5 text-xs cursor-pointer"><input type="checkbox" checked={tag.useForRecommendation} onChange={(e) => onPatch(tag.id, { useForRecommendation: e.target.checked })} />추천 계산에 포함</label>
+            <label className="flex items-center gap-1.5 text-xs cursor-pointer"><input type="checkbox" checked={tag.isActive} onChange={(e) => onPatch(tag.id, { isActive: e.target.checked })} />활성 (공간 등록에서 선택 가능)</label>
+            <select value={categoryId ?? UNCLASSIFIED} onChange={(e) => onReassign(tag, e.target.value === UNCLASSIFIED ? null : e.target.value)} aria-label="분류" className="a-input" style={{ width: "auto", height: 32, fontSize: 12 }}>
+              <option value={UNCLASSIFIED}>미분류</option>
+              {categoryOptions.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+            {!hideMove && (
+              <span className="flex gap-1">
+                <button type="button" className="a-btn a-btn-sm" disabled={index === 0} onClick={() => onMove(tag.id, "up")} aria-label="위로">▲</button>
+                <button type="button" className="a-btn a-btn-sm" disabled={index === total - 1} onClick={() => onMove(tag.id, "down")} aria-label="아래로">▼</button>
+              </span>
+            )}
+          </div>
+
+          <div className="text-xs space-y-1">
+            <p className="font-medium">사용 중인 공간 {spaceCount}곳</p>
+            {spaceCount === 0 ? <p style={{ color: "var(--a-dim)" }}>이 태그를 쓰는 공간이 없어요.</p> : (
+              <ul className="space-y-0.5" style={{ color: "var(--a-dim)" }} title={spacesLabel}>
+                {tag.spaces.map((s) => <li key={s.slug}>{s.name} <span style={{ color: "var(--a-faint)" }}>· {s.where}</span></li>)}
+              </ul>
+            )}
+          </div>
+
+          <div className="flex justify-between gap-2">
+            <button type="button" className="a-btn a-btn-danger a-btn-sm" onClick={() => onDelete(tag)}>{unused ? "삭제" : "비활성화"}</button>
+            <button type="button" className="a-btn a-btn-primary a-btn-sm" onClick={save} disabled={saving || !dirty || !name.trim()}>{saving ? "저장 중..." : "저장"}</button>
+          </div>
         </div>
-        <div className="flex gap-2">
-          <button
-            onClick={onRemove}
-            className="text-xs px-3 py-1 border transition-colors hover:border-red-500 hover:text-red-500"
-            style={{ borderColor: "var(--border)", color: "var(--dim)" }}
-          >
-            {tag.usageCount > 0 ? "비활성화" : "삭제"}
-          </button>
-          <button
-            onClick={save}
-            disabled={saving || !dirty || !name.trim()}
-            className="text-xs px-3 py-1 border transition-colors hover:bg-[var(--fg)] hover:text-[var(--bg)] disabled:opacity-40"
-            style={{ borderColor: "var(--fg)" }}
-          >
-            {saving ? "저장 중..." : "저장"}
-          </button>
-        </div>
-      </div>
-    </div>
+      )}
+    </li>
   );
 }

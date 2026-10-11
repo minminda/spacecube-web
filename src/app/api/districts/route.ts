@@ -3,6 +3,7 @@ import { DistrictStatus } from "@prisma/client";
 import { auth } from "@/auth";
 import { isAdmin } from "@/lib/admin";
 import { prisma } from "@/lib/prisma";
+import { cleanRegionName, findRegionConflict, makeRegionSlug } from "@/lib/regions";
 
 export const dynamic = "force-dynamic";
 
@@ -15,12 +16,21 @@ export async function POST(req: Request) {
   }
 
   const body = await req.json().catch(() => ({}));
-  const name = typeof body.name === "string" ? body.name.trim() : "";
-  const slug = typeof body.slug === "string" ? body.slug.trim().toLowerCase() : "";
-  if (!name) return NextResponse.json({ error: "지역명은 필수예요." }, { status: 400 });
-  if (!slug || !SLUG_RE.test(slug)) {
+  const name = cleanRegionName(body.name);
+  if (!name) return NextResponse.json({ error: "지역명을 입력해주세요." }, { status: 400 });
+
+  const existing = await prisma.district.findMany({ select: { id: true, name: true, slug: true } });
+  const conflict = findRegionConflict(name, existing);
+  if (conflict) return NextResponse.json({ error: `이미 '${conflict.name}' 지역이 있어요. 같은 동네는 한 번만 등록할 수 있어요.` }, { status: 409 });
+
+  // slug는 사용자 화면 주소용 내부 값 — 직접 주면 검증하고, 없으면 자동 생성한다.
+  const given = typeof body.slug === "string" ? body.slug.trim().toLowerCase() : "";
+  if (given && !SLUG_RE.test(given)) {
     return NextResponse.json({ error: "slug는 영문 소문자/숫자/하이픈만 가능해요." }, { status: 400 });
   }
+  const taken = new Set(existing.map((d) => d.slug));
+  const slug = given || makeRegionSlug(name, taken);
+  if (taken.has(slug)) return NextResponse.json({ error: "이미 쓰는 slug예요." }, { status: 409 });
 
   const count = await prisma.district.count();
 

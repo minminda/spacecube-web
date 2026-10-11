@@ -11,7 +11,7 @@ interface Props {
 }
 
 /**
- * CONTENT › 공간 콘텐츠 — 홈페이지 /spaces에 공개되는 공간(EditorialSpace). 현장 "운영 공간"(DB Space)과 별개.
+ * CONTENT › 공간 등록 — 홈페이지 /spaces에 공개되는 공간(EditorialSpace). 현장 "운영 공간"(DB Space)과 별개.
  */
 export default async function AdminContentSpacesPage({ searchParams }: Props) {
   await requireAdminPage();
@@ -19,7 +19,7 @@ export default async function AdminContentSpacesPage({ searchParams }: Props) {
   const q = qRaw?.trim() ?? "";
   const filter = parseStatusFilter(statusRaw);
 
-  // 큐레이터 프로토타입 가상 공간(isDemo)은 공식 공간 콘텐츠 목록에 섞지 않는다 — /admin/curators에서 관리.
+  // 큐레이터 프로토타입 가상 공간(isDemo)은 공식 공간 등록 목록에 섞지 않는다 — /admin/curators에서 관리.
   const search: Prisma.EditorialSpaceWhereInput = q
     ? { isDemo: false, OR: [{ name: { contains: q, mode: "insensitive" } }, { area: { contains: q, mode: "insensitive" } }, { category: { contains: q, mode: "insensitive" } }, { slug: { contains: q, mode: "insensitive" } }] }
     : { isDemo: false };
@@ -39,9 +39,9 @@ export default async function AdminContentSpacesPage({ searchParams }: Props) {
     <>
       <AdminPageHeader
         area="content"
-        title="공간 콘텐츠"
+        title="공간 등록"
         description="홈페이지에 공개되는 공간 · 운영 공간과 별개"
-        actions={<AdminButtonLink href="/admin/content/spaces/new" variant="primary">+ 새 공간 콘텐츠</AdminButtonLink>}
+        actions={<AdminButtonLink href="/admin/content/spaces/new" variant="primary">+ 새 공간 등록</AdminButtonLink>}
       />
       <FilterBar q={q} placeholder="이름, 지역, 종류, slug">
         {filter !== "ALL" && <input type="hidden" name="status" value={filter} />}
@@ -50,8 +50,8 @@ export default async function AdminContentSpacesPage({ searchParams }: Props) {
 
       {rows.length === 0 ? (
         <EmptyState
-          title={q || filter !== "ALL" ? "조건에 맞는 공간이 없습니다" : "등록된 공간 콘텐츠가 없습니다"}
-          action={<AdminButtonLink href="/admin/content/spaces/new" variant="primary">+ 새 공간 콘텐츠</AdminButtonLink>}
+          title={q || filter !== "ALL" ? "조건에 맞는 공간이 없습니다" : "등록된 공간이 없습니다"}
+          action={<AdminButtonLink href="/admin/content/spaces/new" variant="primary">+ 새 공간 등록</AdminButtonLink>}
         />
       ) : (
         <AdminTable head={["공간", "지역 · 종류", "Cube", "사용", "상태", "수정일", ""]} minWidth={820}>

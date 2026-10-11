@@ -2,7 +2,7 @@
    CONTENT(온라인 · 발견)와 CUBE OPERATION(현장 · 경험)을 명확히 나눈다.
    - CONTENT: 일반 홈페이지의 공개 Editorial Content(DB CMS). 콘텐츠 백로그(/admin/content)가 STORY·CURATION 제작의 입구.
    - CUBE OPERATION: 기존 Prisma Space("운영 공간")·Cube·Episode·방명록·KPI. 기존 URL 그대로.
-   관리자 UI에서 DB Space는 "운영 공간", 홈페이지 SPACE는 "공간 콘텐츠"로 부른다.
+   관리자 UI에서 DB Space는 "운영 공간", 홈페이지 SPACE는 "공간 등록"으로 부른다.
    사이드바에 없는 기존 라우트(stories, handwriting-test, [id]/dashboard 등)도 삭제하지 않고 그대로 둔다. ── */
 
 export type AdminArea = "overview" | "content" | "cube" | "system";
@@ -37,7 +37,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
       { key: "content-curations", label: "CURATION", href: "/admin/content/curations", sub: true },
       { key: "content-people", label: "STORY · PEOPLE", href: "/admin/content/people", sub: true },
       { key: "content-thoughts", label: "STORY · THOUGHT", href: "/admin/content/thoughts", sub: true },
-      { key: "content-spaces", label: "공간 콘텐츠", href: "/admin/content/spaces" },
+      { key: "content-spaces", label: "공간 등록", href: "/admin/content/spaces" },
       { key: "content-home", label: "HOME 선반", href: "/admin/content/home" },
       { key: "curators", label: "큐레이터 (프로토타입)", href: "/admin/curators" },
       { key: "content-media", label: "미디어", href: "/admin/content/media" },
@@ -61,8 +61,8 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     area: "system",
     label: "System",
     items: [
-      { key: "tags", label: "태그 · 카테고리", href: "/admin/tags" },
-      { key: "districts", label: "지역", href: "/admin/districts" },
+      { key: "tags", label: "태그 관리", href: "/admin/tags" },
+      { key: "districts", label: "지역 관리", href: "/admin/districts" },
       { key: "demo-data", label: "시연 데이터", href: "/admin/demo-data" },
     ],
   },
@@ -100,7 +100,7 @@ export function adminAreaOf(key: string | null): AdminArea | null {
 
 /**
  * 뒤로가기의 "상위 화면" — 이전 화면 기록이 없을 때(주소로 바로 들어온 경우) 갈 곳. /admin 자체는 null(뒤로가기 없음).
- * STORY · CURATION 편집/새 글 → 콘텐츠 백로그, 공간 콘텐츠 편집 → 공간 콘텐츠 목록, 운영 공간의 하위 화면 → 운영 공간 목록,
+ * STORY · CURATION 편집/새 글 → 콘텐츠 백로그, 공간 등록 편집 → 공간 등록 목록, 운영 공간의 하위 화면 → 운영 공간 목록,
  * 에피소드 편집 → 그 공간의 에피소드 목록, 그 밖의 한 단계 화면 → 대시보드.
  */
 export function adminBackFallback(pathname: string): string | null {

@@ -241,7 +241,7 @@ function BlockFields({ block, onChange, spaceOptions }: { block: EditorialBlock;
       return (
         <>
           <select value={block.spaceId} onChange={(e) => onChange({ ...block, spaceId: e.target.value })} className="a-input">
-            <option value="">공간 콘텐츠 선택</option>
+            <option value="">공간 선택</option>
             {spaceOptions.filter((o) => o.status !== "ARCHIVED" || o.id === block.spaceId).map((o) => (
               <option key={o.id} value={o.id}>{o.name} · {o.area}{o.status !== "PUBLISHED" ? ` (${o.status === "DRAFT" ? "초안" : "보관"})` : ""}</option>
             ))}

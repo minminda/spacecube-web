@@ -83,7 +83,7 @@ export default function LatestSlider({ items, allHref, containerClassName = "ed-
     <section
       aria-roledescription="carousel"
       aria-label="최신 콘텐츠"
-      className={`${containerClassName} pt-4 pb-8 md:pt-8 md:pb-12`}
+      className={`${containerClassName} pt-4 pb-8 md:pt-6 md:pb-10`}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       onFocus={() => setFocused(true)}
@@ -115,7 +115,7 @@ export default function LatestSlider({ items, allHref, containerClassName = "ed-
 
       <div className="relative pt-4 md:pt-8">
         {/* 이미지 — 모든 슬라이드를 겹쳐 두고 opacity만 바꾼다(첫 장만 priority, 나머지 lazy) */}
-        <div className="grid gap-4 md:grid-cols-12 md:gap-12 md:items-stretch">
+        <div className="grid gap-4 md:grid-cols-12 md:gap-10 md:items-stretch">
           <div className="md:col-span-5 md:order-1 order-2 flex flex-col">
             <div className="relative flex-1 md:min-h-0" aria-live={paused ? "polite" : "off"}>
               {items.map((it, i) => (
@@ -132,7 +132,7 @@ export default function LatestSlider({ items, allHref, containerClassName = "ed-
                     {it.eyebrow}
                     {it.partner && <PartnerMark size={14} className="ml-3 align-[-3px]" />}
                   </p>
-                  <h3 className="mt-1.5 md:mt-4 text-[22px] leading-[1.25] line-clamp-2 md:line-clamp-none md:text-[44px] md:leading-[1.15] font-bold tracking-[-0.03em]">
+                  <h3 className="mt-1.5 md:mt-4 text-[22px] leading-[1.25] line-clamp-2 md:line-clamp-none md:text-[40px] md:leading-[1.15] font-bold tracking-[-0.03em]">
                     <Link href={it.href} tabIndex={i === index ? 0 : -1} className="hover:underline underline-offset-[6px] decoration-2">
                       {it.title}
                     </Link>
@@ -150,7 +150,7 @@ export default function LatestSlider({ items, allHref, containerClassName = "ed-
           </div>
 
           <div className="md:col-span-7 md:order-2 order-1">
-            <Link href={current.href} tabIndex={-1} aria-hidden className="block relative w-full overflow-hidden aspect-[16/10] md:aspect-[4/3]" style={{ background: "var(--ed-soft)" }}>
+            <Link href={current.href} tabIndex={-1} aria-hidden className="block relative w-full overflow-hidden aspect-[16/10] md:aspect-[3/2] md:max-h-[62vh]" style={{ background: "var(--ed-soft)" }}>
               {items.map((it, i) => (
                 <div key={it.key} className={`absolute inset-0 ${fade} ${i === index ? "opacity-100" : "opacity-0"}`}>
                   {it.image.src && state.seen.has(i) ? (

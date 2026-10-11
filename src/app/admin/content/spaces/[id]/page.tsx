@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireAdminPage } from "@/lib/adminGuard";
 import { findSpaceReferences } from "@/lib/editorial/references";
-import { getTagSuggestions, getTypeSuggestions, storedBlocks } from "@/lib/editorial/admin";
+import { getRegionSuggestions, getTagGroups, getTypeSuggestions, storedBlocks } from "@/lib/editorial/admin";
 import { AdminButtonLink, AdminPageHeader, AdminSection } from "@/components/admin/ui";
 import EditorialSpaceForm from "@/components/admin/editorial/EditorialSpaceForm";
 import { EditorialDangerZone } from "@/components/admin/editorial/EditorialControls";
@@ -17,9 +17,10 @@ export default async function EditEditorialSpacePage({ params }: Props) {
   const { id } = await params;
   const s = await prisma.editorialSpace.findUnique({ where: { id } });
   if (!s) notFound();
-  const [references, tagSuggestions, typeSuggestions, opsSpace] = await Promise.all([
+  const [references, tagGroups, regionSuggestions, typeSuggestions, opsSpace] = await Promise.all([
     findSpaceReferences(s.id),
-    getTagSuggestions(),
+    getTagGroups(),
+    getRegionSuggestions(),
     getTypeSuggestions(),
     // Partner(함께한 공간)면 같은 slug의 운영 공간(Cube · Episode · 방명록)으로 이어 준다 — 데이터를 복제하지 않고 링크만
     prisma.space.findUnique({ where: { slug: s.slug }, select: { id: true, name: true } }),
@@ -29,7 +30,7 @@ export default async function EditEditorialSpacePage({ params }: Props) {
     <>
       <AdminPageHeader
         area="content"
-        breadcrumb={[{ label: "공간 콘텐츠", href: "/admin/content/spaces" }]}
+        breadcrumb={[{ label: "공간 등록", href: "/admin/content/spaces" }]}
         title={s.name}
         description={`/spaces/${s.slug}`}
         actions={<AdminButtonLink href={`/spaces/${s.slug}`} external>사용자 화면에서 보기 ↗</AdminButtonLink>}
@@ -38,7 +39,7 @@ export default async function EditEditorialSpacePage({ params }: Props) {
         <EditorialSpaceForm
           id={s.id}
           status={s.status}
-          tagSuggestions={tagSuggestions}
+          tagGroups={tagGroups} regionSuggestions={regionSuggestions}
           typeSuggestions={typeSuggestions}
           initial={{
             slug: s.slug, name: s.name, area: s.area, category: s.category,

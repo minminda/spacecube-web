@@ -15,7 +15,8 @@ const STATUS = {
  * 테마 선반 ↔ 유형/태그 연결 — 각 테마가 어떤 말(키워드)로 공간을 모으는지, 지금 몇 곳이 모이는지, 선반이 나올 수 있는지.
  * 키워드는 공간의 유형 · 태그 · 이름과 맞춘다(소개 문장은 보지 않는다). 운영자는 키워드만 바꾸고, 테마 목록 · 제목은 코드가 정한다.
  */
-export default function ThemeRulesManager({ themes }: { themes: ThemeDiagnosis[] }) {
+export default function ThemeRulesManager({ themes, registeredTags = [] }: { themes: ThemeDiagnosis[]; registeredTags?: string[] }) {
+  const tagSet = new Set(registeredTags.map((n) => n.replace(/\s+/g, "").toLowerCase()));
   const router = useRouter();
   const [text, setText] = useState<Record<string, string>>(() => Object.fromEntries(themes.map((t) => [t.key, t.keywords.join(", ")])));
   const [busy, setBusy] = useState<string | null>(null);
@@ -63,6 +64,19 @@ export default function ThemeRulesManager({ themes }: { themes: ThemeDiagnosis[]
                 {t.customized && <button type="button" disabled={busy === t.key} onClick={() => save(t, "")} className={adminButtonClass("ghost", "sm")}>기본값으로</button>}
               </span>
             </div>
+            {value.trim() && (
+              <p className="text-[11px] flex flex-wrap items-center gap-x-2 gap-y-1" style={{ color: "var(--a-dim)" }}>
+                <span>참조 태그:</span>
+                {value.split(",").map((k) => k.trim()).filter(Boolean).map((k) => {
+                  const isTag = tagSet.has(k.replace(/\s+/g, "").toLowerCase());
+                  return (
+                    <span key={k} className="px-1.5 py-0.5 rounded" style={{ background: isTag ? "#eef7f1" : "var(--a-soft)", color: isTag ? "#1f6b43" : "var(--a-dim)" }}>
+                      {k}{isTag ? " · 태그" : " · 유형/이름 매칭"}
+                    </span>
+                  );
+                })}
+              </p>
+            )}
             {t.sample.length > 0 && <p className="text-[11px]" style={{ color: "var(--a-dim)" }}>모이는 공간: {t.sample.join(" · ")}{t.count > t.sample.length ? ` 외 ${t.count - t.sample.length}곳` : ""}</p>}
             {msg?.key === t.key && <p className="text-[11px]" style={{ color: msg.ok ? "var(--a-fg)" : "#b42318" }} role="status">{msg.text}</p>}
           </li>

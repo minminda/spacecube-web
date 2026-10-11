@@ -19,7 +19,7 @@ export interface LinkedSpaceValue {
 }
 
 /**
- * 연결 공간 선택 — 공간 콘텐츠(EditorialSpace)만 고를 수 있다(운영 공간·Cube와 무관).
+ * 연결 공간 선택 — 공간 등록(EditorialSpace)만 고를 수 있다(운영 공간·Cube와 무관).
  * 순서 ↑↓, 메모, 제거. 발행되지 않은 공간은 공개 화면에서 자동으로 빠진다는 점을 표시한다.
  */
 export default function SpacePicker({ options, value, onChange, notePlaceholder = "카드에 붙일 한 줄 메모(선택)" }: { options: SpaceOption[]; value: LinkedSpaceValue[]; onChange: (v: LinkedSpaceValue[]) => void; notePlaceholder?: string }) {
@@ -94,7 +94,7 @@ export default function SpacePicker({ options, value, onChange, notePlaceholder 
           </ul>
         ) : (
           <p className="text-[11px]" style={{ color: "var(--a-dim)" }}>
-            {options.length === 0 ? "먼저 공간 콘텐츠를 등록해주세요." : "추가할 수 있는 공간이 없어요."}
+            {options.length === 0 ? "먼저 공간을 등록해주세요." : "추가할 수 있는 공간이 없어요."}
           </p>
         )}
       </div>

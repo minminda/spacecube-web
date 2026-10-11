@@ -4,6 +4,7 @@ import { ENABLE_EDITORIAL_HOME } from "@/lib/features";
 import { listContentStream } from "@/lib/editorial/queries";
 import { CONTENT_KIND_LABEL, type ContentItem } from "@/lib/editorial/types";
 import { AdminPageHeader, AdminSection, AdminButtonLink, StatusBadge, EmptyState } from "@/components/admin/ui";
+import { prisma } from "@/lib/prisma";
 import { loadHomeDiagnostics } from "@/lib/home/homeDiagnostics";
 import HomeShelfManager from "@/components/admin/home/HomeShelfManager";
 import ThemeRulesManager from "@/components/admin/home/ThemeRulesManager";
@@ -23,7 +24,7 @@ function adminHref(item: ContentItem): string {
  */
 export default async function AdminContentHomePage() {
   await requireAdminPage();
-  const [published, withDrafts, diag] = await Promise.all([listContentStream(), listContentStream({ preview: true }), loadHomeDiagnostics()]);
+  const [published, withDrafts, diag, tagRows] = await Promise.all([listContentStream(), listContentStream({ preview: true }), loadHomeDiagnostics(), prisma.tag.findMany({ where: { isActive: true }, select: { name: true } })]);
   const { plan, diagnoses, themes, stats } = diag;
   const latest = published.slice(0, LATEST_COUNT);
   const draftCount = withDrafts.filter((i) => i.status === "DRAFT").length;
@@ -65,9 +66,9 @@ export default async function AdminContentHomePage() {
 
         <AdminSection
           title="테마 선반 연결 (유형 · 태그)"
-          description="테마 선반(책 · 음악 · 커피 …)은 공간의 유형 · 태그 · 이름에 아래 키워드가 들어 있으면 모여요. 공개 공간이 3곳 이상 모이면 HOME에 선반이 생깁니다. 키워드를 바꾸면 HOME에 바로 반영돼요(검색의 추천 테마는 그대로)."
+          description="테마 선반(책 · 음악 · 커피 …)은 공간의 유형 · 태그 · 이름에 아래 키워드가 들어 있으면 모여요. 공개 공간이 3곳 이상 모이면 HOME에 선반이 생깁니다. 키워드를 바꾸면 HOME에 바로 반영돼요(검색의 추천 테마는 그대로). 테마는 태그 · 유형을 묶어 보여주는 HOME 규칙이고, 태그 자체는 태그 관리에서 만듭니다."
         >
-          <ThemeRulesManager themes={themes} />
+          <ThemeRulesManager themes={themes} registeredTags={tagRows.map((t) => t.name)} />
         </AdminSection>
 
         <AdminSection title="LATEST · 콘텐츠 피드 (자동)">
@@ -89,7 +90,7 @@ export default async function AdminContentHomePage() {
           description={`발행 콘텐츠 ${published.length}개 — CURATION ${byKind("curation")} · PEOPLE ${byKind("person")} · SPACE ${byKind("space")}${draftCount ? ` / 초안 ${draftCount}개는 미리보기에서만 보입니다` : ""}`}
         >
           {latest.length === 0 ? (
-            <EmptyState title="아직 발행된 콘텐츠가 없습니다" description="공간 콘텐츠·큐레이션·PEOPLE 중 하나를 발행하면 HOME에 나타납니다." />
+            <EmptyState title="아직 발행된 콘텐츠가 없습니다" description="공간·큐레이션·PEOPLE 중 하나를 발행하면 HOME에 나타납니다." />
           ) : (
             <ol className="a-card divide-y">
               {latest.map((it, i) => (

@@ -47,25 +47,37 @@ export async function nextThoughtNumber(): Promise<number> {
   return (agg._max.number ?? 0) + 1;
 }
 
-/** 공간 콘텐츠 태그 제안(허용 어휘) — 추천에 쓰이는 활성 운영 태그 이름 + 이미 공개 공간에 쓰인 태그. 공개 공간과 운영 공간이 같은 어휘를 쓰도록. */
-export async function getTagSuggestions(): Promise<string[]> {
-  const rows = await prisma.tag.findMany({
-    where: { isActive: true, useForRecommendation: true },
-    orderBy: [{ categoryId: "asc" }, { displayOrder: "asc" }, { name: "asc" }],
-    select: { name: true },
+/** 관리자 Tag 중 "공간 유형" 분류의 이름 — Type 선택 칩에 쓴다(태그 선택에서는 제외). */
+export const TYPE_CATEGORY_NAME = "공간 유형";
+
+export interface TagGroup { category: string; tags: string[] }
+
+/** 공간 등록 태그 선택지 — 관리자 Tag(정본)의 활성 태그를 분류별로 묶는다. */
+export async function getTagGroups(): Promise<TagGroup[]> {
+  const cats = await prisma.category.findMany({
+    where: { isActive: true, name: { not: TYPE_CATEGORY_NAME } },
+    orderBy: { displayOrder: "asc" },
+    include: { tags: { where: { isActive: true }, orderBy: { displayOrder: "asc" }, select: { name: true } } },
   });
-  // 이미 공개 공간에 쓰인 태그도 허용 어휘로 본다(같은 말을 다시 쓰게 — 새 변형이 생기지 않도록)
-  const used = await prisma.editorialSpace.findMany({ where: { isDemo: false, status: { not: "ARCHIVED" } }, select: { tags: true } });
-  const usedCounts = new Map<string, number>();
-  for (const u of used) for (const t of u.tags) usedCounts.set(t, (usedCounts.get(t) ?? 0) + 1);
-  const usedSorted = [...usedCounts].sort((a, b) => b[1] - a[1]).map(([t]) => t);
-  return [...new Set([...rows.map((r) => r.name), ...usedSorted])];
+  const loose = await prisma.tag.findMany({ where: { isActive: true, categoryId: null }, orderBy: { displayOrder: "asc" }, select: { name: true } });
+  const groups: TagGroup[] = cats.map((c) => ({ category: c.name, tags: c.tags.map((t) => t.name) })).filter((g) => g.tags.length > 0);
+  if (loose.length > 0) groups.push({ category: "기타", tags: loose.map((t) => t.name) });
+  return groups;
 }
 
-/** 공간 유형 제안 — 이미 등록된 공간의 유형(category). 새 유형을 늘리기 전에 기존 말을 먼저 고르게 한다. */
+/** 공간 유형(Type) 제안 — 관리자 "공간 유형" 태그 + 이미 등록된 공간의 유형. 대표 유형은 공간당 1개. */
 export async function getTypeSuggestions(): Promise<string[]> {
-  const rows = await prisma.editorialSpace.groupBy({ by: ["category"], where: { isDemo: false, status: { not: "ARCHIVED" } }, _count: { _all: true }, orderBy: { _count: { category: "desc" } } });
-  return rows.map((r) => r.category.trim()).filter(Boolean);
+  const [rows, typeTags] = await Promise.all([
+    prisma.editorialSpace.groupBy({ by: ["category"], where: { isDemo: false, status: { not: "ARCHIVED" } }, _count: { _all: true }, orderBy: { _count: { category: "desc" } } }),
+    prisma.tag.findMany({ where: { isActive: true, categoryRef: { name: TYPE_CATEGORY_NAME } }, orderBy: { displayOrder: "asc" }, select: { name: true } }),
+  ]);
+  return [...new Set([...rows.map((r) => r.category.trim()), ...typeTags.map((t) => t.name)].filter(Boolean))];
+}
+
+/** 공간 등록 지역 선택지 — 관리자에 등록된 지역(District). */
+export async function getRegionSuggestions(): Promise<string[]> {
+  const rows = await prisma.district.findMany({ orderBy: { order: "asc" }, select: { name: true } });
+  return rows.map((r) => r.name);
 }
 
 /** 큐레이션 지역 선택지 — canonical 공간 콘텐츠(EditorialSpace, 가상 공간 제외)의 정규화된 지역(area.ts). 새 지역 목록을 따로 두지 않는다. */

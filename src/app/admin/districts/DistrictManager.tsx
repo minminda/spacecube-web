@@ -1,405 +1,270 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { DistrictStatus } from "@prisma/client";
 import { useToast } from "@/hooks/useToast";
 import Toast from "@/components/Toast";
-import SeoulMapBackdrop, { SEOUL_MAP_VIEWBOX } from "@/components/SeoulMapBackdrop";
-import DistrictMapMarker from "@/components/DistrictMapMarker";
+import AdminModal from "@/components/admin/ui/AdminModal";
+import { findRegionConflict } from "@/lib/regions";
 
-interface DistrictRow {
+export interface RegionRow {
   id: string;
   name: string;
-  slug: string;
   status: DistrictStatus;
-  tagline: string;
-  markerX: number;
-  markerY: number;
-  zoomX: number;
-  zoomY: number;
-  zoomScale: number;
   spaceCount: number;
 }
 
-interface PositionDraft { markerX: number; markerY: number; zoomX: number; zoomY: number; }
-type FieldPatch = Partial<Pick<DistrictRow, "name" | "slug" | "tagline" | "status" | "zoomScale" | "markerX" | "markerY" | "zoomX" | "zoomY">>;
+export interface UnregisteredRow { label: string; count: number; values: string[] }
 
 const STATUS_LABEL: Record<DistrictStatus, string> = {
-  ACTIVE: "ACTIVE — 선명하게 표시, 클릭 시 줌인 후 이동",
-  COMING_SOON: "COMING_SOON — 흐리게 표시, 클릭 시 안내만",
-  HIDDEN: "HIDDEN — 사용자 화면에 표시 안 함",
+  ACTIVE: "사용자 화면에 표시",
+  COMING_SOON: "오픈 예정",
+  HIDDEN: "숨김",
 };
 
-const VIEWBOX_W = 310;
-const VIEWBOX_H = 390;
-
-function clamp(n: number, min: number, max: number) {
-  return Math.min(Math.max(n, min), max);
+async function readError(res: Response, fallback: string): Promise<string> {
+  const data = await res.json().catch(() => ({}));
+  if (res.status === 401) return "로그인이 만료되었어요. 다시 로그인해주세요.";
+  return data.error ?? fallback;
 }
 
-export default function DistrictManager({ initialDistricts }: { initialDistricts: DistrictRow[] }) {
-  const [districts, setDistricts] = useState(initialDistricts);
-  const [positionDrafts, setPositionDrafts] = useState<Record<string, PositionDraft>>({});
-  const [newName, setNewName] = useState("");
-  const [newSlug, setNewSlug] = useState("");
-  const [creating, setCreating] = useState(false);
+export default function DistrictManager({ initialRegions, unregistered }: { initialRegions: RegionRow[]; unregistered: UnregisteredRow[] }) {
+  const router = useRouter();
   const { toast, showToast } = useToast();
+  const [regions, setRegions] = useState(initialRegions);
+  const [q, setQ] = useState("");
+  const [newName, setNewName] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+  const [renameTarget, setRenameTarget] = useState<RegionRow | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<RegionRow | null>(null);
 
-  const svgRef = useRef<SVGSVGElement>(null);
-  const draggingIdRef = useRef<string | null>(null);
+  const trimmedNew = newName.trim().replace(/\s+/g, " ");
+  const newConflict = trimmedNew ? findRegionConflict(trimmedNew, regions) : null;
+  const visible = useMemo(() => {
+    const needle = q.trim();
+    return needle ? regions.filter((r) => r.name.includes(needle)) : regions;
+  }, [regions, q]);
 
-  const pointFromEvent = useCallback((clientX: number, clientY: number) => {
-    const svg = svgRef.current;
-    if (!svg) return null;
-    const rect = svg.getBoundingClientRect();
-    if (rect.width === 0 || rect.height === 0) return null;
-    return {
-      x: clamp((clientX - rect.left) * (VIEWBOX_W / rect.width), 0, VIEWBOX_W),
-      y: clamp((clientY - rect.top) * (VIEWBOX_H / rect.height), 0, VIEWBOX_H),
-    };
-  }, []);
-
-  // 리스너를 자기 자신과 같은 참조로 떼어내야 해서 렌더마다 새로 만들지 않고 최초 1회만 생성한다
-  // (GuestbookSessionPreview.tsx의 방명록 군집 드래그와 동일한 패턴).
-  const [dragHandlers] = useState(() => {
-    const move = (e: PointerEvent) => {
-      const id = draggingIdRef.current;
-      if (!id) return;
-      const point = pointFromEvent(e.clientX, e.clientY);
-      if (!point) return;
-      // 줌 중심(zoomX/Y)은 별도 입력 없이 마커 위치를 그대로 따라간다.
-      setPositionDrafts((prev) => ({
-        ...prev,
-        [id]: { markerX: point.x, markerY: point.y, zoomX: point.x, zoomY: point.y },
-      }));
-    };
-    const stop = () => {
-      draggingIdRef.current = null;
-      window.removeEventListener("pointermove", move);
-      window.removeEventListener("pointerup", stop);
-    };
-    return { move, stop };
-  });
-
-  function startDragging(id: string, e: React.PointerEvent) {
-    e.preventDefault();
-    e.stopPropagation();
-    draggingIdRef.current = id;
-    window.addEventListener("pointermove", dragHandlers.move);
-    window.addEventListener("pointerup", dragHandlers.stop);
+  async function create(name: string) {
+    setBusy(true);
+    try {
+      const res = await fetch("/api/districts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name }) });
+      if (!res.ok) return showToast(await readError(res, "지역을 추가하지 못했어요."));
+      const created = await res.json();
+      setRegions((prev) => [...prev, { id: created.id, name: created.name, status: created.status, spaceCount: unregistered.find((u) => u.label === created.name)?.count ?? 0 }]);
+      setNewName("");
+      showToast(`'${created.name}' 지역을 추가했어요.`);
+      router.refresh();
+    } catch {
+      showToast("네트워크 오류로 추가하지 못했어요.");
+    } finally {
+      setBusy(false);
+    }
   }
 
-  function resetPosition(id: string) {
-    setPositionDrafts((prev) => {
-      if (!(id in prev)) return prev;
-      const next = { ...prev };
-      delete next[id];
+  async function rename(row: RegionRow) {
+    const name = editName.trim().replace(/\s+/g, " ");
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/districts/${row.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name }) });
+      if (!res.ok) return showToast(await readError(res, "이름을 바꾸지 못했어요."));
+      const updated = await res.json();
+      setRegions((prev) => prev.map((r) => (r.id === row.id ? { ...r, name: updated.name } : r)));
+      setEditingId(null);
+      setRenameTarget(null);
+      showToast(updated.renamedSpaces > 0 ? `이름을 바꾸고 공간 ${updated.renamedSpaces}개의 지역도 함께 바꿨어요.` : "이름을 바꿨어요.");
+      router.refresh();
+    } catch {
+      showToast("네트워크 오류로 저장하지 못했어요.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function requestRename(row: RegionRow) {
+    const name = editName.trim().replace(/\s+/g, " ");
+    if (!name || name === row.name) return setEditingId(null);
+    const conflict = findRegionConflict(name, regions, row.id);
+    if (conflict) return showToast(`이미 '${conflict.name}' 지역이 있어요.`);
+    // 쓰는 공간이 있으면 영향을 먼저 알려준다
+    if (row.spaceCount > 0) setRenameTarget(row);
+    else void rename(row);
+  }
+
+  async function setStatus(row: RegionRow, status: DistrictStatus) {
+    const prev = row.status;
+    setRegions((p) => p.map((r) => (r.id === row.id ? { ...r, status } : r)));
+    const res = await fetch(`/api/districts/${row.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status }) });
+    if (!res.ok) {
+      setRegions((p) => p.map((r) => (r.id === row.id ? { ...r, status: prev } : r)));
+      showToast(await readError(res, "상태를 바꾸지 못했어요."));
+    }
+  }
+
+  async function move(row: RegionRow, direction: "up" | "down") {
+    const res = await fetch(`/api/districts/${row.id}/move`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ direction }) });
+    if (!res.ok) return showToast("순서를 바꾸지 못했어요.");
+    setRegions((prev) => {
+      const i = prev.findIndex((r) => r.id === row.id);
+      const j = direction === "up" ? i - 1 : i + 1;
+      if (i < 0 || j < 0 || j >= prev.length) return prev;
+      const next = [...prev];
+      [next[i], next[j]] = [next[j], next[i]];
       return next;
     });
   }
 
-  async function createDistrict() {
-    const name = newName.trim();
-    const slug = newSlug.trim().toLowerCase();
-    if (!name || !slug) return;
-    setCreating(true);
-    const res = await fetch("/api/districts", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, slug }),
-    });
-    setCreating(false);
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      showToast(data.error ?? "생성에 실패했어요.");
-      return;
-    }
-    const created = await res.json();
-    setDistricts((prev) => [...prev, {
-      id: created.id, name: created.name, slug: created.slug, status: created.status,
-      tagline: created.tagline ?? "", markerX: created.markerX, markerY: created.markerY,
-      zoomX: created.zoomX, zoomY: created.zoomY, zoomScale: created.zoomScale, spaceCount: 0,
-    }]);
-    setNewName("");
-    setNewSlug("");
-  }
-
-  async function move(id: string, direction: "up" | "down") {
-    const res = await fetch(`/api/districts/${id}/move`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ direction }),
-    });
-    if (res.ok) {
-      setDistricts((prev) => {
-        const i = prev.findIndex((d) => d.id === id);
-        const j = direction === "up" ? i - 1 : i + 1;
-        if (i === -1 || j < 0 || j >= prev.length) return prev;
-        const next = [...prev];
-        [next[i], next[j]] = [next[j], next[i]];
-        return next;
-      });
-    } else {
-      showToast("순서 변경에 실패했어요.");
+  async function remove(row: RegionRow) {
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/districts/${row.id}${row.spaceCount > 0 ? "?confirm=1" : ""}`, { method: "DELETE" });
+      if (!res.ok) return showToast(await readError(res, "삭제하지 못했어요."));
+      setRegions((prev) => prev.filter((r) => r.id !== row.id));
+      setDeleteTarget(null);
+      showToast(`'${row.name}' 지역을 삭제했어요.`);
+      router.refresh();
+    } catch {
+      showToast("네트워크 오류로 삭제하지 못했어요.");
+    } finally {
+      setBusy(false);
     }
   }
-
-  async function removeDistrict(district: DistrictRow) {
-    const res = await fetch(`/api/districts/${district.id}`, { method: "DELETE" });
-    if (res.ok) {
-      setDistricts((prev) => prev.filter((d) => d.id !== district.id));
-      resetPosition(district.id);
-      showToast("지역이 삭제되었습니다.");
-    } else {
-      showToast("삭제에 실패했어요.");
-    }
-  }
-
-  async function patch(id: string, data: FieldPatch) {
-    const res = await fetch(`/api/districts/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    });
-    if (res.ok) {
-      setDistricts((prev) => prev.map((d) => (d.id === id ? { ...d, ...data } : d)));
-      resetPosition(id); // 저장 성공 시 임시 드래그 위치는 이제 district 쪽 값과 같으므로 정리
-    } else {
-      const resData = await res.json().catch(() => ({}));
-      showToast(resData.error ?? "변경에 실패했어요.");
-    }
-    return res.ok;
-  }
-
-  const effectiveDistricts = districts.map((d) => ({ ...d, ...positionDrafts[d.id] }));
 
   return (
-    <div className="flex flex-col gap-8">
-      {/* ── 지도 위 드래그 편집 — 실제 사용자 화면(DiscoverEntry)과 동일한 마커 렌더 공유 ── */}
-      <div className="space-y-2">
-        <p className="text-xs" style={{ color: "var(--dim)" }}>
-          마커를 드래그해서 위치를 옮기세요. 줌 중심은 마커 위치를 그대로 따라가요.
-        </p>
-        <div className="border p-3" style={{ borderColor: "var(--border)", touchAction: "none" }}>
-          <svg
-            ref={svgRef}
-            viewBox={SEOUL_MAP_VIEWBOX}
-            width="100%"
-            style={{ display: "block", maxWidth: 420, margin: "0 auto", color: "var(--fg)" }}
-          >
-            <SeoulMapBackdrop idSuffix="-admin" />
-            {effectiveDistricts.map((d) => (
-              <g
-                key={d.id}
-                className="district-marker-admin cursor-grab active:cursor-grabbing"
-                onPointerDown={(e) => startDragging(d.id, e)}
-                style={{ touchAction: "none" }}
-              >
-                {/* 드래그 히트영역 확대 — 마커보다 넉넉한 투명 원 */}
-                <circle cx={d.markerX} cy={d.markerY} r={22} fill="transparent" />
-                <DistrictMapMarker name={d.name} x={d.markerX} y={d.markerY} status={d.status} />
-              </g>
-            ))}
-          </svg>
-        </div>
-        <style>{`.district-marker-admin:hover { filter: drop-shadow(0 0 2px currentColor); }`}</style>
-      </div>
-
-      {/* ── 새 지역 추가 ── */}
-      <div className="flex gap-3 flex-wrap">
-        <input
-          value={newName}
-          onChange={(e) => setNewName(e.target.value)}
-          placeholder="지역명 (예: 홍대)"
-          className="flex-1 min-w-[8rem] bg-transparent border px-3 py-2 text-sm outline-none focus:border-[var(--fg)]"
-          style={{ borderColor: "var(--border)", color: "var(--fg)" }}
-        />
-        <input
-          value={newSlug}
-          onChange={(e) => setNewSlug(e.target.value)}
-          placeholder="slug (예: hongdae)"
-          className="flex-1 min-w-[8rem] bg-transparent border px-3 py-2 text-sm outline-none focus:border-[var(--fg)]"
-          style={{ borderColor: "var(--border)", color: "var(--fg)" }}
-        />
-        <button
-          onClick={createDistrict}
-          disabled={creating || !newName.trim() || !newSlug.trim()}
-          className="text-sm px-4 py-2 border transition-colors hover:bg-[var(--fg)] hover:text-[var(--bg)] disabled:opacity-40"
-          style={{ borderColor: "var(--fg)" }}
+    <div className="space-y-8">
+      <section className="a-card p-4 sm:p-5 space-y-3">
+        <h2 className="text-[15px] font-semibold">지역 추가</h2>
+        <form
+          className="flex flex-col sm:flex-row gap-2"
+          onSubmit={(e) => { e.preventDefault(); if (trimmedNew && !newConflict && !busy) void create(trimmedNew); }}
         >
-          {creating ? "추가 중..." : "+ 지역 추가"}
-        </button>
-      </div>
-
-      <div className="space-y-3">
-        {districts.map((district, i) => (
-          <DistrictCard
-            key={district.id}
-            district={district}
-            positionDraft={positionDrafts[district.id]}
-            index={i}
-            total={districts.length}
-            onMove={(dir) => move(district.id, dir)}
-            onPatch={(data) => patch(district.id, data)}
-            onResetPosition={() => resetPosition(district.id)}
-            onRemove={() => removeDistrict(district)}
+          <input
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            placeholder="지역명 (예: 연남)"
+            aria-label="새 지역명"
+            className="a-input"
+            style={{ height: 44 }}
           />
-        ))}
-      </div>
+          <button type="submit" disabled={!trimmedNew || !!newConflict || busy} className="a-btn a-btn-primary" style={{ height: 44, minWidth: 96 }}>추가</button>
+        </form>
+        {newConflict && (
+          <p className="text-xs" style={{ color: "var(--a-danger)" }}>
+            이미 &lsquo;{newConflict.name}&rsquo; 지역이 있어요. &lsquo;연남&rsquo;과 &lsquo;연남동&rsquo;처럼 같은 동네는 한 번만 등록해요.
+          </p>
+        )}
+        <p className="text-[11px]" style={{ color: "var(--a-dim)" }}>동 이름은 &lsquo;동&rsquo;을 뺀 짧은 이름을 권장해요(연남동 → 연남).</p>
+      </section>
+
+      {unregistered.filter((u) => !regions.some((r) => r.name === u.label)).length > 0 && (
+        <section className="space-y-3">
+          <div className="space-y-1">
+            <h2 className="text-[15px] font-semibold">아직 지역으로 등록되지 않은 값</h2>
+            <p className="text-xs" style={{ color: "var(--a-dim)" }}>공간에는 쓰이지만 아래 목록에 없는 지역이에요. 등록하면 한 이름으로 관리돼요.</p>
+          </div>
+          <ul className="a-card divide-y" style={{ borderColor: "var(--a-line)" }}>
+            {unregistered.filter((u) => !regions.some((r) => r.name === u.label)).map((u) => (
+              <li key={u.label} className="flex items-center justify-between gap-3 px-4 py-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium truncate">{u.label}</p>
+                  <p className="text-[11px]" style={{ color: "var(--a-dim)" }}>공간 {u.count}개{u.values.length > 1 || u.values[0] !== u.label ? ` · 입력값: ${u.values.join(", ")}` : ""}</p>
+                </div>
+                <button type="button" className="a-btn a-btn-sm shrink-0" disabled={busy} onClick={() => create(u.label)}>지역으로 등록</button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      <section className="space-y-3">
+        <div className="flex items-end justify-between gap-3">
+          <h2 className="text-[15px] font-semibold">등록된 지역 <span className="font-normal" style={{ color: "var(--a-dim)" }}>{regions.length}개</span></h2>
+          {regions.length > 5 && (
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="지역 검색" aria-label="지역 검색" className="a-input" style={{ maxWidth: 200 }} />
+          )}
+        </div>
+
+        {visible.length === 0 ? (
+          <div className="a-card px-6 py-10 text-center text-sm" style={{ borderStyle: "dashed", color: "var(--a-dim)" }}>
+            {regions.length === 0 ? "등록된 지역이 없어요. 위에서 첫 지역을 추가해보세요." : "검색 결과가 없어요."}
+          </div>
+        ) : (
+          <ul className="a-card divide-y" style={{ borderColor: "var(--a-line)" }}>
+            {visible.map((r) => {
+              const idx = regions.findIndex((x) => x.id === r.id);
+              const editing = editingId === r.id;
+              return (
+                <li key={r.id} className="px-4 py-3.5 flex flex-col gap-3 sm:flex-row sm:items-center">
+                  <div className="flex-1 min-w-0">
+                    {editing ? (
+                      <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); requestRename(r); }}>
+                        <input autoFocus value={editName} onChange={(e) => setEditName(e.target.value)} aria-label="지역명" className="a-input" />
+                        <button type="submit" className="a-btn a-btn-primary a-btn-sm" style={{ height: 38 }} disabled={busy}>저장</button>
+                        <button type="button" className="a-btn a-btn-ghost a-btn-sm" style={{ height: 38 }} onClick={() => setEditingId(null)}>취소</button>
+                      </form>
+                    ) : (
+                      <p className="text-[15px] font-semibold truncate">{r.name}</p>
+                    )}
+                    <p className="text-xs pt-0.5" style={{ color: "var(--a-dim)" }}>
+                      등록 공간 {r.spaceCount}개{r.spaceCount === 0 && " · 쓰는 공간 없음"}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <select
+                      value={r.status}
+                      onChange={(e) => setStatus(r, e.target.value as DistrictStatus)}
+                      aria-label={`${r.name} 표시 상태`}
+                      className="a-input"
+                      style={{ width: "auto", height: 34, fontSize: 12 }}
+                    >
+                      {Object.values(DistrictStatus).map((s) => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
+                    </select>
+                    <button type="button" className="a-btn a-btn-ghost a-btn-sm" disabled={idx === 0} onClick={() => move(r, "up")} aria-label="위로">▲</button>
+                    <button type="button" className="a-btn a-btn-ghost a-btn-sm" disabled={idx === regions.length - 1} onClick={() => move(r, "down")} aria-label="아래로">▼</button>
+                    <button type="button" className="a-btn a-btn-sm" onClick={() => { setEditingId(r.id); setEditName(r.name); }}>수정</button>
+                    <button type="button" className="a-btn a-btn-danger a-btn-sm" onClick={() => setDeleteTarget(r)}>삭제</button>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
+
+      <AdminModal
+        open={!!renameTarget}
+        onClose={() => setRenameTarget(null)}
+        title={`'${renameTarget?.name}' → '${editName.trim()}' 이름 변경`}
+        footer={
+          <>
+            <button type="button" className="a-btn" onClick={() => setRenameTarget(null)}>취소</button>
+            <button type="button" className="a-btn a-btn-primary" disabled={busy} onClick={() => renameTarget && rename(renameTarget)}>변경</button>
+          </>
+        }
+      >
+        현재 {renameTarget?.spaceCount}개의 공간이 이 지역을 사용하고 있어요. 이름을 바꾸면 해당 공간들의 지역도 같은 이름으로 함께 바뀌어요.
+      </AdminModal>
+
+      <AdminModal
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        title={`'${deleteTarget?.name}' 지역을 삭제할까요?`}
+        footer={
+          <>
+            <button type="button" className="a-btn" onClick={() => setDeleteTarget(null)}>취소</button>
+            <button type="button" className="a-btn a-btn-danger" disabled={busy} onClick={() => deleteTarget && remove(deleteTarget)}>삭제</button>
+          </>
+        }
+      >
+        {deleteTarget && deleteTarget.spaceCount > 0
+          ? `현재 ${deleteTarget.spaceCount}개의 공간이 이 지역을 사용하고 있습니다. 지역 목록에서만 지워지고, 공간에 적힌 지역 값은 그대로 남아요.`
+          : "쓰는 공간이 없는 지역이에요."}
+      </AdminModal>
 
       <Toast message={toast} />
-    </div>
-  );
-}
-
-function DistrictCard({
-  district, positionDraft, index, total, onMove, onPatch, onResetPosition, onRemove,
-}: {
-  district: DistrictRow;
-  positionDraft?: PositionDraft;
-  index: number;
-  total: number;
-  onMove: (direction: "up" | "down") => void;
-  onPatch: (data: FieldPatch) => Promise<boolean>;
-  onResetPosition: () => void;
-  onRemove: () => void;
-}) {
-  const [name, setName] = useState(district.name);
-  const [slug, setSlug] = useState(district.slug);
-  const [tagline, setTagline] = useState(district.tagline);
-  const [status, setStatus] = useState(district.status);
-  const [zoomScale, setZoomScale] = useState(district.zoomScale);
-  const [saving, setSaving] = useState(false);
-  const router = useRouter();
-
-  const effX = positionDraft?.markerX ?? district.markerX;
-  const effY = positionDraft?.markerY ?? district.markerY;
-  const hasPositionDraft = !!positionDraft;
-
-  const dirty =
-    name !== district.name || slug !== district.slug || tagline !== district.tagline ||
-    zoomScale !== district.zoomScale || hasPositionDraft;
-
-  async function handleStatusChange(e: React.ChangeEvent<HTMLSelectElement>) {
-    const s = e.target.value as DistrictStatus;
-    setStatus(s);
-    const ok = await onPatch({ status: s });
-    if (!ok) setStatus(district.status); // 실패 시 되돌리기
-  }
-
-  async function save() {
-    setSaving(true);
-    const ok = await onPatch({
-      name, slug, tagline, zoomScale,
-      markerX: effX,
-      markerY: effY,
-      zoomX: positionDraft?.zoomX ?? district.zoomX,
-      zoomY: positionDraft?.zoomY ?? district.zoomY,
-    });
-    setSaving(false);
-    if (ok) router.refresh();
-  }
-
-  function cancel() {
-    setName(district.name);
-    setSlug(district.slug);
-    setTagline(district.tagline);
-    setZoomScale(district.zoomScale);
-    onResetPosition();
-  }
-
-  return (
-    <div className="p-4 border space-y-3" style={{ borderColor: "var(--border)", opacity: status === "HIDDEN" ? 0.55 : 1 }}>
-      <div className="flex items-center justify-between flex-wrap gap-2">
-        <div className="flex gap-2 text-xs">
-          <button onClick={() => onMove("up")} disabled={index === 0} className="border px-2 py-1 disabled:opacity-30" style={{ borderColor: "var(--border)", color: "var(--dim)" }}>▲</button>
-          <button onClick={() => onMove("down")} disabled={index === total - 1} className="border px-2 py-1 disabled:opacity-30" style={{ borderColor: "var(--border)", color: "var(--dim)" }}>▼</button>
-        </div>
-        <span className="text-xs" style={{ color: "var(--dim)" }}>연결된 공간 {district.spaceCount}개</span>
-      </div>
-
-      <div className="grid sm:grid-cols-2 gap-3">
-        <input
-          value={name} onChange={(e) => setName(e.target.value)} placeholder="지역명"
-          className="bg-transparent border px-3 py-2 text-sm outline-none focus:border-[var(--fg)]"
-          style={{ borderColor: "var(--border)", color: "var(--fg)" }}
-        />
-        <input
-          value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="slug"
-          className="bg-transparent border px-3 py-2 text-sm outline-none focus:border-[var(--fg)]"
-          style={{ borderColor: "var(--border)", color: "var(--fg)" }}
-        />
-      </div>
-
-      <input
-        value={tagline} onChange={(e) => setTagline(e.target.value)} placeholder="지역 소개 한 줄 (선택)"
-        className="w-full bg-transparent border px-3 py-2 text-sm outline-none focus:border-[var(--fg)]"
-        style={{ borderColor: "var(--border)", color: "var(--fg)" }}
-      />
-
-      <label className="flex flex-col gap-1 text-xs" style={{ color: "var(--dim)" }}>
-        상태
-        <select
-          value={status} onChange={handleStatusChange}
-          className="bg-transparent border px-3 py-2 text-sm outline-none focus:border-[var(--fg)]"
-          style={{ borderColor: "var(--border)", color: "var(--fg)" }}
-        >
-          {(Object.entries(STATUS_LABEL) as [DistrictStatus, string][]).map(([value, label]) => (
-            <option key={value} value={value}>{label}</option>
-          ))}
-        </select>
-      </label>
-
-      {/* 위치 — 위쪽 지도에서 드래그로만 설정. 숫자 입력 필드는 없음 */}
-      <div className="flex items-center justify-between gap-3 text-xs px-3 py-2 border" style={{ borderColor: "var(--border)", color: "var(--dim)" }}>
-        <span>현재 위치 ({Math.round(effX)}, {Math.round(effY)}){hasPositionDraft && " · 저장 전"}</span>
-        <button
-          type="button"
-          onClick={onResetPosition}
-          disabled={!hasPositionDraft}
-          className="border px-2 py-1 disabled:opacity-30 transition-colors hover:border-[var(--fg)]"
-          style={{ borderColor: "var(--border)" }}
-        >
-          위치 초기화
-        </button>
-      </div>
-
-      <label className="flex flex-col gap-1 text-xs w-28" style={{ color: "var(--dim)" }}>
-        줌 배율
-        <input
-          type="number" step="0.1" min="1" max="4" value={zoomScale}
-          onChange={(e) => { const n = Number(e.target.value); if (Number.isFinite(n)) setZoomScale(n); }}
-          className="bg-transparent border px-2 py-1.5 text-sm outline-none focus:border-[var(--fg)]"
-          style={{ borderColor: "var(--border)", color: "var(--fg)" }}
-        />
-      </label>
-
-      <div className="flex justify-end gap-2">
-        <button
-          onClick={onRemove}
-          className="text-xs px-3 py-1 border transition-colors hover:border-red-500 hover:text-red-500"
-          style={{ borderColor: "var(--border)", color: "var(--dim)" }}
-        >
-          삭제
-        </button>
-        <button
-          onClick={cancel}
-          disabled={!dirty}
-          className="text-xs px-3 py-1 border transition-colors disabled:opacity-40"
-          style={{ borderColor: "var(--border)", color: "var(--dim)" }}
-        >
-          취소
-        </button>
-        <button
-          onClick={save}
-          disabled={saving || !dirty || !name.trim() || !slug.trim()}
-          className="text-xs px-3 py-1 border transition-colors hover:bg-[var(--fg)] hover:text-[var(--bg)] disabled:opacity-40"
-          style={{ borderColor: "var(--fg)" }}
-        >
-          {saving ? "저장 중..." : "저장"}
-        </button>
-      </div>
     </div>
   );
 }

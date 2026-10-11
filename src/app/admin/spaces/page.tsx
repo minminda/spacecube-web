@@ -13,7 +13,7 @@ interface Props {
 
 /**
  * 운영 공간 목록 — 기존 /admin 첫 화면의 공간 목록을 옮긴 것(데이터·삭제 로직 동일).
- * "운영 공간" = 실제 GONGGANCUBE가 설치/운영되는 DB Space. 홈페이지 "공간 콘텐츠"와는 별개다.
+ * "운영 공간" = 실제 GONGGANCUBE가 설치/운영되는 DB Space. 홈페이지 "공간 등록"과는 별개다.
  */
 export default async function AdminSpacesPage({ searchParams }: Props) {
   const session = await auth();
@@ -40,7 +40,7 @@ export default async function AdminSpacesPage({ searchParams }: Props) {
       <AdminPageHeader
         area="cube"
         title="운영 공간"
-        description="Cube가 있는 현장 공간 · 공간 콘텐츠와 별개"
+        description="Cube가 있는 현장 공간 · 공간 등록과 별개"
         actions={<AdminButtonLink href="/admin/new" variant="primary">+ 운영 공간 등록</AdminButtonLink>}
       />
 
