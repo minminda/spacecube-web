@@ -7,6 +7,8 @@ import SpaceCard from "@/components/editorial/SpaceCard";
 import { SPACE_GRID_CLASS } from "@/components/editorial/SpaceTile";
 import SiteFooter from "@/components/editorial/SiteFooter";
 import SaveButton from "@/components/editorial/SaveButton";
+import DiscoveryTracker from "@/components/editorial/DiscoveryTracker";
+import MapLink from "@/components/editorial/MapLink";
 import BlockRenderer from "@/components/editorial/BlockRenderer";
 import { getEditorialViewer } from "@/lib/editorial/viewer";
 import PreviewBanner from "@/components/editorial/PreviewBanner";
@@ -84,6 +86,7 @@ export default async function SpaceDetailPage({ params }: Props) {
       {fixture ? (
         <p className="ed-container pt-3 text-xs" style={{ color: "var(--ed-dim)" }}>임시 공간 미리보기 — UI 확인용이며 실제 공간이 아닙니다. 일반 방문자에게는 보이지 않아요.</p>
       ) : space.isDemo ? <PrototypeBanner demo /> : <PreviewBanner status={space.status} editHref={`/admin/content/spaces/${space.id}`} />}
+      {!fixture && !space.isDemo && <DiscoveryTracker spaceId={space.id} />}
       <main>
         <header className="ed-container pt-10 md:pt-16">
           <Link href={back.href} className="text-xs hover:underline underline-offset-4" style={{ color: "var(--ed-dim)" }}>← {back.label}</Link>
@@ -146,9 +149,9 @@ export default async function SpaceDetailPage({ params }: Props) {
               {(space.mapUrl || links.length > 0) && (
                 <div className="flex flex-wrap gap-x-5 gap-y-2 pt-4">
                   {space.mapUrl && (
-                    <a href={space.mapUrl} target="_blank" rel="noopener noreferrer" className="text-sm font-medium hover:underline underline-offset-4">
+                    <MapLink href={space.mapUrl} spaceId={space.id} track={!fixture && !space.isDemo} className="text-sm font-medium hover:underline underline-offset-4">
                       지도에서 보기 ↗
-                    </a>
+                    </MapLink>
                   )}
                   {links.map((l) => (
                     <a key={l.label} href={l.href} target="_blank" rel="noopener noreferrer" className="text-sm font-medium hover:underline underline-offset-4">

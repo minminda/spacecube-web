@@ -27,6 +27,8 @@ import DateRangeFilter from "./DateRangeFilter";
 import PrintReportButton from "./PrintReportButton";
 import ReportTabs from "./ReportTabs";
 import { AdminPageHeader } from "@/components/admin/ui";
+import { getDiscoveryStats } from "@/lib/discoveryKpi";
+import { DiscoverySection, KpiAreaHeading } from "@/components/admin/kpi/DiscoveryKpi";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -89,7 +91,7 @@ export default async function ReportAdminPage({ params, searchParams }: Props) {
   // 각자 따로 날짜를 계산하지 않는 것이 "기간 일치" 원칙(§21)의 핵심.
   // 시간별 조회는 하루(from===to)를 선택했을 때만 의미가 있으므로 그때만 쿼리한다.
   const isSingleDay = range.from === range.to;
-  const [rangeStats, rangeExtended, dailyTrend, previewData, hourlyStats, funnelStats, visitLog] = await Promise.all([
+  const [rangeStats, rangeExtended, dailyTrend, previewData, hourlyStats, funnelStats, visitLog, discoveryStats] = await Promise.all([
     getSpaceMonthlyKpi(spaceId, range.start, range.end),
     getExtendedPeriodStats(spaceId, range.start, range.end),
     getDailyVisitTrend(spaceId, range.start, range.end),
@@ -97,6 +99,7 @@ export default async function ReportAdminPage({ params, searchParams }: Props) {
     isSingleDay ? getHourlyPeriodStats(spaceId, range.start, range.end) : Promise.resolve(null),
     getGuestbookConversionFunnel(spaceId, range.start, range.end),
     getRecentVisitLog(spaceId, range.start, range.end, 50),
+    getDiscoveryStats({ operationalSpaceId: spaceId, slug: space.slug }, range.start, range.end),
   ]);
 
   const recommendedFileName = `공간큐브_${space.name}_${range.from}_${range.to}.pdf`;
@@ -132,6 +135,9 @@ export default async function ReportAdminPage({ params, searchParams }: Props) {
       <div className="no-print" style={{ borderTop: "1px solid var(--border)" }} />
       <section className="no-print space-y-5">
         <p className="text-xs uppercase tracking-widest" style={{ color: "var(--dim)" }}>KPI 요약 — 관리자 전용</p>
+        <KpiAreaHeading step="A" caption="공간 발견 이전 · Discovery" title="공간 발견 — 이 공간을 찾아보고 방문을 고려했나" />
+        <DiscoverySection stats={discoveryStats} scopeLabel="space" />
+        <KpiAreaHeading step="B" caption="공간 방문 이후 · On-site Experience" title="공간 방문 이후 — 실제로 와서 어디까지 경험했나" />
         {!earliestRecordDate ? (
           <p className="text-sm" style={{ color: "var(--dim)" }}>
             아직 이 공간에 대한 기록이 없습니다. 첫 방문 기록이 생기면 KPI가 쌓이기 시작합니다.

@@ -55,6 +55,7 @@ model User {
   guestbookFunnelEvents GuestbookFunnelEvent[]
   sceneReaches          SceneReach[]
   savedEditorialSpaces  SavedEditorialSpace[]
+  discoveryEvents       DiscoveryEvent[]
   // 큐레이터 역할(선택) — 모든 큐레이터는 일반 사용자이고, 일부 사용자만 공개 큐레이터 프로필을 추가로 가진다.
   curatorProfile        CuratorProfile?
   archiveEntries        ArchiveEntry[]
@@ -1209,15 +1210,16 @@ model EditorialSpace {
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
 
-  curationLinks  EditorialCurationSpace[]
-  personLinks    EditorialPersonSpace[]
-  thoughtLinks   EditorialThoughtSpace[]
-  homeHeroOf     EditorialHomeSettings[]  @relation("EditorialHomeHero")
-  saves          SavedEditorialSpace[]
-  curatorPicks   CuratorCollectionSpace[]
-  archiveEntries ArchiveEntry[]
-  profileSpaces  ProfileSpace[]
-  homeShelfLinks HomeShelfSpace[]
+  curationLinks   EditorialCurationSpace[]
+  personLinks     EditorialPersonSpace[]
+  thoughtLinks    EditorialThoughtSpace[]
+  homeHeroOf      EditorialHomeSettings[]  @relation("EditorialHomeHero")
+  saves           SavedEditorialSpace[]
+  curatorPicks    CuratorCollectionSpace[]
+  archiveEntries  ArchiveEntry[]
+  profileSpaces   ProfileSpace[]
+  homeShelfLinks  HomeShelfSpace[]
+  discoveryEvents DiscoveryEvent[]
 
   @@index([status])
   @@map("editorial_spaces")
@@ -1663,4 +1665,31 @@ model HomeShelfSpace {
   @@unique([shelfId, spaceId])
   @@index([spaceId])
   @@map("home_shelf_spaces")
+}
+
+// ─── Discovery 계측 (공개 /spaces/[slug]) ─────────────────────────────
+// 공간 발견 단계의 최소 이벤트 로그 — 상세 조회(SPACE_VIEW)와 "지도에서 보기" 클릭(MAP_CLICK)만.
+// 저장(Save)은 SavedEditorialSpace를 그대로 쓰므로 여기 없다. userId/anonId는 둘 다 채울 수 있다
+// (로그인 상태에서 sc_anon_id 쿠키가 있으면 둘 다) — 이후 QR 스캔(SpaceScan은 로그인 시 userId만,
+// 비로그인 시 anonId만 기록)과 어느 쪽으로든 이어 붙이기 위함. 새로고침 중복은 쓰기 시점에 막는다
+// (DiscoveryEvent 라우트: 같은 방문자·공간·종류가 30분 안에 있으면 기록 안 함) — 유니크 제약 없음.
+enum DiscoveryEventType {
+  SPACE_VIEW
+  MAP_CLICK
+}
+
+model DiscoveryEvent {
+  id        String             @id @default(cuid())
+  spaceId   String // EditorialSpace.id
+  type      DiscoveryEventType
+  userId    String?
+  anonId    String?
+  createdAt DateTime           @default(now())
+
+  space EditorialSpace @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  user  User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([spaceId, type, createdAt])
+  @@index([type, createdAt])
+  @@map("discovery_events")
 }
