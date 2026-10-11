@@ -38,7 +38,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
       { key: "content-people", label: "STORY · PEOPLE", href: "/admin/content/people", sub: true },
       { key: "content-thoughts", label: "STORY · THOUGHT", href: "/admin/content/thoughts", sub: true },
       { key: "content-spaces", label: "공간 콘텐츠", href: "/admin/content/spaces" },
-      { key: "content-home", label: "홈페이지", href: "/admin/content/home" },
+      { key: "content-home", label: "HOME 선반", href: "/admin/content/home" },
       { key: "curators", label: "큐레이터 (프로토타입)", href: "/admin/curators" },
       { key: "content-media", label: "미디어", href: "/admin/content/media" },
     ],
@@ -111,6 +111,7 @@ export function adminBackFallback(pathname: string): string | null {
   if (seg[0] === "content") {
     if (seg.length === 1) return "/admin";
     if (seg[1] === "spaces") return seg.length > 2 ? "/admin/content/spaces" : "/admin/content";
+    if (seg[1] === "home" && seg.length > 2) return "/admin/content/home";
     return "/admin/content"; // people · thoughts · curations(목록·새 글·편집) · home · media
   }
   if (seg[0] === "stories") return seg.length > 1 ? "/admin/stories" : "/admin";

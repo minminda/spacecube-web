@@ -55,10 +55,13 @@ export default async function EditorialHome({ admin, previewDrafts, fixtures, us
   const shelf = (s: HomeSpaceShelf, id?: string) => <SpaceShelf key={s.key} id={id ?? s.key} shelf={s} savedIds={d.savedIds} loggedIn={d.loggedIn} />;
   const lead = d.spaceShelves.filter((s) => !s.key.startsWith("theme-"));
   const themed = d.spaceShelves.filter((s) => s.key.startsWith("theme-"));
-  const half = Math.ceil(themed.length / 2);
+  // 운영자가 정한 제목(지역 화면에서는 규칙이 만든 제목을 그대로 쓴다)
+  const titleOf = new Map(d.plan.filter((p) => p.titleOverride).map((p) => [p.key, p.titleOverride as string]));
+  const retitle = (s: HomeSpaceShelf, key: string): HomeSpaceShelf => (!d.area && titleOf.has(key) ? { ...s, title: titleOf.get(key) as string } : s);
+  const named = (key: string, fallback: string) => (!d.area && titleOf.get(key)) || fallback;
 
   const curationShelf = d.curations.length > 0 ? (
-    <Shelf key="curation" id="curation" title={d.area ? `${d.area}의 CURATION` : "최근 올라온 CURATION"} description="지역에서, 어떤 날과 어떤 마음으로 고른 공간" href={d.area ? `/curation?area=${encodeURIComponent(d.area)}` : "/curation"} cta="큐레이션" kind="curation">
+    <Shelf key="curation" id="curation" title={d.area ? `${d.area}의 CURATION` : named("curation", "최근 올라온 CURATION")} description="지역에서, 어떤 날과 어떤 마음으로 고른 공간" href={d.area ? `/curation?area=${encodeURIComponent(d.area)}` : "/curation"} cta="큐레이션" kind="curation">
       {d.curations.map((c) => (
         <li key={c.id}><CurationCard c={c} ratio="4 / 3" sizes="(min-width: 1024px) 440px, 64vw" showArea={!d.area} /></li>
       ))}
@@ -68,7 +71,7 @@ export default async function EditorialHome({ admin, previewDrafts, fixtures, us
   ) : null;
 
   const storyShelf = d.stories.length > 0 ? (
-    <Shelf key="story" id="story" title="새로운 STORY" description="공간을 통해 사람과 생각을 읽습니다" href="/story" cta="스토리" kind="story">
+    <Shelf key="story" id="story" title={named("story", "새로운 STORY")} description="공간을 통해 사람과 생각을 읽습니다" href="/story" cta="스토리" kind="story">
       {d.stories.map((s) => (
         <li key={s.key}><StoryCard href={s.href} image={s.cover} eyebrow={s.eyebrow} title={s.title} line={s.summary} ratio="4 / 5" sizes="(min-width: 1024px) 340px, 44vw" /></li>
       ))}
@@ -76,6 +79,36 @@ export default async function EditorialHome({ admin, previewDrafts, fixtures, us
   ) : !d.area ? (
     <EmptySection key="story" title="STORY" text="첫 번째 이야기를 준비하고 있어요." />
   ) : null;
+
+  // 선반 종류별 내용 — 노출 · 순서는 d.plan(운영자 설정)이 정한다. 값이 null이면 그 선반은 이번에 만들 내용이 없는 것.
+  const sh = (x: HomeSpaceShelf | null, key: string) => (x ? shelf(retitle(x, key), key) : null);
+  const blocks: Record<string, React.ReactNode> = {
+    "for-you": sh(d.forYou, "for-you"),
+    interest: sh(d.interest, "interest"),
+    similar: sh(d.similar, "similar"),
+    // 계정 데이터가 필요한 선반 — 비로그인은 한 줄 안내로 대신한다
+    saved: d.saved ? sh(d.saved, "saved") : !d.loggedIn && (
+      <section key="saved-login" className="ed-wide py-4">
+        <div className="flex flex-col md:flex-row md:items-center gap-3 md:gap-6 px-5 py-5 md:px-7" style={{ background: "var(--ed-soft)" }}>
+          <p className="text-sm md:text-[15px] leading-relaxed break-keep md:mr-auto">
+            가보고 싶은 공간을 담아 두면, 여기서 다시 꺼내 보고 취향에 맞는 공간을 더 골라 드려요.
+          </p>
+          <Link href={`/login?callbackUrl=${encodeURIComponent(homeHref({ area: d.area }))}`} className="ed-btn ed-btn-sm ed-btn-primary self-start md:self-auto">로그인</Link>
+        </div>
+      </section>
+    ),
+    new: lead.filter((s) => s.key === "new").map((s) => sh(s, "new")),
+    area: lead.filter((s) => s.key !== "new").map((s) => shelf(s)),
+    curation: curationShelf,
+    theme: themed.map((s) => shelf(s)),
+    story: storyShelf,
+    revisit: sh(d.revisit, "revisit"),
+    cube: sh(d.cubeSpaces, "cube"),
+    // 사람 자체를 보여주는 줄은 공간 발견보다 뒤
+    "similar-people": d.similarPeople.length >= 2 ? <SimilarPeopleShelf key="similar-people" people={d.similarPeople} /> : null,
+    // 운영자가 만든 편집 선반 — 지역 화면에서는 지역과 무관하므로 내보내지 않는다
+    ...(d.area ? {} : Object.fromEntries(Object.entries(d.editorialShelves).map(([k, v]) => [k, shelf(v, k)]))),
+  };
 
   return (
     <div className="editorial-bleed">
@@ -155,31 +188,7 @@ export default async function EditorialHome({ admin, previewDrafts, fixtures, us
           </section>
         )}
 
-        {d.forYou && shelf(d.forYou)}
-        {d.interest && shelf(d.interest)}
-        {d.similar && shelf(d.similar)}
-
-        {/* 계정 데이터가 필요한 선반 — 비로그인은 한 줄 안내로 대신한다 */}
-        {d.saved ? shelf(d.saved) : !d.loggedIn && (
-          <section className="ed-wide py-4">
-            <div className="flex flex-col md:flex-row md:items-center gap-3 md:gap-6 px-5 py-5 md:px-7" style={{ background: "var(--ed-soft)" }}>
-              <p className="text-sm md:text-[15px] leading-relaxed break-keep md:mr-auto">
-                가보고 싶은 공간을 담아 두면, 여기서 다시 꺼내 보고 취향에 맞는 공간을 더 골라 드려요.
-              </p>
-              <Link href={`/login?callbackUrl=${encodeURIComponent(homeHref({ area: d.area }))}`} className="ed-btn ed-btn-sm ed-btn-primary self-start md:self-auto">로그인</Link>
-            </div>
-          </section>
-        )}
-
-        {lead.map((s) => shelf(s))}
-        {curationShelf}
-        {themed.slice(0, half).map((s) => shelf(s))}
-        {storyShelf}
-        {themed.slice(half).map((s) => shelf(s))}
-        {d.revisit && shelf(d.revisit)}
-        {d.cubeSpaces && shelf(d.cubeSpaces)}
-        {/* 사람 자체를 보여주는 줄은 맨 아래 — 위에서는 공간 발견이 먼저 */}
-        {d.similarPeople.length >= 2 && <SimilarPeopleShelf people={d.similarPeople} />}
+        {d.plan.filter((p) => p.visible).map((p) => blocks[p.key] ?? null)}
 
         {/* ── GONGGANCUBE EXPERIENCE — 발견 → 저장 → 방문 → Cube → 기록 ── */}
         <section className="mt-8" style={{ background: "var(--ed-soft)" }}>

@@ -30,6 +30,8 @@ import {
 } from "./shelves";
 import { similarPeopleForHome, type SimilarPerson } from "@/lib/people/peopleData";
 import { fixtureAreaCounts, fixtureSpaces } from "./fixtures";
+import { buildShelfPlan, type PlanItem } from "./shelfConfig";
+import { loadShelfRows } from "./shelfData";
 
 const LATEST_COUNT = 5;
 const PER_SHELF = 12;
@@ -78,6 +80,10 @@ export interface HomeData {
   cubeSpaces: HomeSpaceShelf | null;
   savedIds: Set<string>;
   loggedIn: boolean;
+  /** 운영자가 정한 선반 노출 · 순서(기본값 포함) — HOME은 이 순서대로 선반을 그린다 */
+  plan: PlanItem[];
+  /** 운영자가 만든 EDITORIAL 선반(plan의 key로 찾는다) — 포함 공간이 1곳 이상 공개 상태일 때만 */
+  editorialShelves: Record<string, HomeSpaceShelf>;
 }
 
 /** 공간 Pool의 공간 → HOME 카드 모양(검색 결과도 같은 카드를 쓴다) */
@@ -115,7 +121,7 @@ export async function getHomeData(opts: { userId: string | null; admin: boolean;
   const v = { preview: opts.previewDrafts };
   const access = curatorAccess({ admin: opts.admin, editorial: true });
   const savedRegions = opts.savedRegions ?? [];
-  const [stream, stories, curations, cubeViews, areas, pool, me, similarRaw] = await Promise.all([
+  const [stream, stories, curations, cubeViews, areas, pool, me, similarRaw, shelfRows] = await Promise.all([
     listContentStream(v),
     listStoryItems(v),
     listCurations(v),
@@ -125,6 +131,7 @@ export async function getHomeData(opts: { userId: string | null; admin: boolean;
     getFinderViewer(opts.userId, access),
     // 지역을 고른 화면에서는 쓰지 않는다 — 계산하지 않는다(관리자 · 로컬 개발은 더미 계정도 섞인 미리보기)
     opts.area ? Promise.resolve({ people: [] as SimilarPerson[], spaces: [] as { slug: string; visited: boolean }[] }) : similarPeopleForHome(opts.userId, { includeDemo: previewDemoUsers(opts.admin) }),
+    loadShelfRows(),
   ]);
   const visible = <T extends { status: string }>(rows: T[]) => rows.filter((r) => r.status !== "ARCHIVED");
 
@@ -227,6 +234,17 @@ export async function getHomeData(opts: { userId: string | null; admin: boolean;
     for (const t of themes) spaceShelves.push({ key: `theme-${t.theme.key}`, title: t.theme.title, cards: cardsOf(t.spaces) });
   }
 
+  // ── EDITORIAL 선반: 공개 공간 Pool에 있는 공간만(초안 · 보관 · 데모 공간은 자동으로 빠진다), 운영자가 정한 순서 그대로 ──
+  const realById = new Map(real.map((r) => [r.id, r]));
+  const editorialShelves: Record<string, HomeSpaceShelf> = {};
+  for (const r of shelfRows.filter((x) => x.kind === "EDITORIAL" && x.visible)) {
+    const cards: HomeCard[] = r.spaces.flatMap((l) => {
+      const space = realById.get(l.spaceId);
+      return space ? [{ space, reason: l.note ?? reasonOf(space) }] : [];
+    });
+    if (cards.length > 0 && r.title) editorialShelves[r.key] = { key: r.key, title: r.title, description: r.description ?? undefined, cards };
+  }
+
   const areaCurations = visible(curations).filter((c) => !area || normalizeArea(c.area) === area);
   const cubeList = visible(cubeViews).map((s, i) => fromView(s, cubeViews.length - i)).filter((s) => !area || s.area === area);
 
@@ -251,6 +269,8 @@ export async function getHomeData(opts: { userId: string | null; admin: boolean;
     cubeSpaces: cubeList.length ? { key: "cube", title: "공간큐브와 함께한 공간", description: "현장에 Cube가 있어, 가면 그 공간의 이야기를 열어 볼 수 있어요", href: "/cube-spaces", cta: "함께한 공간", cards: cardsOf(cubeList) } : null,
     savedIds: me.savedIds,
     loggedIn: !!opts.userId,
+    plan: buildShelfPlan(shelfRows),
+    editorialShelves,
   };
 }
 

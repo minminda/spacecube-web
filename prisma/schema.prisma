@@ -1217,6 +1217,7 @@ model EditorialSpace {
   curatorPicks   CuratorCollectionSpace[]
   archiveEntries ArchiveEntry[]
   profileSpaces  ProfileSpace[]
+  homeShelfLinks HomeShelfSpace[]
 
   @@index([status])
   @@map("editorial_spaces")
@@ -1617,4 +1618,49 @@ model SavedRegion {
   @@unique([userId, area])
   @@index([userId, createdAt])
   @@map("saved_regions")
+}
+
+// ─── HOME 선반 운영 ──────────────────────────────────────────────────────
+// HOME 선반의 노출 여부 · 순서 · 제목(재정의)을 운영자가 조절한다. 선반 내용 자체를 DB로 옮기지 않는다.
+// - SYSTEM / PERSONALIZED: 내용은 코드의 규칙이 만든다. 이 행은 "설정"일 뿐이며 없으면 코드 기본값(노출 · 기본 순서 · 기본 제목)이다.
+//   key는 src/lib/home/shelfConfig.ts 레지스트리의 고정 키.
+// - EDITORIAL: 운영자가 직접 만든 선반. 포함 공간과 순서는 HomeShelfSpace.
+enum HomeShelfKind {
+  SYSTEM
+  PERSONALIZED
+  EDITORIAL
+}
+
+model HomeShelf {
+  id          String        @id @default(cuid())
+  key         String        @unique
+  kind        HomeShelfKind
+  // null이면 코드 기본 제목(EDITORIAL은 필수 — 서버에서 검증)
+  title       String?
+  description String?       @db.Text
+  visible     Boolean       @default(true)
+  order       Int           @default(0)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  spaces HomeShelfSpace[]
+
+  @@index([kind])
+  @@map("home_shelves")
+}
+
+model HomeShelfSpace {
+  id      String  @id @default(cuid())
+  shelfId String
+  spaceId String
+  order   Int     @default(0)
+  // 카드에 붙는 선정 이유(없으면 큐레이션 선정 이유 → 한 줄 소개 순으로 대체)
+  note    String?
+
+  shelf HomeShelf      @relation(fields: [shelfId], references: [id], onDelete: Cascade)
+  space EditorialSpace @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+
+  @@unique([shelfId, spaceId])
+  @@index([spaceId])
+  @@map("home_shelf_spaces")
 }
