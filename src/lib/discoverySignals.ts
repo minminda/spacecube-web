@@ -10,6 +10,7 @@ import { prisma } from "@/lib/prisma";
 import { buildWeightedTasteVector } from "@/lib/recommend";
 import { LISTED_SPACE_WHERE, TASTE_SIGNAL_RECORD_WHERE } from "@/lib/demoData";
 import { ARCHIVE_SAVED_WEIGHT, ARCHIVE_VISITED_WEIGHT, EXPLICIT_TAG_BONUS, type TasteSignals } from "@/lib/discoveryRecommend";
+import { editorialIdsBySlugs } from "@/lib/editorial/saves";
 
 const TAG_LINKS = { include: { tag: true } } as const;
 
@@ -70,6 +71,9 @@ export async function getUserDiscoveryContext(userId: string, opts: { includeDem
     if (a.tags.length) weighted.push({ names: a.tags, weight: EXPLICIT_TAG_BONUS, kind: "bonus" });
   }
 
+  // Cube 상세에서 저장한 운영 공간도 같은 slug의 공개 공간 저장으로 본다(공개 화면의 저장 표시 · 추천 제외가 어긋나지 않게)
+  const savedViaOps = await editorialIdsBySlugs(savedOps.map((s) => s.space.slug));
+
   return {
     signals: {
       visits,
@@ -85,7 +89,7 @@ export async function getUserDiscoveryContext(userId: string, opts: { includeDem
       ...archive.flatMap((a) => (a.status === "VISITED" && a.space ? [a.space.slug] : [])),
     ]),
     // 아카이브에 이미 넣은 공간도 "이미 아는 곳"이라 추천에서 뺀다
-    savedEditorialIds: new Set([...savedEds.map((s) => s.spaceId), ...archive.flatMap((a) => (a.spaceId ? [a.spaceId] : []))]),
+    savedEditorialIds: new Set([...savedEds.map((s) => s.spaceId), ...savedViaOps, ...archive.flatMap((a) => (a.spaceId ? [a.spaceId] : []))]),
     savedSlugs: new Set([...savedOps.map((s) => s.space.slug), ...savedEds.map((s) => s.space.slug)]),
   };
 }

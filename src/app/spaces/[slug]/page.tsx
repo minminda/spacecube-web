@@ -162,12 +162,13 @@ export default async function SpaceDetailPage({ params }: Props) {
               )}
             </div>
 
-            {space.cubeAvailable && (
+            {/* 함께한 공간이어도 연결된 운영 공간 · 공개 Episode가 아직 없으면 빈 제목만 남지 않게 블록 자체를 숨긴다 */}
+            {space.cubeAvailable && partnerEp && partnerEp.episodes.length > 0 && (
               <div>
                 <p className="ed-label pb-3 inline-flex items-center gap-2 w-full" style={{ color: "var(--ed-dim)", borderBottom: "1px solid var(--ed-fg)" }}>
                   Episode <PartnerMark size={13} />
                 </p>
-                {partnerEp && <PartnerEpisodeList slug={space.slug} episodes={partnerEp.episodes} unlocked={partnerEp.unlocked} />}
+                <PartnerEpisodeList slug={space.slug} episodes={partnerEp.episodes} unlocked={partnerEp.unlocked} />
               </div>
             )}
           </aside>

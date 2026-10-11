@@ -38,5 +38,8 @@ export async function DELETE(_req: Request, { params }: Ctx) {
   const { spaceId } = await params;
 
   await prisma.savedEditorialSpace.deleteMany({ where: { userId: session.user.id, spaceId } });
+  // Cube 상세에서 저장한 같은 공간(운영 공간 SavedSpace)도 함께 해제 — 안 그러면 저장 해제 후에도 저장된 것으로 다시 보인다.
+  const space = await prisma.editorialSpace.findUnique({ where: { id: spaceId }, select: { slug: true } });
+  if (space) await prisma.savedSpace.deleteMany({ where: { userId: session.user.id, space: { slug: space.slug } } });
   return NextResponse.json({ saved: false });
 }
