@@ -8,7 +8,7 @@
 import { prisma } from "@/lib/prisma";
 import { isAdmin } from "@/lib/admin";
 import { getLibrary } from "@/lib/archive/library";
-import { publicSpaceRows, relationCounts, searchPeople } from "@/lib/profile/profileData";
+import { publicSpaceRowsMany, relationCounts, searchPeople } from "@/lib/profile/profileData";
 import { peopleQuery } from "@/lib/profile/publicProfile";
 import { avatarSeed } from "./avatar";
 import { PEOPLE_REASON_TEXT, rankPeople, type PersonCandidate, type SpaceFeatures, type ViewerTaste } from "./rankPeople";
@@ -85,14 +85,14 @@ async function loadRankedPeople(viewerId: string | null, opts: { includeDemo: bo
   const followed = new Set(follows.map((f) => f.targetUserId));
   const eligible = users.filter((u) => !followed.has(u.id) && !isAdmin(u.email));
 
+  // 후보 전원의 공개 공간을 한 번에 가져온다(후보마다 조회하면 쿼리가 후보 수의 6배가 된다)
+  const rowsByUser = await publicSpaceRowsMany(eligible.map((u) => u.id));
   const spacesByUser = new Map<string, PersonCandidate["spaces"]>();
-  const candidates: PersonCandidate[] = await Promise.all(
-    eligible.map(async (u) => {
-      const spaces = (await publicSpaceRows(u.id)).map((r) => ({ slug: r.slug, visited: r.visited }));
-      spacesByUser.set(u.id, spaces);
-      return { userId: u.id, handle: u.profileHandle!, spaces };
-    }),
-  );
+  const candidates: PersonCandidate[] = eligible.map((u) => {
+    const spaces = (rowsByUser.get(u.id) ?? []).map((r) => ({ slug: r.slug, visited: r.visited }));
+    spacesByUser.set(u.id, spaces);
+    return { userId: u.id, handle: u.profileHandle!, spaces };
+  });
 
   return { ranked: rankPeople(taste, candidates, features), byId: new Map(eligible.map((u) => [u.id, u])), spacesByUser, taste };
 }

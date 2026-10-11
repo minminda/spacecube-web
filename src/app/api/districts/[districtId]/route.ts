@@ -1,3 +1,4 @@
+import { invalidateSearchCorpus } from "@/lib/search/searchData";
 import { NextResponse } from "next/server";
 import { DistrictStatus } from "@prisma/client";
 import { auth } from "@/auth";
@@ -76,10 +77,12 @@ export async function PATCH(req: Request, { params }: Props) {
       prisma.editorialSpace.updateMany({ where: { id: { in: editorialIds } }, data: { area: to } }),
     ]);
     renamedSpaces = new Set([...spaceIds, ...editorialIds]).size;
+    invalidateSearchCorpus();
     return NextResponse.json({ ...district, renamedSpaces });
   }
 
   const district = await prisma.district.update({ where: { id: districtId }, data });
+  invalidateSearchCorpus();
   return NextResponse.json({ ...district, renamedSpaces });
 }
 

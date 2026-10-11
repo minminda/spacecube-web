@@ -1,3 +1,4 @@
+import { invalidateSearchCorpus } from "@/lib/search/searchData";
 import { NextResponse } from "next/server";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
@@ -27,6 +28,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
       prisma.editorialCurationSpace.deleteMany({ where: { curationId: id } }),
       prisma.editorialCurationSpace.createMany({ data: spaces.map((s, i) => ({ curationId: id, spaceId: s.spaceId, note: s.note, order: i })) }),
     ]);
+    invalidateSearchCorpus();
     return NextResponse.json({ ok: true });
   } catch (e) {
     const res = prismaErrorResponse(e);
@@ -46,5 +48,6 @@ export async function DELETE(_req: Request, { params }: Ctx) {
   if (row.status !== "ARCHIVED") return NextResponse.json({ error: "보관된 콘텐츠만 영구 삭제할 수 있어요. 먼저 보관해주세요." }, { status: 409 });
 
   await prisma.editorialCuration.delete({ where: { id } });
+  invalidateSearchCorpus();
   return NextResponse.json({ ok: true });
 }

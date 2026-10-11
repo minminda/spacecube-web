@@ -4,7 +4,7 @@
    공개 응답에는 비공개 공간 · 공개를 허용하지 않은 사진/메모/방문 시기를 아예 담지 않는다(조회 단계에서 제외). ── */
 
 import { prisma } from "@/lib/prisma";
-import { getLibrary } from "@/lib/archive/library";
+import { getLibraries, getLibrary } from "@/lib/archive/library";
 import { getSpacesByIds } from "@/lib/editorial/queries";
 import type { SpaceView } from "@/lib/editorial/types";
 import { isAdmin } from "@/lib/admin";
@@ -13,17 +13,31 @@ import { cardPhoto, commonSpaceIds, publicSpaces, rankPeopleSearch, visitMonth, 
 
 const PICK_SELECT = { spaceId: true, hidden: true, showPhotos: true, showMemo: true, showVisitDate: true } as const;
 
+/**
+ * 여러 사용자의 공개 공간을 한 번에 — 쿼리 수가 사용자 수와 무관하다(라이브러리 4 + 공개 설정 1 + 공간 1).
+ * 사람 추천처럼 후보가 많은 곳에서 사용자마다 publicSpaceRows를 부르지 않게 한다. 규칙은 publicSpaces 하나.
+ */
+export async function publicSpaceRowsMany(userIds: string[]): Promise<Map<string, PublicSpaceRow[]>> {
+  const out = new Map<string, PublicSpaceRow[]>(userIds.map((id) => [id, []]));
+  if (userIds.length === 0) return out;
+  const [libraries, picks] = await Promise.all([
+    getLibraries(userIds, { includeDemo: false }),
+    prisma.profileSpace.findMany({ where: { userId: { in: userIds } }, select: { userId: true, ...PICK_SELECT } }),
+  ]);
+  const slugs = new Set<string>();
+  for (const lib of libraries.values()) for (const i of lib) if (!i.personal && !i.demo && i.key.startsWith("s-")) slugs.add(i.key.slice(2));
+  const spaces = slugs.size
+    ? await prisma.editorialSpace.findMany({ where: { slug: { in: [...slugs] } }, select: { id: true, slug: true, status: true, isDemo: true } })
+    : [];
+  const picksByUser = new Map<string, typeof picks>();
+  for (const p of picks) picksByUser.set(p.userId, [...(picksByUser.get(p.userId) ?? []), p]);
+  for (const id of userIds) out.set(id, publicSpaces(libraries.get(id) ?? [], spaces, picksByUser.get(id) ?? []));
+  return out;
+}
+
 /** 이 사용자가 지금 공개 프로필에 보여주는 공간 — 아카이브의 canonical 공간 전부(기본 공개), 숨긴 공간 제외. */
 export async function publicSpaceRows(userId: string): Promise<PublicSpaceRow[]> {
-  const [library, picks] = await Promise.all([
-    getLibrary(userId, { includeDemo: false }),
-    prisma.profileSpace.findMany({ where: { userId }, select: PICK_SELECT }),
-  ]);
-  const slugs = library.filter((i) => !i.personal && !i.demo && i.key.startsWith("s-")).map((i) => i.key.slice(2));
-  const spaces = slugs.length
-    ? await prisma.editorialSpace.findMany({ where: { slug: { in: slugs } }, select: { id: true, slug: true, status: true, isDemo: true } })
-    : [];
-  return publicSpaces(library, spaces, picks);
+  return (await publicSpaceRowsMany([userId])).get(userId) ?? [];
 }
 
 /** 공개를 허용한 공간의 내 사진 — showPhotos인 공간만 조회한다. */
@@ -186,9 +200,10 @@ export interface PersonCard {
 }
 
 async function personCards(users: ProfileUser[], photoCount = 3): Promise<PersonCard[]> {
+  const rowsByUser = photoCount > 0 ? await publicSpaceRowsMany(users.map((u) => u.id)) : new Map<string, PublicSpaceRow[]>();
   return Promise.all(
     users.map(async (u) => {
-      const rows = photoCount > 0 ? (await publicSpaceRows(u.id)).slice(0, photoCount) : [];
+      const rows = (rowsByUser.get(u.id) ?? []).slice(0, photoCount);
       const cards = await cardsFor(u.id, rows);
       return {
         userId: u.id, handle: u.profileHandle!, name: displayName(u), image: u.image, bio: u.profileBio,

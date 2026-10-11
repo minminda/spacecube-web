@@ -40,6 +40,32 @@ export async function getEditorialTagUsers(): Promise<Map<string, TagSpaceRef[]>
   return map;
 }
 
+/** 이 태그 이름을 쓰는 공간 등록 수 — 시연(fixture) · 보관 공간까지 모두 센다(삭제 가능 여부 판단용: 문자열이 조용히 고아가 되지 않게). */
+export async function countAllEditorialTagUsers(name: string): Promise<number> {
+  const target = normTagName(name);
+  const rows = await prisma.editorialSpace.findMany({ select: { tags: true } });
+  return rows.filter((r) => r.tags.some((t) => normTagName(t) === target)).length;
+}
+
+/** 공개(비시연 · 비보관) 공간에 남아 있지만 태그 관리에는 없는 태그 문자열 — 과거 자유 입력 값. */
+export async function findUnregisteredEditorialTags(): Promise<{ name: string; spaces: TagSpaceRef[] }[]> {
+  const [rows, tags] = await Promise.all([
+    prisma.editorialSpace.findMany({ where: { isDemo: false, status: { not: "ARCHIVED" } }, select: { id: true, name: true, slug: true, tags: true } }),
+    prisma.tag.findMany({ select: { name: true } }),
+  ]);
+  const known = new Set(tags.map((t) => normTagName(t.name)));
+  const out = new Map<string, { name: string; spaces: TagSpaceRef[] }>();
+  for (const r of rows) {
+    for (const t of r.tags) {
+      if (known.has(normTagName(t))) continue;
+      const entry = out.get(normTagName(t)) ?? { name: t, spaces: [] };
+      entry.spaces.push({ id: r.id, name: r.name, slug: r.slug, kind: "editorial" });
+      out.set(normTagName(t), entry);
+    }
+  }
+  return [...out.values()];
+}
+
 /** 태그 이름을 바꿀 때 공간 등록의 tags 문자열도 함께 바꾼다(시연 · 보관 공간 포함 — 문자열이 깨지지 않게). 바뀐 공간 수를 돌려준다. */
 export async function renameEditorialTag(from: string, to: string): Promise<number> {
   const target = normTagName(from);
@@ -53,4 +79,38 @@ export async function renameEditorialTag(from: string, to: string): Promise<numb
     })),
   );
   return changed.length;
+}
+
+/* ── 공간 등록의 태그 입력 검증 ────────────────────────────────────────────
+   새 태그는 반드시 관리자 > 태그 관리에서 만든다. 공간 저장 때 활성 Tag에 없는 문자열은 막는다.
+   단, 그 공간에 이미 들어 있던 태그(과거에 자유 입력된 값)는 다른 필드만 고칠 때 저장이 막히지 않게 그대로 둘 수 있다. ── */
+
+export interface TagCheck {
+  /** 등록된 표기로 맞춘 태그(대소문자 · 공백 차이는 정본 이름으로) */
+  tags: string[];
+  /** 정본에도 없고 이 공간에 원래 있던 것도 아닌 태그 — 비어 있어야 저장 가능 */
+  unknown: string[];
+}
+
+export function checkSpaceTags(input: string[], activeNames: string[], existing: string[] = []): TagCheck {
+  const canon = new Map(activeNames.map((n) => [normTagName(n), n]));
+  const had = new Set(existing.map(normTagName));
+  const tags: string[] = [];
+  const unknown: string[] = [];
+  for (const t of input) {
+    const key = normTagName(t);
+    const name = canon.get(key);
+    if (name) tags.push(name);
+    else if (had.has(key)) tags.push(t);
+    else unknown.push(t);
+  }
+  return { tags: [...new Set(tags)], unknown };
+}
+
+export async function getActiveTagNames(): Promise<string[]> {
+  return (await prisma.tag.findMany({ where: { isActive: true }, select: { name: true } })).map((t) => t.name);
+}
+
+export function unknownTagMessage(unknown: string[]): string {
+  return `태그 관리에 없는 태그예요: ${unknown.join(", ")}. 태그 관리에서 먼저 추가해주세요.`;
 }

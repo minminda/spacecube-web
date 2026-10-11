@@ -1,8 +1,10 @@
+import { invalidateSearchCorpus } from "@/lib/search/searchData";
 import { NextResponse } from "next/server";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { parseSpaceInput } from "@/lib/editorial/input";
 import { findSpaceReferences } from "@/lib/editorial/references";
+import { checkSpaceTags, getActiveTagNames, unknownTagMessage } from "@/lib/tagAdmin";
 import { badRequest, prismaErrorResponse, readJson, requireAdminApi } from "@/lib/editorial/adminApi";
 
 export const dynamic = "force-dynamic";
@@ -18,8 +20,15 @@ export async function PATCH(req: Request, { params }: Ctx) {
   const parsed = parseSpaceInput(await readJson(req));
   if (!parsed.ok) return badRequest(parsed.error);
 
+  // 새 태그는 태그 관리에서만 — 이미 이 공간에 있던 태그는 그대로 둘 수 있다
+  const current = await prisma.editorialSpace.findUnique({ where: { id }, select: { tags: true } });
+  if (!current) return NextResponse.json({ error: "콘텐츠를 찾을 수 없어요." }, { status: 404 });
+  const check = checkSpaceTags(parsed.data.tags, await getActiveTagNames(), current.tags);
+  if (check.unknown.length > 0) return badRequest(unknownTagMessage(check.unknown));
+
   try {
-    await prisma.editorialSpace.update({ where: { id }, data: { ...parsed.data, story: parsed.data.story as unknown as Prisma.InputJsonValue } });
+    await prisma.editorialSpace.update({ where: { id }, data: { ...parsed.data, tags: check.tags, story: parsed.data.story as unknown as Prisma.InputJsonValue } });
+    invalidateSearchCorpus();
     return NextResponse.json({ ok: true });
   } catch (e) {
     const res = prismaErrorResponse(e);
@@ -47,6 +56,7 @@ export async function DELETE(_req: Request, { params }: Ctx) {
   }
   try {
     await prisma.editorialSpace.delete({ where: { id } });
+    invalidateSearchCorpus();
     return NextResponse.json({ ok: true });
   } catch (e) {
     const res = prismaErrorResponse(e);

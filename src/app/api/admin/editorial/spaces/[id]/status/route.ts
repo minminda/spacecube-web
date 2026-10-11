@@ -1,3 +1,4 @@
+import { invalidateSearchCorpus } from "@/lib/search/searchData";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { parseStatus } from "@/lib/editorial/input";
@@ -18,5 +19,6 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   if (!current) return NextResponse.json({ error: "콘텐츠를 찾을 수 없어요." }, { status: 404 });
 
   await prisma.editorialSpace.update({ where: { id }, data: statusUpdate(parsed.data, current.publishedAt) });
+  invalidateSearchCorpus();
   return NextResponse.json({ ok: true, status: parsed.data });
 }

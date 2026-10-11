@@ -14,8 +14,8 @@ interface Props {
    cubeAvailable인 공간에만 쓴다. 색·배경·테두리 없이 currentColor 단색. Header/Footer 브랜드 표시에는 쓰지 않는다. ── */
 export default function PartnerMark({ size = 15, label = false, className = "" }: Props) {
   const svg = (
-    <svg viewBox="0 0 24 24" width={size} height={size} className="shrink-0" role={label ? undefined : "img"} aria-label={label ? undefined : "GONGGANCUBE Partner Space"} aria-hidden={label ? true : undefined}>
-      {!label && <title>GONGGANCUBE Partner Space</title>}
+    <svg viewBox="0 0 24 24" width={size} height={size} className="shrink-0" role={label ? undefined : "img"} aria-label={label ? undefined : "공간큐브가 있는 공간"} aria-hidden={label ? true : undefined}>
+      {!label && <title>공간큐브가 있는 공간</title>}
       <CubeGlyph outlineWidth={1.5} edgeWidth={1.3} />
     </svg>
   );

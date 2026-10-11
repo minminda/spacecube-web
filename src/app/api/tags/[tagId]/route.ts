@@ -1,8 +1,9 @@
+import { invalidateSearchCorpus } from "@/lib/search/searchData";
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { isAdmin } from "@/lib/admin";
 import { prisma } from "@/lib/prisma";
-import { cleanTagName, findTagNameConflict, getEditorialTagUsers, normTagName, renameEditorialTag } from "@/lib/tagAdmin";
+import { cleanTagName, countAllEditorialTagUsers, findTagNameConflict, renameEditorialTag } from "@/lib/tagAdmin";
 
 export const dynamic = "force-dynamic";
 
@@ -38,6 +39,7 @@ export async function PATCH(req: Request, { params }: Props) {
   const tag = await prisma.tag.update({ where: { id: tagId }, data });
   // 공간 등록(EditorialSpace)은 태그를 이름 문자열로 저장하므로 이름이 바뀌면 함께 맞춘다 — 안 그러면 공간에서 태그가 떨어져 나간다.
   const renamedSpaces = renameFrom ? await renameEditorialTag(renameFrom, tag.name) : 0;
+  invalidateSearchCorpus();
   return NextResponse.json({ ...tag, renamedSpaces });
 }
 
@@ -50,12 +52,11 @@ export async function DELETE(_req: Request, { params }: Props) {
   const { tagId } = await params;
   const tag = await prisma.tag.findUnique({ where: { id: tagId }, select: { name: true } });
   if (!tag) return NextResponse.json({ error: "태그를 찾을 수 없어요." }, { status: 404 });
-  const [recordUsage, spaceUsage, editorialUsers] = await Promise.all([
+  const [recordUsage, spaceUsage, editorialUsage] = await Promise.all([
     prisma.recordTag.count({ where: { tagId } }),
     prisma.spaceTag.count({ where: { tagId } }),
-    getEditorialTagUsers(),
+    countAllEditorialTagUsers(tag.name), // 시연 · 보관 공간까지 — 문자열이 조용히 고아가 되지 않게
   ]);
-  const editorialUsage = editorialUsers.get(normTagName(tag.name))?.length ?? 0;
 
   if (recordUsage > 0 || spaceUsage + editorialUsage > 0) {
     return NextResponse.json(

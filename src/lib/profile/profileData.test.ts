@@ -13,7 +13,7 @@ vi.mock("@/lib/prisma", () => ({
       findUnique: async ({ where }: { where: { profileHandle: string } }) => db.users.find((u) => u.profileHandle === where.profileHandle) ?? null,
       findMany: async () => db.users.filter((u) => u.profilePublic && u.profileHandle && !u.isDemo),
     },
-    profileSpace: { findMany: async ({ where }: { where: { userId: string } }) => db.picks.filter((p) => p.userId === where.userId) },
+    profileSpace: { findMany: async ({ where }: { where: { userId: { in: string[] } } }) => db.picks.filter((p) => where.userId.in.includes(p.userId)) },
     editorialSpace: {
       findMany: async ({ where }: { where: { slug: { in: string[] } } }) =>
         where.slug.in.map((slug) => ({ id: `id-${slug}`, slug, status: slug.startsWith("draft") ? "DRAFT" : "PUBLISHED", isDemo: false })),
@@ -33,15 +33,17 @@ vi.mock("@/lib/prisma", () => ({
   },
 }));
 
+const libraryOf = (userId: string) =>
+  userId === "u1"
+    ? [
+        { key: "s-booknook", visited: true, saved: false, personal: false, demo: false, lastAt: new Date("2026-10-02") },
+        { key: "s-samul", visited: false, saved: true, personal: false, demo: false, lastAt: new Date("2026-10-03") },
+        { key: "e-mine", visited: true, saved: false, personal: true, demo: false, lastAt: new Date("2026-10-04") },
+      ]
+    : [];
 vi.mock("@/lib/archive/library", () => ({
-  getLibrary: async (userId: string) =>
-    userId === "u1"
-      ? [
-          { key: "s-booknook", visited: true, saved: false, personal: false, demo: false, lastAt: new Date("2026-10-02") },
-          { key: "s-samul", visited: false, saved: true, personal: false, demo: false, lastAt: new Date("2026-10-03") },
-          { key: "e-mine", visited: true, saved: false, personal: true, demo: false, lastAt: new Date("2026-10-04") },
-        ]
-      : [],
+  getLibrary: async (userId: string) => libraryOf(userId),
+  getLibraries: async (userIds: string[]) => new Map(userIds.map((id) => [id, libraryOf(id)])),
 }));
 
 vi.mock("@/lib/editorial/queries", () => ({

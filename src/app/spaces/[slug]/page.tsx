@@ -71,7 +71,7 @@ export default async function SpaceDetailPage({ params }: Props) {
       : { href: "/curation", label: "CURATION" };
 
   const info = [
-    { label: "지역", value: space.area },
+    { label: "지역", value: area ?? space.area },
     { label: "종류", value: space.category },
     { label: "주소", value: space.address },
     { label: "운영", value: space.hours },
@@ -93,7 +93,7 @@ export default async function SpaceDetailPage({ params }: Props) {
           <div className="mt-8 md:mt-12 grid gap-6 md:grid-cols-12 md:items-end">
             <div className="md:col-span-7 space-y-5">
               <p className="ed-label inline-flex items-center gap-2" style={{ color: "var(--ed-dim)" }}>
-                {space.area} · {space.category}
+                {area ?? space.area} · {space.category}
                 {space.cubeAvailable && <PartnerMark size={14} />}
               </p>
               <h1 className="text-[48px] md:text-[88px] font-bold leading-[0.98] tracking-[-0.045em] break-keep">{space.name}</h1>
@@ -117,7 +117,7 @@ export default async function SpaceDetailPage({ params }: Props) {
         <section className="ed-container py-16 md:py-24 grid gap-14 md:grid-cols-12 md:gap-12">
           {/* 공간 소개 */}
           <div className="md:col-span-7 space-y-6">
-            <p className="ed-label" style={{ color: "var(--ed-dim)" }}>About this space</p>
+            <p className="ed-label" style={{ color: "var(--ed-dim)" }}>공간 소개</p>
             {space.description && space.description.length > 0 ? (
               space.description.map((para, i) => (
                 <p key={i} className="text-base md:text-[17px] leading-[1.85]">{para}</p>
@@ -137,7 +137,7 @@ export default async function SpaceDetailPage({ params }: Props) {
           {/* 기본 정보 */}
           <aside className="md:col-span-5 space-y-8">
             <div>
-              <p className="ed-label pb-3" style={{ color: "var(--ed-dim)", borderBottom: "1px solid var(--ed-fg)" }}>Information</p>
+              <p className="ed-label pb-3" style={{ color: "var(--ed-dim)", borderBottom: "1px solid var(--ed-fg)" }}>정보</p>
               <dl>
                 {info.map((r) => (
                   <div key={r.label} className="grid grid-cols-[56px_1fr] gap-4 py-3 text-sm" style={{ borderBottom: "1px solid var(--ed-line)" }}>

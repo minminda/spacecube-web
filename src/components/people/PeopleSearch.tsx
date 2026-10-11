@@ -89,7 +89,7 @@ export default function PeopleSearch({ initialQuery, initialResults, autoFocus, 
           {results === null ? (
             <PeopleGridSkeleton count={8} />
           ) : results.length === 0 ? (
-            <p className="py-8 text-base font-semibold">검색 결과가 없습니다.</p>
+            <p className="py-8 text-base font-semibold">검색 결과가 없어요.</p>
           ) : (
             <PeopleGrid people={results} />
           )}

@@ -1,3 +1,4 @@
+import { invalidateSearchCorpus } from "@/lib/search/searchData";
 import { NextResponse } from "next/server";
 import { parseStatus } from "@/lib/editorial/input";
 import { applyStatus } from "@/lib/editorial/pipelineDb";
@@ -16,5 +17,6 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
   const res = await applyStatus("curations", id, parsed.data);
   if (!res.ok) return NextResponse.json({ error: res.error }, { status: res.code });
+  invalidateSearchCorpus();
   return NextResponse.json({ ok: true, status: parsed.data });
 }

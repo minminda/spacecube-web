@@ -24,8 +24,29 @@ export interface SearchCorpus {
   areaOptions: AreaOption[];
 }
 
+/* 말뭉치 캐시 — 일반 방문자 요청만. 공간 수가 늘면 요청마다 전체 풀 + 큐레이션 링크를 다시 읽는 비용이 커져서(50~100곳 약 0.8초 예상)
+   짧은 TTL로 같은 서버 인스턴스 안에서만 재사용한다. 관리자(초안 · 미리보기)와 fixtures 미리보기는 캐시하지 않는다.
+   관리자가 공간 · 큐레이션을 저장하면 invalidateSearchCorpus()로 그 인스턴스 캐시는 바로 비운다(다른 인스턴스는 TTL 안에 따라온다). */
+const CORPUS_TTL_MS = 30_000;
+let cached: { at: number; promise: Promise<SearchCorpus> } | null = null;
+
+export function invalidateSearchCorpus(): void {
+  cached = null;
+}
+
 /** fixtures: 관리자 · 로컬의 ?preview=fixtures에서만 true — 임시 공간(src/lib/home/fixtures.ts)을 말뭉치에 섞는다 */
 export async function loadSearchCorpus(opts: { admin: boolean; fixtures?: boolean }): Promise<SearchCorpus> {
+  if (opts.admin || opts.fixtures) return buildSearchCorpus(opts);
+  if (cached && Date.now() - cached.at < CORPUS_TTL_MS) return cached.promise;
+  const promise = buildSearchCorpus(opts);
+  const entry = { at: Date.now(), promise };
+  cached = entry;
+  // 실패한 결과를 캐시에 남기지 않는다
+  promise.catch(() => { if (cached === entry) cached = null; });
+  return promise;
+}
+
+async function buildSearchCorpus(opts: { admin: boolean; fixtures?: boolean }): Promise<SearchCorpus> {
   const access = curatorAccess({ admin: opts.admin, editorial: true });
   const [pool, links, areas] = await Promise.all([
     getFinderPool(access),

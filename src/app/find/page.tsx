@@ -51,7 +51,7 @@ async function PeopleResults({ viewerId, admin, loggedIn }: { viewerId: string |
           <Link href={`/login?callbackUrl=${encodeURIComponent("/find?tab=people")}`} className="font-semibold underline underline-offset-4" style={{ color: "var(--ed-fg)" }}>로그인</Link>하면 나와 비슷한 사람부터 보여드려요.
         </p>
       )}
-      {people.length === 0 ? <p className="py-10 text-base font-semibold">추천할 사람이 없습니다.</p> : <PeopleGrid people={people} />}
+      {people.length === 0 ? <p className="py-10 text-base font-semibold">추천할 사람이 아직 없어요.</p> : <PeopleGrid people={people} />}
     </>
   );
 }
@@ -142,7 +142,7 @@ export default async function FindPage({ searchParams }: Props) {
 
 
           {shown.length === 0 ? (
-            <p className="py-10 text-base font-semibold">{filtered ? "조건에 맞는 공간이 없습니다." : "공간을 준비하고 있어요."}</p>
+            <p className="py-10 text-base font-semibold">{filtered ? "조건에 맞는 공간이 없어요." : "공간을 준비하고 있어요."}</p>
           ) : (
             <div className={`${SPACE_GRID_CLASS} pt-2`}>
               {shown.map((r, i) => {

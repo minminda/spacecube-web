@@ -21,7 +21,7 @@ vi.mock("@/lib/archive/library", () => ({
   getLibrary: async () => db.mine.map((m) => ({ ...m, personal: false, demo: false })),
 }));
 vi.mock("@/lib/profile/profileData", () => ({
-  publicSpaceRows: async (userId: string) => db.theirs[userId] ?? [],
+  publicSpaceRowsMany: async (userIds: string[]) => new Map(userIds.map((id) => [id, db.theirs[id] ?? []])),
   relationCounts: async () => new Map(),
   searchPeople: async () => ({ people: [] }),
 }));

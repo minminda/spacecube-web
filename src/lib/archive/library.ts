@@ -41,11 +41,10 @@ export function libraryHref(key: string): string {
   return `/archive/p/${encodeURIComponent(key)}`;
 }
 
-export async function getLibrary(userId: string, opts: { includeDemo: boolean }): Promise<LibraryItem[]> {
-  const spaceVisible = (sp: { status: string; isDemo: boolean } | null) => !!sp && sp.status === "PUBLISHED" && (opts.includeDemo || !sp.isDemo);
+async function fetchLibraryRows(userIds: string[], opts: { includeDemo: boolean }) {
   const [entries, records, savedEds, savedOps] = await Promise.all([
     prisma.archiveEntry.findMany({
-      where: { userId },
+      where: { userId: { in: userIds } },
       include: {
         space: { select: { slug: true, name: true, area: true, category: true, coverImage: true, status: true, isDemo: true } },
         photos: { orderBy: [{ order: "asc" }, { createdAt: "asc" }], take: 1, select: { url: true } },
@@ -55,22 +54,55 @@ export async function getLibrary(userId: string, opts: { includeDemo: boolean })
     }),
     // 개인 기록이라 Cube 방문은 시연 공간도 포함해 그대로 보여준다(기존 아카이브와 같은 원칙).
     prisma.record.findMany({
-      where: { userId },
+      where: { userId: { in: userIds } },
       select: {
+        userId: true,
         visitedAt: true,
         space: { select: { slug: true, name: true, district: true, imageUrl: true, type: true, spaceTagLinks: { include: { tag: { include: { categoryRef: true } } } } } },
       },
     }),
     prisma.savedEditorialSpace.findMany({
-      where: { userId, space: { status: "PUBLISHED", ...(opts.includeDemo ? {} : { isDemo: false }) } },
-      select: { createdAt: true, space: { select: { slug: true, name: true, area: true, category: true, coverImage: true, isDemo: true } } },
+      where: { userId: { in: userIds }, space: { status: "PUBLISHED", ...(opts.includeDemo ? {} : { isDemo: false }) } },
+      select: { userId: true, createdAt: true, space: { select: { slug: true, name: true, area: true, category: true, coverImage: true, isDemo: true } } },
     }),
     prisma.savedSpace.findMany({
-      where: { userId, space: LISTED_SPACE_WHERE },
-      select: { createdAt: true, space: { select: { slug: true, name: true, district: true, imageUrl: true, type: true, spaceTagLinks: { include: { tag: { include: { categoryRef: true } } } } } } },
+      where: { userId: { in: userIds }, space: LISTED_SPACE_WHERE },
+      select: { userId: true, createdAt: true, space: { select: { slug: true, name: true, district: true, imageUrl: true, type: true, spaceTagLinks: { include: { tag: { include: { categoryRef: true } } } } } } },
     }),
   ]);
+  return { entries, records, savedEds, savedOps };
+}
 
+type LibraryRows = Awaited<ReturnType<typeof fetchLibraryRows>>;
+
+/** 사용자 여러 명의 라이브러리를 한 번에(쿼리 4개 고정) — 사람 추천처럼 후보마다 getLibrary를 부르면 N배가 되는 곳에서 쓴다. */
+export async function getLibraries(userIds: string[], opts: { includeDemo: boolean }): Promise<Map<string, LibraryItem[]>> {
+  const out = new Map<string, LibraryItem[]>(userIds.map((id) => [id, []]));
+  if (userIds.length === 0) return out;
+  const rows = await fetchLibraryRows(userIds, opts);
+  const group = <T extends { userId: string }>(list: T[]) => {
+    const m = new Map<string, T[]>();
+    for (const r of list) m.set(r.userId, [...(m.get(r.userId) ?? []), r]);
+    return m;
+  };
+  const gEntries = group(rows.entries), gRecords = group(rows.records), gEds = group(rows.savedEds), gOps = group(rows.savedOps);
+  const spaceVisible = (sp: { status: string; isDemo: boolean } | null) => !!sp && sp.status === "PUBLISHED" && (opts.includeDemo || !sp.isDemo);
+  for (const id of userIds) {
+    out.set(id, assembleLibrary(spaceVisible, {
+      entries: gEntries.get(id) ?? [], records: gRecords.get(id) ?? [], savedEds: gEds.get(id) ?? [], savedOps: gOps.get(id) ?? [],
+    }));
+  }
+  return out;
+}
+
+export async function getLibrary(userId: string, opts: { includeDemo: boolean }): Promise<LibraryItem[]> {
+  return (await getLibraries([userId], opts)).get(userId) ?? [];
+}
+
+function assembleLibrary(
+  spaceVisible: (sp: { status: string; isDemo: boolean } | null) => boolean,
+  { entries, records, savedEds, savedOps }: LibraryRows,
+): LibraryItem[] {
   const items = new Map<string, LibraryItem>();
   const touch = (key: string, base: () => LibraryItem): LibraryItem => {
     const found = items.get(key);

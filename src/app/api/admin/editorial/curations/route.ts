@@ -1,3 +1,4 @@
+import { invalidateSearchCorpus } from "@/lib/search/searchData";
 import { NextResponse } from "next/server";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
@@ -28,6 +29,7 @@ export async function POST(req: Request) {
       },
       select: { id: true },
     });
+    invalidateSearchCorpus();
     return NextResponse.json({ id: created.id }, { status: 201 });
   } catch (e) {
     const res = prismaErrorResponse(e);
