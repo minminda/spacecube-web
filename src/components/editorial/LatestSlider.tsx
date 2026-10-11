@@ -31,7 +31,7 @@ function pad(n: number) {
   return String(n).padStart(2, "0");
 }
 
-export default function LatestSlider({ items, allHref }: { items: ContentItem[]; /** 전체 피드(/latest) 링크 — 있으면 머리줄 오른쪽에 표시 */ allHref?: string }) {
+export default function LatestSlider({ items, allHref, containerClassName = "ed-container" }: { items: ContentItem[]; /** 전체 피드(/latest) 링크 — 있으면 머리줄 오른쪽에 표시 */ allHref?: string; /** 바깥 폭(기본 .ed-container, HOME은 넓은 .ed-wide) */ containerClassName?: string }) {
   const count = items.length;
   // index와 "이미지를 한 번이라도 띄운 슬라이드"를 함께 관리 — 현재·다음 슬라이드 이미지만 렌더해
   // 첫 화면에서 큰 이미지 5장을 한꺼번에 받지 않는다(한 번 본 이미지는 유지해 되돌아갈 때 깜빡임 없음).
@@ -83,7 +83,7 @@ export default function LatestSlider({ items, allHref }: { items: ContentItem[];
     <section
       aria-roledescription="carousel"
       aria-label="최신 콘텐츠"
-      className="ed-container pt-4 pb-8 md:pt-8 md:pb-12"
+      className={`${containerClassName} pt-4 pb-8 md:pt-8 md:pb-12`}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       onFocus={() => setFocused(true)}

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { signOut } from "next-auth/react";
 import { ENABLE_NAV_DISCOVER_LINK, ENABLE_NAV_RECOMMENDATION_LINK, ENABLE_EDITORIAL_HOME } from "@/lib/features";
 import { BRAND_NAME, CONTACT_EMAIL, INSTAGRAM_URL, PARTICIPATION } from "@/content/site";
 // 모든 화면에 있는 Navbar에서 이동 종류(링크/뒤로가기) 감지를 미리 켠다 — 목록에서 상세로 처음 들어갈 때도 동작하도록
@@ -59,6 +60,7 @@ export default function Navbar() {
   const [viewer, setViewer] = useState<Viewer | null>(null);
   // 모바일 메뉴는 "열었던 경로"를 기억해, 다른 페이지로 이동하면 자동으로 닫힌 상태가 된다.
   const [menuOpenPath, setMenuOpenPath] = useState<string | null>(null);
+  const [signingOut, setSigningOut] = useState(false);
   const menuOpen = menuOpenPath === pathname;
 
   const hiddenArea = pathname.startsWith("/admin") || pathname.startsWith("/operator");
@@ -115,10 +117,12 @@ export default function Navbar() {
   const archiveHref = viewer && !viewer.loggedIn ? "/login?callbackUrl=%2Farchive" : "/archive";
   const archiveActive = pathname.startsWith("/archive");
   const suggestHref = PARTICIPATION[0].href;
+  // 로그인 후 지금 보던 화면으로 돌아온다(기존 로그인 화면 그대로)
+  const loginHref = `/login?callbackUrl=${encodeURIComponent(pathname || "/")}`;
 
   return (
     <nav className="sticky top-0 z-50 w-full" style={{ background: "#000", borderBottom: "1px solid #1a1a1a" }}>
-      <div className="ed-container flex items-center h-14 gap-8">
+      <div className="ed-wide flex items-center h-14 gap-8">
         <Link href="/" aria-label="GONGGANCUBE 홈" className="mr-auto py-2 text-[13px] font-bold tracking-[0.14em]" style={{ color: "#fff" }}>
           {BRAND_NAME}
         </Link>
@@ -146,7 +150,16 @@ export default function Navbar() {
           <Link href={archiveHref} aria-current={archiveActive ? "page" : undefined} className={CTA_CLASS} style={CTA_ARCHIVE}>
             내 아카이브
           </Link>
-          {/* 계정 — 화면마다 톱니바퀴를 두지 않고 여기(로그인했을 때만) */}
+          {/* 계정 — 화면마다 톱니바퀴를 두지 않고 여기. 비로그인이면 로그인 */}
+          {viewer && !viewer.loggedIn && (
+            <Link
+              href={loginHref}
+              className="ml-3 text-[13px] whitespace-nowrap transition-opacity hover:opacity-100"
+              style={{ color: "#fff", opacity: 0.75 }}
+            >
+              로그인
+            </Link>
+          )}
           {viewer?.loggedIn && (
             <Link
               href="/settings"
@@ -200,20 +213,42 @@ export default function Navbar() {
               </li>
             ))}
           </ul>
-          {/* Account — 콘텐츠 메뉴와 한 칸 띄워 따로(로그인했을 때만). 관리자는 아래 Secondary에 따로 둔다. */}
-          {viewer?.loggedIn && (
-            <div className="px-4 pt-6">
+          {/* Account — 콘텐츠 메뉴와 한 칸 띄워 따로. 비로그인: 로그인 / 로그인: 설정 · 로그아웃(누르기 쉬운 크기, 과하게 강조하지 않음).
+              로그인 · 로그아웃은 기존 흐름 그대로(/login, next-auth signOut). 관리자는 아래 Secondary에 따로 둔다. */}
+          <div className="px-4 pt-7">
+            {viewer && !viewer.loggedIn && (
               <Link
-                href="/settings"
+                href={loginHref}
                 onClick={() => setMenuOpenPath(null)}
-                aria-current={pathname.startsWith("/settings") ? "page" : undefined}
-                className="flex items-center min-h-11 text-base font-semibold"
-                style={{ color: "#fff", opacity: pathname.startsWith("/settings") ? 1 : 0.85 }}
+                className="flex items-center justify-center w-full h-12 text-base font-semibold"
+                style={{ background: "#fff", color: "#000" }}
               >
-                설정
+                로그인
               </Link>
-            </div>
-          )}
+            )}
+            {viewer?.loggedIn && (
+              <div className="grid grid-cols-2 gap-2">
+                <Link
+                  href="/settings"
+                  onClick={() => setMenuOpenPath(null)}
+                  aria-current={pathname.startsWith("/settings") ? "page" : undefined}
+                  className="flex items-center justify-center h-12 text-[15px] font-semibold"
+                  style={{ border: "1px solid #444", color: "#fff" }}
+                >
+                  설정
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => { if (!signingOut) { setSigningOut(true); signOut({ callbackUrl: "/" }); } }}
+                  disabled={signingOut}
+                  className="flex items-center justify-center h-12 text-[15px] font-semibold disabled:opacity-60"
+                  style={{ border: "1px solid #444", color: "#bbb" }}
+                >
+                  {signingOut ? "로그아웃 중..." : "로그아웃"}
+                </button>
+              </div>
+            )}
+          </div>
           {/* Secondary — 얇은 구분 아래 작은 글자 */}
           <ul className="px-4 pt-8 pb-10 mt-auto space-y-1 text-sm" style={{ color: "#999", paddingBottom: "calc(2.5rem + env(safe-area-inset-bottom))" }}>
             <li><Link href="/spacecube" onClick={() => setMenuOpenPath(null)} className="inline-flex items-center min-h-10" style={{ color: "#fff" }}>공간큐브</Link></li>

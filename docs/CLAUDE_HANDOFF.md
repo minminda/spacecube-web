@@ -1,42 +1,45 @@
 # Claude Code Latest Handoff
 
-Updated: 2026-10-06
+Updated: 2026-10-11
 
 ## Status
 
-방명록 캔버스에서 포스트잇이 world 경계에 잘리는 문제 수정. 브랜치 `claude/guestbook-canvas-clipping`(master `1d3fb23` 기준, 미merge).
+HOME 1차 구조 개편 — "공간을 발견하는 경험"을 전면으로. 브랜치 `claude/home-discovery-hub`(master `335142a` 기준, 미merge).
+DB · 스키마 · 관리자 · 추천 알고리즘은 바꾸지 않았다.
 
-## 원인
+## Completed
 
-- 캔버스 world(5000×5000) div가 `overflow:hidden`이고, 팬은 world 경계까지만 됨(react-zoom-pan-pinch limitToBounds 기본값).
-- 포스트잇 좌표는 world 기준인데 경계 제한이 없었음: 클릭 위치는 40px 여백만 두고(회전 · 실제 크기 미반영), 빈자리 탐색(`findFreePosition`)은 최대 10링(~1900px)까지 밖으로 밀어낼 수 있었고, seed도 군집 기준 거리만 봄.
-  → world 밖으로 나간 부분은 world clip에 잘리고, 팬해도 경계에서 멈춰 나머지를 볼 수 없었음(로컬 재현: 좌 62 · 우 51~121 · 위 43px 잘림).
-- 바깥 글까지 fit-to-content에 들어가 처음 화면도 넓게 퍼져 보였음.
+- HOME(`src/app/EditorialHome.tsx`)을 발견 허브로: LATEST(Hero) → 지역 · 테마 입구 → 선반들(가로 스크롤) → Experience.
+  - 선반: 회원님을 위해 엄선한 공간(로그인 + 취향 데이터) / 공간큐브가 엄선한 공간(그 외) · 내가 찜한 공간 · 새롭게 소개한 공간 · {지역}에서 머물고 싶은 곳 · 최근 CURATION · 테마 선반(책 · 음악 · 영화 · 커피 · 전시 · 혼자 · 대화 · 저녁 · 작은 숍, 공간이 3곳 이상일 때만) · 새로운 STORY · 다시 떠올려볼 공간(다녀온 곳) · 공간큐브와 함께한 공간.
+  - 공간 하나가 여러 선반에 동시에 나온다. 카드: 사진(없으면 플레이스홀더) · 이름 · 지역 · 유형 · 이유 한 줄(큐레이션 선정 이유 > 추천 이유 > 한 줄 소개). 별점 · 순위 · 퍼센트 없음.
+  - 지역 선택(`RegionPicker`): 휴대폰 바텀시트 / 데스크톱 모달, 검색 + 추천 지역(망원 · 연남 · 후암 · 서촌 · 성수) + 등록된 지역. `/?area=후암`이면 선반이 그 지역 중심(먼저 가볼 공간 · {지역}의 {유형} · {지역}에서 {테마} · 지역 큐레이션). 공간이 없는 지역은 안내 문구.
+  - 비로그인은 계정 선반 대신 한 줄 로그인 안내. 데이터가 부족한 선반은 만들지 않는다.
+- 넓은 화면: `.ed-wide`(최대 1680px, 좌우 20/40/56px)와 `.ed-shelf`(가로 스크롤, 화면 끝에서 다음 카드가 잘려 보임, 데스크톱 ← → 버튼). 읽는 화면의 `.ed-container`(1200px)는 그대로. Navbar도 `.ed-wide`.
+- 메뉴(☰): 비로그인 하단 "로그인"(48px), 로그인 하단 "설정 · 로그아웃"(48px, 로그아웃은 회색 톤). 데스크톱 상단에도 비로그인 "로그인". 로그인 · 로그아웃은 기존 `/login` · `signOut` 그대로.
+- 설정: 닉네임 · 공개 프로필 · 계정 세 구획(제목 + 설명), 48px 입력 · 버튼, 로그아웃 큰 버튼. API · 동작은 그대로.
 
-## 수정
+## 데이터
 
-- `src/lib/guestbookNoteBounds.ts`(신규, 순수 함수): `rotatedOverhang`(회전 외곽), `noteSafeBounds`(여백 40 + 회전 외곽, 최소 8° 가정), `clampNoteToWorld`, `centerBiased`, `centralBounds`. WORLD_W/H 단일 출처(canvasConstants가 re-export).
-- `findFreePosition`에 선택 옵션 `bounds` — 원하는 위치를 범위 안으로 당기고 범위 밖 후보는 고르지 않음(옵션 없으면 기존과 동일).
-- 캔버스: 렌더 · 진입 fit-to-content · 포스트잇으로 이동은 보정된 위치(`clampNoteToWorld`), 새 글 위치는 `noteSafeBounds` 안에서만 탐색. 클라이언트 충돌 검사는 저장 좌표와 보정 좌표 둘 다 피함(서버 검증은 저장 좌표 기준 그대로).
-- seed: 군집으로부터 거리 `220 + centerBiased × 480`(가까울수록 촘촘), world 가운데 70% ∩ 안전 범위 안에서만 배치. 이미 있는 샘플은 이동하지 않음.
-- 저장 좌표 · DB · 스키마 변경 없음. 디자인 · 팬/줌 · 내 글 강조 · 작성 흐름은 그대로.
+- 기존 재사용: `getFinderPool` → `getFinderViewer` → `rankCandidates` → `cardReason`(추천 > 공간과 같은 정렬 · 이유), 큐레이션 공간별 선정 이유(`EditorialCurationSpace.note`), 찜(`SavedEditorialSpace`), 방문(`visitedSlugs`), `listAreas` · `normalizeArea`, `listContentStream`(LATEST), `listCurations` · `listStoryItems` · `listCubeSpaces`.
+- 지역 · 테마는 새 테이블 없이 `EditorialSpace.area · category · tags`에서 만든다(`src/lib/home/shelves.ts` — 이후 Region/Theme 데이터로 바꿀 때 입력만 교체).
+- 임시 공간: `src/lib/home/fixtures.ts`(이름 "임시 · …", 사진 없음, 상세 링크 없음). 관리자 · 로컬의 `/?preview=fixtures`에서만 선반에 섞이고, 운영 일반 방문자에게는 절대 보이지 않는다. 운영 DB에 넣지 않았다.
+
+## Key files changed
+
+- 신규: `src/lib/home/shelves.ts`(+test), `src/lib/home/homeData.ts`, `src/lib/home/fixtures.ts`, `src/components/home/Shelf.tsx`, `HomeSpaceCard.tsx`, `RegionPicker.tsx`, `src/components/settings/SettingsSection.tsx`
+- 수정: `src/app/EditorialHome.tsx`, `src/app/page.tsx`(area · preview=fixtures), `src/app/globals.css`, `src/components/Navbar.tsx`, `src/components/SettingsForm.tsx`, `src/components/profile/ProfileSettingsSection.tsx`, `src/app/settings/page.tsx`, `src/components/editorial/LatestSlider.tsx`(containerClassName 옵션만)
+
+## DB / schema
+
+- Changed: no
 
 ## Verification
 
-- TypeScript 통과 / vitest 62 files · 610 tests(신규 11: 경계 근처 4방향 · 모서리 · 회전 · 안쪽 좌표 유지 · bounds 탐색 · 중앙 편향 분포) / 변경 파일 eslint 통과 / `next build` 성공
-- 로컬 dev + 임시 Postgres(경계 밖 · 걸친 좌표 포함 26개)로 Playwright 확인, 375 · 390 · 768 · 1280:
-  world 경계 잘림 0건, body 가로 넘침 없음, 확대 후 좌/우 끝까지 팬하면 끝 포스트잇이 화면에 온전히 보임, 포스트잇 클릭 시 상세 열림,
-  world 모서리 클릭 시 작성창이 안전 범위 시작점(52, 51)에 열림. 터치 핀치 · 실제 기기는 미확인.
+- TypeScript 통과 / vitest 64 files · 630 tests 통과(신규 14) / 변경 파일 eslint 통과 / `next build` 성공
+- 로컬 dev + 임시 Postgres(공개 공간 12 · 큐레이션 2 · PEOPLE 2 · THOUGHT 1 · 로그인 세션 · 찜 2)로 Playwright 375 · 390 · 768 · 1440 확인:
+  가로 넘침 없음, 선반 가로 스크롤 · 다음 카드 잘려 보임, 지역 시트 검색(“후암동” → 후암) · 선택 후 지역 선반, 빈 지역 안내, 메뉴 로그인/설정/로그아웃 48px, 설정 모바일 · 데스크톱, 콘텐츠 0편일 때 준비 중 문구, 주요 라우트 200.
 
-## 추가: 기존 더미 저장 좌표 정상화(이어진 커밋)
+## Problems found / 다음 단계(구현하지 않음)
 
-- 추가 원인: 예전 seed는 군집 중심 기준 거리만 보고(반원 · 최대 680px), 빈자리 탐색이 world 밖까지 밀어낼 수 있었으며, 회전 외곽 · 사진 글 크기 · 실제 글 회전을 고려하지 않았고, 이미 저장된 더미는 다시 보지 않았다. 또 `60c38aa`의 렌더 보정은 master에 아직 merge되지 않아 운영 화면에 반영되지 않은 상태였다.
-- `src/lib/sampleGuestbookLayout.ts`(신규, 순수 함수): 샘플 영역 = world 가운데 50% ∩ 회전 외곽 포함 안전 범위. 실제 글(사진 글은 세로 320, 회전 외곽 포함) · 보이는 라벨을 장애물로, 기존 샘플을 createdAt · id 순으로 보며 영역 안이고 겹치지 않으면 유지, 아니면 note id로 고정된 난수로 군집 근처(가까울수록 촘촘) 빈자리로 이동. 간격 36px, 이동 자리는 회전 8° 외곽으로 잡아 다음 실행에서도 안전 → 멱등.
-- seed: 운영 공간마다(질문 불일치로 새 글을 안 만드는 공간도) 위 정리를 적용하고, 새 샘플도 같은 함수로 배치. 수정은 `id + 샘플 작성자` 조건의 좌표만.
-- 검증: 단위 테스트 6개(안전한 것만 유지 · 경계/밖/중앙 밖/실제 글 겹침/샘플끼리 겹침/라벨 위 이동 · 영역 · 무겹침 · 멱등 · 결정적 · 새 12개 배치 · 실제 글 비대상), 임시 Postgres에서 더미 12개 중 9개 이동 → 재실행 이동 0, 실제 글 · 비공개/시연 공간 글 좌표 불변.
-  화면(375 · 390 · 1280): world 잘림 0, body 가로 넘침 없음, 확대 · 상하좌우 팬 · 축소 후에도 잘림 0, 일반적인 경우 첫 화면에 더미 12/12 전부 보임(경계 밖 실제 글이 있으면 그 글까지 맞추느라 모바일은 8/12).
-
-## Problems found / Decisions needed
-
-- 운영에 이미 놓인 샘플의 배치는 다음 seed에서 바뀌지 않음(부족분만 새 배치 규칙 적용). 기존 샘플까지 다시 모으려면 별도 결정 필요.
-- 이 브랜치를 master에 merge할지.
+- Navbar는 넓은 컨테이너, 다른 페이지 본문은 1200px — 큰 화면에서 로고와 본문 왼쪽 시작점이 다르다. CURATION · 추천 목록도 넓힐지 결정 필요.
+- 실제 운영을 위한 다음 단계 우선순위: ① Space 개별 등록 정리(사진 · 한 줄 · 선정 이유) ② Space ↔ 여러 Curation/Theme 연결 관리(지금은 태그 키워드) ③ Region 정규화(동네 이름 · 추천 지역 순서를 관리자에서) ④ Theme 관리(선반 제목 · 노출 순서 · 공간 지정) ⑤ HOME 선반 순서 · 노출 관리(Admin) ⑥ "새롭게 소개한" 기준을 publishedAt으로(현재는 생성 순).
