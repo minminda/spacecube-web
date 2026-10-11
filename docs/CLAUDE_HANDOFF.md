@@ -1,32 +1,31 @@
 # Claude Code Latest Handoff
 
-Updated: 2026-10-11 (HOME Hero 단순화 + 큐레이션 타이포 + 데스크톱 상세 overlay) · UI/인터랙션만, DB·KPI·추천·태그·지역·fixture 변경 없음
+Updated: 2026-10-11 (사람 탐색 확장) · 추천 알고리즘·순서·DB·스키마 변경 없음
 
-## Hero (`LatestSlider.tsx`)
-- `LATEST` 헤더 줄 제거(빈 상태 섹션의 LATEST 제목도 제거). 콘텐츠가 바로 시작.
-- 위계: 작은 eyebrow("CURATION 006 · 연남", 11/12px) → 큰 제목(모바일 22px, 데스크톱 40→44px) → 짧은 summary → `보기 →`.
-- Hero에 공간이 따로 렌더되던 코드는 없었고, "공간 N곳" 보조 줄(`meta`)만 있어 그 줄을 제거(데이터·관계 무변경).
-- `01 / 05`와 `전체 보기 →`는 텍스트 컬럼 좌하단 한 줄(모바일은 텍스트 아래). 인디케이터·좌우 버튼은 유지.
+## 조사 결과 (이미 있던 것 — 재사용)
+- 사람 추천: `lib/people/rankPeople.ts`(규칙) + `lib/people/peopleData.ts`(`recommendPeople`/`similarPeopleForHome`/`searchPeopleTiles`, 후보 전원 배치 조회).
+- 사람 페이지: **`/find?tab=people`** (검색 칸 + 추천 그리드, `PeopleSearch`/`PeopleGrid`). 검색 API `/api/people/search`. 카드 → `/@handle` 공개 프로필.
+- HOME·`/search` 첫 화면: `SimilarPeopleShelf`(로그인 + 취향 기록 있을 때). 더 보기 → `/find?tab=people`.
+- **`/people`은 새로 만들지 않음**: `/people`, `/people/[slug]`는 STORY의 PEOPLE 인터뷰 주소(`/people`은 `/story?type=people`로 리다이렉트)라 충돌한다. 사람 탐색 = `/find?tab=people`.
 
-## Curation / Shelf
-- Hero CTA `Explore` → `보기`(영문 Explore 전부 제거), 크기 14→16px bold.
-- `Shelf.tsx` 제목 20/28 → 22/30px, 오른쪽 CTA 12/14 → 14/16px bold(박스 없음). 모든 선반 공통 컴포넌트라 위계 일관.
+## 이번 변경
+- **메뉴**: ☰ 메뉴 "콘텐츠" 그룹에 `사람` 추가 → `/find?tab=people` (`Navbar.tsx`, 데스크톱·모바일 공통 메뉴).
+- **추천 이유**: 실제 겹치는 공간 이름으로 표시 — "북눅을 함께 다녀왔어요" / "북눅 외 2곳을 함께 다녀왔어요" / "북눅 포함 공간 3곳이 겹쳐요". 이름이 없거나 결 겹침이면 기존 문구. `reasonText()`(rankPeople.ts, 순수 함수, 테스트 추가). 순서·점수 무변경. 공간 이름은 한 번의 `findMany`(N+1 없음).
+- **카드**: `PersonTile`에 이유 줄(최대 2줄) 추가 — 팔로워 등 SNS 지표는 기존 그대로(이번에 늘리지 않음).
+- **`/search` 통합**: `SearchView`가 공간 검색(`/api/search`)과 별개로 `/api/people/search`를 호출해 "사람" 섹션(지역 다음, 공간 위)을 표시. 공간 결과·정렬은 무변경. 사람 결과만 있어도 "찾지 못했어요" 안 뜸.
+- `/find?tab=people` 상단에 한 줄 안내 문구.
 
-## Space Detail overlay (`SpaceDetailModal.tsx`, globals.css)
-- 기존: 세로 중앙 느낌의 1120px 창(my-8, 전체 둥근 모서리, 배경 55% 검정).
-- 변경: 상단 기준(상단 여백 약 48~64px), 폭 min(1280px, 100%-64px), 높이는 뷰포트 하단까지, 위 모서리만 둥글게 — 뒤 HOME이 좌우·상단에 보임. 내부 스크롤.
-- backdrop 38% 검정 + blur 2px. 진입: opacity + translateY(16px) 0.22s(`ed-modal-in`), `prefers-reduced-motion`이면 애니메이션 없음.
-- 닫기 X는 sticky(내부 스크롤해도 우측 상단 고정). X·바깥 클릭·ESC·뒤로가기 유지.
-- 열릴 때 패널 `focus({preventScroll:true})` — 기존엔 포커스가 패널을 상단 여백만큼 스크롤시켜 상단 여백이 사라졌음(수정).
-- `@modal` + `(.)spaces/[slug]` 구조·URL·history 무변경. 모바일은 기존 독립 페이지 유지.
+## 결정/남은 이슈
+- **"이름" 검색 = 공개 닉네임 + @아이디.** `User.name`(OAuth 실명)은 공개 화면 어디에도 안 쓰이므로 검색 대상에서 제외(실명 노출 방지). 필요하면 정책 결정 후 추가.
+- **검색어 최소 2자**(기존 `peopleQuery` 정책 유지, 전체 목록 노출 방지). "동"처럼 1글자는 결과 없음 → 필요 시 `peopleQuery` 하한 변경.
+- 공간 썸네일 2~3개 카드 표시는 안 함(이유 문구로 대체).
+- 비로그인: 기존 정책 그대로(공개 공간 많은 순 + 로그인 안내). 본인·이미 따라가는 사람·관리자·테스트 계정 제외는 기존.
+- API 응답 필드: avatarSeed·handle·name·image·reason·관계 수·demo만(이메일·ID·인증정보 없음 — 실제 응답 키 확인).
 
-## 직접 확인 (localhost:3000)
-- 1440: LATEST 없음, h3 44px, 가로 오버플로 없음, 상세 overlay 열림(top 64px, 폭 1280, backdrop rgba(0,0,0,.38), 애니메이션 적용), X sticky(스크롤 후에도 같은 위치), ESC 닫힘, router.back 닫힘.
-- 375: Hero 제목 22px, 전체 보기 존재, 가로 오버플로 없음.
-- **못 한 것**: HOME 카드 실제 클릭은 이 환경 하이드레이션 한계로 `next.router.push`로 대체. 1920·스크린샷 시각 확인·긴 제목/이미지 없는 슬라이드 실측·모바일 카드→상세→X 흐름은 직접 확인 못 함(코드 무변경). 사용자 확인 필요.
-
-## 테스트
-- tsc 클린 · 변경 파일 eslint 클린 · vitest 104 files / 986 tests 통과 · `next build` 미실행.
+## 확인
+- tsc 클린 · eslint(변경 파일) 클린 · vitest 104 files / 989 tests 통과 · `next build` 미실행.
+- API 직접 호출: 닉네임 정확/부분(`동민`·`임동`), 아이디(`@demo-min`), 한글, 없는 사용자(빈 배열) 확인. `/find?tab=people` 서버 렌더 확인.
+- **못 한 것**: 이 환경은 클라이언트 하이드레이션이 안 돼 `/search`의 사람 섹션(클라이언트 fetch)·로그인 상태 추천 이유·모바일 화면은 직접 못 봄. 사용자 확인 필요.
 
 ## DB
 - 변경 없음.

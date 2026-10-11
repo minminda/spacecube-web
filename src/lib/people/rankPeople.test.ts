@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { feelOverlap, rankPeople, type PersonCandidate } from "./rankPeople";
+import { feelOverlap, rankPeople, reasonText, type PersonCandidate } from "./rankPeople";
 
 const features = new Map<string, string[]>([
   ["booknook", ["독립서점"]],
@@ -60,5 +60,20 @@ describe("rankPeople", () => {
   it("결 겹침은 0~1, 한쪽이 비면 0", () => {
     expect(feelOverlap(new Map([["a", 2]]), new Map([["a", 1], ["b", 1]]))).toBe(0.5);
     expect(feelOverlap(new Map(), new Map([["a", 1]]))).toBe(0);
+  });
+});
+
+describe("reasonText", () => {
+  it("함께 다녀온 공간 이름을 쓴다(받침에 따라 을/를)", () => {
+    expect(reasonText("visited", { visitedBoth: ["북눅"], common: ["북눅"] })).toBe("북눅을 함께 다녀왔어요");
+    expect(reasonText("visited", { visitedBoth: ["아카"], common: ["아카"] })).toBe("아카를 함께 다녀왔어요");
+    expect(reasonText("visited", { visitedBoth: ["북눅", "아카", "이너"], common: [] })).toBe("북눅 외 2곳을 함께 다녀왔어요");
+  });
+  it("저장이 겹치면 겹친 곳 수를 쓴다", () => {
+    expect(reasonText("shared", { visitedBoth: [], common: ["북눅", "아카", "이너"] })).toBe("북눅 포함 공간 3곳이 겹쳐요");
+  });
+  it("근거 이름이 없으면 기존 문구", () => {
+    expect(reasonText("feel", { visitedBoth: [], common: [] })).toBe("고른 공간의 결이 비슷해요");
+    expect(reasonText("visited", { visitedBoth: [], common: [] })).toBe("다녀온 공간이 비슷해요");
   });
 });

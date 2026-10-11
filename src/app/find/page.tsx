@@ -88,6 +88,7 @@ export default async function FindPage({ searchParams }: Props) {
             <div className="pt-5"><SegmentTabs segments={tabs} active="people" label="탐색 종류" /></div>
           </PageHeader>
           <section className="ed-container pt-5" style={{ borderTop: "1px solid var(--ed-line)" }}>
+            <p className="pb-4 text-sm break-keep" style={{ color: "var(--ed-dim)" }}>나와 비슷한 공간 취향을 가진 사람을 만나보세요.</p>
             <PeopleSearch initialQuery={who} initialResults={initialResults} autoFocus={sp.search === "1"}>
               <Suspense fallback={<PeopleGridSkeleton />}>
                 <PeopleResults viewerId={viewer.userId} admin={viewer.admin} loggedIn={viewer.loggedIn} />

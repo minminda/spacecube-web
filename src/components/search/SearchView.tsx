@@ -6,7 +6,8 @@ import { useSearchParams } from "next/navigation";
 import HomeSpaceCard from "@/components/home/HomeSpaceCard";
 import RegionStar from "@/components/home/RegionStar";
 import SimilarPeopleShelf from "@/components/home/SimilarPeopleShelf";
-import type { SimilarPerson } from "@/lib/people/peopleData";
+import { PeopleGrid } from "@/components/people/PeopleGrid";
+import type { RecommendedPerson, SimilarPerson } from "@/lib/people/peopleData";
 import { ChevronRightIcon, CloseIcon, SearchIcon } from "@/components/icons";
 import { homeHref, type AreaOption } from "@/lib/home/shelves";
 import type { SearchResponse } from "@/lib/search/searchData";
@@ -40,6 +41,8 @@ export default function SearchView({ initialQuery, initialResult, areaOptions, t
   const [result, setResult] = useState<SearchResponse | null>(startQuery === initialQuery ? initialResult : null);
   const fetchedFor = useRef<string | null>(startQuery === initialQuery && initialResult ? initialQuery.trim() : null);
   const inputRef = useRef<HTMLInputElement>(null);
+  // 사람 결과 — 공간 검색(/api/search)과 따로 가져와 공간 결과의 순서 · 속도에 영향을 주지 않는다. 2자 미만이면 찾지 않는다.
+  const [people, setPeople] = useState<{ q: string; list: RecommendedPerson[] } | null>(null);
 
   const trimmed = query.trim();
   const active = trimmed.length > 0;
@@ -76,9 +79,28 @@ export default function SearchView({ initialQuery, initialResult, areaOptions, t
     };
   }, [trimmed, active, fixtures]);
 
+  useEffect(() => {
+    if (trimmed.replace(/^@/, "").length < 2) return;
+    const ctrl = new AbortController();
+    const t = window.setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/people/search?q=${encodeURIComponent(trimmed)}`, { signal: ctrl.signal });
+        const data = (await res.json()) as { people?: RecommendedPerson[] };
+        setPeople({ q: trimmed, list: data.people ?? [] });
+      } catch (e) {
+        if ((e as Error).name !== "AbortError") setPeople({ q: trimmed, list: [] });
+      }
+    }, 250);
+    return () => {
+      ctrl.abort();
+      window.clearTimeout(t);
+    };
+  }, [trimmed]);
+  const peopleShown = people && people.q === trimmed && active ? people.list : [];
+
   const suggested = areaOptions.filter((o) => o.suggested);
   const others = areaOptions.filter((o) => !o.suggested);
-  const empty = active && !!shown && shown.q === trimmed && shown.total === 0 && shown.regions.length === 0;
+  const empty = active && !!shown && shown.q === trimmed && shown.total === 0 && shown.regions.length === 0 && peopleShown.length === 0;
 
   return (
     <>
@@ -158,6 +180,13 @@ export default function SearchView({ initialQuery, initialResult, areaOptions, t
                       </li>
                     ))}
                   </ul>
+                </section>
+              )}
+
+              {peopleShown.length > 0 && (
+                <section aria-label="사람" className="pb-8">
+                  <p className="ed-label pb-3" style={{ color: "var(--ed-dim)" }}>사람</p>
+                  <PeopleGrid people={peopleShown} />
                 </section>
               )}
 

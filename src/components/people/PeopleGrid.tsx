@@ -10,7 +10,7 @@ const soft = { background: "var(--ed-soft)" } as const;
 
 /**
  * 추천 > 사람 카드 — 아바타 · 닉네임 · @아이디 · 따라가는 취향 / 나를 따라가는 사람(공개 프로필과 같은 용어 · 숫자).
- * 소개 · 추천 이유 · 긴 설명은 넣지 않는다(휴대폰 4열에서 복잡해지지 않게). 화면 폭과 상관없이 같은 정보 구조.
+ * 추천 이유(겹치는 공간 이름 기반, 있을 때만)는 한 줄 + 두 줄까지만. 소개 · 긴 설명은 넣지 않는다. 화면 폭과 상관없이 같은 정보 구조.
  * 아바타 · 닉네임 · @아이디 → 공개 프로필, 관계 수 → 각 목록(/@handle/following · /followers). 점수 · 퍼센트 · 태그 없음.
  * 비공개 프로필은 이 그리드에 오지 않는다(추천 · 검색에서 제외) — 관계 목록 링크도 공개 프로필에만 생긴다.
  */
@@ -25,6 +25,7 @@ export function PersonTile({ p }: { p: RecommendedPerson }) {
       <Link href={path} className="block truncate pt-0.5 text-[11px] md:text-[13px] leading-[1.35] hover:underline underline-offset-4" style={{ color: "var(--ed-fg)" }}>
         @{p.handle}
       </Link>
+      {p.reason && <p className="pt-1 text-[11px] md:text-xs leading-[1.4] break-keep line-clamp-2 font-semibold">{p.reason}</p>}
       <p className="pt-1 text-[10px] md:text-xs leading-[1.4] break-keep tabular-nums" style={{ color: "var(--ed-dim)" }}>
         <Link href={`${path}/following`} className="block hover:underline underline-offset-4">따라가는 <span className="whitespace-nowrap">취향 {p.followingCount}</span></Link>
         {/* 휴대폰 4열에서 한 줄에 다 안 들어가면 "나를 따라가는 / 사람 N"으로 — 숫자만 다음 줄로 떨어지지 않게 */}

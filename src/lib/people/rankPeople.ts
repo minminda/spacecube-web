@@ -36,6 +36,28 @@ export const PEOPLE_REASON_TEXT: Record<PeopleReason, string> = {
   feel: "고른 공간의 결이 비슷해요",
 };
 
+/** 받침 유무로 을/를 */
+function objectParticle(word: string): string {
+  const code = word.charCodeAt(word.length - 1);
+  if (code < 0xac00 || code > 0xd7a3) return "를";
+  return (code - 0xac00) % 28 === 0 ? "를" : "을";
+}
+
+/**
+ * 카드에 보여줄 추천 이유 — 실제로 겹치는 공간 이름이 있으면 그 이름으로(없으면 기존 문구).
+ * overlap: 나와 이 사람 모두 있는 공간 이름. 같이 다녀온 곳(visitedBoth)이 앞에 온다. 순서 · 점수에는 영향이 없다.
+ */
+export function reasonText(reason: PeopleReason, overlap: { visitedBoth: string[]; common: string[] }): string {
+  if (reason === "visited" && overlap.visitedBoth.length > 0) {
+    const [first, ...rest] = overlap.visitedBoth;
+    return rest.length === 0 ? `${first}${objectParticle(first)} 함께 다녀왔어요` : `${first} 외 ${rest.length}곳을 함께 다녀왔어요`;
+  }
+  if (reason === "shared" && overlap.common.length >= 2) {
+    return `${overlap.common[0]} 포함 공간 ${overlap.common.length}곳이 겹쳐요`;
+  }
+  return PEOPLE_REASON_TEXT[reason];
+}
+
 export interface RankedPerson {
   userId: string;
   reason: PeopleReason | null;

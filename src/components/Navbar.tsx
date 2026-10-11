@@ -27,6 +27,8 @@ const LEGACY_NAV_ITEMS = [
 const CONTENT_ROWS = [
   { label: "CURATION", href: "/curation", match: (p: string) => p.startsWith("/curation") },
   { label: "STORY", href: "/story", match: (p: string) => p === "/story" || p.startsWith("/people") || p.startsWith("/thought") },
+  // 사람 = 취향이 비슷한 사람을 찾는 탐색 축(기존 /find 사람 탭). /people은 STORY의 PEOPLE 인터뷰 주소라 쓰지 않는다.
+  { label: "사람", href: "/find?tab=people", match: () => false },
 ];
 const isSearchPath = (p: string) => p.startsWith("/search") || p.startsWith("/find") || p.startsWith("/recommend");
 

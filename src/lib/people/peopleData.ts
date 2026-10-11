@@ -11,7 +11,7 @@ import { getLibrary } from "@/lib/archive/library";
 import { publicSpaceRowsMany, relationCounts, searchPeople } from "@/lib/profile/profileData";
 import { peopleQuery } from "@/lib/profile/publicProfile";
 import { avatarSeed } from "./avatar";
-import { PEOPLE_REASON_TEXT, rankPeople, type PersonCandidate, type SpaceFeatures, type ViewerTaste } from "./rankPeople";
+import { reasonText, rankPeople, type PersonCandidate, type SpaceFeatures, type ViewerTaste } from "./rankPeople";
 
 /** 후보 상한 — 사람이 많아지면 최근 가입 순으로 자른다(V1). */
 const CANDIDATE_LIMIT = 200;
@@ -98,18 +98,36 @@ async function loadRankedPeople(viewerId: string | null, opts: { includeDemo: bo
 }
 
 export async function recommendPeople(viewerId: string | null, opts: { includeDemo: boolean; limit?: number }): Promise<RecommendedPerson[]> {
-  const { ranked: all, byId } = await loadRankedPeople(viewerId, { includeDemo: opts.includeDemo, candidateLimit: CANDIDATE_LIMIT });
+  const { ranked: all, byId, spacesByUser, taste } = await loadRankedPeople(viewerId, { includeDemo: opts.includeDemo, candidateLimit: CANDIDATE_LIMIT });
   const ranked = all.slice(0, opts.limit ?? 48);
+
+  // 추천 이유에 쓸 "나와 겹치는 공간" — 이유가 있는 사람만, 공간 이름은 한 번의 조회로(사람마다 조회하지 않는다)
+  const overlapSlugs = (userId: string) => {
+    const mine = taste ? new Set([...taste.visited, ...taste.saved]) : new Set<string>();
+    const spaces = spacesByUser.get(userId) ?? [];
+    return {
+      visitedBoth: spaces.filter((s) => s.visited && taste?.visited.has(s.slug)).map((s) => s.slug),
+      common: spaces.filter((s) => mine.has(s.slug)).map((s) => s.slug),
+    };
+  };
+  const overlaps = new Map(ranked.filter((r) => r.reason).map((r) => [r.userId, overlapSlugs(r.userId)]));
+  const wanted = new Set<string>();
+  for (const o of overlaps.values()) for (const s of [...o.visitedBoth, ...o.common]) wanted.add(s);
+  const nameRows = wanted.size ? await prisma.editorialSpace.findMany({ where: { slug: { in: [...wanted] }, status: "PUBLISHED" }, select: { slug: true, name: true } }) : [];
+  const nameOf = new Map(nameRows.map((r) => [r.slug, r.name]));
+  const names = (slugs: string[]) => slugs.flatMap((s) => (nameOf.has(s) ? [nameOf.get(s)!] : []));
+
   const counts = await relationCounts(ranked.map((r) => r.userId));
   return ranked.map((r) => {
     const u = byId.get(r.userId)!;
     const c = counts.get(r.userId)!;
+    const o = overlaps.get(r.userId);
     return {
       avatarSeed: avatarSeed(u.id),
       handle: u.profileHandle!,
       name: u.nickname || `@${u.profileHandle}`,
       image: u.image,
-      reason: r.reason ? PEOPLE_REASON_TEXT[r.reason] : null,
+      reason: r.reason ? reasonText(r.reason, { visitedBoth: names(o?.visitedBoth ?? []), common: names(o?.common ?? []) }) : null,
       followingCount: c.following,
       followerCount: c.followers,
       demo: u.isDemo,
