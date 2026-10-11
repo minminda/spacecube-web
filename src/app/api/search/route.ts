@@ -12,9 +12,11 @@ export const dynamic = "force-dynamic";
 export async function GET(req: Request) {
   const viewer = await getEditorialViewer();
   if (!viewer.editorial) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  const q = (new URL(req.url).searchParams.get("q") ?? "").slice(0, 40);
+  const params = new URL(req.url).searchParams;
+  const q = (params.get("q") ?? "").slice(0, 40);
+  const fixtures = params.get("preview") === "fixtures" && (viewer.admin || process.env.NODE_ENV === "development");
   if (!q.trim()) return NextResponse.json({ q, total: 0, regions: [], spaces: [] }, { headers: { "Cache-Control": "private, no-store" } });
   const regions = await getSavedRegions(viewer.userId);
-  const { result } = await searchForViewer({ admin: viewer.admin, userId: viewer.userId, q, regions });
+  const { result } = await searchForViewer({ admin: viewer.admin, userId: viewer.userId, q, regions, fixtures });
   return NextResponse.json(result ?? { q, total: 0, regions: [], spaces: [] }, { headers: { "Cache-Control": "private, no-store" } });
 }

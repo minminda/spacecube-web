@@ -1,40 +1,31 @@
 # Claude Code Latest Handoff
 
-Updated: 2026-10-11 (관리자 사용성 · 지역/태그 운영 체계 · HOME Hero)
+Updated: 2026-10-11 (Discovery fixture 확장 · Space 상세 Partner Episode/저장 UX)
 
 ## 이번 세션
 
-1. **용어** — 관리자 UI의 "공간 콘텐츠" → "공간 등록"(사이드바 · 제목 · 개요 · 안내문). route/model/변수명은 그대로(`/admin/content/spaces`, `EditorialSpace`). "운영 공간"(Cube)과는 별개.
-2. **지역 관리**(`/admin/districts`, 메뉴 "지역 관리") — SVG 지도 편집 UI 제거 → 단순 CRUD(추가 · 이름 수정 · 삭제 · 쓰는 공간 수 · 표시 상태 · ▲▼ 순서 · 미등록 지역을 "지역으로 등록"). 공개 `/discover` 지도(`DiscoverEntry`, `SeoulMapBackdrop`, `DistrictMapMarker`)와 District 좌표 컬럼은 **그대로**(관리자만 걷어냄).
-   - 규칙: `src/lib/regions.ts`(순수, `normalizeArea` 기반 중복: 연남=연남동) · `regionAdmin.ts`(사용 공간 집계). 공간 수는 운영 공간(`Space.district`) + 공간 등록(`EditorialSpace.area`)을 **slug 기준 한 곳으로** 센다(시연 · 보관 제외).
-   - API(`/api/districts`): POST 중복 409, slug 자동 생성(한글명은 `region-N`). PATCH 이름 변경 시 **그 지역을 쓰던 Space.district · EditorialSpace.area를 같은 트랜잭션에서 함께 변경**(문자열 조인이라). DELETE는 쓰는 공간이 있으면 `?confirm=1` 없이는 409(지역 항목만 삭제, 공간의 문자열 값은 유지).
-   - 공간 등록 폼의 지역: 등록된 지역 칩 + 목록 밖 값 경고(막지 않음).
-3. **태그 체계 — 정본은 관리자 Tag**. 운영 공간은 이미 `SpaceTag(tagId)`로 정본을 쓴다. 공간 등록(`EditorialSpace.tags`)은 **Tag.name 문자열**을 그대로 저장(스키마 변경 없음). 그래서:
-   - 이름 바꾸면 `renameEditorialTag`가 공간 등록의 문자열도 함께 변경(`src/lib/tagAdmin.ts`). 이름 중복(공백/대소문자 무시) 409. 삭제는 공간/기록에서 쓰이면 409 → UI는 "비활성화"만.
-   - 분류 4개(additive seed `scripts/seed-tag-taxonomy.ts`, `--apply`, 멱등): **분위기**(조용한 + 기존 7개 미분류를 이동: 편안한 · 따뜻한 · 감각 있는 · 독특한 · 집중되는 · 영감 있는 · 다시 오고 싶은) / **취향**(책 음악 LP 전시 커피 디자인 패션 소품) / **이용 상황**(혼자 대화 오래 머물기 데이트 저녁 산책 중 들르기) / **공간 특징**(작은 공간 루프탑 테라스 예약제). 기존 "공간 유형"(SINGLE, Cube 유형) 유지. 유사어는 기존 이름을 살림(감각적인→"감각 있는", 집중하기 좋은→"집중되는").
-   - **Type vs Tag**: Type = `EditorialSpace.category` 1개(칩 = "공간 유형" 태그 + 이미 쓰인 유형, 직접 입력 허용), Tag = 3~5개. 태그 선택에서 "공간 유형" 분류는 제외.
-4. **공간 등록 폼 태그 UX**(`EditorialSpaceForm`) — 자유 입력창 제거. 분류별 칩 토글 + 선택 개수/목록 + 검색(8개 초과) + 3~5개 안내. 정본에 없는 기존 태그는 "태그 목록에 없는 기존 태그"로 따로 보여 주고 해제만 가능(데이터 보존). 새 태그는 태그 관리에서만.
-5. **태그 관리**(`/admin/tags`, 메뉴 "태그 관리") — 전체/사용/미사용 요약, 검색, "사용되지 않는 태그만", 분류별 카드, 태그 행 "관리"에서 이름 · 설명 · 추천 포함 · 활성 · 분류 이동 · 순서 · 사용 중인 공간 목록(운영 공간/공간 등록 표기) · 삭제/비활성화(사용 중이면 "N개 공간에서 사용 중" 경고).
-6. **HOME 테마 연결** — 테마 키워드(HOME 전용)는 그대로. 관리자 테마 선반 연결에 키워드별 "태그 / 유형·이름 매칭" 표시(등록된 활성 Tag 이름과 일치하면 태그). Theme ≠ Tag 구분 문구 추가. 검색(`/search`)은 여전히 코드 `HOME_THEMES`.
-7. **HOME Hero**(`LatestSlider`) — 이미지 데스크톱 `aspect 4/3 → 3/2` + `max-h 62vh`, 제목 44→40px, 열 간격 12→10, 상하 패딩 소폭 축소. 모바일 클래스 무변경. 1280×720(이미지 446px) · 1440×900(516px, 섹션 하단 817) · 1920×1080(670px, 섹션 하단 971) 확인.
+1. **Fixture 30곳**(`src/lib/home/fixtures.ts`) — 지역 5(후암 · 망원 · 연남 · 서촌 · 성수) × 유형 6(카페 · 서점 · 전시공간 · 편집숍 · 바 · 문화공간), 태그 3~5개(관리자 태그 정본 이름), 한 줄 소개 · 선정 이유 · 지도 링크 placeholder 여부 · Partner 5곳. 이름은 "임시 · …", slug는 `fixture-N`, 사진 없음.
+   - 노출: 관리자 · `NODE_ENV=development`에서만. HOME `/?preview=fixtures`, 검색 `/search?preview=fixtures`(+ `/api/search?preview=fixtures`), 상세 `/spaces/fixture-N`(DB 조회 없음, `findFixtureSpace`). 일반 방문자는 파라미터를 붙여도 무시/404. 운영 DB INSERT 없음.
+   - 지역 선택은 `homeHref({area, preview})`로 preview가 유지된다. fixture 카드/상세 저장은 `SaveButton mock`(서버 요청 없이 화면에서만 토글).
+   - HOME 첫 선반의 fixture 6곳은 지역을 돌아가며 뽑는다(전엔 후암만 몰렸음).
+2. **Partner EP.1**(`PartnerEpisodeList`, 신규 client) — 제목은 보이고, QR 전 클릭하면 `<dialog>` 안내("이 이야기는 공간에서 열 수 있어요. / 공간을 방문해 공간큐브의 QR을 인식해보세요."). 잠금 아이콘은 기존 `LockIcon`(벡터). QR 후(`getPartnerEpisodes`의 `unlocked`)엔 기존 `/space/[slug]/episodes/[id]` 링크. 판정 로직(`resolveSpaceAccess`/`computeEpisodeState`) 무변경.
+3. **직접 Episode URL** — 변경 없음, 이미 안전: `/space/[slug]/episodes/[id]`가 `resolveSpaceAccess` 실패 시 `SpaceLockNotice`(본문 미렌더, 돌아가기 링크 `/space/[slug]`).
+4. **공개 상세의 "방명록 열기" 제거**(`/spaces/[slug]`). `/space/[slug]/record|guestbook` 라우트 · 현장 흐름은 그대로. "이 공간에서 QR을 스캔하면…" 보조 문장도 다이얼로그로 대체되어 삭제. 방명록 흔적 수(`traces`)는 유지.
+5. **저장 UX** — 상세의 "저장하기" 텍스트 버튼 → 헤더 우측 상단 북마크 아이콘(`SaveButton variant="detail"`, 22px, 저장됨=filled). 기존 `/api/saves/spaces/[id]`·로그인 복귀 정책 그대로. `variant="text"`는 `/u/[handle]/s/[slug]`가 계속 사용.
 
 ## DB / schema
-
-스키마 변경 **없음**. 데이터: 분류 4개 + 태그 20개 생성, 미분류 태그 7개 분류 이동(위 seed, 운영 DB에 직접 반영 — 별도 테스트 DB 없음). 기존 데이터 삭제 없음.
-
-## 참고 · 주의
-
-- 아카이브의 태그 선택지(`getArchiveTagOptions`)는 "공간 유형" 외 모든 활성 태그라 새 태그가 사용자 아카이브 선택지에도 나온다(통일의 결과).
-- 시연용 공간(`isDemo`)의 태그("감각적인", "오래 머무는", "둘이" 등)는 정본 밖이라 폼에서 "목록에 없는 기존 태그"로 보인다. 공개 공간 6곳은 태그가 비어 있어 **운영자가 태그를 선택해야** 테마 선반(최소 3곳)이 열린다.
-- `District`가 DB에 1행뿐(`용인`/slug `mangwon`) — 연남 · 망원 · 처인구는 "미등록 지역"으로 뜬다. 지역 관리에서 등록 필요.
+변경 없음. 운영 DB 쓰기 없음.
 
 ## Verification
+- tsc · eslint(변경 파일) · vitest 전체(101 files / 969 tests) 통과. `next build` 미실행(prisma db push 포함).
+- dev 서버(다른 세션의 3000)로 확인: HOME fixture 선반(전 지역 · 테마) · 망원 지역 화면(16곳, 카페/테마 선반) · 검색 6종(LP 책 조용한 망원 "망원 LP" 혼자 — 관련도 순 정상, 플래그 없으면 fixture 0건) · fixture 상세(일반: Episode/QR/방명록 없음, Partner: EP.1 → 다이얼로그 열림/닫힘, 저장 토글, 방명록 버튼 없음).
+- **미검증**: 브라우저 pane이 숨김이라 실제 공간(북눅 연남 등)의 클라이언트 클릭(다이얼로그 · 저장)은 하이드레이션 안 돼 못 눌러봄 — 서버 렌더(EP.1 버튼 존재, 에피소드 링크 · 방명록 버튼 없음)만 확인. QR Unlock 후 이동은 코드 경로가 기존 그대로라 따로 실행하지 못함. 스크린샷 불가.
 
-- tsc · vitest 전체(101 files / 967 tests) · eslint(변경 파일) 통과. `next build`는 `prisma db push` 포함이라 미실행.
-- 임시 vitest(삭제함)로 실제 핸들러+DB 검증: 지역 추가 · 중복(409) · 사용 중 삭제 거부(409, 사용 수) · 이름 변경이 공간 area 전파 · 확인 삭제 / 태그 추가 · 중복 · 사용 중 삭제 거부 · 이름 변경이 공간 tags 전파 · 미사용 삭제. 잔여 0 확인.
-- **미검증(에이전트는 관리자 로그인 불가)**: 새 관리자 화면(지역 · 태그 · 공간 폼)의 실제 렌더/모바일 레이아웃, 칩 선택 저장 클릭 흐름. 첫 사용 시 `/admin/districts` · `/admin/tags` · 공간 등록 폼에서 한 번 확인 요망.
+## HOME 밀도 관찰 (미조정, 결정 필요)
+- fixture 포함 HOME(1280): 카드 149칸 / 고유 58곳, 같은 공간 최대 4번 반복. 원인은 구조: "새롭게 소개한 공간"과 지역 선반이 같은 최신 공간을 공유, 테마 선반 9개가 같은 공간을 태그별로 중복.
+- 후보(구조 변경이라 이번엔 안 함): 지역 선반에서 "새롭게 소개" 공간 제외 / 테마 선반 노출 상한(예: 6개).
+- 테마 선반은 `HOME_THEMES` 9개가 상한(영화는 fixture에 없어 8개 노출).
 
 ## 다음 세션 후보
-
-- 공개 공간 6곳 태그 지정 + 지역(연남 · 망원 · 용인 처인구) 등록.
-- 테마 키워드를 `/search`에도 적용 · 지역/태그 서버측 검증(현재 UI 경고 수준).
+- 위 반복 완화 여부 결정, 실제 공간 태그 · 지역 등록(이전 핸드오프 항목).
+- 숨김 pane이 아닌 상태에서 실제 Partner 공간 EP.1 다이얼로그 · 저장 한 번 눈으로 확인.

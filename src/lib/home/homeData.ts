@@ -29,7 +29,7 @@ import {
   type HomeSpace,
 } from "./shelves";
 import { similarPeopleForHome, type SimilarPerson } from "@/lib/people/peopleData";
-import { fixtureAreaCounts, fixtureSpaces } from "./fixtures";
+import { fixtureAreaCounts, fixtureSpaces, type FixtureSpace } from "./fixtures";
 import { buildShelfPlan, type PlanItem } from "./shelfConfig";
 import { loadShelfRows } from "./shelfData";
 import { applyThemeRules } from "./themeRules";
@@ -137,7 +137,7 @@ export async function getHomeData(opts: { userId: string | null; admin: boolean;
   // 공간 → 큐레이션에 적힌 선정 이유(가장 최근 큐레이션 것 하나)
   const notes = new Map<string, string>();
   for (const c of visible(curations)) for (const l of c.spaces) if (l.note && !notes.has(l.space.id)) notes.set(l.space.id, l.note);
-  const reasonOf = (s: HomeSpace) => notes.get(s.id) ?? s.summary ?? null;
+  const reasonOf = (s: HomeSpace) => notes.get(s.id) ?? (s.fixture ? (s as FixtureSpace).reason : null) ?? s.summary ?? null;
 
   const real = pool.map(homeSpaceFromFinder);
   const fixtures = opts.fixtures ? fixtureSpaces(real.length + 1) : [];
@@ -162,7 +162,14 @@ export async function getHomeData(opts: { userId: string | null; admin: boolean;
   };
   const forYouCards: HomeCard[] = ranked.slice(0, PER_SHELF).map(cardOfRanked);
   const fixtureFill = area ? fixtures.filter((f) => f.area === area) : fixtures;
-  if (opts.fixtures) forYouCards.push(...cardsOf(fixtureFill.slice(0, 6)));
+  if (opts.fixtures) {
+    // 첫 선반에 한 지역만 몰리지 않도록 지역을 돌아가며 6곳
+    const byArea = new Map<string, HomeSpace[]>();
+    for (const f of fixtureFill) byArea.set(f.area ?? "", [...(byArea.get(f.area ?? "") ?? []), f]);
+    const rotated: HomeSpace[] = [];
+    for (let i = 0; rotated.length < fixtureFill.length; i++) for (const list of byArea.values()) if (list[i]) rotated.push(list[i]);
+    forYouCards.push(...cardsOf(rotated.slice(0, 6)));
+  }
   const forYou: HomeSpaceShelf | null = forYouCards.length
     ? {
         key: "for-you",
@@ -271,7 +278,7 @@ export async function getHomeData(opts: { userId: string | null; admin: boolean;
   };
 }
 
-function mergeAreaCounts(a: { area: string; spaceCount: number; curationCount: number }[], b: { area: string; spaceCount: number; curationCount: number }[]) {
+export function mergeAreaCounts(a: { area: string; spaceCount: number; curationCount: number }[], b: { area: string; spaceCount: number; curationCount: number }[]) {
   const map = new Map(a.map((r) => [r.area, { ...r }]));
   for (const r of b) {
     const cur = map.get(r.area) ?? { area: r.area, spaceCount: 0, curationCount: 0 };

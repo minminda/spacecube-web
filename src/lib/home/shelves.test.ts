@@ -12,7 +12,7 @@ import {
   spacesInArea,
   type HomeSpace,
 } from "./shelves";
-import { fixtureSpaces } from "./fixtures";
+import { findFixtureSpace, fixtureSpaces } from "./fixtures";
 
 let n = 0;
 function sp(p: Partial<HomeSpace> & { area: string | null }): HomeSpace {
@@ -111,16 +111,34 @@ describe("HOME 지역 선택", () => {
 });
 
 describe("HOME 임시 공간(fixtures)", () => {
-  it("상세가 없고(slug null) 임시로 표시되며, 사진을 넣지 않는다", () => {
+  it("fixture-N slug · 임시 이름이며, 사진을 넣지 않고, 태그 3~5개를 갖는다", () => {
     const list = fixtureSpaces(100);
     expect(list.length).toBeGreaterThan(10);
     for (const f of list) {
       expect(f.fixture).toBe(true);
-      expect(f.slug).toBeNull();
+      expect(f.slug).toMatch(/^fixture-\d+$/);
+      expect(findFixtureSpace(f.slug as string)?.id).toBe(f.id);
+      expect(f.tags.length).toBeGreaterThanOrEqual(3);
+      expect(f.tags.length).toBeLessThanOrEqual(5);
       expect(f.id.startsWith("fixture:")).toBe(true);
       expect(f.name.startsWith("임시")).toBe(true);
       expect(f.image.src).toBeNull();
     }
+  });
+
+  it("지역 5 · 유형 6이 섞이고 Partner는 일부만이다", () => {
+    const list = fixtureSpaces(0);
+    expect(new Set(list.map((f) => f.area)).size).toBe(5);
+    expect(new Set(list.map((f) => f.category)).size).toBe(6);
+    const partners = list.filter((f) => f.partner).length;
+    expect(partners).toBeGreaterThan(0);
+    expect(partners).toBeLessThan(list.length / 2);
+  });
+
+  it("fixture slug가 아니면 찾지 않는다(실제 공간 slug와 섞이지 않는다)", () => {
+    expect(findFixtureSpace("buk")).toBeNull();
+    expect(findFixtureSpace("fixture-9999")).toBeNull();
+    expect(findFixtureSpace("fixture-0")).toBeNull();
   });
 
   it("임시 공간만으로도 지역 · 테마 선반 구조가 생긴다(UI 확인용)", () => {

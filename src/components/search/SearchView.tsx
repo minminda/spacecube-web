@@ -21,6 +21,8 @@ interface Props {
   loggedIn: boolean;
   /** 검색어가 없을 때 첫 화면에 보여줄 "취향이 비슷한 사람"(없으면 숨김) */
   similarPeople: SimilarPerson[];
+  /** 임시 공간 미리보기(?preview=fixtures, 관리자 · 로컬만) */
+  fixtures?: boolean;
 }
 
 const RESULT_GRID = "grid grid-cols-2 gap-x-3 gap-y-8 md:grid-cols-3 md:gap-x-5 md:gap-y-10 lg:grid-cols-4 xl:grid-cols-5";
@@ -30,7 +32,7 @@ const RESULT_GRID = "grid grid-cols-2 gap-x-3 gap-y-8 md:grid-cols-3 md:gap-x-5 
  * 입력하는 동안 0.2초 뒤 결과가 갱신되고, 검색어는 주소(?q=)에 replace로만 남긴다 — 공간 상세에 갔다가 뒤로 오면 같은 결과로 돌아온다.
  * 새 결과를 받는 동안 이전 결과를 흐리게 두어 화면이 흔들리지 않는다. 결과 카드는 HOME의 공간 카드 그대로.
  */
-export default function SearchView({ initialQuery, initialResult, areaOptions, themes, savedRegions, loggedIn, similarPeople }: Props) {
+export default function SearchView({ initialQuery, initialResult, areaOptions, themes, savedRegions, loggedIn, similarPeople, fixtures }: Props) {
   // 검색어는 지금 주소(?q=)에서 읽는다 — 뒤로가기로 돌아오면 Next가 검색 전 화면 트리를 복원하므로 prop보다 주소가 정확하다.
   const params = useSearchParams();
   const startQuery = params.get("q") ?? initialQuery;
@@ -60,7 +62,7 @@ export default function SearchView({ initialQuery, initialResult, areaOptions, t
     const ctrl = new AbortController();
     const t = window.setTimeout(async () => {
       try {
-        const res = await fetch(`/api/search?q=${encodeURIComponent(trimmed)}`, { signal: ctrl.signal });
+        const res = await fetch(`/api/search?q=${encodeURIComponent(trimmed)}${fixtures ? "&preview=fixtures" : ""}`, { signal: ctrl.signal });
         const data = (await res.json()) as SearchResponse;
         fetchedFor.current = trimmed;
         setResult({ ...data, q: trimmed });
@@ -72,7 +74,7 @@ export default function SearchView({ initialQuery, initialResult, areaOptions, t
       ctrl.abort();
       window.clearTimeout(t);
     };
-  }, [trimmed, active]);
+  }, [trimmed, active, fixtures]);
 
   const suggested = areaOptions.filter((o) => o.suggested);
   const others = areaOptions.filter((o) => !o.suggested);
@@ -142,7 +144,7 @@ export default function SearchView({ initialQuery, initialResult, areaOptions, t
                   <ul style={{ borderTop: "1px solid var(--ed-line)" }}>
                     {shown.regions.map((r) => (
                       <li key={r.area} className="flex items-center" style={{ borderBottom: "1px solid var(--ed-line)" }}>
-                        <Link href={homeHref({ area: r.area })} className="group flex-1 min-w-0 flex items-center justify-between gap-3 min-h-16 py-3">
+                        <Link href={homeHref({ area: r.area, preview: fixtures ? "fixtures" : null })} className="group flex-1 min-w-0 flex items-center justify-between gap-3 min-h-16 py-3">
                           <span className="min-w-0">
                             <span className="block text-base md:text-lg font-bold group-hover:underline underline-offset-4">{r.area} 둘러보기</span>
                             <span className="block pt-0.5 text-xs md:text-sm" style={{ color: "var(--ed-dim)" }}>
@@ -163,7 +165,7 @@ export default function SearchView({ initialQuery, initialResult, areaOptions, t
                 <ul className={RESULT_GRID}>
                   {shown.spaces.map((s, i) => (
                     <li key={s.space.id} className="min-w-0">
-                      <HomeSpaceCard space={s.space} reason={s.reason} save={{ saved: s.saved, loggedIn }} priority={i < 4} />
+                      <HomeSpaceCard space={s.space} reason={s.reason} save={s.space.fixture ? undefined : { saved: s.saved, loggedIn }} priority={i < 4} />
                     </li>
                   ))}
                 </ul>
@@ -186,11 +188,11 @@ export default function SearchView({ initialQuery, initialResult, areaOptions, t
           <section id="regions" className="ed-wide pt-8 md:pt-12 scroll-mt-[calc(var(--nav-h)+16px)]">
             <h2 className="text-lg md:text-2xl font-bold tracking-[-0.02em]">추천 지역</h2>
             <p className="pt-1 text-xs md:text-sm" style={{ color: "var(--ed-dim)" }}>별표를 누르면 관심 지역으로 저장돼, HOME에서 그 지역의 공간을 먼저 보여드려요.</p>
-            <RegionGrid options={suggested} savedRegions={savedRegions} loggedIn={loggedIn} />
+            <RegionGrid options={suggested} savedRegions={savedRegions} loggedIn={loggedIn} fixtures={fixtures} />
             {others.length > 0 && (
               <>
                 <p className="ed-label pt-8 pb-3" style={{ color: "var(--ed-dim)" }}>그 밖의 지역</p>
-                <RegionGrid options={others} savedRegions={savedRegions} loggedIn={loggedIn} />
+                <RegionGrid options={others} savedRegions={savedRegions} loggedIn={loggedIn} fixtures={fixtures} />
               </>
             )}
           </section>
@@ -229,12 +231,12 @@ export default function SearchView({ initialQuery, initialResult, areaOptions, t
   );
 }
 
-function RegionGrid({ options, savedRegions, loggedIn }: { options: AreaOption[]; savedRegions: string[]; loggedIn: boolean }) {
+function RegionGrid({ options, savedRegions, loggedIn, fixtures }: { options: AreaOption[]; savedRegions: string[]; loggedIn: boolean; fixtures?: boolean }) {
   return (
     <ul className="pt-4 grid grid-cols-2 gap-2 md:grid-cols-3 lg:grid-cols-5">
       {options.map((o) => (
         <li key={o.area} className="flex items-center min-w-0 border" style={{ borderColor: "var(--ed-line)" }}>
-          <Link href={homeHref({ area: o.area })} className="flex-1 min-w-0 px-3.5 py-2.5 hover:bg-[var(--ed-soft)] transition-colors">
+          <Link href={homeHref({ area: o.area, preview: fixtures ? "fixtures" : null })} className="flex-1 min-w-0 px-3.5 py-2.5 hover:bg-[var(--ed-soft)] transition-colors">
             <span className="block text-[15px] font-semibold truncate">{o.area}</span>
             <span className="block text-xs truncate" style={{ color: "var(--ed-dim)" }}>{o.spaceCount > 0 ? `공간 ${o.spaceCount}곳` : "준비 중"}</span>
           </Link>

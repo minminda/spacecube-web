@@ -9,16 +9,20 @@ interface Props {
   spaceName: string;
   initialSaved: boolean;
   loggedIn: boolean;
-  /** icon: 글 옆 작은 아이콘 / corner: 카드 사진 모서리 아이콘 / text: 상세 페이지 버튼 */
-  variant?: "icon" | "corner" | "text";
+  /** icon: 글 옆 작은 아이콘 / corner: 카드 사진 모서리 아이콘 / text: 텍스트 버튼 / detail: 공간 상세 우측 상단 아이콘 */
+  variant?: "icon" | "corner" | "text" | "detail";
+  /** 임시(fixture) 공간 — 서버에 요청하지 않고 화면 안에서만 켜고 끈다 */
+  mock?: boolean;
 }
+
+const ICON_SIZE = { icon: 18, corner: 14, text: 16, detail: 22 } as const;
 
 /**
  * 공간 저장 — 누르는 즉시 표시를 바꾸고(낙관적), 서버 응답의 최종 상태로 다시 맞춘다.
  * 요청이 진행 중일 때 다시 누르면 무시해 순서가 뒤바뀐 응답으로 화면과 DB가 어긋나지 않게 한다.
  * 실패하면 원래 상태로 되돌리고 짧게 알린다. 비로그인이면 로그인 후 같은 페이지로 돌아온다.
  */
-export default function SaveButton({ spaceId, spaceName, initialSaved, loggedIn, variant = "icon" }: Props) {
+export default function SaveButton({ spaceId, spaceName, initialSaved, loggedIn, variant = "icon", mock }: Props) {
   const [saved, setSaved] = useState(initialSaved);
   const [error, setError] = useState(false);
   const inFlight = useRef(false);
@@ -29,6 +33,10 @@ export default function SaveButton({ spaceId, spaceName, initialSaved, loggedIn,
     // 카드 전체가 링크인 곳에서도 상세로 이동하지 않게 한다.
     e.preventDefault();
     e.stopPropagation();
+    if (mock) {
+      setSaved((v) => !v);
+      return;
+    }
     // 로그인 후 돌아올 곳은 검색어·지역까지 포함한 지금 주소(/find?area=망원 → 로그인 → 같은 화면)
     const here = `${pathname}${window.location.search}`;
     if (!loggedIn) {
@@ -60,7 +68,7 @@ export default function SaveButton({ spaceId, spaceName, initialSaved, loggedIn,
 
   const label = saved ? `${spaceName} 저장 해제` : `${spaceName} 저장`;
   const icon = (
-    <svg viewBox="0 0 24 24" width={variant === "icon" ? 18 : variant === "corner" ? 14 : 16} height={variant === "icon" ? 18 : variant === "corner" ? 14 : 16} aria-hidden>
+    <svg viewBox="0 0 24 24" width={ICON_SIZE[variant]} height={ICON_SIZE[variant]} aria-hidden>
       <path d="M6 3.75h12v16.5l-6-4.2-6 4.2z" fill={saved ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
     </svg>
   );

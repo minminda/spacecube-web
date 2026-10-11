@@ -15,7 +15,8 @@ import { curationEyebrow, spaceCoverImage } from "@/lib/editorial/types";
 import { getSavedEditorialSpaceIds } from "@/lib/editorial/saves";
 import { countPartnerGuestbookTraces } from "@/lib/editorial/partnerTrace";
 import { getPartnerEpisodes } from "@/lib/editorial/partnerEpisodes";
-import LockIcon from "@/components/LockIcon";
+import PartnerEpisodeList from "@/components/editorial/PartnerEpisodeList";
+import { findFixtureSpace, fixtureEpisodes, fixtureSpaceView } from "@/lib/home/fixtures";
 import { normalizeArea } from "@/lib/editorial/area";
 import { INSTAGRAM_URL } from "@/content/site";
 import { curatorAccess } from "@/lib/curators/access";
@@ -45,16 +46,20 @@ export default async function SpaceDetailPage({ params }: Props) {
 
   const access = curatorAccess(viewer);
   // 큐레이터 프로토타입 가상 공간은 미리보기 권한(관리자·로컬)이 있을 때만 열린다.
-  const space = await getSpaceBySlug(slug, { preview: viewer.admin, allowDemo: access.includeDemo });
+  // Discovery 확인용 임시 공간(fixture-N)은 관리자 · 로컬에서만 열린다 — DB를 조회하지 않고 fixtures.ts로만 그린다
+  const fixture = access.includeDemo ? findFixtureSpace(slug) : null;
+  const space = fixture ? fixtureSpaceView(fixture) : await getSpaceBySlug(slug, { preview: viewer.admin, allowDemo: access.includeDemo });
   if (!space) notFound();
 
-  const [{ curations, people, thoughts }, published, savedIds, traces, partnerEp] = await Promise.all([
-    getStoriesForSpace(space.id),
-    listSpaces(),
-    getSavedEditorialSpaceIds(viewer.userId),
-    space.cubeAvailable ? countPartnerGuestbookTraces(space.slug) : Promise.resolve(0),
-    space.cubeAvailable ? getPartnerEpisodes(space.slug) : Promise.resolve(null),
-  ]);
+  const [{ curations, people, thoughts }, published, savedIds, traces, partnerEp] = fixture
+    ? [{ curations: [], people: [], thoughts: [] }, await listSpaces(), new Set<string>(), 0, space.cubeAvailable ? fixtureEpisodes(fixture) : null] as const
+    : await Promise.all([
+        getStoriesForSpace(space.id),
+        listSpaces(),
+        getSavedEditorialSpaceIds(viewer.userId),
+        space.cubeAvailable ? countPartnerGuestbookTraces(space.slug) : Promise.resolve(0),
+        space.cubeAvailable ? getPartnerEpisodes(space.slug) : Promise.resolve(null),
+      ]);
   const area = normalizeArea(space.area);
   const nearby = published.filter((s) => s.id !== space.id && normalizeArea(s.area) === area).slice(0, 3);
   const stories = [...people.map(personStoryItem), ...thoughts.map(thoughtStoryItem)];
@@ -78,10 +83,15 @@ export default async function SpaceDetailPage({ params }: Props) {
 
   return (
     <div className="editorial-bleed">
-      {space.isDemo ? <PrototypeBanner demo /> : <PreviewBanner status={space.status} editHref={`/admin/content/spaces/${space.id}`} />}
+      {fixture ? (
+        <p className="ed-container pt-3 text-xs" style={{ color: "var(--ed-dim)" }}>임시 공간 미리보기 — UI 확인용이며 실제 공간이 아닙니다. 일반 방문자에게는 보이지 않아요.</p>
+      ) : space.isDemo ? <PrototypeBanner demo /> : <PreviewBanner status={space.status} editHref={`/admin/content/spaces/${space.id}`} />}
       <main>
         <header className="ed-container pt-10 md:pt-16">
-          <Link href={back.href} className="text-xs hover:underline underline-offset-4" style={{ color: "var(--ed-dim)" }}>← {back.label}</Link>
+          <div className="flex items-start justify-between gap-4">
+            <Link href={back.href} className="text-xs hover:underline underline-offset-4" style={{ color: "var(--ed-dim)" }}>← {back.label}</Link>
+            <SaveButton spaceId={space.id} spaceName={space.name} initialSaved={savedIds.has(space.id)} loggedIn={viewer.loggedIn} variant="detail" mock={!!fixture} />
+          </div>
           <div className="mt-8 md:mt-12 grid gap-6 md:grid-cols-12 md:items-end">
             <div className="md:col-span-7 space-y-5">
               <p className="ed-label inline-flex items-center gap-2" style={{ color: "var(--ed-dim)" }}>
@@ -93,9 +103,6 @@ export default async function SpaceDetailPage({ params }: Props) {
             {space.summary && (
               <p className="md:col-span-5 text-lg md:text-xl leading-relaxed">{space.summary}</p>
             )}
-            <div className="md:col-span-12 flex flex-wrap items-start gap-x-6 gap-y-3">
-              <SaveButton spaceId={space.id} spaceName={space.name} initialSaved={savedIds.has(space.id)} loggedIn={viewer.loggedIn} variant="text" />
-            </div>
           </div>
         </header>
 
@@ -156,31 +163,7 @@ export default async function SpaceDetailPage({ params }: Props) {
                 <p className="ed-label pb-3 inline-flex items-center gap-2 w-full" style={{ color: "var(--ed-dim)", borderBottom: "1px solid var(--ed-fg)" }}>
                   Episode <PartnerMark size={13} />
                 </p>
-                {partnerEp && (
-                  <ul>
-                    {partnerEp.episodes.map((ep) => {
-                      const open = partnerEp.unlocked && ep.state !== "LOCKED";
-                      const row = (
-                        <span className="flex items-center gap-3 py-3.5 text-sm" style={{ borderBottom: "1px solid var(--ed-line)" }}>
-                          <span className="text-xs shrink-0" style={{ color: "var(--ed-dim)" }}>EP.{ep.episodeNumber}</span>
-                          <span className="flex-1 min-w-0 font-semibold break-keep" style={{ color: open ? undefined : "var(--ed-dim)" }}>{ep.title}</span>
-                          {open ? <span aria-hidden>→</span> : <LockIcon className="w-4 h-4 shrink-0" />}
-                        </span>
-                      );
-                      return (
-                        <li key={ep.id}>
-                          {open ? <Link href={`/space/${space.slug}/episodes/${ep.id}`} className="block hover:underline underline-offset-4">{row}</Link> : row}
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
-                {partnerEp && !partnerEp.unlocked && (
-                  <p className="pt-3 text-sm leading-relaxed break-keep" style={{ color: "var(--ed-dim)" }}>이 공간에서 QR을 스캔하면 이야기가 열립니다.</p>
-                )}
-                {partnerEp?.unlocked && (
-                  <Link href={`/space/${space.slug}/record`} className="tap-target mt-4 inline-flex items-center text-sm font-semibold underline underline-offset-[6px] decoration-1">방명록 열기</Link>
-                )}
+                {partnerEp && <PartnerEpisodeList slug={space.slug} episodes={partnerEp.episodes} unlocked={partnerEp.unlocked} />}
                 {traces > 0 && (
                   <p className="text-xs tabular-nums pt-3" style={{ color: "var(--ed-dim)" }}>지금까지 방명록에 남은 흔적 {traces}개</p>
                 )}

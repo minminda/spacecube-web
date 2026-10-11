@@ -11,7 +11,8 @@ import { getFinderPool } from "@/lib/finder/finderData";
 import { listAreas } from "@/lib/editorial/queries";
 import { normalizeArea } from "@/lib/editorial/area";
 import { getSavedEditorialSpaceIds } from "@/lib/editorial/saves";
-import { homeSpaceFromFinder } from "@/lib/home/homeData";
+import { homeSpaceFromFinder, mergeAreaCounts } from "@/lib/home/homeData";
+import { fixtureAreaCounts, fixtureSpaces } from "@/lib/home/fixtures";
 import { buildAreaOptions, type AreaOption, type HomeSpace } from "@/lib/home/shelves";
 import { searchRegions, searchSpaces, type SearchDoc } from "./spaceSearch";
 
@@ -23,7 +24,8 @@ export interface SearchCorpus {
   areaOptions: AreaOption[];
 }
 
-export async function loadSearchCorpus(opts: { admin: boolean }): Promise<SearchCorpus> {
+/** fixtures: 관리자 · 로컬의 ?preview=fixtures에서만 true — 임시 공간(src/lib/home/fixtures.ts)을 말뭉치에 섞는다 */
+export async function loadSearchCorpus(opts: { admin: boolean; fixtures?: boolean }): Promise<SearchCorpus> {
   const access = curatorAccess({ admin: opts.admin, editorial: true });
   const [pool, links, areas] = await Promise.all([
     getFinderPool(access),
@@ -62,7 +64,14 @@ export async function loadSearchCorpus(opts: { admin: boolean }): Promise<Search
     const why = notes[0] ?? f.view.summary;
     if (why) reasons.set(f.id, why);
   }
-  return { docs, spaces, reasons, areaOptions: buildAreaOptions(areas) };
+  if (opts.fixtures) {
+    for (const f of fixtureSpaces(pool.length + 1)) {
+      docs.push({ id: f.id, name: f.name, area: f.area, category: f.category, tags: f.tags, summary: f.summary ?? "", description: "", curation: [], reasons: [f.reason], order: f.order });
+      spaces.set(f.id, f);
+      reasons.set(f.id, f.reason);
+    }
+  }
+  return { docs, spaces, reasons, areaOptions: buildAreaOptions(opts.fixtures ? mergeAreaCounts(areas, fixtureAreaCounts()) : areas) };
 }
 
 export interface SearchSpaceItem {
@@ -102,8 +111,8 @@ export function runSearch(corpus: SearchCorpus, q: string, saved: { spaceIds: Se
 }
 
 /** 페이지 · API가 함께 쓰는 한 번에 조회 */
-export async function searchForViewer(opts: { admin: boolean; userId: string | null; q: string; regions: string[] }): Promise<{ corpus: SearchCorpus; result: SearchResponse | null }> {
-  const [corpus, spaceIds] = await Promise.all([loadSearchCorpus({ admin: opts.admin }), getSavedEditorialSpaceIds(opts.userId)]);
+export async function searchForViewer(opts: { admin: boolean; userId: string | null; q: string; regions: string[]; fixtures?: boolean }): Promise<{ corpus: SearchCorpus; result: SearchResponse | null }> {
+  const [corpus, spaceIds] = await Promise.all([loadSearchCorpus({ admin: opts.admin, fixtures: opts.fixtures }), getSavedEditorialSpaceIds(opts.userId)]);
   const result = opts.q.trim() ? runSearch(corpus, opts.q, { spaceIds, regions: opts.regions }) : null;
   return { corpus, result };
 }
