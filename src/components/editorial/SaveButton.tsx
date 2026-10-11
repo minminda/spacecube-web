@@ -9,7 +9,7 @@ interface Props {
   spaceName: string;
   initialSaved: boolean;
   loggedIn: boolean;
-  /** icon: 글 옆 작은 아이콘 / corner: 카드 사진 모서리 아이콘 / text: 텍스트 버튼 / detail: 공간 상세 우측 상단 아이콘 */
+  /** icon: 글 옆 작은 아이콘 / corner: 카드 사진 모서리 아이콘 / text: 텍스트 버튼 / detail: 공간 상세 대표 이미지 우측 상단 아이콘 */
   variant?: "icon" | "corner" | "text" | "detail";
   /** 임시(fixture) 공간 — 서버에 요청하지 않고 화면 안에서만 켜고 끈다 */
   mock?: boolean;
@@ -106,6 +106,23 @@ export default function SaveButton({ spaceId, spaceName, initialSaved, loggedIn,
         <span className="w-6 h-6 inline-flex items-center justify-center" style={{ background: "rgba(255,255,255,0.92)", color: error ? "#a1271b" : "#111" }}>
           {icon}
         </span>
+      </button>
+    );
+  }
+
+  if (variant === "detail") {
+    // 대표 이미지 위 — 44px 터치 영역, 어떤 사진 위에서도 보이도록 반투명 면 + 블러
+    return (
+      <button
+        type="button"
+        onClick={toggle}
+        aria-pressed={saved}
+        aria-label={label}
+        title={error ? "저장하지 못했어요. 다시 시도해주세요." : label}
+        className="w-11 h-11 inline-flex items-center justify-center backdrop-blur-sm"
+        style={{ background: "rgba(255,255,255,0.88)", color: error ? "#a1271b" : "#111" }}
+      >
+        {icon}
       </button>
     );
   }

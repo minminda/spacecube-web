@@ -13,7 +13,6 @@ import PreviewBanner from "@/components/editorial/PreviewBanner";
 import { getSpaceBySlug, getStoriesForSpace, listSpaces, personStoryItem, thoughtStoryItem } from "@/lib/editorial/queries";
 import { curationEyebrow, spaceCoverImage } from "@/lib/editorial/types";
 import { getSavedEditorialSpaceIds } from "@/lib/editorial/saves";
-import { countPartnerGuestbookTraces } from "@/lib/editorial/partnerTrace";
 import { getPartnerEpisodes } from "@/lib/editorial/partnerEpisodes";
 import PartnerEpisodeList from "@/components/editorial/PartnerEpisodeList";
 import { findFixtureSpace, fixtureEpisodes, fixtureSpaceView } from "@/lib/home/fixtures";
@@ -38,7 +37,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
  * Cube 운영 DB·Episode/Scene·방명록(/space/[slug]/**)으로는 어떤 링크도 두지 않는다.
  * 함께한 공간(cubeAvailable)이면 웹 정본인 "운영자의 이야기"(story 블록)를 전부 보여주고,
  * 현장 Cube는 이 이야기의 뒷부분이 아니라 그 자리에서만 의미 있는 디테일이라는 점을 안내한다.
- * 방명록은 실제 남은 흔적 수만 보여준다(내용은 현장에서만).
+ * 방명록 참여자 수 · 기록 수는 공개 상세에 노출하지 않는다(내용도 현장에서만).
  */
 export default async function SpaceDetailPage({ params }: Props) {
   const [{ slug }, viewer] = await Promise.all([params, getEditorialViewer()]);
@@ -51,13 +50,12 @@ export default async function SpaceDetailPage({ params }: Props) {
   const space = fixture ? fixtureSpaceView(fixture) : await getSpaceBySlug(slug, { preview: viewer.admin, allowDemo: access.includeDemo });
   if (!space) notFound();
 
-  const [{ curations, people, thoughts }, published, savedIds, traces, partnerEp] = fixture
-    ? [{ curations: [], people: [], thoughts: [] }, await listSpaces(), new Set<string>(), 0, space.cubeAvailable ? fixtureEpisodes(fixture) : null] as const
+  const [{ curations, people, thoughts }, published, savedIds, partnerEp] = fixture
+    ? [{ curations: [], people: [], thoughts: [] }, await listSpaces(), new Set<string>(), space.cubeAvailable ? fixtureEpisodes(fixture) : null] as const
     : await Promise.all([
         getStoriesForSpace(space.id),
         listSpaces(),
         getSavedEditorialSpaceIds(viewer.userId),
-        space.cubeAvailable ? countPartnerGuestbookTraces(space.slug) : Promise.resolve(0),
         space.cubeAvailable ? getPartnerEpisodes(space.slug) : Promise.resolve(null),
       ]);
   const area = normalizeArea(space.area);
@@ -88,10 +86,7 @@ export default async function SpaceDetailPage({ params }: Props) {
       ) : space.isDemo ? <PrototypeBanner demo /> : <PreviewBanner status={space.status} editHref={`/admin/content/spaces/${space.id}`} />}
       <main>
         <header className="ed-container pt-10 md:pt-16">
-          <div className="flex items-start justify-between gap-4">
-            <Link href={back.href} className="text-xs hover:underline underline-offset-4" style={{ color: "var(--ed-dim)" }}>← {back.label}</Link>
-            <SaveButton spaceId={space.id} spaceName={space.name} initialSaved={savedIds.has(space.id)} loggedIn={viewer.loggedIn} variant="detail" mock={!!fixture} />
-          </div>
+          <Link href={back.href} className="text-xs hover:underline underline-offset-4" style={{ color: "var(--ed-dim)" }}>← {back.label}</Link>
           <div className="mt-8 md:mt-12 grid gap-6 md:grid-cols-12 md:items-end">
             <div className="md:col-span-7 space-y-5">
               <p className="ed-label inline-flex items-center gap-2" style={{ color: "var(--ed-dim)" }}>
@@ -107,7 +102,13 @@ export default async function SpaceDetailPage({ params }: Props) {
         </header>
 
         <div className="ed-container pt-10 md:pt-14">
-          <EdImage image={spaceCoverImage(space)} ratio="16 / 9" sizes="(min-width: 1200px) 1120px, 100vw" priority />
+          {/* 저장 아이콘은 대표 이미지 우측 상단 — 사진이 없으면 플레이스홀더 면 위에 같은 자리 */}
+          <div className="relative">
+            <EdImage image={spaceCoverImage(space)} ratio="16 / 9" sizes="(min-width: 1200px) 1120px, 100vw" priority />
+            <div className="absolute right-2 top-2 md:right-3 md:top-3 z-10">
+              <SaveButton spaceId={space.id} spaceName={space.name} initialSaved={savedIds.has(space.id)} loggedIn={viewer.loggedIn} variant="detail" mock={!!fixture} />
+            </div>
+          </div>
         </div>
 
         <section className="ed-container py-16 md:py-24 grid gap-14 md:grid-cols-12 md:gap-12">
@@ -164,9 +165,6 @@ export default async function SpaceDetailPage({ params }: Props) {
                   Episode <PartnerMark size={13} />
                 </p>
                 {partnerEp && <PartnerEpisodeList slug={space.slug} episodes={partnerEp.episodes} unlocked={partnerEp.unlocked} />}
-                {traces > 0 && (
-                  <p className="text-xs tabular-nums pt-3" style={{ color: "var(--ed-dim)" }}>지금까지 방명록에 남은 흔적 {traces}개</p>
-                )}
               </div>
             )}
           </aside>

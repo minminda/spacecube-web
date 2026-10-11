@@ -30,12 +30,15 @@ import {
 } from "./shelves";
 import { similarPeopleForHome, type SimilarPerson } from "@/lib/people/peopleData";
 import { fixtureAreaCounts, fixtureSpaces, type FixtureSpace } from "./fixtures";
+import { diversifyShelves, type DiversityStrength } from "./diversity";
 import { buildShelfPlan, type PlanItem } from "./shelfConfig";
 import { loadShelfRows } from "./shelfData";
 import { applyThemeRules } from "./themeRules";
 
 const LATEST_COUNT = 5;
 const PER_SHELF = 12;
+/** 선반이 중복을 피해 고를 수 있도록 먼저 만들어 두는 후보 수(화면에는 PER_SHELF까지만) */
+const CANDIDATES = 36;
 
 export interface HomeCard {
   space: HomeSpace;
@@ -148,8 +151,8 @@ export async function getHomeData(opts: { userId: string | null; admin: boolean;
   const inArea = area ? spacesInArea(all, area) : all;
   const areaRow = area ? areaOptions.find((o) => o.area === area) : null;
 
-  const cardsOf = (list: HomeSpace[], reason: (s: HomeSpace) => string | null = reasonOf): HomeCard[] =>
-    list.slice(0, PER_SHELF).map((space) => ({ space, reason: reason(space) }));
+  const cardsOf = (list: HomeSpace[], reason: (s: HomeSpace) => string | null = reasonOf, n = PER_SHELF): HomeCard[] =>
+    list.slice(0, n).map((space) => ({ space, reason: reason(space) }));
 
   // ── 개인화(또는 편집) 선반: 이미 다녀왔거나 찜한 곳은 빼고 "새로 발견할" 공간만 — 기존 추천 정렬 그대로 ──
   const exclude = (f: FinderSpace) => me.visitedSlugs.has(f.view.slug) || me.savedIds.has(f.id);
@@ -160,7 +163,9 @@ export async function getHomeData(opts: { userId: string | null; admin: boolean;
     const why = cardReason({ visited: false, personalized: me.personalized, matched: r.matched, curationTitle: r.space.curations[0]?.title, collection: null });
     return { space, reason: notes.get(space.id) ?? why ?? space.summary ?? null };
   };
-  const forYouCards: HomeCard[] = ranked.slice(0, PER_SHELF).map(cardOfRanked);
+  const forYouCards: HomeCard[] = ranked.slice(0, CANDIDATES).map(cardOfRanked);
+  const forYouShown = Math.min(forYouCards.length, PER_SHELF);
+  let forYouFixtureCount = 0;
   const fixtureFill = area ? fixtures.filter((f) => f.area === area) : fixtures;
   if (opts.fixtures) {
     // 첫 선반에 한 지역만 몰리지 않도록 지역을 돌아가며 6곳
@@ -169,6 +174,7 @@ export async function getHomeData(opts: { userId: string | null; admin: boolean;
     const rotated: HomeSpace[] = [];
     for (let i = 0; rotated.length < fixtureFill.length; i++) for (const list of byArea.values()) if (list[i]) rotated.push(list[i]);
     forYouCards.push(...cardsOf(rotated.slice(0, 6)));
+    forYouFixtureCount = Math.min(6, rotated.length);
   }
   const forYou: HomeSpaceShelf | null = forYouCards.length
     ? {
@@ -192,7 +198,7 @@ export async function getHomeData(opts: { userId: string | null; admin: boolean;
         key: "interest",
         title: present.length > 0 && present.length <= 2 ? `${present.join(" · ")}에서 발견한 공간` : "관심 지역에서 발견한 공간",
         ...(present.length === 1 ? { href: homeHref({ area: present[0] }), cta: `${present[0]} 둘러보기` } : {}),
-        cards: interestRanked.slice(0, PER_SHELF).map(cardOfRanked),
+        cards: interestRanked.slice(0, CANDIDATES).map(cardOfRanked),
       };
     }
   }
@@ -204,7 +210,7 @@ export async function getHomeData(opts: { userId: string | null; admin: boolean;
     return space ? [{ space, reason: sp.visited ? "나와 비슷한 취향의 사용자가 다녀온 공간" : "나와 비슷한 취향의 사용자가 저장한 공간" }] : [];
   });
   const similar: HomeSpaceShelf | null = similarCards.length >= 2
-    ? { key: "similar", title: "나와 비슷한 사람들이 좋아한 공간", cards: similarCards.slice(0, PER_SHELF) }
+    ? { key: "similar", title: "나와 비슷한 사람들이 좋아한 공간", cards: similarCards.slice(0, CANDIDATES) }
     : null;
 
   // ── 계정 선반: 찜한 공간 · 다시 떠올려볼 공간 ──
@@ -223,20 +229,20 @@ export async function getHomeData(opts: { userId: string | null; admin: boolean;
   const spaceShelves: HomeSpaceShelf[] = [];
   if (area) {
     for (const c of buildCategoryShelves(inArea, { min: 2, max: 2 })) {
-      spaceShelves.push({ key: `cat-${c.category}`, title: `${area}의 ${c.category}`, cards: cardsOf(c.spaces) });
+      spaceShelves.push({ key: `cat-${c.category}`, title: `${area}의 ${c.category}`, cards: cardsOf(c.spaces, reasonOf, CANDIDATES) });
     }
-    const themes = buildThemeShelves(inArea, { min: 2, themes: themeDefs });
-    for (const t of themes) spaceShelves.push({ key: `theme-${t.theme.key}`, title: `${area}에서 ${t.theme.short}`, cards: cardsOf(t.spaces) });
+    const themes = buildThemeShelves(inArea, { min: 2, perShelf: CANDIDATES, themes: themeDefs });
+    for (const t of themes) spaceShelves.push({ key: `theme-${t.theme.key}`, title: `${area}에서 ${t.theme.short}`, cards: cardsOf(t.spaces, reasonOf, CANDIDATES) });
   } else {
-    const fresh = newestFirst(all).slice(0, PER_SHELF);
-    if (fresh.length >= 3) spaceShelves.push({ key: "new", title: "새롭게 소개한 공간", href: "/spaces", cta: "공간 전체", cards: cardsOf(fresh) });
+    const fresh = newestFirst(all).slice(0, CANDIDATES);
+    if (fresh.length >= 3) spaceShelves.push({ key: "new", title: "새롭게 소개한 공간", href: "/spaces", cta: "공간 전체", cards: cardsOf(fresh, reasonOf, CANDIDATES) });
     // 관심 지역은 위의 "관심 지역에서 발견한 공간"이 이미 맡았으므로 일반 지역 선반에서는 뺀다
-    const areaShelves: AreaShelf[] = buildAreaShelves(all.filter((s) => !(s.area && savedSet.has(s.area))), { min: 3, max: 3 });
+    const areaShelves: AreaShelf[] = buildAreaShelves(all.filter((s) => !(s.area && savedSet.has(s.area))), { min: 3, max: 3, perShelf: CANDIDATES });
     for (const a of areaShelves) {
-      spaceShelves.push({ key: `area-${a.area}`, title: `${a.area}에서 머물고 싶은 곳`, href: `/find?area=${encodeURIComponent(a.area)}`, cta: `${a.area} 더 보기`, cards: cardsOf(a.spaces) });
+      spaceShelves.push({ key: `area-${a.area}`, title: `${a.area}에서 머물고 싶은 곳`, href: `/find?area=${encodeURIComponent(a.area)}`, cta: `${a.area} 더 보기`, cards: cardsOf(a.spaces, reasonOf, CANDIDATES) });
     }
-    const themes = buildThemeShelves(all, { min: 3, themes: themeDefs });
-    for (const t of themes) spaceShelves.push({ key: `theme-${t.theme.key}`, title: t.theme.title, cards: cardsOf(t.spaces) });
+    const themes = buildThemeShelves(all, { min: 3, perShelf: CANDIDATES, themes: themeDefs });
+    for (const t of themes) spaceShelves.push({ key: `theme-${t.theme.key}`, title: t.theme.title, cards: cardsOf(t.spaces, reasonOf, CANDIDATES) });
   }
 
   // ── EDITORIAL 선반: 공개 공간 Pool에 있는 공간만(초안 · 보관 · 데모 공간은 자동으로 빠진다), 운영자가 정한 순서 그대로 ──
@@ -252,6 +258,24 @@ export async function getHomeData(opts: { userId: string | null; admin: boolean;
 
   const areaCurations = visible(curations).filter((c) => !area || normalizeArea(c.area) === area);
   const cubeList = visible(cubeViews).map((s, i) => fromView(s, cubeViews.length - i)).filter((s) => !area || s.area === area);
+
+  const cubeSpaces: HomeSpaceShelf | null = cubeList.length ? { key: "cube", title: "공간큐브와 함께한 공간", href: "/cube-spaces", cta: "함께한 공간", cards: cardsOf(cubeList) } : null;
+  const plan = buildShelfPlan(shelfRows);
+
+  // ── 같은 공간이 HOME에서 반복되지 않도록: 보이는 순서대로 노출 횟수를 세며 후보를 재정렬(기존 ranking 유지) ──
+  diversifyHome({
+    plan,
+    shelves: [
+      { shelf: forYou, strength: "light", limit: forYouShown + forYouFixtureCount },
+      { shelf: interest, strength: "light", limit: PER_SHELF },
+      { shelf: similar, strength: "light", limit: PER_SHELF },
+      { shelf: saved, strength: "none", limit: PER_SHELF },
+      { shelf: revisit, strength: "none", limit: PER_SHELF },
+      { shelf: cubeSpaces, strength: "none", limit: PER_SHELF },
+      ...spaceShelves.map((shelf) => ({ shelf, strength: (shelf.key.startsWith("area-") || shelf.key.startsWith("cat-") ? "light" : "strong") as DiversityStrength, limit: PER_SHELF })),
+      ...(area ? [] : Object.values(editorialShelves).map((shelf) => ({ shelf, strength: "strong" as DiversityStrength, limit: shelf.cards.length }))),
+    ],
+  });
 
   return {
     latest: stream.slice(0, LATEST_COUNT),
@@ -270,10 +294,10 @@ export async function getHomeData(opts: { userId: string | null; admin: boolean;
     spaceShelves,
     curations: areaCurations.slice(0, 10),
     stories: visible(stories).slice(0, 10),
-    cubeSpaces: cubeList.length ? { key: "cube", title: "공간큐브와 함께한 공간", href: "/cube-spaces", cta: "함께한 공간", cards: cardsOf(cubeList) } : null,
+    cubeSpaces,
     savedIds: me.savedIds,
     loggedIn: !!opts.userId,
-    plan: buildShelfPlan(shelfRows),
+    plan,
     editorialShelves,
   };
 }
@@ -287,4 +311,34 @@ export function mergeAreaCounts(a: { area: string; spaceCount: number; curationC
     map.set(r.area, cur);
   }
   return [...map.values()];
+}
+
+/** 선반 key → 노출 계획(plan)의 key. 지역 · 유형 · 테마 선반은 하나의 plan 항목이 여러 선반을 만든다. */
+function planKeyOf(key: string): string {
+  if (key.startsWith("area-") || key.startsWith("cat-")) return "area";
+  if (key.startsWith("theme-")) return "theme";
+  return key;
+}
+
+interface DiversityEntry {
+  shelf: HomeSpaceShelf | null;
+  strength: DiversityStrength;
+  limit: number;
+}
+
+/** HOME에 실제로 보이는 선반만, 보이는 순서대로 diversifyShelves에 넣고 결과 카드를 선반에 되돌려 넣는다(선반 객체를 제자리에서 갱신). */
+export function diversifyHome(input: { plan: PlanItem[]; shelves: DiversityEntry[] }): void {
+  const order = input.plan.filter((p) => p.visible).map((p) => p.key);
+  const entries = input.shelves.filter((e): e is DiversityEntry & { shelf: HomeSpaceShelf } => !!e.shelf);
+  const rank = (e: { shelf: HomeSpaceShelf }) => {
+    const i = order.indexOf(planKeyOf(e.shelf.key));
+    return i === -1 ? Number.MAX_SAFE_INTEGER : i;
+  };
+  const visible = entries.map((e, idx) => ({ e, idx })).filter((x) => rank(x.e) !== Number.MAX_SAFE_INTEGER).sort((a, b) => rank(a.e) - rank(b.e) || a.idx - b.idx).map((x) => x.e);
+  // 엄선한 공간은 계획상 어디에 있든 먼저 센다 — 새롭게 소개한 공간이 그만큼 덜 노출된 공간을 먼저 고르도록
+  visible.sort((a, b) => Number(b.shelf.key === "for-you") - Number(a.shelf.key === "for-you"));
+  const result = diversifyShelves(visible.map((e) => ({ key: e.shelf.key, strength: e.strength, limit: e.limit, cards: e.shelf.cards })), (c) => c.space.id);
+  result.forEach((r, i) => { visible[i].shelf.cards = r.cards; });
+  // 보이지 않는 선반은 화면 수만큼만
+  for (const e of entries) if (!visible.includes(e)) e.shelf.cards = e.shelf.cards.slice(0, e.limit);
 }
