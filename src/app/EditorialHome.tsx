@@ -158,7 +158,6 @@ export default async function EditorialHome({ admin, previewDrafts, fixtures, us
         {d.forYou && shelf(d.forYou)}
         {d.interest && shelf(d.interest)}
         {d.similar && shelf(d.similar)}
-        {d.similarPeople.length >= 2 && <SimilarPeopleShelf people={d.similarPeople} />}
 
         {/* 계정 데이터가 필요한 선반 — 비로그인은 한 줄 안내로 대신한다 */}
         {d.saved ? shelf(d.saved) : !d.loggedIn && (
@@ -179,6 +178,8 @@ export default async function EditorialHome({ admin, previewDrafts, fixtures, us
         {themed.slice(half).map((s) => shelf(s))}
         {d.revisit && shelf(d.revisit)}
         {d.cubeSpaces && shelf(d.cubeSpaces)}
+        {/* 사람 자체를 보여주는 줄은 맨 아래 — 위에서는 공간 발견이 먼저 */}
+        {d.similarPeople.length >= 2 && <SimilarPeopleShelf people={d.similarPeople} />}
 
         {/* ── GONGGANCUBE EXPERIENCE — 발견 → 저장 → 방문 → Cube → 기록 ── */}
         <section className="mt-8" style={{ background: "var(--ed-soft)" }}>

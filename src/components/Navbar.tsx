@@ -21,19 +21,13 @@ const LEGACY_NAV_ITEMS = [
    서비스의 최상위는 HOME · 검색 · 내 공간 셋뿐이다. 추천은 별도 목적지가 아니라 HOME을 개인화하는 원리라 메뉴에서 뺐다.
    - 데스크톱 · 모바일 모두 [로고 ···  (검색) ☰] — 메뉴는 ☰ 하나로 통일. 데스크톱은 오른쪽에서 열리는 패널, 모바일은 전체 화면.
      데스크톱 상단 바는 모바일(56px)보다 조금 두껍다(68px, --nav-h). 모바일은 하단 탭(홈 · 검색 · 내 공간)이 있어 상단에 검색을 두지 않는다.
-   - 메뉴 구성: 콘텐츠(CURATION · STORY) / 탐색(지역 · 테마 둘러보기) / 사용자(내 공간 · 설정) + 로그인 · 로그아웃, 아래에 보조 링크.
+   - 메뉴 구성: 콘텐츠(CURATION · STORY) / 사용자(내 공간 · 설정) — 지역 · 테마 입구는 검색 첫 화면이 맡는다 + 로그인 · 로그아웃, 아래에 보조 링크.
    - 큐레이터(프로토타입)·함께한 공간은 상단에 두지 않는다(HOME 선반에서 만난다). 공간 제안하기는 메뉴 하단 보조 영역 · 푸터. ── */
 
 const CONTENT_ROWS = [
   { label: "CURATION", href: "/curation", match: (p: string) => p.startsWith("/curation") },
   { label: "STORY", href: "/story", match: (p: string) => p === "/story" || p.startsWith("/people") || p.startsWith("/thought") },
 ];
-// 지역 · 테마 둘러보기는 검색 첫 화면의 "추천 지역" · "추천 테마" 구획으로 간다(검색어 없이 열었을 때 보이는 입구).
-const EXPLORE_ROWS = [
-  { label: "지역 둘러보기", href: "/search#regions" },
-  { label: "테마 둘러보기", href: "/search#themes" },
-];
-
 const isSearchPath = (p: string) => p.startsWith("/search") || p.startsWith("/find") || p.startsWith("/recommend");
 
 export default function Navbar() {
@@ -172,8 +166,6 @@ export default function Navbar() {
             <div className="px-5 md:px-7 pb-2">
               {groupLabel("콘텐츠")}
               <ul>{CONTENT_ROWS.map((r) => row(r.label, r.href, r.match(pathname)))}</ul>
-              {groupLabel("탐색")}
-              <ul>{EXPLORE_ROWS.map((r) => row(r.label, r.href, false))}</ul>
               {groupLabel("사용자")}
               <ul>
                 {row("내 공간", myHref, pathname.startsWith("/archive"))}

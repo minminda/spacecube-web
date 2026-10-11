@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import HomeSpaceCard from "@/components/home/HomeSpaceCard";
 import RegionStar from "@/components/home/RegionStar";
+import SimilarPeopleShelf from "@/components/home/SimilarPeopleShelf";
+import type { SimilarPerson } from "@/lib/people/peopleData";
 import { ChevronRightIcon, CloseIcon, SearchIcon } from "@/components/icons";
 import { homeHref, type AreaOption } from "@/lib/home/shelves";
 import type { SearchResponse } from "@/lib/search/searchData";
@@ -17,6 +19,8 @@ interface Props {
   themes: { key: string; chip: string }[];
   savedRegions: string[];
   loggedIn: boolean;
+  /** 검색어가 없을 때 첫 화면에 보여줄 "취향이 비슷한 사람"(없으면 숨김) */
+  similarPeople: SimilarPerson[];
 }
 
 const RESULT_GRID = "grid grid-cols-2 gap-x-3 gap-y-8 md:grid-cols-3 md:gap-x-5 md:gap-y-10 lg:grid-cols-4 xl:grid-cols-5";
@@ -26,7 +30,7 @@ const RESULT_GRID = "grid grid-cols-2 gap-x-3 gap-y-8 md:grid-cols-3 md:gap-x-5 
  * 입력하는 동안 0.2초 뒤 결과가 갱신되고, 검색어는 주소(?q=)에 replace로만 남긴다 — 공간 상세에 갔다가 뒤로 오면 같은 결과로 돌아온다.
  * 새 결과를 받는 동안 이전 결과를 흐리게 두어 화면이 흔들리지 않는다. 결과 카드는 HOME의 공간 카드 그대로.
  */
-export default function SearchView({ initialQuery, initialResult, areaOptions, themes, savedRegions, loggedIn }: Props) {
+export default function SearchView({ initialQuery, initialResult, areaOptions, themes, savedRegions, loggedIn, similarPeople }: Props) {
   // 검색어는 지금 주소(?q=)에서 읽는다 — 뒤로가기로 돌아오면 Next가 검색 전 화면 트리를 복원하므로 prop보다 주소가 정확하다.
   const params = useSearchParams();
   const startQuery = params.get("q") ?? initialQuery;
@@ -212,6 +216,13 @@ export default function SearchView({ initialQuery, initialResult, areaOptions, t
               ))}
             </ul>
           </section>
+
+          {/* 지역 → 테마 → 사람의 취향 — HOME과 같은 줄 */}
+          {!active && similarPeople.length >= 2 && (
+            <div className="pt-4 md:pt-6">
+              <SimilarPeopleShelf people={similarPeople} />
+            </div>
+          )}
         </>
       )}
     </>
