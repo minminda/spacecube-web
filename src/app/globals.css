@@ -262,18 +262,18 @@ html[data-ed-theme="dark"]:has(.editorial-bleed) { color-scheme: dark; }
 }
 .ed-scroll-x::-webkit-scrollbar { display: none; }
 
-/* ── 발견 화면(HOME) 넓은 컨테이너 + 가로 선반 ──────────────────────────────
+/* ── 발견 화면(HOME) 넓은 컨테이너(상단 내비도 같은 폭 — 큰 모니터에서도 화면 가장자리를 쓴다) + 가로 선반 ──────────────────────────────
    읽는 화면(STORY 본문 등)은 기존 .ed-container(1200px) 그대로. 공간을 둘러보는 HOME만 화면 폭을 넓게 쓴다.
    선반(.ed-shelf)은 컨테이너 좌우 여백까지 밀어 화면 끝에서 카드가 잘려 보이게 한다(옆으로 더 있다는 신호). */
 .ed-wide {
-  max-width: 1680px;
+  max-width: 2400px;
   margin: 0 auto;
   padding-left: 20px;
   padding-right: 20px;
 }
 .ed-shelf {
   display: flex;
-  gap: 12px;
+  gap: 10px;
   overflow-x: auto;
   overscroll-behavior-x: contain;
   scroll-snap-type: x proximity;
@@ -291,7 +291,7 @@ html[data-ed-theme="dark"]:has(.editorial-bleed) { color-scheme: dark; }
   scroll-snap-align: start;
 }
 /* 카드 폭 — 공간 카드(4:5)는 STORY/CURATION 안의 공간 타일 밀도에 맞춘다: 휴대폰에서 세 장 남짓(다음 카드가 걸쳐 보임), 데스크톱에서 여덟 장 안팎 */
-.ed-shelf-space { --shelf-card: 31vw; }
+.ed-shelf-space { --shelf-card: 27vw; }
 .ed-shelf-story { --shelf-card: 44vw; }
 .ed-shelf-curation { --shelf-card: 64vw; }
 .ed-shelf-person { --shelf-card: 88px; }
@@ -301,8 +301,8 @@ html[data-ed-theme="dark"]:has(.editorial-bleed) { color-scheme: dark; }
   .ed-shelf-curation { --shelf-card: 40vw; }
 }
 @media (min-width: 768px) {
-  .ed-wide { padding-left: 40px; padding-right: 40px; }
-  .ed-shelf { gap: 20px; scroll-padding-left: 40px; margin-left: -40px; margin-right: -40px; padding-left: 40px; padding-right: 40px; }
+  .ed-wide { padding-left: 32px; padding-right: 32px; }
+  .ed-shelf { gap: 20px; scroll-padding-left: 32px; margin-left: -32px; margin-right: -32px; padding-left: 32px; padding-right: 32px; }
   .ed-shelf-space { --shelf-card: 16vw; }
   .ed-shelf-story { --shelf-card: 24vw; }
   .ed-shelf-curation { --shelf-card: 31vw; }
@@ -314,8 +314,8 @@ html[data-ed-theme="dark"]:has(.editorial-bleed) { color-scheme: dark; }
   .ed-shelf-curation { --shelf-card: clamp(300px, 29vw, 440px); }
 }
 @media (min-width: 1280px) {
-  .ed-wide { padding-left: 56px; padding-right: 56px; }
-  .ed-shelf { gap: 24px; scroll-padding-left: 56px; margin-left: -56px; margin-right: -56px; padding-left: 56px; padding-right: 56px; }
+  .ed-wide { padding-left: 40px; padding-right: 40px; }
+  .ed-shelf { gap: 24px; scroll-padding-left: 40px; margin-left: -40px; margin-right: -40px; padding-left: 40px; padding-right: 40px; }
 }
 
 /* ── 관리자 / 운영자 UI(Admin Workspace) ──────────────────────────────────

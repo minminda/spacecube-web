@@ -8,6 +8,7 @@ import BlockEditor, { toBlockItems, type BlockItem } from "./BlockEditor";
 import { ImageField, ImageListField } from "./ImageFields";
 import { EditorialSaveBar } from "./EditorialControls";
 import { FormSection, TextArea, TextInput } from "./FormBits";
+import { adviseTags, missingSpaceInfo, RECOMMENDED_TAGS } from "@/lib/editorial/spaceQuality";
 
 export interface SpaceFormValue {
   slug: string;
@@ -42,6 +43,8 @@ interface Props {
   initial: SpaceFormValue;
   /** 태그 어휘 제안 — 운영 태그(Tag) 이름. 같은 어휘를 쓰면 방문·저장 취향이 이 공간 추천으로 이어진다. */
   tagSuggestions?: string[];
+  /** 유형 제안 — 이미 등록된 공간의 유형. 새 유형을 늘리기 전에 기존 말을 먼저 고르게 한다. */
+  typeSuggestions?: string[];
 }
 
 function splitTags(raw: string): string[] {
@@ -49,7 +52,7 @@ function splitTags(raw: string): string[] {
 }
 
 /** 공간 콘텐츠 등록/편집 — 공개 공간 상세(/spaces/[slug])에 쓰이는 공간(운영 공간과 별개). */
-export default function EditorialSpaceForm({ id, status, initial, tagSuggestions = [] }: Props) {
+export default function EditorialSpaceForm({ id, status, initial, tagSuggestions = [], typeSuggestions = [] }: Props) {
   const router = useRouter();
   const [v, setV] = useState<SpaceFormValue>(initial);
   const [storyItems, setStoryItems] = useState<BlockItem[]>(() => toBlockItems(initial.story));
@@ -59,6 +62,10 @@ export default function EditorialSpaceForm({ id, status, initial, tagSuggestions
   const current = useMemo(() => ({ ...v, story: storyItems.map((i) => i.block) }), [v, storyItems]);
   const dirty = useMemo(() => JSON.stringify(current) !== JSON.stringify(saved), [current, saved]);
   const chosenTags = splitTags(v.tags);
+  const tagAdvice = adviseTags(chosenTags, tagSuggestions);
+  const missing = missingSpaceInfo({ ...v, tags: chosenTags });
+  const newType = !!v.category.trim() && typeSuggestions.length > 0 && !typeSuggestions.includes(v.category.trim());
+  const publishAdvice = missing.length > 0 ? `이 공간은 검색 · 추천 품질을 위해 다음 정보를 보완하는 것을 권장합니다: ${missing.join(", ")}` : null;
   const toggleTag = (name: string) => {
     const has = chosenTags.includes(name);
     set("tags", (has ? chosenTags.filter((t) => t !== name) : [...chosenTags, name]).join(", "));
@@ -108,6 +115,16 @@ export default function EditorialSpaceForm({ id, status, initial, tagSuggestions
           </AdminFormField>
           <AdminFormField label="공간 종류" required help="예: 독립서점, LP카페">
             <TextInput value={v.category} onChange={(x) => set("category", x)} />
+            {typeSuggestions.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 pt-2" aria-label="기존 유형 제안">
+                {typeSuggestions.map((name) => (
+                  <button key={name} type="button" onClick={() => set("category", name)} aria-pressed={v.category.trim() === name} className={v.category.trim() === name ? "a-btn a-btn-primary a-btn-sm" : "a-btn a-btn-sm"}>
+                    {name}
+                  </button>
+                ))}
+              </div>
+            )}
+            {newType && <p className="pt-1.5 text-[11px]" style={{ color: "#b54708" }}>기존에 없는 새 유형이에요. 비슷한 유형이 있다면 위에서 골라 통일해주세요.</p>}
           </AdminFormField>
         </div>
         <AdminFormField label="한 줄 소개" optional>
@@ -119,7 +136,7 @@ export default function EditorialSpaceForm({ id, status, initial, tagSuggestions
         <AdminFormField label="공간 소개" optional>
           <TextArea value={v.description} onChange={(x) => set("description", x)} rows={8} />
         </AdminFormField>
-        <AdminFormField label="태그" optional help="쉼표로 구분 (예: 책, 혼자, 조용한). 아래 기존 태그와 같은 이름을 쓰면 방문·저장한 사람의 취향 추천에 이 공간이 연결돼요.">
+        <AdminFormField label="태그" optional help={`쉼표로 구분 · ${RECOMMENDED_TAGS.min}~${RECOMMENDED_TAGS.max}개 권장. 아래 기존 태그에서 고르면 방문·저장한 사람의 취향 추천에 이 공간이 연결돼요. 새 태그가 필요하면 태그 관리에서 먼저 추가해주세요.`}>
           <TextInput value={v.tags} onChange={(x) => set("tags", x)} />
           {tagSuggestions.length > 0 && (
             <div className="flex flex-wrap gap-1.5 pt-2" aria-label="기존 태그 제안">
@@ -133,6 +150,13 @@ export default function EditorialSpaceForm({ id, status, initial, tagSuggestions
               })}
             </div>
           )}
+          <ul className="pt-2 space-y-0.5 text-[11px]" style={{ color: "#b54708" }} aria-live="polite">
+            {tagAdvice.count === "few" && <li>태그가 {chosenTags.length}개예요. {RECOMMENDED_TAGS.min}~{RECOMMENDED_TAGS.max}개를 권장해요.</li>}
+            {tagAdvice.count === "many" && <li>태그가 {chosenTags.length}개예요. {RECOMMENDED_TAGS.max}개 이하로 줄이면 선반 · 검색 품질이 좋아져요.</li>}
+            {tagAdvice.unknown.length > 0 && tagSuggestions.length > 0 && <li>기존 태그에 없는 새 태그: {tagAdvice.unknown.join(", ")} — 같은 뜻의 기존 태그가 있는지 확인하고, 필요하면 태그 관리에서 먼저 추가해주세요.</li>}
+            {tagAdvice.variants.map(([a, b]) => <li key={a}>‘{a}’ 대신 기존 태그 ‘{b}’로 통일해주세요.</li>)}
+            {tagAdvice.duplicates.length > 0 && <li>같은 태그가 두 번 들어 있어요: {tagAdvice.duplicates.join(", ")}</li>}
+          </ul>
         </AdminFormField>
       </FormSection>
 
@@ -181,7 +205,14 @@ export default function EditorialSpaceForm({ id, status, initial, tagSuggestions
         </FormSection>
       )}
 
-      <EditorialSaveBar kind="spaces" id={id} status={status} publicHref={id ? `/spaces/${saved.slug}` : undefined} dirty={dirty} saving={saving} onSave={save} error={error} />
+      {missing.length > 0 && (
+        <div className="a-card px-4 py-3 text-xs leading-relaxed" role="note" data-testid="space-completeness" style={{ borderColor: "#f0dcb0", background: "#fff9ec", color: "#8a5a00" }}>
+          이 공간은 검색 · 추천 품질을 위해 다음 정보를 보완하는 것을 권장합니다: <strong className="font-semibold">{missing.join(" · ")}</strong>
+          <span className="block pt-0.5" style={{ color: "var(--a-dim)" }}>비어 있어도 공개할 수는 있어요.</span>
+        </div>
+      )}
+
+      <EditorialSaveBar kind="spaces" id={id} status={status} publicHref={id ? `/spaces/${saved.slug}` : undefined} dirty={dirty} saving={saving} onSave={save} error={error} publishAdvice={publishAdvice} />
     </div>
   );
 }

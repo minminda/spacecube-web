@@ -39,25 +39,29 @@ interface SaveBarProps {
   error?: string | null;
   /** 저장 버튼 앞에 둘 보조 동작(휴대폰의 [미리보기] 등) */
   leading?: React.ReactNode;
+  /** 발행 전에 보여 줄 권고(공개를 막지는 않는다) */
+  publishAdvice?: string | null;
 }
 
 /** 공개 상태를 바꾸기 전 확인 — 발행은 즉시 공개, 발행 취소는 즉시 내려감(실수 방지). */
-export function confirmPublishChange(next: "publish" | "unpublish"): boolean {
-  return window.confirm(next === "publish" ? "발행하면 바로 공개돼요. 발행할까요?" : "공개 화면에서 내릴까요?");
+export function confirmPublishChange(next: "publish" | "unpublish", advice?: string | null): boolean {
+  return window.confirm(next === "publish" ? `${advice ? `${advice}
+
+` : ""}발행하면 바로 공개돼요. 발행할까요?` : "공개 화면에서 내릴까요?");
 }
 
 /**
  * 하단 고정 저장 바 — [미리보기 ↗] [저장] [발행하기 / 발행 취소]. 발행할 때 저장하지 않은 변경이 있으면
  * 먼저 저장한 뒤 발행한다. 새 콘텐츠는 항상 초안으로 만들어진다.
  */
-export function EditorialSaveBar({ kind, id, status, publicHref, dirty, saving, onSave, error, leading }: SaveBarProps) {
+export function EditorialSaveBar({ kind, id, status, publicHref, dirty, saving, onSave, error, leading, publishAdvice }: SaveBarProps) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [statusError, setStatusError] = useState<string | null>(null);
 
   async function changeStatus(next: EditorialStatusValue) {
     if (!id) return;
-    if (next === "PUBLISHED" && !confirmPublishChange("publish")) return;
+    if (next === "PUBLISHED" && !confirmPublishChange("publish", publishAdvice)) return;
     if (next === "DRAFT" && status === "PUBLISHED" && !confirmPublishChange("unpublish")) return;
     setBusy(true);
     setStatusError(null);

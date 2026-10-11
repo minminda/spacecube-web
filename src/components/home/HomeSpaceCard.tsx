@@ -26,11 +26,11 @@ export default function HomeSpaceCard({ space, reason, save, priority }: Props) 
   const body = (
     <>
       <span className="flex items-baseline gap-1 pt-1.5 md:pt-2">
-        <span className="text-[13px] md:text-sm leading-snug font-semibold break-keep line-clamp-2 group-hover:underline underline-offset-4">{space.name}</span>
+        <span className="text-[12px] md:text-sm leading-snug font-semibold break-keep line-clamp-2 group-hover:underline underline-offset-4">{space.name}</span>
         {space.partner && <PartnerMark size={13} />}
       </span>
-      {meta && <span className="block pt-0.5 text-[11px] md:text-xs truncate" style={{ color: "var(--ed-dim)" }}>{meta}</span>}
-      {reason && <span className="block pt-1 text-[11px] md:text-xs leading-snug break-keep line-clamp-2">{reason}</span>}
+      {meta && <span className="block pt-0.5 text-[10.5px] md:text-xs truncate" style={{ color: "var(--ed-dim)" }}>{meta}</span>}
+      {reason && <span className="block pt-1 text-[10.5px] md:text-xs leading-snug break-keep line-clamp-2">{reason}</span>}
     </>
   );
 

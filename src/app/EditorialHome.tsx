@@ -16,7 +16,7 @@ import QrScanSheet from "./QrScanSheet";
 /* ── HOME — 공간 발견 허브 ─────────────────────────────────────────────────
    어디를 갈지 발견하는 순간부터 → 실제 방문 → 기록 → 다음 발견까지 한 흐름의 시작점.
    넷플릭스처럼 Hero(LATEST) 아래로 여러 "선반"을 이어 보여준다(외형이 아니라 탐색 구조만 가져온다 — 조용한 흑백 · 여백 · 사진 중심 유지).
-     LATEST(Hero) → 지역 · 테마 입구 → 엄선한 공간(로그인 + 취향 데이터면 회원님을 위해) → 찜한 공간
+     LATEST(Hero) → 지역 선택 · 검색 입구 → 엄선한 공간(로그인 + 취향 데이터면 회원님을 위해) → 찜한 공간
      → 새로 소개 · 지역 선반 → CURATION → 테마 선반(사이에 STORY) → 다시 떠올려볼 공간 → 함께한 공간 → Experience
    - 공간 하나가 여러 선반(지역 · 유형 · 테마 · 추천)에 동시에 나올 수 있다.
    - 지역을 고르면(/?area=후암) 선반이 그 지역 중심으로 바뀐다. 공간이 부족한 선반은 만들지 않는다.
@@ -61,7 +61,7 @@ export default async function EditorialHome({ admin, previewDrafts, fixtures, us
   const named = (key: string, fallback: string) => (!d.area && titleOf.get(key)) || fallback;
 
   const curationShelf = d.curations.length > 0 ? (
-    <Shelf key="curation" id="curation" title={d.area ? `${d.area}의 CURATION` : named("curation", "최근 올라온 CURATION")} description="지역에서, 어떤 날과 어떤 마음으로 고른 공간" href={d.area ? `/curation?area=${encodeURIComponent(d.area)}` : "/curation"} cta="큐레이션" kind="curation">
+    <Shelf key="curation" id="curation" title={d.area ? `${d.area}의 CURATION` : named("curation", "최근 올라온 CURATION")} href={d.area ? `/curation?area=${encodeURIComponent(d.area)}` : "/curation"} cta="큐레이션" kind="curation">
       {d.curations.map((c) => (
         <li key={c.id}><CurationCard c={c} ratio="4 / 3" sizes="(min-width: 1024px) 440px, 64vw" showArea={!d.area} /></li>
       ))}
@@ -71,7 +71,7 @@ export default async function EditorialHome({ admin, previewDrafts, fixtures, us
   ) : null;
 
   const storyShelf = d.stories.length > 0 ? (
-    <Shelf key="story" id="story" title={named("story", "새로운 STORY")} description="공간을 통해 사람과 생각을 읽습니다" href="/story" cta="스토리" kind="story">
+    <Shelf key="story" id="story" title={named("story", "새로운 STORY")} href="/story" cta="스토리" kind="story">
       {d.stories.map((s) => (
         <li key={s.key}><StoryCard href={s.href} image={s.cover} eyebrow={s.eyebrow} title={s.title} line={s.summary} ratio="4 / 5" sizes="(min-width: 1024px) 340px, 44vw" /></li>
       ))}
@@ -132,7 +132,7 @@ export default async function EditorialHome({ admin, previewDrafts, fixtures, us
           </section>
         )}
 
-        {/* ── 지역 · 테마 입구 — "오늘 어느 지역의 공간을 볼까?" ── */}
+        {/* ── 지역 입구 — "오늘 어느 지역의 공간을 볼까?" (테마 바로가기는 검색에서) ── */}
         <section id="discover" className="scroll-mt-[calc(var(--nav-h)+8px)]" style={{ borderTop: "1px solid var(--ed-line)" }}>
           <div className="ed-wide pt-6 pb-2 md:pt-9">
             <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
@@ -165,15 +165,6 @@ export default async function EditorialHome({ admin, previewDrafts, fixtures, us
                     <StarIcon filled className="w-3.5 h-3.5" strokeWidth={1.6} />
                     {a}
                   </Link>
-                ))}
-              </nav>
-            )}
-            {d.themeChips.length > 0 && (
-              <nav aria-label="테마로 찾기" className="-mx-5 md:mx-0 px-5 md:px-0 pt-4 flex gap-2 overflow-x-auto ed-scroll-x">
-                {d.themeChips.map((t) => (
-                  <a key={t.key} href={`#theme-${t.key}`} className="shrink-0 inline-flex items-center h-9 px-3.5 text-[13px] border transition-colors hover:bg-[var(--ed-soft)]" style={{ borderColor: "var(--ed-line)" }}>
-                    {t.label}
-                  </a>
                 ))}
               </nav>
             )}

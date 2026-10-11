@@ -47,14 +47,25 @@ export async function nextThoughtNumber(): Promise<number> {
   return (agg._max.number ?? 0) + 1;
 }
 
-/** 공간 콘텐츠 태그 제안 — 추천에 쓰이는 활성 운영 태그 이름(공개 공간과 운영 공간이 같은 어휘를 쓰도록). */
+/** 공간 콘텐츠 태그 제안(허용 어휘) — 추천에 쓰이는 활성 운영 태그 이름 + 이미 공개 공간에 쓰인 태그. 공개 공간과 운영 공간이 같은 어휘를 쓰도록. */
 export async function getTagSuggestions(): Promise<string[]> {
   const rows = await prisma.tag.findMany({
     where: { isActive: true, useForRecommendation: true },
     orderBy: [{ categoryId: "asc" }, { displayOrder: "asc" }, { name: "asc" }],
     select: { name: true },
   });
-  return [...new Set(rows.map((r) => r.name))];
+  // 이미 공개 공간에 쓰인 태그도 허용 어휘로 본다(같은 말을 다시 쓰게 — 새 변형이 생기지 않도록)
+  const used = await prisma.editorialSpace.findMany({ where: { isDemo: false, status: { not: "ARCHIVED" } }, select: { tags: true } });
+  const usedCounts = new Map<string, number>();
+  for (const u of used) for (const t of u.tags) usedCounts.set(t, (usedCounts.get(t) ?? 0) + 1);
+  const usedSorted = [...usedCounts].sort((a, b) => b[1] - a[1]).map(([t]) => t);
+  return [...new Set([...rows.map((r) => r.name), ...usedSorted])];
+}
+
+/** 공간 유형 제안 — 이미 등록된 공간의 유형(category). 새 유형을 늘리기 전에 기존 말을 먼저 고르게 한다. */
+export async function getTypeSuggestions(): Promise<string[]> {
+  const rows = await prisma.editorialSpace.groupBy({ by: ["category"], where: { isDemo: false, status: { not: "ARCHIVED" } }, _count: { _all: true }, orderBy: { _count: { category: "desc" } } });
+  return rows.map((r) => r.category.trim()).filter(Boolean);
 }
 
 /** 큐레이션 지역 선택지 — canonical 공간 콘텐츠(EditorialSpace, 가상 공간 제외)의 정규화된 지역(area.ts). 새 지역 목록을 따로 두지 않는다. */

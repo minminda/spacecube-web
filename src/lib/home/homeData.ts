@@ -20,18 +20,19 @@ import {
   buildAreaShelves,
   buildCategoryShelves,
   buildThemeShelves,
+  HOME_THEMES,
   homeHref,
   newestFirst,
   spacesInArea,
   type AreaOption,
   type AreaShelf,
   type HomeSpace,
-  type ThemeShelf,
 } from "./shelves";
 import { similarPeopleForHome, type SimilarPerson } from "@/lib/people/peopleData";
 import { fixtureAreaCounts, fixtureSpaces } from "./fixtures";
 import { buildShelfPlan, type PlanItem } from "./shelfConfig";
 import { loadShelfRows } from "./shelfData";
+import { applyThemeRules } from "./themeRules";
 
 const LATEST_COUNT = 5;
 const PER_SHELF = 12;
@@ -73,8 +74,6 @@ export interface HomeData {
   revisit: HomeSpaceShelf | null;
   /** 지역 · 새로 소개 · 유형 · 테마 선반(순서대로) */
   spaceShelves: HomeSpaceShelf[];
-  /** 테마 칩(선반이 실제로 있는 테마만) */
-  themeChips: { key: string; label: string }[];
   curations: CurationView[];
   stories: StoryItem[];
   cubeSpaces: HomeSpaceShelf | null;
@@ -168,7 +167,6 @@ export async function getHomeData(opts: { userId: string | null; admin: boolean;
     ? {
         key: "for-you",
         title: area ? `${area}에서 먼저 가볼 공간` : me.personalized ? "회원님을 위해 엄선한 공간" : "공간큐브가 엄선한 공간",
-        description: me.personalized ? "저장하고 다녀온 공간을 바탕으로, 아직 가보지 않은 곳을 골랐어요" : "큐레이션에 담긴 공간부터 보여드려요",
         href: area ? `/find?area=${encodeURIComponent(area)}` : "/find",
         cta: "더 보기",
         cards: forYouCards,
@@ -186,7 +184,6 @@ export async function getHomeData(opts: { userId: string | null; admin: boolean;
       interest = {
         key: "interest",
         title: present.length > 0 && present.length <= 2 ? `${present.join(" · ")}에서 발견한 공간` : "관심 지역에서 발견한 공간",
-        description: "별표한 지역의 공간 중, 아직 가보지 않은 곳",
         ...(present.length === 1 ? { href: homeHref({ area: present[0] }), cta: `${present[0]} 둘러보기` } : {}),
         cards: interestRanked.slice(0, PER_SHELF).map(cardOfRanked),
       };
@@ -200,37 +197,38 @@ export async function getHomeData(opts: { userId: string | null; admin: boolean;
     return space ? [{ space, reason: sp.visited ? "나와 비슷한 취향의 사용자가 다녀온 공간" : "나와 비슷한 취향의 사용자가 저장한 공간" }] : [];
   });
   const similar: HomeSpaceShelf | null = similarCards.length >= 2
-    ? { key: "similar", title: "나와 비슷한 사람들이 좋아한 공간", description: "취향이 비슷한 사용자가 고른 공간 중, 아직 가보지 않은 곳", cards: similarCards.slice(0, PER_SHELF) }
+    ? { key: "similar", title: "나와 비슷한 사람들이 좋아한 공간", cards: similarCards.slice(0, PER_SHELF) }
     : null;
 
   // ── 계정 선반: 찜한 공간 · 다시 떠올려볼 공간 ──
   const savedList = newestFirst(real.filter((s) => me.savedIds.has(s.id)));
   const saved: HomeSpaceShelf | null = savedList.length
-    ? { key: "saved", title: "내가 찜한 공간", description: "가보고 싶다고 담아 둔 곳", href: "/archive/saved", cta: "내 공간", cards: cardsOf(savedList, () => null) }
+    ? { key: "saved", title: "내가 찜한 공간", href: "/archive/saved", cta: "내 공간", cards: cardsOf(savedList, () => null) }
     : null;
   const visitedList = newestFirst(real.filter((s) => s.slug && me.visitedSlugs.has(s.slug)));
   const revisit: HomeSpaceShelf | null = visitedList.length
-    ? { key: "revisit", title: "다시 떠올려볼 공간", description: "다녀온 공간 — 기록을 다시 열어 보거나, 한 번 더 가봐도 좋아요", href: "/archive", cta: "내 공간", cards: cardsOf(visitedList, () => null) }
+    ? { key: "revisit", title: "다시 떠올려볼 공간", href: "/archive", cta: "내 공간", cards: cardsOf(visitedList, () => null) }
     : null;
 
   // ── 지역 · 새로 소개 · 유형 · 테마 선반 ──
+  // 테마 연결 키워드: 운영자가 바꾼 값이 있으면 그것, 없으면 코드 기본값
+  const themeDefs = applyThemeRules(HOME_THEMES, shelfRows);
   const spaceShelves: HomeSpaceShelf[] = [];
-  let themes: ThemeShelf[];
   if (area) {
     for (const c of buildCategoryShelves(inArea, { min: 2, max: 2 })) {
       spaceShelves.push({ key: `cat-${c.category}`, title: `${area}의 ${c.category}`, cards: cardsOf(c.spaces) });
     }
-    themes = buildThemeShelves(inArea, { min: 2 });
+    const themes = buildThemeShelves(inArea, { min: 2, themes: themeDefs });
     for (const t of themes) spaceShelves.push({ key: `theme-${t.theme.key}`, title: `${area}에서 ${t.theme.short}`, cards: cardsOf(t.spaces) });
   } else {
     const fresh = newestFirst(all).slice(0, PER_SHELF);
-    if (fresh.length >= 3) spaceShelves.push({ key: "new", title: "새롭게 소개한 공간", description: "공간큐브가 최근에 소개한 곳", href: "/spaces", cta: "공간 전체", cards: cardsOf(fresh) });
+    if (fresh.length >= 3) spaceShelves.push({ key: "new", title: "새롭게 소개한 공간", href: "/spaces", cta: "공간 전체", cards: cardsOf(fresh) });
     // 관심 지역은 위의 "관심 지역에서 발견한 공간"이 이미 맡았으므로 일반 지역 선반에서는 뺀다
     const areaShelves: AreaShelf[] = buildAreaShelves(all.filter((s) => !(s.area && savedSet.has(s.area))), { min: 3, max: 3 });
     for (const a of areaShelves) {
-      spaceShelves.push({ key: `area-${a.area}`, title: `${a.area}에서 머물고 싶은 곳`, description: `${a.area}의 공간 ${a.total}곳 중에서`, href: `/find?area=${encodeURIComponent(a.area)}`, cta: `${a.area} 더 보기`, cards: cardsOf(a.spaces) });
+      spaceShelves.push({ key: `area-${a.area}`, title: `${a.area}에서 머물고 싶은 곳`, href: `/find?area=${encodeURIComponent(a.area)}`, cta: `${a.area} 더 보기`, cards: cardsOf(a.spaces) });
     }
-    themes = buildThemeShelves(all, { min: 3 });
+    const themes = buildThemeShelves(all, { min: 3, themes: themeDefs });
     for (const t of themes) spaceShelves.push({ key: `theme-${t.theme.key}`, title: t.theme.title, cards: cardsOf(t.spaces) });
   }
 
@@ -263,10 +261,9 @@ export async function getHomeData(opts: { userId: string | null; admin: boolean;
     saved,
     revisit,
     spaceShelves,
-    themeChips: themes.map((t) => ({ key: t.theme.key, label: t.theme.chip })),
     curations: areaCurations.slice(0, 10),
     stories: visible(stories).slice(0, 10),
-    cubeSpaces: cubeList.length ? { key: "cube", title: "공간큐브와 함께한 공간", description: "현장에 Cube가 있어, 가면 그 공간의 이야기를 열어 볼 수 있어요", href: "/cube-spaces", cta: "함께한 공간", cards: cardsOf(cubeList) } : null,
+    cubeSpaces: cubeList.length ? { key: "cube", title: "공간큐브와 함께한 공간", href: "/cube-spaces", cta: "함께한 공간", cards: cardsOf(cubeList) } : null,
     savedIds: me.savedIds,
     loggedIn: !!opts.userId,
     plan: buildShelfPlan(shelfRows),

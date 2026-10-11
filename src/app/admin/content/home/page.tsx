@@ -4,10 +4,9 @@ import { ENABLE_EDITORIAL_HOME } from "@/lib/features";
 import { listContentStream } from "@/lib/editorial/queries";
 import { CONTENT_KIND_LABEL, type ContentItem } from "@/lib/editorial/types";
 import { AdminPageHeader, AdminSection, AdminButtonLink, StatusBadge, EmptyState } from "@/components/admin/ui";
-import { prisma } from "@/lib/prisma";
-import { buildShelfPlan } from "@/lib/home/shelfConfig";
-import { loadShelfRows } from "@/lib/home/shelfData";
+import { loadHomeDiagnostics } from "@/lib/home/homeDiagnostics";
 import HomeShelfManager from "@/components/admin/home/HomeShelfManager";
+import ThemeRulesManager from "@/components/admin/home/ThemeRulesManager";
 import { EditorialStatusBadge } from "@/components/admin/editorial/EditorialControls";
 
 const LATEST_COUNT = 5;
@@ -24,17 +23,8 @@ function adminHref(item: ContentItem): string {
  */
 export default async function AdminContentHomePage() {
   await requireAdminPage();
-  const [published, withDrafts, shelfRows, counts] = await Promise.all([
-    listContentStream(),
-    listContentStream({ preview: true }),
-    loadShelfRows(),
-    // 편집 선반별 "지금 공개된 공간 수" — 0이면 HOME에서 자동으로 숨겨진다
-    prisma.homeShelfSpace.groupBy({ by: ["shelfId"], where: { space: { status: "PUBLISHED", isDemo: false }, shelf: { kind: "EDITORIAL" } }, _count: { _all: true } }).catch(() => []),
-  ]);
-  const plan = buildShelfPlan(shelfRows);
-  const idToKey = new Map(shelfRows.map((r) => [r.id, r.key]));
-  const editorialCounts: Record<string, number> = {};
-  for (const c of counts) { const k = idToKey.get(c.shelfId); if (k) editorialCounts[k] = c._count._all; }
+  const [published, withDrafts, diag] = await Promise.all([listContentStream(), listContentStream({ preview: true }), loadHomeDiagnostics()]);
+  const { plan, diagnoses, themes, stats } = diag;
   const latest = published.slice(0, LATEST_COUNT);
   const draftCount = withDrafts.filter((i) => i.status === "DRAFT").length;
   const byKind = (k: ContentItem["kind"]) => published.filter((i) => i.kind === k).length;
@@ -70,7 +60,14 @@ export default async function AdminContentHomePage() {
           title="선반 순서 · 노출"
           description="SYSTEM·PERSONALIZED는 내용이 규칙으로 자동 생성돼요(여기서는 노출 · 순서 · 제목만). EDITORIAL은 직접 고른 공간을 담습니다. 지역을 고른 화면에서는 규칙 제목이 쓰이고 EDITORIAL 선반은 나오지 않아요."
         >
-          <HomeShelfManager plan={plan} editorialCounts={editorialCounts} />
+          <HomeShelfManager plan={plan} editorialCounts={stats.editorialCounts} diagnoses={diagnoses} />
+        </AdminSection>
+
+        <AdminSection
+          title="테마 선반 연결 (유형 · 태그)"
+          description="테마 선반(책 · 음악 · 커피 …)은 공간의 유형 · 태그 · 이름에 아래 키워드가 들어 있으면 모여요. 공개 공간이 3곳 이상 모이면 HOME에 선반이 생깁니다. 키워드를 바꾸면 HOME에 바로 반영돼요(검색의 추천 테마는 그대로)."
+        >
+          <ThemeRulesManager themes={themes} />
         </AdminSection>
 
         <AdminSection title="LATEST · 콘텐츠 피드 (자동)">

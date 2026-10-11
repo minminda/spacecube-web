@@ -5,6 +5,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { StatusBadge, adminButtonClass } from "@/components/admin/ui";
 import type { PlanItem } from "@/lib/home/shelfConfig";
+import type { ShelfDiagnosis } from "@/lib/home/shelfDiagnosis";
+
+const DIAG_COLOR = { ok: "#1f7a4a", warn: "#b54708", off: "#6b6b6b", info: "#175cd3" } as const;
 
 const KIND_LABEL = { SYSTEM: "SYSTEM", PERSONALIZED: "PERSONALIZED", EDITORIAL: "EDITORIAL" } as const;
 const KIND_TONE = { SYSTEM: "static", PERSONALIZED: "neutral", EDITORIAL: "live" } as const;
@@ -27,7 +30,7 @@ interface Row {
  * HOME 선반 관리 — 모든 선반의 노출 · 순서(↑↓) · 제목을 한 목록에서.
  * SYSTEM / PERSONALIZED는 내용을 지정하지 않고 노출 · 순서 · (일부) 제목만 바꾼다. EDITORIAL은 [공간 편집]으로 포함 공간을 고른다.
  */
-export default function HomeShelfManager({ plan, editorialCounts }: { plan: PlanItem[]; editorialCounts: Record<string, number> }) {
+export default function HomeShelfManager({ plan, editorialCounts, diagnoses }: { plan: PlanItem[]; editorialCounts: Record<string, number>; diagnoses: Record<string, ShelfDiagnosis> }) {
   const router = useRouter();
   const [rows, setRows] = useState<Row[]>(() =>
     plan.map((p) => ({
@@ -115,8 +118,19 @@ export default function HomeShelfManager({ plan, editorialCounts }: { plan: Plan
                   <p className="text-[13px]" style={{ color: "var(--a-dim)" }}>{r.defaultTitle} <span className="text-[11px]">· 제목 고정</span></p>
                 )}
                 <p className="text-[11px]" style={{ color: "var(--a-dim)" }}>
-                  {isEd ? `공간 ${r.spaceCount ?? 0}곳 담김${r.visible && !(r.spaceCount) ? " · 공개된 공간이 없어 HOME에는 안 보여요" : ""}` : r.hint}
+                  {isEd ? `공간 ${r.spaceCount ?? 0}곳 담김` : r.hint}
                 </p>
+                {/* 저장 전 노출 토글은 즉시 반영해 보여 준다(서버 진단은 저장된 상태 기준) */}
+                {(() => {
+                  const d = diagnoses[r.key];
+                  const live: ShelfDiagnosis | undefined = !r.visible ? { tone: "off", label: "관리자 숨김", detail: "노출을 켜면 HOME에 나와요" } : d && d.tone === "off" ? undefined : d;
+                  if (!live) return null;
+                  return (
+                    <p className="text-[11px] font-medium" style={{ color: DIAG_COLOR[live.tone] }} data-testid={`diag-${r.key}`}>
+                      ● {live.label}{live.detail ? <span className="font-normal" style={{ color: "var(--a-dim)" }}> · {live.detail}</span> : null}
+                    </p>
+                  );
+                })()}
               </div>
               <span className="flex items-center gap-1 shrink-0">
                 <label className="flex items-center gap-1.5 text-xs pr-2">
