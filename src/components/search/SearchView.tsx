@@ -106,7 +106,7 @@ export default function SearchView({ initialQuery, initialResult, areaOptions, t
             autoCorrect="off"
             autoCapitalize="none"
             spellCheck={false}
-            className="w-full h-14 pl-12 pr-12 text-base md:text-lg outline-none border focus:border-[var(--ed-fg)] [&::-webkit-search-cancel-button]:hidden"
+            className="w-full h-14 pl-12 pr-12 text-base md:text-lg outline-none border rounded-[var(--ed-radius)] focus:border-[var(--ed-fg)] [&::-webkit-search-cancel-button]:hidden"
             style={{ borderColor: "var(--ed-line)", background: "var(--ed-bg)", color: "var(--ed-fg)" }}
           />
           {query && (
@@ -209,7 +209,7 @@ export default function SearchView({ initialQuery, initialResult, areaOptions, t
                       setQuery(t.chip);
                       window.scrollTo({ top: 0, behavior: "smooth" });
                     }}
-                    className="inline-flex items-center h-11 px-4 text-[15px] border transition-colors hover:bg-[var(--ed-soft)]"
+                    className="inline-flex items-center h-11 px-4 text-[15px] border rounded-[var(--ed-radius)] transition-colors hover:bg-[var(--ed-soft)]"
                     style={{ borderColor: "var(--ed-line)" }}
                   >
                     {t.chip}
@@ -235,7 +235,7 @@ function RegionGrid({ options, savedRegions, loggedIn, fixtures }: { options: Ar
   return (
     <ul className="pt-4 grid grid-cols-2 gap-2 md:grid-cols-3 lg:grid-cols-5">
       {options.map((o) => (
-        <li key={o.area} className="flex items-center min-w-0 border" style={{ borderColor: "var(--ed-line)" }}>
+        <li key={o.area} className="flex items-center min-w-0 border rounded-[var(--ed-radius)] overflow-hidden" style={{ borderColor: "var(--ed-line)" }}>
           <Link href={homeHref({ area: o.area, preview: fixtures ? "fixtures" : null })} className="flex-1 min-w-0 px-3.5 py-2.5 hover:bg-[var(--ed-soft)] transition-colors">
             <span className="block text-[15px] font-semibold truncate">{o.area}</span>
             <span className="block text-xs truncate" style={{ color: "var(--ed-dim)" }}>{o.spaceCount > 0 ? `공간 ${o.spaceCount}곳` : "준비 중"}</span>

@@ -76,8 +76,8 @@ export default function RegionPicker({ options, current, preview, savedRegions, 
         onClick={() => setOpen(true)}
         aria-haspopup="dialog"
         aria-expanded={open}
-        className="inline-flex items-center gap-2 h-11 pl-4 pr-3 border text-sm font-semibold transition-colors hover:bg-[var(--ed-soft)]"
-        style={{ borderColor: "var(--ed-fg)" }}
+        className="inline-flex items-center gap-2 h-11 pl-4 pr-3 border rounded-[var(--ed-radius)] text-sm font-semibold transition-colors hover:bg-[var(--ed-soft)] active:bg-[var(--ed-soft)]"
+        style={{ borderColor: "var(--ed-line)", background: open ? "var(--ed-soft)" : undefined }}
       >
         <span className="text-xs font-normal" style={{ color: "var(--ed-dim)" }}>지역</span>
         <span>{current ?? "전체"}</span>
@@ -88,7 +88,7 @@ export default function RegionPicker({ options, current, preview, savedRegions, 
         <div className="fixed inset-0 z-[60] flex items-end md:items-center justify-center" role="dialog" aria-modal="true" aria-label="지역 선택">
           <button type="button" aria-label="닫기" className="absolute inset-0 cursor-default" style={{ background: "rgba(0,0,0,0.35)" }} onClick={close} />
           <div
-            className="relative w-full md:max-w-[440px] max-h-[82vh] md:max-h-[70vh] flex flex-col"
+            className="relative w-full md:max-w-[440px] max-h-[82vh] md:max-h-[70vh] flex flex-col rounded-t-[var(--ed-radius-lg)] md:rounded-[var(--ed-radius-lg)] overflow-hidden"
             style={{ background: "var(--ed-bg)", color: "var(--ed-fg)", paddingBottom: "env(safe-area-inset-bottom)" }}
           >
             <div className="flex items-center justify-between px-5 pt-4 pb-3" style={{ borderBottom: "1px solid var(--ed-line)" }}>
@@ -104,7 +104,7 @@ export default function RegionPicker({ options, current, preview, savedRegions, 
                 onChange={(e) => setQuery(e.target.value.slice(0, 20))}
                 placeholder="지역 이름으로 찾기"
                 aria-label="지역 검색"
-                className="w-full h-11 px-3 text-base md:text-sm border outline-none"
+                className="w-full h-11 px-3 text-base md:text-sm border rounded-[var(--ed-radius)] outline-none"
                 style={{ borderColor: "var(--ed-line)", background: "var(--ed-bg)", color: "var(--ed-fg)" }}
               />
             </div>

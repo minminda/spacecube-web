@@ -69,8 +69,8 @@ export default function FinderFilters({ query, areas, categories }: { query: Que
           href={finderHref({ ...query, area: null })}
           scroll={false}
           aria-current={!query.area ? "page" : undefined}
-          className="inline-flex items-center h-10 px-4 text-sm whitespace-nowrap shrink-0"
-          style={!query.area ? { background: "var(--ed-fg)", color: "var(--ed-bg)", border: "1px solid var(--ed-fg)", fontWeight: 600 } : { border: "1px solid var(--ed-line)" }}
+          className="inline-flex items-center h-10 px-4 text-sm whitespace-nowrap shrink-0 rounded-[var(--ed-radius)] transition-colors hover:bg-[var(--ed-soft)]"
+          style={!query.area ? { background: "var(--ed-soft)", border: "1px solid var(--ed-fg)", fontWeight: 600 } : { border: "1px solid var(--ed-line)" }}
         >
           전체
         </Link>
@@ -100,7 +100,7 @@ export default function FinderFilters({ query, areas, categories }: { query: Que
             placeholder="공간 검색"
             aria-label="공간 검색"
             enterKeyHint="search"
-            className="w-full h-10 px-3 text-base md:text-sm outline-none"
+            className="w-full h-10 px-3 text-base md:text-sm outline-none rounded-[var(--ed-radius)]"
             style={{ border: "1px solid var(--ed-line)" }}
           />
         </form>
@@ -164,8 +164,8 @@ function Dropdown({ which, label, chosen, listLabel, items, open, onToggle, onPi
         aria-expanded={open}
         aria-controls={listId}
         aria-label={chosen ? `${listLabel}: ${label}` : listLabel}
-        className="inline-flex items-center gap-1.5 w-full h-10 px-3.5 text-sm"
-        style={{ border: "1px solid var(--ed-fg)", background: "var(--ed-bg)", color: "var(--ed-fg)", fontWeight: chosen ? 600 : 400 }}
+        className="inline-flex items-center gap-1.5 w-full h-10 px-3.5 text-sm rounded-[var(--ed-radius)] transition-colors hover:bg-[var(--ed-soft)]"
+        style={{ border: chosen ? "1px solid var(--ed-fg)" : "1px solid var(--ed-line)", background: chosen ? "var(--ed-soft)" : "var(--ed-bg)", color: "var(--ed-fg)", fontWeight: chosen ? 600 : 400 }}
       >
         <span className="truncate">{label}</span>
         <svg aria-hidden viewBox="0 0 10 6" className="w-2.5 h-1.5 shrink-0 transition-transform" style={{ transform: open ? "rotate(180deg)" : undefined }}>
@@ -178,8 +178,8 @@ function Dropdown({ which, label, chosen, listLabel, items, open, onToggle, onPi
           id={listId}
           aria-label={listLabel}
           onKeyDown={onListKey}
-          className={`absolute z-30 top-[calc(100%+4px)] ${align === "right" ? "right-0" : "left-0"} min-w-full w-max max-w-[calc(100vw-32px)] max-h-[min(320px,45vh)] overflow-y-auto overscroll-contain py-1`}
-          style={{ background: "var(--ed-bg)", border: "1px solid var(--ed-fg)", boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}
+          className={`absolute z-30 top-[calc(100%+4px)] ${align === "right" ? "right-0" : "left-0"} min-w-full w-max max-w-[calc(100vw-32px)] max-h-[min(320px,45vh)] overflow-y-auto overscroll-contain py-1 rounded-[var(--ed-radius)]`}
+          style={{ background: "var(--ed-bg)", border: "1px solid var(--ed-line)", boxShadow: "0 4px 14px rgba(0,0,0,0.08)" }}
         >
           {items.map((it) => (
             <li key={it.href}>

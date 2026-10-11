@@ -29,7 +29,7 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({ children, modal }: { children: React.ReactNode; modal: React.ReactNode }) {
   return (
     // data-ed-theme(다크)는 첫 페인트 전에 아래 스크립트가 붙인다 — 서버가 그린 html과 달라지므로 suppressHydrationWarning
     <html lang="ko" data-theme="light" suppressHydrationWarning>
@@ -43,6 +43,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <div className="app-shell max-w-sm md:max-w-2xl mx-auto w-full flex-1">
           {children}
         </div>
+        {modal}
         <BottomTabBar />
         {ENABLE_INITIAL_ONBOARDING && <OnboardingOverlay />}
         {ENABLE_DARK_MODE_TOGGLE && <ThemeToggle />}

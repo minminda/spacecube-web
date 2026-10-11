@@ -101,7 +101,7 @@ export default function LatestSlider({ items, allHref, containerClassName = "ed-
         if (Math.abs(dx) > 48) go(index + (dx < 0 ? 1 : -1));
       }}
     >
-      <div className="flex items-center justify-between pb-3 md:pb-6" style={{ borderBottom: "1px solid var(--ed-fg)" }}>
+      <div className="flex items-center justify-between pb-1 md:pb-2">
         <h2 className="ed-section-title">LATEST</h2>
         <div className="flex items-center gap-4 md:gap-6">
           {multi && (
@@ -113,7 +113,7 @@ export default function LatestSlider({ items, allHref, containerClassName = "ed-
         </div>
       </div>
 
-      <div className="relative pt-4 md:pt-8">
+      <div className="relative pt-2 md:pt-4">
         {/* 이미지 — 모든 슬라이드를 겹쳐 두고 opacity만 바꾼다(첫 장만 priority, 나머지 lazy) */}
         <div className="grid gap-4 md:grid-cols-12 md:gap-10 md:items-stretch">
           <div className="md:col-span-5 md:order-1 order-2 flex flex-col">
@@ -150,7 +150,7 @@ export default function LatestSlider({ items, allHref, containerClassName = "ed-
           </div>
 
           <div className="md:col-span-7 md:order-2 order-1">
-            <Link href={current.href} tabIndex={-1} aria-hidden className="block relative w-full overflow-hidden aspect-[16/10] md:aspect-[3/2] md:max-h-[62vh]" style={{ background: "var(--ed-soft)" }}>
+            <Link href={current.href} tabIndex={-1} aria-hidden className="block relative w-full overflow-hidden rounded-[var(--ed-radius)] aspect-[16/10] md:aspect-[3/2] md:max-h-[62vh]" style={{ background: "var(--ed-soft)" }}>
               {items.map((it, i) => (
                 <div key={it.key} className={`absolute inset-0 ${fade} ${i === index ? "opacity-100" : "opacity-0"}`}>
                   {it.image.src && state.seen.has(i) ? (

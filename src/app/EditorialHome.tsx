@@ -89,7 +89,7 @@ export default async function EditorialHome({ admin, previewDrafts, fixtures, us
     // 계정 데이터가 필요한 선반 — 비로그인은 한 줄 안내로 대신한다
     saved: d.saved ? sh(d.saved, "saved") : !d.loggedIn && (
       <section key="saved-login" className="ed-wide py-4">
-        <div className="flex flex-col md:flex-row md:items-center gap-3 md:gap-6 px-5 py-5 md:px-7" style={{ background: "var(--ed-soft)" }}>
+        <div className="flex flex-col md:flex-row md:items-center gap-3 md:gap-6 px-5 py-5 md:px-7 rounded-[var(--ed-radius-lg)]" style={{ background: "var(--ed-soft)" }}>
           <p className="text-sm md:text-[15px] leading-relaxed break-keep md:mr-auto">
             가보고 싶은 공간을 담아 두면, 여기서 다시 꺼내 보고 취향에 맞는 공간을 더 골라 드려요.
           </p>
@@ -127,14 +127,14 @@ export default async function EditorialHome({ admin, previewDrafts, fixtures, us
           <LatestSlider items={d.latest} allHref="/latest" containerClassName="ed-wide" />
         ) : (
           <section className="ed-wide pt-8 pb-6">
-            <h2 className="ed-section-title pb-3" style={{ borderBottom: "1px solid var(--ed-fg)" }}>LATEST</h2>
+            <h2 className="ed-section-title pb-1">LATEST</h2>
             <p className="pt-6 text-base" style={{ color: "var(--ed-dim)" }}>첫 번째 이야기를 준비하고 있어요.</p>
           </section>
         )}
 
         {/* ── 지역 입구 — "오늘 어느 지역의 공간을 볼까?" (테마 바로가기는 검색에서) ── */}
-        <section id="discover" className="scroll-mt-[calc(var(--nav-h)+8px)]" style={{ borderTop: "1px solid var(--ed-line)" }}>
-          <div className="ed-wide pt-6 pb-2 md:pt-9">
+        <section id="discover" className="scroll-mt-[calc(var(--nav-h)+8px)]">
+          <div className="ed-wide pt-5 pb-1 md:pt-7">
             <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
               <h2 className="text-lg md:text-[28px] font-bold tracking-[-0.03em] break-keep mr-auto inline-flex items-center gap-1">
                 {d.area ? <>{d.area}의 공간</> : <>오늘은 어떤 공간을 발견해 볼까요?</>}
@@ -146,7 +146,7 @@ export default async function EditorialHome({ admin, previewDrafts, fixtures, us
             {/* 검색 입구 — 직접 찾고 싶을 때(HOME은 골라 보여주는 곳, 검색은 직접 찾는 곳) */}
             <Link
               href="/search"
-              className="mt-4 flex items-center gap-3 h-12 px-4 max-w-[560px] border text-sm transition-colors hover:bg-[var(--ed-soft)]"
+              className="mt-3 flex items-center gap-3 h-12 px-4 max-w-[560px] border rounded-[var(--ed-radius)] text-sm transition-colors hover:bg-[var(--ed-soft)]"
               style={{ borderColor: "var(--ed-line)", color: "var(--ed-dim)" }}
             >
               <SearchIcon className="w-[18px] h-[18px] shrink-0" />
@@ -161,7 +161,7 @@ export default async function EditorialHome({ admin, previewDrafts, fixtures, us
             {!d.area && d.savedRegions.length > 0 && (
               <nav aria-label="관심 지역" className="-mx-5 md:mx-0 px-5 md:px-0 pt-4 flex gap-2 overflow-x-auto ed-scroll-x">
                 {d.savedRegions.map((a) => (
-                  <Link key={a} href={homeHref({ area: a, preview })} scroll={false} className="shrink-0 inline-flex items-center gap-1.5 h-9 pl-3 pr-3.5 text-[13px] font-semibold border transition-colors hover:bg-[var(--ed-soft)]" style={{ borderColor: "var(--ed-fg)" }}>
+                  <Link key={a} href={homeHref({ area: a, preview })} scroll={false} className="shrink-0 inline-flex items-center gap-1.5 h-9 pl-3 pr-3.5 text-[13px] font-semibold border rounded-[var(--ed-radius)] transition-colors hover:bg-[var(--ed-soft)] active:bg-[var(--ed-soft)]" style={{ borderColor: "var(--ed-line)" }}>
                     <StarIcon filled className="w-3.5 h-3.5" strokeWidth={1.6} />
                     {a}
                   </Link>
@@ -182,7 +182,7 @@ export default async function EditorialHome({ admin, previewDrafts, fixtures, us
         {d.plan.filter((p) => p.visible).map((p) => blocks[p.key] ?? null)}
 
         {/* ── GONGGANCUBE EXPERIENCE — 발견 → 저장 → 방문 → Cube → 기록 ── */}
-        <section className="mt-8" style={{ background: "var(--ed-soft)" }}>
+        <section className="mt-6" style={{ background: "var(--ed-soft)" }}>
           <div className="ed-wide py-8 md:py-12 grid gap-6 md:grid-cols-12 md:gap-12 md:items-center">
             <div className="md:col-span-7 space-y-5">
               <div className="space-y-2">
@@ -220,9 +220,9 @@ export default async function EditorialHome({ admin, previewDrafts, fixtures, us
 
 function EmptySection({ title, text }: { title: string; text: string }) {
   return (
-    <section className="py-7 md:py-10">
+    <section className="py-4 md:py-6">
       <div className="ed-wide">
-        <h2 className="text-[17px] md:text-2xl font-bold tracking-[-0.02em]">{title}</h2>
+        <h2 className="text-xl md:text-[28px] font-bold tracking-[-0.025em]">{title}</h2>
         <p className="pt-3 text-sm" style={{ color: "var(--ed-dim)" }}>{text}</p>
       </div>
     </section>

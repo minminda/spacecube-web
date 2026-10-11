@@ -13,7 +13,7 @@ interface Segment {
  */
 export default function SegmentTabs({ segments, active, label }: { segments: Segment[]; active: string; label: string }) {
   return (
-    <div role="tablist" aria-label={label} className="grid w-full md:max-w-[360px]" style={{ gridTemplateColumns: `repeat(${segments.length}, minmax(0, 1fr))`, border: "1px solid var(--ed-fg)" }}>
+    <div role="tablist" aria-label={label} className="grid w-full md:max-w-[360px] rounded-[var(--ed-radius)] overflow-hidden" style={{ gridTemplateColumns: `repeat(${segments.length}, minmax(0, 1fr))`, border: "1px solid var(--ed-fg)" }}>
       {segments.map((s, i) => {
         const on = s.key === active;
         return (

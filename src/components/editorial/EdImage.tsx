@@ -17,7 +17,7 @@ interface Props {
 export default function EdImage({ image, ratio, mobileRatio, sizes, priority, className }: Props) {
   return (
     <div
-      className={`relative w-full overflow-hidden ${mobileRatio ? "ed-ratio" : ""} ${className ?? ""}`}
+      className={`relative w-full overflow-hidden rounded-[var(--ed-radius)] ${mobileRatio ? "ed-ratio" : ""} ${className ?? ""}`}
       style={mobileRatio ? ({ "--ed-r": mobileRatio, "--ed-r-md": ratio, background: "var(--ed-soft)" } as React.CSSProperties) : { aspectRatio: ratio, background: "var(--ed-soft)" }}
     >
       {image.src ? (
@@ -27,7 +27,7 @@ export default function EdImage({ image, ratio, mobileRatio, sizes, priority, cl
           fill
           sizes={sizes}
           priority={priority}
-          className="object-cover transition-transform duration-700 group-hover:scale-[1.02]"
+          className="object-cover transition-transform duration-700 group-hover:scale-[1.015]"
           style={{ objectPosition: image.position ?? "50% 50%" }}
         />
       ) : (

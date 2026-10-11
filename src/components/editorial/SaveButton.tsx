@@ -81,7 +81,7 @@ export default function SaveButton({ spaceId, spaceName, initialSaved, loggedIn,
           onClick={toggle}
           aria-pressed={saved}
           aria-label={label}
-          className="tap-target inline-flex items-center gap-2 px-4 text-sm font-semibold transition-colors"
+          className="tap-target inline-flex items-center gap-2 px-4 text-sm font-semibold transition-colors rounded-[var(--ed-radius)]"
           style={saved ? { background: "var(--ed-fg)", color: "var(--ed-bg)", border: "1px solid var(--ed-fg)" } : { border: "1px solid var(--ed-fg)" }}
         >
           {icon}
@@ -103,7 +103,7 @@ export default function SaveButton({ spaceId, spaceName, initialSaved, loggedIn,
         title={error ? "저장하지 못했어요. 다시 시도해주세요." : label}
         className="w-10 h-10 flex items-start justify-end p-1"
       >
-        <span className="w-6 h-6 inline-flex items-center justify-center" style={{ background: "rgba(255,255,255,0.92)", color: error ? "#a1271b" : "#111" }}>
+        <span className="w-6 h-6 inline-flex items-center justify-center rounded-[5px]" style={{ background: "rgba(255,255,255,0.92)", color: error ? "#a1271b" : "#111" }}>
           {icon}
         </span>
       </button>
@@ -119,7 +119,7 @@ export default function SaveButton({ spaceId, spaceName, initialSaved, loggedIn,
         aria-pressed={saved}
         aria-label={label}
         title={error ? "저장하지 못했어요. 다시 시도해주세요." : label}
-        className="w-11 h-11 inline-flex items-center justify-center backdrop-blur-sm"
+        className="w-11 h-11 inline-flex items-center justify-center backdrop-blur-sm rounded-[var(--ed-radius)]"
         style={{ background: "rgba(255,255,255,0.88)", color: error ? "#a1271b" : "#111" }}
       >
         {icon}

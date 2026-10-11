@@ -50,11 +50,11 @@ export default function Shelf({ id, title, description, href, cta = "전체 보�
   const scrollable = !(edge.start && edge.end);
 
   return (
-    <section id={id} className="scroll-mt-20 py-7 md:py-10" aria-label={title}>
+    <section id={id} className="scroll-mt-20 py-4 md:py-6" aria-label={title}>
       <div className="ed-wide">
-        <div className="flex items-end justify-between gap-4 pb-3.5 md:pb-5">
+        <div className="flex items-end justify-between gap-4 pb-2.5 md:pb-3.5">
           <div className="min-w-0">
-            <h2 className="text-[17px] leading-snug md:text-2xl font-bold tracking-[-0.02em] break-keep">{title}</h2>
+            <h2 className="text-xl leading-snug md:text-[28px] font-bold tracking-[-0.025em] break-keep">{title}</h2>
             {description && <p className="pt-1 text-xs md:text-sm leading-relaxed break-keep" style={{ color: "var(--ed-dim)" }}>{description}</p>}
           </div>
           <div className="shrink-0 flex items-center gap-3">
@@ -72,7 +72,7 @@ export default function Shelf({ id, title, description, href, cta = "전체 보�
                     onClick={() => page(dir)}
                     disabled={dir === -1 ? edge.start : edge.end}
                     aria-label={`${title} ${dir === -1 ? "이전" : "다음"} 보기`}
-                    className="w-9 h-9 flex items-center justify-center border transition-opacity disabled:opacity-25"
+                    className="w-9 h-9 flex items-center justify-center border rounded-[var(--ed-radius)] transition-opacity disabled:opacity-25"
                     style={{ borderColor: "var(--ed-line)" }}
                   >
                     {dir === -1 ? <ChevronLeftIcon className="w-4 h-4" strokeWidth={2} /> : <ChevronRightIcon className="w-4 h-4" strokeWidth={2} />}
