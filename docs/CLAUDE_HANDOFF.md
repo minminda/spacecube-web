@@ -1,8 +1,16 @@
 # Claude Code Latest Handoff
 
-Updated: 2026-10-12 (후속 2) · 새로고침해도 상세 창 유지 · 데스크톱 상세 X 구조 수정 · 스키마 · API · 데이터 변경 없음
+Updated: 2026-10-12 (후속 3) · 상세 X 화면 고정 형제 · 새로고침해도 상세 창 유지 · 데스크톱 상세 X 구조 수정 · 스키마 · API · 데이터 변경 없음
 
-## 최신: 데스크톱 상세 창 — 새로고침해도 HOME 위 창 유지
+## 최신: 데스크톱 상세 X — 화면 고정(fixed) 형제로 완전 분리 (`SpaceDetailModal.tsx`, `globals.css`)
+- 운영 웹에서 d04ff89(껍데기 안 absolute) 후에도 X가 스크롤을 따라 움직인다는 보고. 운영 DOM 추적 결과 스크롤 요소는 내용 상자(`h-full overflow-y-auto`) 하나, X는 껍데기(`.ed-modal-panel`, relative · overflow hidden · 열림 애니메이션 transform) 안 absolute, 바탕은 fixed + backdrop-filter. 숨긴 브라우저 창에서는 움직임을 재현하지 못함.
+- 새 구조: `.ed-modal-root`(role=dialog, position 없음) > [바탕(fixed) > 껍데기(애니메이션) > 내용 상자(스크롤)] + [X(position: fixed, 형제)]. X는 스크롤 요소 · transform 걸린 껍데기 · backdrop-filter 바탕 어느 것의 자손도 아님.
+  - 위치: top 54px(= 껍데기 위 48 + 6), right = calc((100% − 창 폭) / 2 + 2px + 스크롤바 폭) — 껍데기와 같은 폭 식(min(800px, 100% − 64px) + 스크롤바)이라 창 크기가 바뀌어도 창 오른쪽 위.
+  - X 위 휠도 내용 상자로. 열림은 투명도만(.ed-modal-close). 다크 토큰 · focus-visible · 복원 창 숨김 선택자를 `.ed-modal-root` 기준으로.
+- 실측(로컬 dev, iframe 1280, HOME 600 → 카드 클릭 → 가로채기 창): scrollTop 0 / 300 / 700 / 977(끝) 모두 X (top 54, right 1036). 휠 이벤트(X 위 · 바탕 위)로 끝까지 스크롤 후에도 같음. 새로고침 복원 창도 같은 좌표(껍데기 transform이 남아 있는 상태에서도). X → HOME y=600. 복원 창 위 새 창: 아래 창 X도 숨김, ESC 한 단계. 다크: X #ecebe8 + 원 #161616 78%. 375px: 변경 없음(독립 페이지, X 323 · 59).
+- 확인 못 한 것: 브라우저 창이 숨겨져 있어 실제 마우스 휠 · 트랙패드 입력은 못 함(휠 이벤트는 합성, 스크롤은 scrollTop · 휠 핸들러). Safari.
+
+## 데스크톱 상세 창 — 새로고침해도 HOME 위 창 유지 (043c162)
 - 원인: 창은 `@modal/(.)spaces/[slug]` 가로채기 라우트라 앱 안 이동에서만 뜬다. 새로고침 = 서버 요청이라 가로채기가 없고 `app/spaces/[slug]/page.tsx`(독립 페이지)가 그려지며 @modal 슬롯은 `[...catchAll]`(null).
 - 방식(`src/lib/editorial/modalRestore.ts`): 창이 열린 채 문서를 떠날 때 **beforeunload**에서 짧은 쿠키 `sc_modal=<slug>`(10초, X · 바깥 · ESC로 닫는 중이면 `*`). `/spaces/[slug]` 서버 페이지가 쿠키 일치 + 데스크톱(sec-ch-ua-mobile ≠ ?1)이면 `HOME(app/page) + <SpaceDetailModal restored>`를 그림(서버에서 바로 → 독립 페이지 깜빡임 없음). 모든 문서 `<head>`에서 쿠키 즉시 삭제(일회성).
   - pagehide는 새 요청이 나간 뒤에 실행돼 쿠키가 실리지 않음(실측) → beforeunload.

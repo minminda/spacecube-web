@@ -157,6 +157,7 @@ body {
    Cube(QR 현장) 화면은 이 범위 밖이라 라이트 그대로. 색 반전(filter: invert)은 쓰지 않는다. */
 [data-ed-theme="dark"] .editorial-bleed,
 [data-ed-theme="dark"] .ed-modal-panel,
+[data-ed-theme="dark"] .ed-modal-root,
 [data-ed-theme="dark"] .ed-chrome {
   --ed-bg: #161616;
   --ed-fg: #ecebe8;
@@ -266,15 +267,17 @@ html[data-ed-theme="dark"]:has(.editorial-bleed) { color-scheme: dark; }
 @keyframes ed-modal-fade { from { opacity: 0; } to { opacity: 1; } }
 .ed-modal-backdrop { animation: ed-modal-fade 0.2s ease-out; }
 .ed-modal-panel { animation: ed-modal-in 0.22s ease-out; }
+/* 상세 창 X(화면 고정 형제) — 껍데기와 함께 나타나되 transform 없이 투명도만 */
+.ed-modal-close { animation: ed-modal-fade 0.2s ease-out; }
 @media (prefers-reduced-motion: reduce) {
-  .ed-modal-backdrop, .ed-modal-panel { animation: none; }
+  .ed-modal-backdrop, .ed-modal-panel, .ed-modal-close { animation: none; }
 }
 .ed-modal-panel {
   --bg: var(--ed-bg);
   --fg: var(--ed-fg);
 }
 /* 새로고침으로 복원된 상세 창(SpaceDetailModal restored) 위에 앱 안 이동으로 새 창이 뜨면 아래 창은 숨긴다(바탕이 두 겹으로 어두워지지 않게) */
-body:has(.ed-modal-backdrop:not([data-restored])) .ed-modal-backdrop[data-restored] { visibility: hidden; }
+body:has(.ed-modal-root:not([data-restored])) .ed-modal-root[data-restored] { visibility: hidden; }
 /* 공간 상세 닫기 X(데스크톱 창 · 휴대폰 페이지 공용) — 테두리 · 사각 상자 · 그림자 없이 X만. 누르는 영역은 44px 원.
    안쪽 36px 원은 바탕과 같은 색의 반투명 + 약한 블러: 바탕 위에서는 보이지 않고, 스크롤해 사진 · 카드 위를 지날 때만 X를 받친다(라이트 · 다크 동일 토큰). */
 .ed-close-btn {
@@ -302,7 +305,8 @@ body:has(.ed-modal-backdrop:not([data-restored])) .ed-modal-backdrop[data-restor
 .ed-close-btn:hover::before,
 .ed-close-btn:active::before { background: var(--ed-soft); }
 .editorial-bleed :is(a, button, input, textarea, select):focus-visible,
-.ed-modal-panel :is(a, button, input, textarea, select):focus-visible {
+.ed-modal-panel :is(a, button, input, textarea, select):focus-visible,
+.ed-modal-root .ed-modal-close:focus-visible {
   outline: 2px solid var(--ed-fg);
   outline-offset: 2px;
 }

@@ -32,6 +32,7 @@ export default function SpaceDetailModal({ children, restored = false }: { child
   const router = useRouter();
   const panelRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
   // 내용 상자의 스크롤바 폭(macOS 겹침 스크롤바는 0)
   const [bar, setBar] = useState(0);
   // X · 바깥 클릭 · ESC로 닫는 중 — 이때 문서가 바뀌면(새로고침으로 복원된 창의 뒤로 가기) 도착 공간도 창으로 그린다
@@ -69,10 +70,11 @@ export default function SpaceDetailModal({ children, restored = false }: { child
 
     const onKey = (e: KeyboardEvent) => {
       // 복원된 창 위에 다른 창이 떠 있으면 키 입력은 위 창 몫
-      if (restored && document.querySelector(".ed-modal-backdrop:not([data-restored])")) return;
+      if (restored && document.querySelector(".ed-modal-root:not([data-restored])")) return;
       if (e.key === "Escape") { e.preventDefault(); close(); return; }
       if (e.key !== "Tab" || !panelRef.current) return;
-      const items = Array.from(panelRef.current.querySelectorAll<HTMLElement>(FOCUSABLE)).filter((el) => el.offsetParent !== null);
+      // X(고정 형제)까지 포함 — 창 루트 안의 모든 포커스 대상. X는 position: fixed라 offsetParent가 null이어도 보인다
+      const items = Array.from(panelRef.current.querySelectorAll<HTMLElement>(FOCUSABLE)).filter((el) => el.offsetParent !== null || el === closeRef.current);
       if (items.length === 0) return;
       const first = items[0];
       const last = items[items.length - 1];
@@ -95,42 +97,54 @@ export default function SpaceDetailModal({ children, restored = false }: { child
 
   if (!desktop) return null;
 
+  // 창 폭 — 껍데기와 X가 같은 식을 쓴다(내용 상자 스크롤바 폭만큼 넓혀 본문 720px 유지)
+  const width = `min(800px, 100% - 64px) + ${bar}px`;
+
   return (
+    // 창 루트(position 없음 — 위치 기준을 만들지 않는다): [바탕 > 껍데기 > 스크롤 내용] 과 [X] 가 형제.
+    // X는 스크롤되는 어떤 요소의 자손도, 열림 애니메이션(transform)이 걸린 껍데기의 자손도 아니다 → 화면(viewport) 기준 fixed로 1px도 움직이지 않는다.
     <div
-      className="ed-modal-backdrop fixed inset-0 z-[70]"
+      ref={panelRef}
+      role="dialog"
+      aria-modal="true"
+      aria-label="공간 상세"
+      tabIndex={-1}
+      className="ed-modal-root outline-none"
       data-restored={restored ? "" : undefined}
-      style={{ background: "rgba(0,0,0,0.38)", backdropFilter: "blur(2px)" }}
-      onMouseDown={(e) => { if (e.target === e.currentTarget) close(); }}
-      // 창 바깥(어두운 바탕)에서 굴린 휠도 내용 상자를 스크롤한다(바탕 자체는 스크롤되지 않음)
-      onWheel={(e) => { if (e.target === e.currentTarget) scrollRef.current?.scrollBy({ top: e.deltaY }); }}
     >
-      {/* 창 껍데기 — 스크롤하지 않는다. X와 내용 상자의 공통 기준(relative). */}
       <div
-        ref={panelRef}
-        role="dialog"
-        aria-modal="true"
-        aria-label="공간 상세"
-        tabIndex={-1}
-        className="ed-modal-panel relative mx-auto mt-12 h-[calc(100dvh-48px)] overflow-hidden rounded-t-[var(--ed-radius-lg)] outline-none"
-        style={{ width: `calc(min(800px, 100% - 64px) + ${bar}px)`, background: "var(--ed-bg)", color: "var(--ed-fg)" }}
+        className="ed-modal-backdrop fixed inset-0 z-[70]"
+        style={{ background: "rgba(0,0,0,0.38)", backdropFilter: "blur(2px)" }}
+        onMouseDown={(e) => { if (e.target === e.currentTarget) close(); }}
+        // 창 바깥(어두운 바탕)에서 굴린 휠도 내용 상자를 스크롤한다(바탕 자체는 스크롤되지 않음)
+        onWheel={(e) => { if (e.target === e.currentTarget) scrollRef.current?.scrollBy({ top: e.deltaY }); }}
       >
-        {/* X — 껍데기 오른쪽 위(absolute), 스크롤되는 내용 상자 밖. 본문 좌우 여백(40px) 안이라 대표 사진(위 여백 pt-14 아래, 본문 720px)과 겹치지 않는다.
-            테두리 · 상자 없이 X만, 누르는 영역 44px. 반투명 원(.ed-close-btn)은 내용이 X 아래로 지나갈 때만 보인다. */}
-        <button
-          type="button"
-          onClick={close}
-          aria-label="공간 상세 닫기"
-          className="ed-close-btn z-20"
-          // 위치는 인라인으로 — .ed-close-btn(globals.css, 레이어 밖)의 position: relative가 Tailwind의 absolute 유틸리티를 이긴다
-          style={{ position: "absolute", top: 6, right: 2 + bar }}
+        {/* 창 껍데기 — 스크롤하지 않는다(열림 애니메이션은 여기에만) */}
+        <div
+          className="ed-modal-panel relative mx-auto mt-12 h-[calc(100dvh-48px)] overflow-hidden rounded-t-[var(--ed-radius-lg)]"
+          style={{ width: `calc(${width})`, background: "var(--ed-bg)", color: "var(--ed-fg)" }}
         >
-          <CloseIcon className="w-5 h-5" />
-        </button>
-        {/* 내용 상자 — 상세 전체가 여기서만 스크롤된다 */}
-        <div ref={scrollRef} tabIndex={-1} className="h-full overflow-y-auto outline-none" style={{ overscrollBehavior: "contain" }}>
-          {children}
+          {/* 내용 상자 — 상세 전체가 여기서만 스크롤된다 */}
+          <div ref={scrollRef} tabIndex={-1} className="h-full overflow-y-auto outline-none" style={{ overscrollBehavior: "contain" }}>
+            {children}
+          </div>
         </div>
       </div>
+      {/* X — 화면 기준 fixed, 바탕 · 껍데기 · 스크롤 내용 밖의 형제. 위치는 껍데기와 같은 폭 식으로 계산:
+          top = 껍데기 위(48px) + 6px, right = 화면 오른쪽에서 껍데기 오른쪽까지((100% − 폭) / 2) + 2px + 스크롤바 폭.
+          본문 좌우 여백(40px) 안이라 대표 사진(본문 720px, 위 여백 pt-14 아래)과 겹치지 않는다. 테두리 · 상자 없이 X만, 누르는 영역 44px.
+          위치는 인라인으로 — .ed-close-btn(globals.css, 레이어 밖)의 position: relative가 Tailwind 유틸리티를 이긴다. */}
+      <button
+        ref={closeRef}
+        type="button"
+        onClick={close}
+        onWheel={(e) => scrollRef.current?.scrollBy({ top: e.deltaY })}
+        aria-label="공간 상세 닫기"
+        className="ed-close-btn ed-modal-close"
+        style={{ position: "fixed", zIndex: 71, top: 54, right: `calc((100% - (${width})) / 2 + ${2 + bar}px)` }}
+      >
+        <CloseIcon className="w-5 h-5" />
+      </button>
     </div>
   );
 }
