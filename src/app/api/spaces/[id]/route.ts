@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { isAdmin } from "@/lib/admin";
 import { isValidKoreaCoord } from "@/lib/kakaoLocal";
+import { resolveSpaceCoord } from "@/lib/spaceGeocode";
 import { hashOperatorPin, isValidPinFormat } from "@/lib/operatorPin";
 import { enforceSingleSelectCategories, resolveSpaceTypeName, type TagLinkInput } from "@/lib/tagLinks";
 import { normalizeSlug, isValidSlug } from "@/lib/slug";
@@ -74,6 +75,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     };
   }
 
+  // 상세 주소 → 좌표 자동 연결: 신규/주소 변경/좌표 없음일 때만 Kakao 호출, 실패해도 저장은 진행
+  const geo = await resolveSpaceCoord({
+    existing: { location: space.location, coord: space.lat !== null && space.lng !== null ? { lat: space.lat, lng: space.lng } : null },
+    location: String(location ?? space.location),
+    incoming: isValidKoreaCoord(lat, lng) ? { lat, lng } : null,
+  });
+
   const updated = await prisma.space.update({
     where: { id },
     data: {
@@ -83,8 +91,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       tagline: tagline || null,
       openingHours: openingHours || null,
       naverMapUrl: naverMapUrl || null,
-      // 좌표는 본문에 있을 때만 갱신(null=지우기). 범위를 벗어난 값은 무시해 기존 값을 보존한다.
-      ...(lat === null && lng === null ? { lat: null, lng: null } : isValidKoreaCoord(lat, lng) ? { lat, lng } : {}),
+      lat: geo.coord?.lat ?? null,
+      lng: geo.coord?.lng ?? null,
       description,
       imageUrl: imageUrl || null,
       imageZoom: typeof imageZoom === "number" ? imageZoom : 1,
@@ -116,7 +124,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       : []),
   ]);
 
-  return NextResponse.json(updated);
+  return NextResponse.json({ ...updated, geocodeStatus: geo.status });
 }
 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {

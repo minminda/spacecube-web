@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { isAdmin } from "@/lib/admin";
 import { isValidKoreaCoord } from "@/lib/kakaoLocal";
+import { resolveSpaceCoord } from "@/lib/spaceGeocode";
 import { enforceSingleSelectCategories, resolveSpaceTypeName, type TagLinkInput } from "@/lib/tagLinks";
 import { normalizeSlug, isValidSlug } from "@/lib/slug";
 
@@ -56,6 +57,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "이미 사용 중인 공간 주소예요." }, { status: 409 });
   }
 
+  // 상세 주소 → 좌표 자동 연결(실패해도 저장은 진행)
+  const geo = await resolveSpaceCoord({
+    existing: null,
+    location: String(location),
+    incoming: isValidKoreaCoord(lat, lng) ? { lat, lng } : null,
+  });
+
   const space = await prisma.space.create({
     data: {
       ownerId: user.id,
@@ -63,7 +71,7 @@ export async function POST(req: NextRequest) {
       tagline: tagline || null,
       openingHours: openingHours || null,
       naverMapUrl: naverMapUrl || null,
-      ...(isValidKoreaCoord(lat, lng) ? { lat, lng } : {}),
+      ...(geo.coord ? { lat: geo.coord.lat, lng: geo.coord.lng } : {}),
       description: description || "", philosophy: philosophy || "",
       ownerMessage: ownerMessage || null,
       experienceGuide: experienceGuide || null,
@@ -82,5 +90,5 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  return NextResponse.json(space, { status: 201 });
+  return NextResponse.json({ ...space, geocodeStatus: geo.status }, { status: 201 });
 }

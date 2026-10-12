@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import PlaceSearch from "./PlaceSearch";
@@ -121,6 +122,7 @@ export default function SpaceForm({ mode, space, categories, existingTagLinks }:
 
   // 지도 좌표 — 장소 검색으로만 채운다(직접 입력 없음). 기존 공간은 비어 있을 수 있다.
   const [showPlaceSearch, setShowPlaceSearch] = useState(false);
+  const [notice, setNotice] = useState("");
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(
     typeof space?.lat === "number" && typeof space?.lng === "number" ? { lat: space.lat, lng: space.lng } : null,
   );
@@ -256,6 +258,12 @@ export default function SpaceForm({ mode, space, categories, existingTagLinks }:
       setLoading(false);
       return;
     }
+    if (data.geocodeStatus === "failed") {
+      // 저장은 끝났지만 지도 위치는 못 찾음 — 알려주고 머문다(loading 유지로 재제출 방지)
+      setNotice("공간 정보는 저장됐어요. 지도 위치는 자동으로 연결하지 못했어요. 주소를 확인하거나 ‘직접 위치 찾기’를 사용하세요.");
+      setCoords(null);
+      return;
+    }
     router.push("/admin/spaces");
     router.refresh();
   }
@@ -372,19 +380,25 @@ export default function SpaceForm({ mode, space, categories, existingTagLinks }:
             className="w-full text-sm px-3 py-2.5 border" style={inputStyle} />
         </Field>
 
+        <Field label="상세 위치 *">
+          <input name="location" value={form.location} onChange={handleChange} required placeholder="서울 마포구 망원동"
+            className="w-full text-sm px-3 py-2.5 border" style={inputStyle} />
+        </Field>
+
         <Field label="지도 위치">
           <div className="space-y-2">
-            {form.location && <p className="text-sm">{form.location}</p>}
             {coords ? (
               <p className="text-xs opacity-70">
-                지도 연결됨 · 위도 {coords.lat.toFixed(5)} · 경도 {coords.lng.toFixed(5)}
-                <button type="button" className="ml-2 underline" onClick={() => setCoords(null)}>좌표 지우기</button>
+                상세 위치를 기준으로 자동 연결됨 · 위도 {coords.lat.toFixed(5)} · 경도 {coords.lng.toFixed(5)}
               </p>
             ) : (
-              <p className="text-xs" style={{ color: "#b45309" }}>지도 위치가 연결되지 않았어요. 장소를 검색해서 하나 선택하면 상세 위치와 좌표가 함께 저장돼요.</p>
+              <p className="text-xs opacity-70">
+                상세 위치를 저장하면 지도 위치가 자동으로 연결돼요.
+                {mode === "edit" && " 자동으로 찾지 못했다면 아래에서 직접 찾을 수 있어요."}
+              </p>
             )}
             <button type="button" className="text-xs underline" onClick={() => setShowPlaceSearch((v) => !v)}>
-              {showPlaceSearch ? "검색 닫기" : coords ? "위치 다시 검색" : "주소로 위치 찾기"}
+              {showPlaceSearch ? "검색 닫기" : coords ? "위치 다시 검색" : "직접 위치 찾기"}
             </button>
             {showPlaceSearch && (
               <PlaceSearch
@@ -397,11 +411,6 @@ export default function SpaceForm({ mode, space, categories, existingTagLinks }:
               />
             )}
           </div>
-        </Field>
-
-        <Field label="상세 위치 *">
-          <input name="location" value={form.location} onChange={handleChange} required placeholder="서울 마포구 망원동"
-            className="w-full text-sm px-3 py-2.5 border" style={inputStyle} />
         </Field>
 
         <Field label="네이버 지도 링크 (선택)">
@@ -533,6 +542,11 @@ export default function SpaceForm({ mode, space, categories, existingTagLinks }:
         )}
 
         {error && <p className="text-xs" style={{ color: "var(--a-danger)" }}>{error}</p>}
+        {notice && (
+          <p className="text-sm" style={{ color: "#b45309" }}>
+            {notice} <Link href="/admin/spaces" className="underline">목록으로</Link>
+          </p>
+        )}
 
         {/* 저장 영역 — 관리 폼 공통 위치(하단 고정 바, 오른쪽 정렬) */}
         <div className="sticky bottom-0 -mx-4 md:mx-0 px-4 md:px-0 py-3 flex justify-end gap-2" style={{ background: "var(--a-bg)", borderTop: "1px solid var(--a-line)" }}>

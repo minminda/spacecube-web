@@ -88,3 +88,25 @@ export async function searchKakaoRegions(query: string): Promise<PlaceResult[]> 
     })
     .slice(0, 8);
 }
+
+export interface AddressMatch {
+  addressType: string; // REGION | ROAD | REGION_ADDR | ROAD_ADDR
+  lat: number;
+  lng: number;
+}
+
+/** 주소 문자열 → 좌표 후보(Kakao 주소 검색 API). 공간 상세 주소 자동 연결용, 서버 전용. 오류는 던진다. */
+export async function searchKakaoAddress(address: string): Promise<AddressMatch[]> {
+  const key = getKakaoRestKey();
+  if (!key) throw new Error("NO_KEY");
+  const res = await fetch(`https://dapi.kakao.com/v2/local/search/address.json?size=5&query=${encodeURIComponent(address)}`, {
+    headers: { Authorization: `KakaoAK ${key}` },
+    cache: "no-store",
+    signal: AbortSignal.timeout(5000),
+  });
+  if (!res.ok) throw new Error(`KAKAO_${res.status}`);
+  const json = (await res.json()) as { documents?: { address_type?: string; x: string; y: string }[] };
+  return (json.documents ?? [])
+    .map((d) => ({ addressType: d.address_type ?? "", lat: Number(d.y), lng: Number(d.x) }))
+    .filter((m) => isValidKoreaCoord(m.lat, m.lng));
+}

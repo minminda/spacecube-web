@@ -49,7 +49,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     caption: "현장 · 경험",
     items: [
       { key: "spaces", label: "운영 공간", href: "/admin/spaces" },
-      { key: "space-map", label: "공간 지도", href: "/admin/spaces/map", sub: true },
+      { key: "space-map", label: "공간 · 지역 지도", href: "/admin/spaces/map", sub: true },
       { key: "cubes", label: "큐브", href: "/admin/cubes" },
       { key: "episodes", label: "에피소드", href: "/admin/content-status" },
       { key: "interview", label: "인터뷰 질문", href: "/admin/interview", sub: true },
@@ -63,7 +63,6 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     label: "System",
     items: [
       { key: "tags", label: "태그 관리", href: "/admin/tags" },
-      { key: "districts", label: "지역 관리", href: "/admin/districts" },
       { key: "demo-data", label: "시연 데이터", href: "/admin/demo-data" },
     ],
   },

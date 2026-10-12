@@ -27,7 +27,7 @@ type Selected = { kind: "space"; space: MapSpace } | { kind: "region"; region: M
 
 const STATUS_LABEL = { public: "공개", private: "비공개", demo: "시연" } as const;
 const REGION_COLOR = "#1d4ed8";
-const SPACE_COLOR = "#111111";
+const SPACE_COLOR = "#dc2626";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 declare global {
@@ -53,27 +53,37 @@ function spaceDot(title: string, onClick: () => void): HTMLElement {
   el.type = "button";
   el.title = title;
   el.setAttribute("aria-label", title);
-  el.style.cssText = `width:11px;height:11px;border-radius:50%;background:${SPACE_COLOR};border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.35);cursor:pointer;padding:0;`;
+  el.style.cssText = `width:18px;height:18px;border-radius:50%;background:${SPACE_COLOR};border:2px solid #fff;box-shadow:0 0 0 1px rgba(127,29,29,.5),0 1px 3px rgba(0,0,0,.35);cursor:pointer;padding:0;`;
   el.onclick = onClick;
   return el;
 }
 
-function regionPin(label: string, onClick: () => void): HTMLElement {
+function regionPin(label: string, active: boolean, onClick: () => void): HTMLElement {
   const wrap = document.createElement("button");
   wrap.type = "button";
   wrap.setAttribute("aria-label", `${label} 지역`);
   wrap.style.cssText = "display:flex;flex-direction:column;align-items:center;gap:2px;background:none;border:0;padding:0;cursor:pointer;";
   const dot = document.createElement("span");
-  dot.style.cssText = `width:20px;height:20px;border-radius:50%;background:${REGION_COLOR};border:3px solid #fff;box-shadow:0 0 0 2px ${REGION_COLOR}55,0 2px 6px rgba(0,0,0,.3);`;
+  dot.style.cssText = `width:${active ? 36 : 30}px;height:${active ? 36 : 30}px;border-radius:50%;background:${REGION_COLOR};border:3px solid #fff;box-shadow:0 0 0 ${active ? 5 : 2}px ${REGION_COLOR}55,0 2px 6px rgba(0,0,0,.3);`;
   const text = document.createElement("span");
   text.textContent = label;
-  text.style.cssText = `font-size:12px;font-weight:700;color:${REGION_COLOR};background:#fff;padding:1px 6px;border-radius:9px;box-shadow:0 1px 3px rgba(0,0,0,.25);white-space:nowrap;`;
+  text.style.cssText = `font-size:13px;font-weight:700;color:${REGION_COLOR};background:#fff;padding:1px 6px;border-radius:9px;box-shadow:0 1px 3px rgba(0,0,0,.25);white-space:nowrap;`;
   wrap.append(dot, text);
   wrap.onclick = onClick;
   return wrap;
 }
 
-export default function AdminSpaceMap({ spaces, regions, jsKey }: { spaces: MapSpace[]; regions: MapRegion[]; jsKey: string }) {
+export default function AdminSpaceMap({
+  spaces, regions, jsKey, focusRegion, onSelectRegion,
+}: {
+  spaces: MapSpace[];
+  regions: MapRegion[];
+  jsKey: string;
+  /** 지역 관리 목록의 "지도에서 보기" — nonce가 바뀔 때마다 해당 지역으로 이동·강조 */
+  focusRegion?: { id: string; nonce: number } | null;
+  /** 지도에서 지역 마커를 눌렀을 때 — 지역 관리 항목 강조용 */
+  onSelectRegion?: (id: string | null) => void;
+}) {
   const [q, setQ] = useState("");
   const [region, setRegion] = useState(""); // normalizeArea 키
   const [type, setType] = useState("");
@@ -165,7 +175,7 @@ export default function AdminSpaceMap({ spaces, regions, jsKey }: { spaces: MapS
     regionsOnMap.forEach((r) => {
       const o = new kakao.maps.CustomOverlay({
         position: new kakao.maps.LatLng(r.lat, r.lng),
-        content: regionPin(r.name, () => setSelected({ kind: "region", region: r })),
+        content: regionPin(r.name, selected?.kind === "region" && selected.region.id === r.id, () => { setSelected({ kind: "region", region: r }); onSelectRegion?.(r.id); }),
         yAnchor: 0.35,
         zIndex: 5,
       });
@@ -177,10 +187,21 @@ export default function AdminSpaceMap({ spaces, regions, jsKey }: { spaces: MapS
       fitted.current = true;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready, filtered, visibleRegions]);
+  }, [ready, filtered, visibleRegions, selected]);
 
   // 필터를 바꾸면 결과 전체가 보이도록 다시 맞춘다(검색어 입력 중에는 지도를 흔들지 않음)
   useEffect(() => { fitted.current = false; }, [region, type, status, showDemo]);
+
+  // 지역 관리 목록 → 지도 이동·강조
+  useEffect(() => {
+    if (!focusRegion || !ready) return;
+    const r = regions.find((x) => x.id === focusRegion.id);
+    if (!r || !hasCoord(r)) return;
+    setSelected({ kind: "region", region: r });
+    map.current.setLevel(5);
+    map.current.panTo(new window.kakao.maps.LatLng(r.lat, r.lng));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusRegion?.nonce, ready]);
 
   function focusSpace(s: MapSpace) {
     setSelected({ kind: "space", space: s });
@@ -228,8 +249,8 @@ export default function AdminSpaceMap({ spaces, regions, jsKey }: { spaces: MapS
           공간 {filtered.length} · 지역 {visibleRegions.length} · 지도 표시 공간 {onMap.length} · 위치 미연결 {noLocation.length}
         </p>
         <p className="text-xs flex items-center gap-3" style={{ color: "var(--a-dim)" }} aria-label="범례">
-          <span className="flex items-center gap-1.5"><span style={{ width: 14, height: 14, borderRadius: "50%", background: REGION_COLOR, display: "inline-block" }} />지역</span>
-          <span className="flex items-center gap-1.5"><span style={{ width: 8, height: 8, borderRadius: "50%", background: SPACE_COLOR, display: "inline-block" }} />공간</span>
+          <span className="flex items-center gap-1.5"><span style={{ width: 16, height: 16, borderRadius: "50%", background: REGION_COLOR, display: "inline-block" }} />지역</span>
+          <span className="flex items-center gap-1.5"><span style={{ width: 11, height: 11, borderRadius: "50%", background: SPACE_COLOR, display: "inline-block" }} />공간</span>
         </p>
       </div>
 
@@ -286,7 +307,7 @@ export default function AdminSpaceMap({ spaces, regions, jsKey }: { spaces: MapS
       {regionsNoLocation.length > 0 && (
         <p className="text-xs" style={{ color: "var(--a-dim)" }}>
           지도 위치가 없는 지역 {regionsNoLocation.length}곳({regionsNoLocation.map((r) => r.name).join(", ")}) —{" "}
-          <Link href="/admin/districts" className="underline underline-offset-4">지역 관리에서 위치 연결</Link>
+          <a href="#region-panel" className="underline underline-offset-4">아래 지역 관리에서 위치 연결</a>
         </p>
       )}
 
@@ -302,7 +323,7 @@ export default function AdminSpaceMap({ spaces, regions, jsKey }: { spaces: MapS
               </li>
             ))}
           </ul>
-          <p className="text-xs mt-2" style={{ color: "var(--a-dim)" }}>공간 수정 화면의 “지도 위치”에서 장소를 검색해 선택하면 지도에 나타나요. 저장은 기존 공간 저장 버튼으로 해요.</p>
+          <p className="text-xs mt-2" style={{ color: "var(--a-dim)" }}>주소를 저장하면 지도 위치가 자동으로 연결돼요. 이 목록은 과거 공간(수정 화면에서 한 번 저장하면 연결)이나 주소를 못 찾은 공간이에요.</p>
         </details>
       )}
     </div>

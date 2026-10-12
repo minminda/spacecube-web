@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { DistrictStatus } from "@prisma/client";
 import { useToast } from "@/hooks/useToast";
@@ -32,7 +32,18 @@ async function readError(res: Response, fallback: string): Promise<string> {
   return data.error ?? fallback;
 }
 
-export default function DistrictManager({ initialRegions, unregistered }: { initialRegions: RegionRow[]; unregistered: UnregisteredRow[] }) {
+export default function DistrictManager({
+  initialRegions, unregistered, highlightId, onViewOnMap, onRegionsChange,
+}: {
+  initialRegions: RegionRow[];
+  unregistered: UnregisteredRow[];
+  /** 지도에서 선택된 지역 — 목록에서 강조 */
+  highlightId?: string | null;
+  /** "지도에서 보기" — 지도 쪽이 해당 지역으로 이동 */
+  onViewOnMap?: (row: RegionRow) => void;
+  /** 지역 목록/좌표가 바뀔 때마다 지도에 알림 */
+  onRegionsChange?: (rows: RegionRow[]) => void;
+}) {
   const router = useRouter();
   const { toast, showToast } = useToast();
   const [regions, setRegions] = useState(initialRegions);
@@ -44,6 +55,8 @@ export default function DistrictManager({ initialRegions, unregistered }: { init
   const [renameTarget, setRenameTarget] = useState<RegionRow | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<RegionRow | null>(null);
   const [locatingId, setLocatingId] = useState<string | null>(null);
+
+  useEffect(() => { onRegionsChange?.(regions); }, [regions, onRegionsChange]);
 
   const trimmedNew = newName.trim().replace(/\s+/g, " ");
   const newConflict = trimmedNew ? findRegionConflict(trimmedNew, regions) : null;
@@ -209,7 +222,7 @@ export default function DistrictManager({ initialRegions, unregistered }: { init
               const idx = regions.findIndex((x) => x.id === r.id);
               const editing = editingId === r.id;
               return (
-                <li key={r.id} className="px-4 py-3.5 flex flex-col gap-3 sm:flex-row sm:items-center">
+                <li key={r.id} id={`region-${r.id}`} className="px-4 py-3.5 flex flex-col gap-3 sm:flex-row sm:items-center" style={highlightId === r.id ? { background: "rgba(29,78,216,.08)", boxShadow: "inset 3px 0 0 #1d4ed8" } : undefined}>
                   <div className="flex-1 min-w-0">
                     {editing ? (
                       <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); requestRename(r); }}>
@@ -245,7 +258,8 @@ export default function DistrictManager({ initialRegions, unregistered }: { init
                     </select>
                     <button type="button" className="a-btn a-btn-ghost a-btn-sm" disabled={idx === 0} onClick={() => move(r, "up")} aria-label="위로">▲</button>
                     <button type="button" className="a-btn a-btn-ghost a-btn-sm" disabled={idx === regions.length - 1} onClick={() => move(r, "down")} aria-label="아래로">▼</button>
-                    <button type="button" className="a-btn a-btn-sm" onClick={() => setLocatingId(locatingId === r.id ? null : r.id)}>{r.lat !== null ? "위치 변경" : "지도 위치"}</button>
+                    {onViewOnMap && r.lat !== null && <button type="button" className="a-btn a-btn-sm" onClick={() => onViewOnMap(r)}>지도에서 보기</button>}
+                    <button type="button" className="a-btn a-btn-sm" onClick={() => setLocatingId(locatingId === r.id ? null : r.id)}>{r.lat !== null ? "위치 변경" : "위치 연결"}</button>
                     <button type="button" className="a-btn a-btn-sm" onClick={() => { setEditingId(r.id); setEditName(r.name); }}>수정</button>
                     <button type="button" className="a-btn a-btn-danger a-btn-sm" onClick={() => setDeleteTarget(r)}>삭제</button>
                   </div>
