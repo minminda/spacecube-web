@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { normalizeArea, sameArea } from "@/lib/editorial/area";
 import { hasCoord, isSinglePoint, regionOptions, spacesInRegion } from "@/lib/adminCoverage";
+import { loadKakaoMaps } from "@/lib/kakaoMapsSdk";
 
 export interface MapSpace {
   id: string;
@@ -30,24 +31,6 @@ const REGION_COLOR = "#1d4ed8";
 const SPACE_COLOR = "#dc2626";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
-declare global {
-  interface Window {
-    kakao?: any;
-  }
-}
-
-function loadKakao(key: string): Promise<any> {
-  return new Promise((resolve, reject) => {
-    if (window.kakao?.maps?.load) return window.kakao.maps.load(() => resolve(window.kakao));
-    const s = document.createElement("script");
-    s.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${encodeURIComponent(key)}&autoload=false`;
-    s.async = true;
-    s.onload = () => window.kakao.maps.load(() => resolve(window.kakao));
-    s.onerror = () => reject(new Error("load"));
-    document.head.appendChild(s);
-  });
-}
-
 function spaceDot(title: string, onClick: () => void): HTMLElement {
   const el = document.createElement("button");
   el.type = "button";
@@ -132,7 +115,7 @@ export default function AdminSpaceMap({
   useEffect(() => {
     if (!jsKey || !el.current) return;
     let cancelled = false;
-    loadKakao(jsKey)
+    loadKakaoMaps(jsKey)
       .then((kakao) => {
         if (cancelled || !el.current) return;
         map.current = new kakao.maps.Map(el.current, { center: new kakao.maps.LatLng(37.5665, 126.978), level: 8 });

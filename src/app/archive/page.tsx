@@ -24,11 +24,13 @@ import { ensureProfileHandle } from "@/lib/profile/handle";
 import { getSavedRegions } from "@/lib/regions/savedRegions";
 import RegionStar from "@/components/home/RegionStar";
 import { ChevronRightIcon } from "@/components/icons";
+import ArchiveMap from "@/components/archive/ArchiveMap";
+import { buildMapPoints, getLibraryCoords } from "@/lib/archive/libraryMap";
 
 export const metadata = { title: "내 공간 — 공간큐브", robots: { index: false } };
 
 interface Props {
-  searchParams: Promise<{ space?: string; view?: string; q?: string; area?: string; tag?: string; n?: string }>;
+  searchParams: Promise<{ space?: string; mode?: string; view?: string; q?: string; area?: string; tag?: string; n?: string }>;
 }
 
 const PAGE = 60;
@@ -60,7 +62,7 @@ export default async function ArchivePage({ searchParams }: Props) {
   if (sp.space) redirect(`/archive/space/${encodeURIComponent(sp.space)}`);
 
   const session = await auth();
-  if (!session?.user?.id) redirect("/login?callbackUrl=%2Farchive");
+  if (!session?.user?.id) redirect(`/login?callbackUrl=${encodeURIComponent(sp.mode === "map" ? "/archive?mode=map" : "/archive")}`);
 
   const user = await prisma.user.findUnique({ where: { id: session.user.id } });
   if (!user) redirect("/login");
@@ -104,6 +106,12 @@ export default async function ArchivePage({ searchParams }: Props) {
   const hasTaste = topAttributes(buildTasteProfile(discovery.signals), 1).length > 0;
   const filtered = filter.q || filter.area || filter.tag;
 
+  // 지도 보기(?mode=map) — 같은 라이브러리 데이터를 공간으로 보는 두 번째 보기. 기본은 리스트.
+  const mapMode = sp.mode === "map";
+  const mapData = mapMode
+    ? buildMapPoints(library, await getLibraryCoords(library), (it) => (!it.visited && it.key.startsWith("s-") ? `/spaces/${it.key.slice(2)}` : libraryHref(it.key)))
+    : null;
+
   return (
     <div className="editorial-bleed">
       <main className="pb-20 md:pb-28">
@@ -145,7 +153,23 @@ export default async function ArchivePage({ searchParams }: Props) {
           )}
         </PageHeader>
 
+        {/* 리스트 ↔ 지도 */}
+        <section className="ed-container" style={{ borderBottom: "1px solid var(--ed-line)" }}>
+          <TabLinks
+            label="표시 방식"
+            active={mapMode ? "map" : "list"}
+            tabs={[{ key: "list", label: "리스트", href: hrefWith(filter, {}) }, { key: "map", label: "지도", href: "/archive?mode=map" }]}
+          />
+        </section>
+
+        {mapMode && mapData && (
+          <section className="ed-container pt-5">
+            <ArchiveMap points={mapData.points} missing={mapData.missing} jsKey={process.env.NEXT_PUBLIC_KAKAO_MAP_JS_KEY ?? ""} />
+          </section>
+        )}
+
         {/* 보기 · 검색 · 지역 — 100곳 이상이어도 찾을 수 있도록. 태그는 화면에 내지 않는다(취향은 사진으로) */}
+        {!mapMode && (<>
         <section className="ed-container" style={{ borderBottom: "1px solid var(--ed-line)" }}>
           <div className="flex flex-wrap items-center justify-between gap-x-6">
             <TabLinks
@@ -206,6 +230,7 @@ export default async function ArchivePage({ searchParams }: Props) {
             </>
           )}
         </section>
+        </>)}
 
         {/* 쌓인 기록 → 다음 공간 — 취향을 태그·통계로 보여주지 않고 추천으로만 잇는다 */}
         {hasTaste && editorial && (

@@ -1,25 +1,21 @@
 # Claude Code Latest Handoff
 
-Updated: 2026-10-12 (공간 지도 + 지역 관리 통합 · 공간 주소 → 좌표 자동 연결) · 사용자 화면·추천 변경 없음
+Updated: 2026-10-12 (내 공간 지도 보기 — `/archive?mode=map`) · DB·스키마·API 변경 없음
 
 ## 한 일
-- **`/admin/spaces/map` 통합 화면**: 지도 아래에 "지역 관리"(기존 `DistrictManager` 재사용: 추가·수정·삭제·순서·상태·위치 연결/변경/해제) 배치. `CoverageWorkspace`가 둘을 연결 — 목록 "지도에서 보기" → 지도 이동·강조, 지도 지역 마커 클릭 → 목록 항목 강조·스크롤.
-- `/admin/districts` → `/admin/spaces/map?panel=regions` 리다이렉트. 사이드바 "지역 관리" 항목 제거, "공간 · 지역 지도"로 개명. District API·모델·SVG 설정 무변경.
-- **마커**: 지역 = 파란 30px(+지역명 라벨, 선택 시 36px), 공간 = 빨간 18px. 범례도 같은 색.
-- **공간 주소 → 좌표 자동 연결** (`src/lib/spaceGeocode.ts`, `kakaoLocal.searchKakaoAddress`)
-  - source: 공간 폼의 "상세 위치 *"(`Space.location`, 필수 필드). 새 필드 없음. 사용자가 입력한 주소 문자열은 덮어쓰지 않음.
-  - API: Kakao Local **주소 검색**(`/v2/local/search/address.json`), 서버에서만 호출(5초 타임아웃, 키/오류 상세 로그 없음).
-  - 호출 시점(`resolveSpaceCoord`): 신규 공간 · 주소 변경 · 주소 있음+좌표 없음. 주소 그대로+좌표 있음이면 호출 생략.
-  - 폼이 기존과 다른 좌표를 보내면(= "직접 위치 찾기"로 고름) geocode 없이 그 좌표를 신뢰.
-  - 채택 조건: REGION(동·구 단위) 결과는 거부, 후보가 150m 안에 모여야 함. 모호/없음/API 오류 → 저장은 성공, 응답 `geocodeStatus: "failed"`, 폼이 "공간 정보는 저장됐어요. 지도 위치는 자동으로 연결하지 못했어요" 안내. 주소가 바뀐 채 실패하면 옛 좌표 제거(null).
-  - 주소는 필수라 "주소 삭제 시 좌표 정리" 경우는 발생하지 않음.
-- 공간 폼: 상세 위치 아래 "지도 위치" 블록 — 연결됨이면 "상세 위치를 기준으로 자동 연결됨", 없으면 안내 + "직접 위치 찾기"(기존 PlaceSearch는 수동 보정 fallback). "좌표 지우기" 제거.
-- 기존 공간은 일괄 geocode하지 않음 — 수정 화면에서 저장하면 연결됨.
+- **내 공간 리스트 ↔ 지도** (`src/app/archive/page.tsx`): 상단 `TabLinks` "리스트 | 지도". 기본은 리스트, 지도는 `?mode=map`(링크 이동이라 뒤로가기 정상). 지도 모드에서는 기존 필터/그리드 섹션만 숨기고 나머지(헤더·관심 지역·방명록·설정)는 그대로. 비로그인은 기존 로그인 리다이렉트(callbackUrl에 `mode=map` 보존).
+- **데이터는 기존 `getLibrary` 재사용** — 지도 전용 테이블/API 없음. `src/lib/archive/libraryMap.ts`: 상태 계산(`mapState`: 재방문(방문 2회+) > 다녀온 곳 > 저장, 저장만 해제+방문 있음이면 유지, 저장도 방문도 없으면 제외), `buildMapPoints`(공간당 마커 1개, 좌표 없음/잘못된 좌표/개인 기록은 `missing`), `getLibraryCoords`(라이브러리 key `s-<slug>` → 운영 `Space.lat/lng` 쿼리 1회, EditorialSpace엔 좌표가 없어 slug로 연결). 방문 횟수 = 개인 기록 방문 + Cube Record(아카이브 상세의 "N번"과 같은 기준, 시연 공간은 getLibrary의 includeDemo 정책 그대로).
+- **`src/components/archive/ArchiveMap.tsx`** (클라이언트): Kakao JS SDK만 사용(REST/장소검색/위치권한/주변검색 없음). 마커 = SVG 3종(저장=속 빈 원, 다녀온 곳=채운 원, 또 간 곳=채운 원+바깥 링+가운데 점; 색에만 의존하지 않음). 범례는 같은 SVG. 마커 클릭 → 하단 카드(공간명·지역·상태·방문 횟수 + 방문=“내 기록 보기”(`/archive/p/<key>`), 저장만=“공간 보기”(`/spaces/<slug>`)). 초기 bounds로 전체 맞춤, `setMaxLevel(10)`, 단일 지점은 레벨 4. 높이 `calc(100dvh - 300px)`(380~720px). 좌표 없는 공간은 “지도에 표시되지 않은 공간 N곳 / 지도 위치가 준비 중” details. Empty·SDK 실패 fallback 문구 포함.
+- **`src/lib/kakaoMapsSdk.ts`**: SDK 로더만 공통화(중복 로드 방지, 실패 시 재시도). 관리자 `AdminSpaceMap`은 이 로더를 쓰도록 교체(동작 동일, 컴포넌트 import 없음).
+- 하지 않은 것: 리스트 카드 “지도에서 보기”, 클러스터링, split view.
 
 ## 검증
-tsc·eslint(변경 파일) 통과, vitest 107파일 1005 통과(신규 `spaceGeocode.test.ts`: 신규/주소변경/미변경 재호출 생략/실패/수동 좌표). 관리자 로그인·Kakao 키 없이 브라우저 검증 불가 → 배포 후 수동 확인 필요(마커 색, 지역↔지도 연동, 실제 geocoding). `next build` 미실행.
+tsc · eslint(변경 파일) 통과, vitest `src/lib/archive` 통과(신규 `libraryMap.test.ts`: 상태 우선순위, 저장 해제/방문 유지, 좌표 없음·0,0·개인 기록 제외, 공간당 1마커). 로그인/Kakao 키 없이 브라우저 검증 불가 → 실제 마커·카드·모바일 레이아웃은 배포 후 수동 확인. `next build` 미실행.
 
-## 관리자가 할 일
-1. 신규 공간: 상세 주소만 입력하고 저장 → 공간 지도에 빨간 마커.
-2. 기존 공간(운영 6곳 우선): 수정 화면 열기 → 주소 확인 → 저장(자동 연결). 실패 안내가 뜨면 "직접 위치 찾기".
-3. 지역 3곳: 공간 지도 하단 "지역 관리"에서 "위치 연결".
+## 배포 후 확인할 것
+1. `/archive` 기본이 리스트인지, “지도” 탭 → 지도, “리스트” 복귀, 브라우저 뒤로가기.
+2. 공간 저장 → 지도에 속 빈 원. 방문 기록 → 채운 원. 2회 이상 → 링+점, 카드에 “N번 방문”.
+3. 저장 해제(방문 없음) → 마커 사라짐 / 방문 있는 공간 저장 해제 → 마커 유지.
+4. 마커 카드의 “내 기록 보기”/“공간 보기” 이동, 모바일에서 카드와 하단 탭 겹침.
+5. 좌표 없는 공간(옛 공간은 관리자에서 수정 저장 시 자동 연결)이 “지도에 표시되지 않은 공간”에 잡히는지.
+6. Kakao 콘솔 Web 도메인에 운영 도메인 등록(관리자 지도와 동일 키 `NEXT_PUBLIC_KAKAO_MAP_JS_KEY`).
