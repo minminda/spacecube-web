@@ -12,7 +12,7 @@ function navHeight(): number {
 }
 
 /**
- * 상세 글 읽기 진행 바 — Navbar 바로 아래 전체 폭 4px(아주 연한 회색 바탕 위 검정). 링크로 들어오면 맨 위, 새로고침하면 읽던 위치(useArticleScroll). 감싼 영역(제목 ~ 마지막 본문 블록)만 기준으로 계산하므로
+ * 상세 글 읽기 진행 바 — Navbar 바로 아래 전체 폭 4px(아주 연한 회색 바탕 위 검정). 링크로 들어오면 맨 위(useArticleScroll), 새로고침도 맨 위(reloadScroll). 감싼 영역(제목 ~ 마지막 본문 블록)만 기준으로 계산하므로
  * 아래의 관련 공간 · 다른 이야기 · 푸터는 진행률에 들어가지 않는다(본문 끝 = 100%).
  * StoryArticle · CurationArticle과 Cube QR Episode(/space/[slug]/episodes/[id])가 같이 쓴다 — 공개 상세와 관리자 미리보기(iframe)가 같다 — iframe 안에서는 그 문서의
  * window로 계산되어 관리자 화면 스크롤과 섞이지 않는다.

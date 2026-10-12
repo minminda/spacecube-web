@@ -77,13 +77,15 @@ export default function SpaceDetailModal({ children }: { children: React.ReactNo
         className="ed-modal-panel relative mx-auto mt-12 w-[min(800px,calc(100%-64px))] min-h-[calc(100vh-48px)] rounded-t-[var(--ed-radius-lg)] outline-none"
         style={{ background: "var(--ed-bg)", color: "var(--ed-fg)" }}
       >
-        <div className="sticky top-3 z-20 h-0 flex justify-end pr-3 pointer-events-none">
+        {/* X — 창 오른쪽 위 모서리, 본문 좌우 여백(40px) 안. 대표 사진(본문 폭 720px, 위 여백 pt-14 아래)과 가로 · 세로 모두 겹치지 않는다.
+            테두리 · 상자 없이 글자만 보이고, 누르는 영역은 44px. 스크롤해 아래 내용 위를 지날 때만 반투명 원이 X를 받쳐 준다
+            (창 바탕과 같은 색이라 맨 위에서는 보이지 않음). */}
+        <div className="sticky top-0 z-20 h-0 flex justify-end pointer-events-none">
           <button
             type="button"
             onClick={() => router.back()}
             aria-label="공간 상세 닫기"
-            className="pointer-events-auto mt-3 w-11 h-11 inline-flex items-center justify-center rounded-[var(--ed-radius)] backdrop-blur-sm"
-            style={{ background: "color-mix(in srgb, var(--ed-bg) 88%, transparent)", color: "var(--ed-fg)", border: "1px solid var(--ed-line)" }}
+            className="ed-close-btn pointer-events-auto mt-1.5 mr-0.5"
           >
             <CloseIcon className="w-5 h-5" />
           </button>

@@ -91,19 +91,17 @@ export default async function SpaceDetail({ slug, presentation }: Props) {
         <p className="ed-container pt-3 text-xs" style={{ color: "var(--ed-dim)" }}>임시 공간 미리보기 — UI 확인용이며 실제 공간이 아닙니다. 일반 방문자에게는 보이지 않아요.</p>
       ) : space.isDemo ? <PrototypeBanner demo /> : <PreviewBanner status={space.status} editHref={`/admin/content/spaces/${space.id}`} />}
       {!fixture && !space.isDemo && <DiscoveryTracker spaceId={space.id} />}
-      <main className={modal ? "pt-14" : "pt-3 md:pt-8"}>
+      <main className={modal ? "pt-14" : "relative pt-12 md:pt-8"}>
+        {/* 휴대폰 상세는 전체 페이지 — 화면 오른쪽 위에 닫기(이전 화면으로). 사진 위가 아니라 사진 위쪽 여백(pt-12)에 둬서 겹치지 않는다.
+            데스크톱 창은 창 자체의 X · 바깥 클릭 · ESC */}
+        {!modal && (
+          <div className="md:hidden absolute top-0.5" style={{ right: "max(4px, env(safe-area-inset-right))" }}>
+            <DetailCloseButton />
+          </div>
+        )}
         {/* 대표 사진 — 원래 비율 16:9(휴대폰 · 데스크톱 동일). 높이를 줄이려고 비율을 바꾸지 않고, 상세 폭(.ed-detail)을 좁혀 사진이 옆으로 늘어나 보이지 않게 한다 */}
-        <div className="ed-container ed-detail relative">
+        <div className="ed-container ed-detail">
           <EdImage image={spaceCoverImage(space)} ratio="16 / 9" sizes="(min-width: 800px) 720px, 100vw" priority />
-          {/* 휴대폰 상세는 전체 페이지 — 사진 오른쪽 위에 닫기(이전 화면으로). 데스크톱 창은 창 자체의 X · 바깥 클릭 · ESC */}
-          {!modal && (
-            <span
-              className="md:hidden absolute right-7 top-2 rounded-[var(--ed-radius)] backdrop-blur-sm"
-              style={{ background: "color-mix(in srgb, var(--ed-bg) 88%, transparent)", border: "1px solid var(--ed-line)" }}
-            >
-              <DetailCloseButton />
-            </span>
-          )}
         </div>
 
         {/* 공간명 · 한 줄 소개 */}

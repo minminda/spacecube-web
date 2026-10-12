@@ -273,6 +273,32 @@ html[data-ed-theme="dark"]:has(.editorial-bleed) { color-scheme: dark; }
   --bg: var(--ed-bg);
   --fg: var(--ed-fg);
 }
+/* 공간 상세 닫기 X(데스크톱 창 · 휴대폰 페이지 공용) — 테두리 · 사각 상자 · 그림자 없이 X만. 누르는 영역은 44px 원.
+   안쪽 36px 원은 바탕과 같은 색의 반투명 + 약한 블러: 바탕 위에서는 보이지 않고, 스크롤해 사진 · 카드 위를 지날 때만 X를 받친다(라이트 · 다크 동일 토큰). */
+.ed-close-btn {
+  position: relative;
+  isolation: isolate;
+  width: 44px;
+  height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  color: var(--ed-fg);
+}
+.ed-close-btn::before {
+  content: "";
+  position: absolute;
+  inset: 4px;
+  z-index: -1;
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--ed-bg) 78%, transparent);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  transition: background-color 0.15s ease;
+}
+.ed-close-btn:hover::before,
+.ed-close-btn:active::before { background: var(--ed-soft); }
 .editorial-bleed :is(a, button, input, textarea, select):focus-visible,
 .ed-modal-panel :is(a, button, input, textarea, select):focus-visible {
   outline: 2px solid var(--ed-fg);

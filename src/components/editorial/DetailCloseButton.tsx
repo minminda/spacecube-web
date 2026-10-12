@@ -18,7 +18,7 @@ export default function DetailCloseButton({ className = "" }: { className?: stri
     else router.push("/");
   }
   return (
-    <button type="button" onClick={close} aria-label="공간 상세 닫기" className={`w-11 h-11 inline-flex items-center justify-center rounded-[var(--ed-radius)] hover:bg-[var(--ed-soft)] active:bg-[var(--ed-soft)] ${className}`}>
+    <button type="button" onClick={close} aria-label="공간 상세 닫기" className={`ed-close-btn ${className}`}>
       <CloseIcon className="w-5 h-5" />
     </button>
   );
