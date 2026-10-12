@@ -65,6 +65,26 @@ export async function searchArchiveSpaces(userId: string, q: string, opts: { inc
   });
 }
 
+/**
+ * 공개 공간 상세의 "내 공간" 줄 — 공간 추가 검색과 같은 기준(myStateOf)으로 이 공간 하나의 내 상태.
+ * saved는 화면의 저장 표시와 같은 값(공개 저장 + 같은 slug의 운영 공간 저장)을 호출부가 넘긴다.
+ */
+export async function getMySpaceState(userId: string, space: { id: string; slug: string }, saved: boolean): Promise<MyState> {
+  const [entry, cubeVisits] = await Promise.all([
+    prisma.archiveEntry.findUnique({
+      where: { userId_spaceId: { userId, spaceId: space.id } },
+      select: { id: true, status: true, memo: true, _count: { select: { visits: true } } },
+    }),
+    // Cube 방문(운영 Record)은 같은 slug의 운영 공간으로 잇는다(아카이브 상세의 "N번"과 같은 기준)
+    prisma.record.count({ where: { userId, space: { slug: space.slug } } }),
+  ]);
+  return myStateOf({
+    entry: entry ? { id: entry.id, status: entry.status, memo: entry.memo, visits: entry._count.visits } : null,
+    saved,
+    cubeVisits,
+  });
+}
+
 function sourceKindOf(input: CreateEntryInput): "PHOTO" | SourceKind | "MANUAL" {
   const u = parseHttpUrl(input.sourceUrl);
   if (u) return detectSourceKind(u);

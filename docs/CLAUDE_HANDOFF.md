@@ -1,30 +1,33 @@
 # Claude Code Latest Handoff
 
-## 2026-10-12 · 레퍼런스 × 현재 제품 Gap Analysis 완료 (문서만, 코드 변경 없음)
-- 문서: `docs/reference-current-product-gap-analysis-2026-10.md` (10/09 최종본·10/06 중간본 결론 재사용 + 현재 코드·운영 DB 읽기 전용 집계)
-- 핵심 사실: 공개 공간 6곳(전부 Cube 공간) · 태그 0개 · 실사용 저장 1건 → HOME 선반·개인화가 공급 규모보다 앞서 있음
-- TOP 3: ① Space Detail = "고른 이유(큐레이션 note) + 소개된 이야기 위로 + 내 상태/다녀왔어요" ② Instagram 도착 준비(콘텐츠별 og 메타 · 비로그인 저장 의도 보존 · 유입 출처) ③ 규모에 맞는 HOME(같은 공간 반복 선반 접기)
-- 다음 구현 후보: TOP 1부터. 함께 처리할 부채 = Cube 공간 첫 화면 "방명록 열기"가 로그인+1~5점 폼을 거침(`src/app/space/[slug]/page.tsx:206`). 운영 = 공개 공간 태그 입력 · 주 1편 CURATION
-- 추천 정합화(앵커 공간 이름 이유 · 재방문/wantAgain · curatorBoost 제거)는 NEXT
-
----
-
-Updated: 2026-10-12 (내 공간 지도 보기 — `/archive?mode=map`) · DB·스키마·API 변경 없음
+Updated: 2026-10-12 (Gap Analysis TOP 1 — Space Detail = 이 공간의 목차 + 내 기록의 입구) · DB·스키마·API 변경 없음
 
 ## 한 일
-- **내 공간 리스트 ↔ 지도** (`src/app/archive/page.tsx`): 상단 `TabLinks` "리스트 | 지도". 기본은 리스트, 지도는 `?mode=map`(링크 이동이라 뒤로가기 정상). 지도 모드에서는 기존 필터/그리드 섹션만 숨기고 나머지(헤더·관심 지역·방명록·설정)는 그대로. 비로그인은 기존 로그인 리다이렉트(callbackUrl에 `mode=map` 보존).
-- **데이터는 기존 `getLibrary` 재사용** — 지도 전용 테이블/API 없음. `src/lib/archive/libraryMap.ts`: 상태 계산(`mapState`: 재방문(방문 2회+) > 다녀온 곳 > 저장, 저장만 해제+방문 있음이면 유지, 저장도 방문도 없으면 제외), `buildMapPoints`(공간당 마커 1개, 좌표 없음/잘못된 좌표/개인 기록은 `missing`), `getLibraryCoords`(라이브러리 key `s-<slug>` → 운영 `Space.lat/lng` 쿼리 1회, EditorialSpace엔 좌표가 없어 slug로 연결). 방문 횟수 = 개인 기록 방문 + Cube Record(아카이브 상세의 "N번"과 같은 기준, 시연 공간은 getLibrary의 includeDemo 정책 그대로).
-- **`src/components/archive/ArchiveMap.tsx`** (클라이언트): Kakao JS SDK만 사용(REST/장소검색/위치권한/주변검색 없음). 마커 = SVG 3종(저장=속 빈 원, 다녀온 곳=채운 원, 또 간 곳=채운 원+바깥 링+가운데 점; 색에만 의존하지 않음). 범례는 같은 SVG. 마커 클릭 → 하단 카드(공간명·지역·상태·방문 횟수 + 방문=“내 기록 보기”(`/archive/p/<key>`), 저장만=“공간 보기”(`/spaces/<slug>`)). 초기 bounds로 전체 맞춤, `setMaxLevel(10)`, 단일 지점은 레벨 4. 높이 `calc(100dvh - 300px)`(380~720px). 좌표 없는 공간은 “지도에 표시되지 않은 공간 N곳 / 지도 위치가 준비 중” details. Empty·SDK 실패 fallback 문구 포함.
-- **`src/lib/kakaoMapsSdk.ts`**: SDK 로더만 공통화(중복 로드 방지, 실패 시 재시도). 관리자 `AdminSpaceMap`은 이 로더를 쓰도록 교체(동작 동일, 컴포넌트 import 없음).
-- 하지 않은 것: 리스트 카드 “지도에서 보기”, 클러스터링, split view.
+- **순서 변경** (`src/components/editorial/SpaceDetail.tsx`): 머리·대표 사진 → **내 공간 줄** → **공간큐브가 고른 이유** → **이 공간이 소개된 이야기**(맨 아래에서 위로) → 공간 소개·정보·공간큐브(Episode) → 운영자의 이야기 → 사진 → **함께 소개된 공간**. 데스크톱 그리드·머리·대표 사진은 그대로.
+- **고른 이유**: `getStoriesForSpace`가 이미 가져오던 큐레이션의 `EditorialCurationSpace.note`. 큐레이션 순서 = `number DESC`(HOME `homeData.ts` notes 맵과 같은 규칙) → 첫 note 1개만 인용 + 「큐레이션 제목」에서(→ `/curation/[slug]`). note 없으면 블록 자체 숨김. 순수 함수 `src/lib/editorial/spaceDetailLinks.ts` `pickSpaceReasons`.
+- **소개된 이야기 카드**: 유형·번호 + 제목 + 한 줄(CURATION=이 공간의 note, 위에서 이미 인용한 큐레이션은 같은 문장 반복 대신 큐레이션 요약 / PEOPLE·THOUGHT=기존 summary). 2줄 clamp, 모바일 썸네일 120→88px.
+- **내 공간 줄** (`src/components/editorial/SpaceRelation.tsx`, 클라이언트): 문장 우선순위 N번 다녀온 곳(2회+) > 한 번 다녀온 곳 > 내 공간에 저장한 곳 > 문장 없음. 버튼 = 저장(기존 `SaveButton` text 변형 재사용, `onChange` prop만 추가) + 다녀왔어요/또 갔어요 + 기록이 있으면 "내 기록 보기 →"(`/archive/p/s-<slug>`). 대표 사진 위 저장 아이콘은 이 줄로 **옮김**(상세에 저장 버튼 1개). 상태 계산은 서버 `getMySpaceState`(`src/lib/archive/entries.ts`) = 공간 추가 검색과 같은 `myStateOf`(내 기록 방문 + 같은 slug 운영 공간 Cube Record).
+- **다녀왔어요 / 또 갔어요**: 기존 `POST /api/archive/entries { spaceId, status: "VISITED" }` 그대로 — 기록 없으면 만들고 있으면 덧붙이며 방문 1건(날짜 없음 = "기록한 날")을 남김. 새 API 없음. 응답 뒤 화면 즉시 갱신(새로고침 없음), 한 화면에서 1회만(연속 탭 중복 방지), "날짜 · 사진 · 메모는 내 기록에서" 안내. 비로그인 = 기존 `/login?callbackUrl=<현재 주소>`(로그인 후 자동 실행은 TOP 2라 안 함).
+- **공간큐브 한 줄**: Partner면 정보 아래 블록 제목 "공간큐브가 있는 공간 ◆" + "현장에서 공간큐브의 QR을 찍으면 이 공간의 Episode가 열려요."(Episode 없으면 "…QR로 이 공간의 이야기를 만날 수 있어요."). 인증·등급 표현 없음. 비 Partner는 블록 없음.
+- **관련 공간**: ① 같은 큐레이션에 함께 소개된 공간(큐레이션 순서 → 큐레이션 안 order) ② 모자라면 같은 지역. 자기 제외·중복 제거·최대 3. 제목 = 함께 소개된 공간 / ○○의 다른 공간 / (섞이면) 이어서 볼 공간. `relatedSpacesFor`.
 
 ## 검증
-tsc · eslint(변경 파일) 통과, vitest `src/lib/archive` 통과(신규 `libraryMap.test.ts`: 상태 우선순위, 저장 해제/방문 유지, 좌표 없음·0,0·개인 기록 제외, 공간당 1마커). 로그인/Kakao 키 없이 브라우저 검증 불가 → 실제 마커·카드·모바일 레이아웃은 배포 후 수동 확인. `next build` 미실행.
+- tsc 통과, 변경 파일 eslint 통과, vitest `src/lib/{editorial,archive,home,search}` 203개 통과(신규: `spaceDetailLinks.test.ts`, `spaceRelation.test.ts`(상태 문장 + 다녀왔어요 요청 본문 파싱), `mySpaceState.test.ts`).
+- 로컬 dev(운영 DB) + isDemo 테스트 사용자/DB 세션으로 실제 클릭 확인: 기록 없음 → 다녀왔어요 → "한 번 다녀온 곳이에요"+내 기록 보기 → 새로고침 유지·"또 갔어요" → 저장 → 또 갔어요 → "2번" + 두 번째 탭 차단 → 아카이브 상세 "다녀왔어요 · 2번"·방문 2건. 비로그인 클릭 → `/login?callbackUrl=%2Fspaces%2Fbooknook-yeonnam`. 375px(iframe)·1280px 화면 확인, 가로 넘침 없음. 비 Partner는 fixture 공간, note 없는 공간은 아카커피룸(고른 이유·관련 공간 없음, THOUGHT만)으로 확인. 콘솔 에러 없음.
+- 테스트 데이터 정리 완료(테스트 사용자 cascade 삭제 + 상세 조회 DiscoveryEvent 1행 삭제, 익명 행 0).
+- `next build` 미실행 — build 스크립트가 `prisma db push`를 먼저 돌림(이번 스키마 변경 없음).
+
+## 결정이 필요한 것 / 메모
+- 공간 상세의 "다녀왔어요"는 날짜 없이 1건을 남긴다(아카이브의 기존 정책). 날짜·사진은 내 기록에서 — 상세에 입력 폼을 둘지는 반응을 보고 결정.
+- 대표 사진 위 저장 아이콘을 없앴다(내 공간 줄로 이동). 저장 위치 체감이 나쁘면 아이콘 복귀 + 줄에는 상태만 두는 방식으로 되돌리기 쉬움.
+- 북눅처럼 이야기 7편인 공간은 모바일에서 목록이 약 1화면 길이. 더 늘면 "더 보기"를 고려.
+- 맨 아래 "더 많은 공간 이야기는 Instagram에서 →"는 TOP 2 범위라 그대로 둠.
 
 ## 배포 후 확인할 것
-1. `/archive` 기본이 리스트인지, “지도” 탭 → 지도, “리스트” 복귀, 브라우저 뒤로가기.
-2. 공간 저장 → 지도에 속 빈 원. 방문 기록 → 채운 원. 2회 이상 → 링+점, 카드에 “N번 방문”.
-3. 저장 해제(방문 없음) → 마커 사라짐 / 방문 있는 공간 저장 해제 → 마커 유지.
-4. 마커 카드의 “내 기록 보기”/“공간 보기” 이동, 모바일에서 카드와 하단 탭 겹침.
-5. 좌표 없는 공간(옛 공간은 관리자에서 수정 저장 시 자동 연결)이 “지도에 표시되지 않은 공간”에 잡히는지.
-6. Kakao 콘솔 Web 도메인에 운영 도메인 등록(관리자 지도와 동일 키 `NEXT_PUBLIC_KAKAO_MAP_JS_KEY`).
+1. 북눅 상세: 사진 아래 저장·다녀왔어요, 그 아래 고른 이유(「공간 자체를 보러 가고 싶은 곳」에서) → 링크가 큐레이션으로 감.
+2. 소개된 이야기가 공간 소개보다 위, CURATION 4·PEOPLE 2·THOUGHT 1, 첫 큐레이션 한 줄은 요약(인용 반복 없음).
+3. 로그인: 다녀왔어요 → 즉시 "한 번 다녀온 곳이에요" + 내 기록 보기 → 내 공간 상세에 방문 1건.
+4. 재방문: 다시 들어오면 "또 갔어요" → "2번 다녀온 곳이에요". 내 공간 지도/리스트의 상태도 맞는지.
+5. 비로그인: 다녀왔어요 → 로그인 → 같은 상세로 복귀(자동 기록은 안 됨이 정상).
+6. 녹화버튼: 함께 소개된 공간 = 턴다운서비스·다시점. 아카커피룸: 고른 이유·관련 공간 없음.
+7. 공간큐브 블록 문장 + Episode 잠금 안내 창 정상. 데스크톱 HOME에서 연 상세 창(modal)도 같은 구성.

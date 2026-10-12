@@ -13,6 +13,8 @@ interface Props {
   variant?: "icon" | "corner" | "text" | "detail";
   /** 임시(fixture) 공간 — 서버에 요청하지 않고 화면 안에서만 켜고 끈다 */
   mock?: boolean;
+  /** 저장 상태가 확정될 때(서버 응답 · 임시 공간 토글) — 같은 화면의 상태 문장을 맞출 때만 넘긴다 */
+  onChange?: (saved: boolean) => void;
 }
 
 const ICON_SIZE = { icon: 18, corner: 14, text: 16, detail: 22 } as const;
@@ -22,7 +24,7 @@ const ICON_SIZE = { icon: 18, corner: 14, text: 16, detail: 22 } as const;
  * 요청이 진행 중일 때 다시 누르면 무시해 순서가 뒤바뀐 응답으로 화면과 DB가 어긋나지 않게 한다.
  * 실패하면 원래 상태로 되돌리고 짧게 알린다. 비로그인이면 로그인 후 같은 페이지로 돌아온다.
  */
-export default function SaveButton({ spaceId, spaceName, initialSaved, loggedIn, variant = "icon", mock }: Props) {
+export default function SaveButton({ spaceId, spaceName, initialSaved, loggedIn, variant = "icon", mock, onChange }: Props) {
   const [saved, setSaved] = useState(initialSaved);
   const [error, setError] = useState(false);
   const inFlight = useRef(false);
@@ -34,7 +36,8 @@ export default function SaveButton({ spaceId, spaceName, initialSaved, loggedIn,
     e.preventDefault();
     e.stopPropagation();
     if (mock) {
-      setSaved((v) => !v);
+      setSaved(!saved);
+      onChange?.(!saved);
       return;
     }
     // 로그인 후 돌아올 곳은 검색어·지역까지 포함한 지금 주소(/find?area=망원 → 로그인 → 같은 화면)
@@ -58,6 +61,7 @@ export default function SaveButton({ spaceId, spaceName, initialSaved, loggedIn,
       const data = (await res.json().catch(() => ({}))) as { saved?: boolean };
       if (!res.ok || typeof data.saved !== "boolean") throw new Error("save failed");
       setSaved(data.saved);
+      onChange?.(data.saved);
     } catch {
       setSaved(prev);
       setError(true);
