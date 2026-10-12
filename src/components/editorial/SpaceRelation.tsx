@@ -1,10 +1,11 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import SaveButton from "./SaveButton";
 import { hasArchiveRecord, relationText, visitAction } from "@/lib/archive/spaceRelation";
+import { loginHrefWithIntent, takePendingIntent, type PendingIntentKind } from "@/lib/editorial/pendingIntent";
 
 interface Props {
   /** EditorialSpace.id */
@@ -28,6 +29,9 @@ interface Props {
  * 내 기록이 없으면 만들고 있으면 덧붙이며, 방문 1건(날짜 없음 = 기록한 날)을 남긴다. 날짜 · 사진 · 메모는 내 기록에서.
  * "또 갔어요"는 토글: 이 화면에서 남긴 재방문은 같은 버튼(✓)을 다시 누르면 그 1건만 취소한다
  * (DELETE /api/archive/entries/[id]/visits — 첫 방문 · 과거 방문 · Cube 방문은 지우지 않는다). 요청 중에는 버튼을 잠근다.
+ * 비로그인으로 저장 · 다녀왔어요를 누르면 로그인 후 이 화면으로 돌아와 그 행동을 한 번 자동으로 끝낸다(pendingIntent.ts).
+ * 이때 상태는 로그인한 계정 기준으로 서버가 다시 그린 값(initialSaved · initialVisits)으로 판단한다 —
+ * 이미 저장된 곳이면 저장 요청 없이 안내만, 이미 다녀온 곳(내 기록 · Cube 방문 1회 이상)이면 방문을 더 만들지 않는다.
  */
 export default function SpaceRelation({ spaceId, spaceName, loggedIn, initialSaved, initialVisits, hasEntry, archiveHref, mock }: Props) {
   const [saved, setSaved] = useState(initialSaved);
@@ -40,11 +44,16 @@ export default function SpaceRelation({ spaceId, spaceName, loggedIn, initialSav
   const [added, setAdded] = useState<{ entryId: string; visitId: string } | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // 로그인 후 자동 저장이 끝나면 저장 버튼을 새 상태로 다시 그린다(SaveButton은 처음 받은 값으로 자기 상태를 가진다)
+  const [saveKey, setSaveKey] = useState(0);
+  const intentChecked = useRef(false);
   const router = useRouter();
   const pathname = usePathname();
 
   const action = visitAction(visits, !!added);
-  const toLogin = () => router.push(`/login?callbackUrl=${encodeURIComponent(`${pathname}${window.location.search}`)}`);
+  // kind가 있으면 로그인 후 그 행동을 이어서 끝내도록 의도를 실어 보낸다(첫 다녀왔어요만 — 재방문 · 취소는 실어 보내지 않음)
+  const toLogin = (kind?: PendingIntentKind) =>
+    router.push(kind ? loginHrefWithIntent(kind, spaceId) : `/login?callbackUrl=${encodeURIComponent(`${pathname}${window.location.search}`)}`);
 
   async function addVisit() {
     const first = action === "first";
@@ -58,7 +67,7 @@ export default function SpaceRelation({ spaceId, spaceName, loggedIn, initialSav
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ spaceId, status: "VISITED" }),
     });
-    if (res.status === 401) return toLogin();
+    if (res.status === 401) return toLogin(first ? "visited" : undefined);
     const data = (await res.json().catch(() => ({}))) as { error?: string; id?: string; visitId?: string | null };
     if (!res.ok) throw new Error(data.error ?? "기록하지 못했어요.");
     setVisits((v) => v + 1);
@@ -89,7 +98,7 @@ export default function SpaceRelation({ spaceId, spaceName, loggedIn, initialSav
 
   async function onVisitClick() {
     if (inFlight.current) return;
-    if (!mock && !loggedIn) return toLogin();
+    if (!mock && !loggedIn) return toLogin("visited");
     inFlight.current = true;
     setBusy(true);
     setError(null);
@@ -104,6 +113,51 @@ export default function SpaceRelation({ spaceId, spaceName, loggedIn, initialSav
       setBusy(false);
     }
   }
+
+  /** 로그인 직후 돌아온 화면에서 한 번 — 처음 그린 상태(로그인한 계정 기준 서버 값)로 판단한다 */
+  async function completeIntent(kind: PendingIntentKind) {
+    if (inFlight.current) return;
+    inFlight.current = true;
+    setBusy(true);
+    setError(null);
+    setMessage(null);
+    try {
+      if (kind === "save") {
+        if (saved) {
+          setMessage("이미 내 공간에 저장되어 있어요.");
+          return;
+        }
+        const res = await fetch(`/api/saves/spaces/${spaceId}`, { method: "POST" });
+        const data = (await res.json().catch(() => ({}))) as { saved?: boolean };
+        if (!res.ok || data.saved !== true) throw new Error("저장하지 못했어요. 저장하기를 다시 눌러주세요.");
+        setSaved(true);
+        setSaveKey((k) => k + 1);
+        setMessage("내 공간에 저장했어요.");
+      } else {
+        if (visits > 0) {
+          setMessage("이미 다녀온 곳으로 기록되어 있어요.");
+          return;
+        }
+        await addVisit();
+        setMessage("다녀온 곳으로 남겼어요. 날짜 · 사진 · 메모는 내 기록에서 더할 수 있어요.");
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "기록하지 못했어요.");
+    } finally {
+      inFlight.current = false;
+      setBusy(false);
+    }
+  }
+
+  useEffect(() => {
+    if (mock || intentChecked.current) return;
+    intentChecked.current = true;
+    // 주소의 일회용 번호를 지우고 기기 기록도 지운 뒤 맞을 때만 — 새로고침 · 뒤로가기로 다시 실행되지 않는다
+    const kind = takePendingIntent(spaceId);
+    if (kind && loggedIn) void completeIntent(kind);
+    // 처음 그린 화면에서 한 번만(로그인 후 돌아온 순간의 상태 기준)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const savedLike = saved || entry;
   const text = relationText(visits, savedLike);
@@ -124,7 +178,17 @@ export default function SpaceRelation({ spaceId, spaceName, loggedIn, initialSav
         </p>
       )}
       <div className="flex flex-wrap items-start gap-2">
-        <SaveButton spaceId={spaceId} spaceName={spaceName} initialSaved={initialSaved} loggedIn={loggedIn} variant="text" mock={mock} onChange={setSaved} />
+        <SaveButton
+          key={saveKey}
+          spaceId={spaceId}
+          spaceName={spaceName}
+          initialSaved={saveKey > 0 ? saved : initialSaved}
+          loggedIn={loggedIn}
+          variant="text"
+          mock={mock}
+          onChange={setSaved}
+          loginHref={() => loginHrefWithIntent("save", spaceId)}
+        />
         <button
           type="button"
           onClick={onVisitClick}

@@ -78,7 +78,7 @@ export default async function SpaceDetail({ slug, presentation }: Props) {
     { label: "지역", value: area ?? space.area },
     { label: "종류", value: space.category },
     { label: "주소", value: space.address },
-    { label: "운영", value: space.hours },
+    { label: "운영시간", value: space.hours },
   ].filter((r): r is { label: string; value: string } => !!r.value);
   const links = [
     { label: "Instagram", href: space.instagram },
@@ -169,9 +169,9 @@ export default async function SpaceDetail({ slug, presentation }: Props) {
           <p className="ed-label pb-2" style={{ color: "var(--ed-dim)", borderBottom: "1px solid var(--ed-fg)" }}>정보</p>
           <dl>
             {info.map((r) => (
-              <div key={r.label} className="grid grid-cols-[48px_1fr] gap-3 py-2 text-sm" style={{ borderBottom: "1px solid var(--ed-line)" }}>
+              <div key={r.label} className="grid grid-cols-[56px_1fr] gap-3 py-2 text-sm" style={{ borderBottom: "1px solid var(--ed-line)" }}>
                 <dt style={{ color: "var(--ed-dim)" }}>{r.label}</dt>
-                <dd className="leading-relaxed break-keep">{r.value}</dd>
+                <dd className="leading-relaxed break-keep whitespace-pre-line">{r.value}</dd>
               </div>
             ))}
           </dl>

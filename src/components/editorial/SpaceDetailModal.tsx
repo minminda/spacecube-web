@@ -79,8 +79,10 @@ export default function SpaceDetailModal({ children }: { children: React.ReactNo
       >
         {/* X — 창 오른쪽 위 모서리, 본문 좌우 여백(40px) 안. 대표 사진(본문 폭 720px, 위 여백 pt-14 아래)과 가로 · 세로 모두 겹치지 않는다.
             테두리 · 상자 없이 글자만 보이고, 누르는 영역은 44px. 스크롤해 아래 내용 위를 지날 때만 반투명 원이 X를 받쳐 준다
-            (창 바탕과 같은 색이라 맨 위에서는 보이지 않음). */}
-        <div className="sticky top-0 z-20 h-0 flex justify-end pointer-events-none">
+            (창 바탕과 같은 색이라 맨 위에서는 보이지 않음).
+            화면 좌표 고정: sticky 기준(top-12 = 48px)을 창의 위 여백(mt-12)과 같게 둔다. 창 맨 위(스크롤 0)에서 이미 기준선에 닿아 있으므로
+            창 안을 얼마나 스크롤하든 X는 처음 자리(창 위 모서리 + 6px)에 그대로 있다. 예전 top-0은 처음 48px 스크롤 동안 X가 위로 따라 올라갔다. */}
+        <div className="sticky top-12 z-20 h-0 flex justify-end pointer-events-none">
           <button
             type="button"
             onClick={() => router.back()}
