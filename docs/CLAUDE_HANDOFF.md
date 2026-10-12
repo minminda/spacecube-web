@@ -1,6 +1,21 @@
 # Claude Code Latest Handoff
 
-Updated: 2026-10-12 · 커밋 `ffdd771` · 스키마 변경 없음 · API 변경 없음 · **데이터 변경: 공개 공간 6곳 `EditorialSpace.openingHours` 채움(빈 값만, 아래)**
+Updated: 2026-10-12 (후속) · 데스크톱 상세 X 구조 수정 · 스키마 · API · 데이터 변경 없음
+
+## 최신: 데스크톱 상세 X — 스크롤 영역 밖으로 분리 (`SpaceDetailModal.tsx`만)
+- 운영 웹에서 `sticky top-12`(ffdd771) 상태에서도 X가 스크롤을 따라 움직인다는 보고. 배포 청크에 top-12가 실제로 있었음을 확인했지만 원인은 재현하지 못함 → sticky 자체를 버림.
+- 이전 구조: 바탕(fixed, **overflow-y-auto = 실제 스크롤 요소**) > 창(min-h) > [sticky 래퍼 > X] + 내용. X와 스크롤되는 내용이 같은 스크롤 영역 안.
+- 새 구조: 바탕(fixed, 스크롤 없음) > 창 껍데기(relative · 높이 calc(100dvh-48px) · overflow hidden, role=dialog) > [X(absolute, top 6 · right 2+스크롤바 폭) · 내용 상자(h-full overflow-y-auto)]. X는 스크롤 요소 밖.
+  - 내용 상자 스크롤바 폭만큼 껍데기를 넓혀 본문 720px · 사진 크기 그대로, X가 스크롤바를 가리지 않음.
+  - 바탕(창 바깥)에서 굴린 휠은 내용 상자로 넘김. 처음 포커스는 내용 상자(키보드 스크롤).
+  - 함정: `.ed-close-btn`(globals.css, 레이어 밖)의 `position: relative`가 Tailwind `absolute`를 이겨 X가 왼쪽에 붙었음 → 위치를 인라인 style로 지정.
+- 실측(로컬 dev, 실제 브라우저 창 1280×720, HOME 600 → 북눅 카드 클릭): 내용 상자 scrollTop 0 / 300 / 600 / 1017(끝) → X top 54 · right 1036 모두 같음. 사진 720px, X 아래 6px · 오른쪽 6px 떨어짐. X 클릭 → HOME y=600, body 잠금 해제. 바탕 휠 → 내용 400px 스크롤.
+- 확인 못 한 것: 창이 숨겨진 상태라 실제 마우스 휠 스크롤 · Safari. 휴대폰 변경 없음(창을 쓰지 않음).
+- 참고(기존 동작, 이번에 안 바꿈): 창이 열릴 때 뒤의 HOME 문서가 맨 아래로 스크롤됨(창 잠금 중이라 안 보이고, 닫으면 600으로 복원).
+
+---
+
+## 이전 handoff (ffdd771 — 운영시간 · 로그인 의도)
 
 QR 이전 Journey(`docs/pre-qr-persona-user-journey-2026-10.md`)의 friction 세 가지만 처리. 새 기능 · 대규모 리팩터링 없음.
 
