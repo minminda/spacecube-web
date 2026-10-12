@@ -278,6 +278,34 @@ html[data-ed-theme="dark"]:has(.editorial-bleed) { color-scheme: dark; }
   scrollbar-width: none;
 }
 .ed-scroll-x::-webkit-scrollbar { display: none; }
+/* 상세 화면 보조 줄(공간 상세의 소개된 이야기 · 함께 소개된 공간) — .ed-container 안에서 좌우 여백까지 밀어
+   끝에서 다음 카드가 잘려 보이게 한다. 휴대폰 · 데스크톱 모두 한 줄 가로 스크롤(카드 폭은 고정, 넓은 화면엔 더 많이 보일 뿐). */
+.ed-rail {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+  scroll-padding-left: 20px;
+  margin-left: -20px;
+  margin-right: -20px;
+  padding-left: 20px;
+  padding-right: 20px;
+  scrollbar-width: none;
+}
+.ed-rail::-webkit-scrollbar { display: none; }
+.ed-rail > li {
+  flex: 0 0 var(--rail-card, 240px);
+  min-width: 0;
+  scroll-snap-align: start;
+}
+.ed-rail-story { --rail-card: 236px; }
+.ed-rail-space { --rail-card: 120px; }
+@media (min-width: 768px) {
+  .ed-rail { gap: 12px; scroll-padding-left: 40px; margin-left: -40px; margin-right: -40px; padding-left: 40px; padding-right: 40px; }
+  .ed-rail-story { --rail-card: 264px; }
+  .ed-rail-space { --rail-card: 148px; }
+}
 
 /* ── 발견 화면(HOME) 넓은 컨테이너(상단 내비도 같은 폭 — 큰 모니터에서도 화면 가장자리를 쓴다) + 가로 선반 ──────────────────────────────
    읽는 화면(STORY 본문 등)은 기존 .ed-container(1200px) 그대로. 공간을 둘러보는 HOME만 화면 폭을 넓게 쓴다.

@@ -1,11 +1,13 @@
 /* ── 개인 아카이브 기록(서버 전용) ─────────────────────────────────────────
    모든 함수는 userId를 받아 "내 기록"만 다룬다(다른 사람 기록은 없는 것처럼 404).
    공개 공간에 연결된 기록은 사용자당 공간당 하나 — 같은 공간을 다시 추가하면 새 기록 대신 사진·방문을 덧붙인다.
-   상태를 바꿔도 지우지 않는다: 저장 → 다녀왔어요(방문 1건 추가) → 또 갔어요(방문 추가). ── */
+   상태를 바꿔도 지우지 않는다: 저장 → 다녀왔어요(방문 1건 추가) → 또 갔어요(방문 추가).
+   예외는 하나 — 공간 상세에서 방금 남긴 재방문 1건의 취소(undoRevisit). ── */
 
 import { prisma } from "@/lib/prisma";
 import { parseHttpUrl, placeKey, detectSourceKind, type SourceKind } from "./source";
 import { addressHint, myStateOf, searchSpaces, type MyState } from "./spaceSearch";
+import { checkUndoRevisit } from "./spaceRelation";
 import type { CreateEntryInput, PatchEntryInput, PhotoInput, VisitInput } from "./input";
 
 /** 아카이브에서 고를 수 있는 공통 취향 태그 — 기존 활성 태그 중 "공간 유형"이 아닌 것(분위기 태그). */
@@ -196,6 +198,37 @@ export async function addVisit(userId: string, entryId: string, input: VisitInpu
     else await tx.archiveEntry.update({ where: { id: e.id }, data: { updatedAt: new Date() } });
     return { visitId: v.id };
   });
+}
+
+/**
+ * 또 갔어요 취소 — 공간 상세에서 방금 남긴 재방문 1건(ArchiveVisit)만 지운다. 판정은 checkUndoRevisit.
+ * 공개 공간에 연결된 내 기록만 대상. 첫 방문 · 날짜/메모/사진을 더한 방문 · Cube 방문(Record)은 지우지 않는다.
+ * 기록(ArchiveEntry)과 상태는 그대로 둔다(방문만 하나 줄어든다).
+ */
+export async function undoRevisit(userId: string, entryId: string, visitId: string): Promise<void> {
+  const e = await prisma.archiveEntry.findFirst({ where: { id: entryId, userId }, select: { id: true, space: { select: { slug: true } } } });
+  if (!e?.space) throw new ArchiveError(404, "기록을 찾을 수 없어요.");
+  const [visits, cubeVisits] = await Promise.all([
+    prisma.archiveVisit.findMany({
+      where: { entryId: e.id },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      select: { id: true, visitedOn: true, memo: true, createdAt: true, _count: { select: { photos: true } } },
+    }),
+    // Cube 방문은 "지운 뒤에도 방문이 남는가"를 셀 때만 쓴다(getMySpaceState와 같은 기준)
+    prisma.record.count({ where: { userId, space: { slug: e.space.slug } } }),
+  ]);
+  const v = visits.find((x) => x.id === visitId);
+  const check = checkUndoRevisit({
+    visit: v ? { id: v.id, visitedOn: v.visitedOn, memo: v.memo, photos: v._count.photos, createdAt: v.createdAt } : null,
+    latestVisitId: visits[0]?.id ?? null,
+    archiveVisits: visits.length,
+    cubeVisits,
+    now: new Date(),
+  });
+  if (!check.ok) throw new ArchiveError(check.status, check.error);
+  // 판정과 삭제 사이에 날짜 · 메모 · 사진이 붙었으면 지우지 않는다(같은 조건을 삭제에도 건다)
+  const { count } = await prisma.archiveVisit.deleteMany({ where: { id: visitId, entryId: e.id, visitedOn: null, memo: null, photos: { none: {} } } });
+  if (count === 0) throw new ArchiveError(404, "방문을 찾을 수 없어요.");
 }
 
 export async function addPhotos(userId: string, entryId: string, photos: PhotoInput[]): Promise<void> {
