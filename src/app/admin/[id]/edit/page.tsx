@@ -39,6 +39,8 @@ export default async function EditSpacePage({ params }: Props) {
         tagline: space.tagline ?? "",
         openingHours: space.openingHours ?? "",
         naverMapUrl: space.naverMapUrl ?? "",
+        lat: space.lat,
+        lng: space.lng,
         description: space.description,
         imageUrl: space.imageUrl ?? "",
         imageZoom: space.imageZoom ?? 1,

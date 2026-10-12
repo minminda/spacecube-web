@@ -49,6 +49,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     caption: "현장 · 경험",
     items: [
       { key: "spaces", label: "운영 공간", href: "/admin/spaces" },
+      { key: "space-map", label: "공간 지도", href: "/admin/spaces/map", sub: true },
       { key: "cubes", label: "큐브", href: "/admin/cubes" },
       { key: "episodes", label: "에피소드", href: "/admin/content-status" },
       { key: "interview", label: "인터뷰 질문", href: "/admin/interview", sub: true },
@@ -81,6 +82,7 @@ export function activeAdminNavKey(pathname: string): string | null {
   const seg = parts[1];
   if (!seg) return "overview";
   if (seg === "content") return parts[2] ? `content-${parts[2]}` : "content-backlog";
+  if (seg === "spaces" && parts[2] === "map") return "space-map";
   if (seg === "new" || seg === "spaces") return "spaces";
   if (seg === "content-status") return "episodes";
   if (STATIC_SEGMENTS.has(seg)) return seg;

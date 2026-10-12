@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { isAdmin } from "@/lib/admin";
+import { isValidKoreaCoord } from "@/lib/kakaoLocal";
 import { enforceSingleSelectCategories, resolveSpaceTypeName, type TagLinkInput } from "@/lib/tagLinks";
 import { normalizeSlug, isValidSlug } from "@/lib/slug";
 
@@ -25,7 +26,7 @@ export async function POST(req: NextRequest) {
 
   const {
     name, slug, district, location,
-    tagline, openingHours, naverMapUrl,
+    tagline, openingHours, naverMapUrl, lat, lng,
     description, philosophy, ownerMessage,
     experienceGuide, spacePoints,
     storyItems,
@@ -62,6 +63,7 @@ export async function POST(req: NextRequest) {
       tagline: tagline || null,
       openingHours: openingHours || null,
       naverMapUrl: naverMapUrl || null,
+      ...(isValidKoreaCoord(lat, lng) ? { lat, lng } : {}),
       description: description || "", philosophy: philosophy || "",
       ownerMessage: ownerMessage || null,
       experienceGuide: experienceGuide || null,

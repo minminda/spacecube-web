@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { isAdmin } from "@/lib/admin";
+import { isValidKoreaCoord } from "@/lib/kakaoLocal";
 import { hashOperatorPin, isValidPinFormat } from "@/lib/operatorPin";
 import { enforceSingleSelectCategories, resolveSpaceTypeName, type TagLinkInput } from "@/lib/tagLinks";
 import { normalizeSlug, isValidSlug } from "@/lib/slug";
@@ -25,7 +26,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const {
     name, slug, district, location,
-    tagline, openingHours, naverMapUrl,
+    tagline, openingHours, naverMapUrl, lat, lng,
     description, philosophy, ownerMessage,
     experienceGuide, spacePoints,
     storyItems,
@@ -82,6 +83,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       tagline: tagline || null,
       openingHours: openingHours || null,
       naverMapUrl: naverMapUrl || null,
+      // 좌표는 본문에 있을 때만 갱신(null=지우기). 범위를 벗어난 값은 무시해 기존 값을 보존한다.
+      ...(lat === null && lng === null ? { lat: null, lng: null } : isValidKoreaCoord(lat, lng) ? { lat, lng } : {}),
       description,
       imageUrl: imageUrl || null,
       imageZoom: typeof imageZoom === "number" ? imageZoom : 1,

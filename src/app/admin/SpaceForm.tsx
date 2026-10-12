@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import PlaceSearch from "./PlaceSearch";
 import ImageCropDialog from "@/components/ImageCropDialog";
 import { normalizeSlug, isValidSlug } from "@/lib/slug";
 import { AdminPageHeader, AdminFormField, adminButtonClass } from "@/components/admin/ui";
@@ -15,6 +16,8 @@ interface SpaceData {
   tagline: string;
   openingHours: string;
   naverMapUrl: string;
+  lat?: number | null;
+  lng?: number | null;
   description: string;
   imageUrl?: string;
   imageZoom?: number;
@@ -115,6 +118,11 @@ export default function SpaceForm({ mode, space, categories, existingTagLinks }:
   const [newPin, setNewPin] = useState("");
   const [confirmPin, setConfirmPin] = useState("");
   const [pinError, setPinError] = useState("");
+
+  // 지도 좌표 — 장소 검색으로만 채운다(직접 입력 없음). 기존 공간은 비어 있을 수 있다.
+  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(
+    typeof space?.lat === "number" && typeof space?.lng === "number" ? { lat: space.lat, lng: space.lng } : null,
+  );
 
   const [form, setForm] = useState({
     name: space?.name ?? "",
@@ -233,6 +241,8 @@ export default function SpaceForm({ mode, space, categories, existingTagLinks }:
         imageZoom: 1,
         imagePositionX: 0.5,
         imagePositionY: 0.5,
+        lat: coords?.lat ?? null,
+        lng: coords?.lng ?? null,
         tagLinks: buildTagLinks(),
         ...ownerForm,
         ownerPhotoUrl: ownerPhotoUrl || null,
@@ -359,6 +369,20 @@ export default function SpaceForm({ mode, space, categories, existingTagLinks }:
         <Field label="지역 *">
           <input name="district" value={form.district} onChange={handleChange} required placeholder="예: 망원동"
             className="w-full text-sm px-3 py-2.5 border" style={inputStyle} />
+        </Field>
+
+        <Field label="위치 검색 (지도 좌표)">
+          <PlaceSearch
+            defaultQuery={form.name}
+            onPick={(p) => {
+              setForm((prev) => ({ ...prev, location: p.address }));
+              setCoords({ lat: p.lat, lng: p.lng });
+            }}
+          />
+          <p className="text-xs mt-1.5 opacity-60">
+            {coords ? `지도 좌표 저장됨 (${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)})` : "지도 좌표 없음 — 장소를 선택하면 상세 위치와 좌표가 채워져요."}
+            {coords && <button type="button" className="ml-2 underline" onClick={() => setCoords(null)}>좌표 지우기</button>}
+          </p>
         </Field>
 
         <Field label="상세 위치 *">
