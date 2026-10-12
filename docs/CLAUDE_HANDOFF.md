@@ -1,5 +1,14 @@
 # Claude Code Latest Handoff
 
+## 2026-10-12 · 레퍼런스 × 현재 제품 Gap Analysis 완료 (문서만, 코드 변경 없음)
+- 문서: `docs/reference-current-product-gap-analysis-2026-10.md` (10/09 최종본·10/06 중간본 결론 재사용 + 현재 코드·운영 DB 읽기 전용 집계)
+- 핵심 사실: 공개 공간 6곳(전부 Cube 공간) · 태그 0개 · 실사용 저장 1건 → HOME 선반·개인화가 공급 규모보다 앞서 있음
+- TOP 3: ① Space Detail = "고른 이유(큐레이션 note) + 소개된 이야기 위로 + 내 상태/다녀왔어요" ② Instagram 도착 준비(콘텐츠별 og 메타 · 비로그인 저장 의도 보존 · 유입 출처) ③ 규모에 맞는 HOME(같은 공간 반복 선반 접기)
+- 다음 구현 후보: TOP 1부터. 함께 처리할 부채 = Cube 공간 첫 화면 "방명록 열기"가 로그인+1~5점 폼을 거침(`src/app/space/[slug]/page.tsx:206`). 운영 = 공개 공간 태그 입력 · 주 1편 CURATION
+- 추천 정합화(앵커 공간 이름 이유 · 재방문/wantAgain · curatorBoost 제거)는 NEXT
+
+---
+
 Updated: 2026-10-12 (내 공간 지도 보기 — `/archive?mode=map`) · DB·스키마·API 변경 없음
 
 ## 한 일
