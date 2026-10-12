@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { normalizeArea, sameArea } from "@/lib/editorial/area";
+import { hasCoord, isSinglePoint, regionOptions, spacesInRegion } from "@/lib/adminCoverage";
 
 export interface MapSpace {
   id: string;
@@ -14,7 +16,18 @@ export interface MapSpace {
   typeLabel: string;
 }
 
+export interface MapRegion {
+  id: string;
+  name: string;
+  lat: number | null;
+  lng: number | null;
+}
+
+type Selected = { kind: "space"; space: MapSpace } | { kind: "region"; region: MapRegion };
+
 const STATUS_LABEL = { public: "공개", private: "비공개", demo: "시연" } as const;
+const REGION_COLOR = "#1d4ed8";
+const SPACE_COLOR = "#111111";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 declare global {
@@ -27,7 +40,7 @@ function loadKakao(key: string): Promise<any> {
   return new Promise((resolve, reject) => {
     if (window.kakao?.maps?.load) return window.kakao.maps.load(() => resolve(window.kakao));
     const s = document.createElement("script");
-    s.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${encodeURIComponent(key)}&libraries=clusterer&autoload=false`;
+    s.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${encodeURIComponent(key)}&autoload=false`;
     s.async = true;
     s.onload = () => window.kakao.maps.load(() => resolve(window.kakao));
     s.onerror = () => reject(new Error("load"));
@@ -35,38 +48,75 @@ function loadKakao(key: string): Promise<any> {
   });
 }
 
-export default function AdminSpaceMap({ spaces, jsKey }: { spaces: MapSpace[]; jsKey: string }) {
+function spaceDot(title: string, onClick: () => void): HTMLElement {
+  const el = document.createElement("button");
+  el.type = "button";
+  el.title = title;
+  el.setAttribute("aria-label", title);
+  el.style.cssText = `width:11px;height:11px;border-radius:50%;background:${SPACE_COLOR};border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.35);cursor:pointer;padding:0;`;
+  el.onclick = onClick;
+  return el;
+}
+
+function regionPin(label: string, onClick: () => void): HTMLElement {
+  const wrap = document.createElement("button");
+  wrap.type = "button";
+  wrap.setAttribute("aria-label", `${label} 지역`);
+  wrap.style.cssText = "display:flex;flex-direction:column;align-items:center;gap:2px;background:none;border:0;padding:0;cursor:pointer;";
+  const dot = document.createElement("span");
+  dot.style.cssText = `width:20px;height:20px;border-radius:50%;background:${REGION_COLOR};border:3px solid #fff;box-shadow:0 0 0 2px ${REGION_COLOR}55,0 2px 6px rgba(0,0,0,.3);`;
+  const text = document.createElement("span");
+  text.textContent = label;
+  text.style.cssText = `font-size:12px;font-weight:700;color:${REGION_COLOR};background:#fff;padding:1px 6px;border-radius:9px;box-shadow:0 1px 3px rgba(0,0,0,.25);white-space:nowrap;`;
+  wrap.append(dot, text);
+  wrap.onclick = onClick;
+  return wrap;
+}
+
+export default function AdminSpaceMap({ spaces, regions, jsKey }: { spaces: MapSpace[]; regions: MapRegion[]; jsKey: string }) {
   const [q, setQ] = useState("");
-  const [district, setDistrict] = useState("");
+  const [region, setRegion] = useState(""); // normalizeArea 키
   const [type, setType] = useState("");
   const [status, setStatus] = useState("");
   const [showDemo, setShowDemo] = useState(false);
-  const [selected, setSelected] = useState<MapSpace | null>(null);
+  const [selected, setSelected] = useState<Selected | null>(null);
   const [mapError, setMapError] = useState(jsKey ? "" : "NO_KEY");
   const [ready, setReady] = useState(false);
 
   const el = useRef<HTMLDivElement>(null);
   const map = useRef<any>(null);
-  const clusterer = useRef<any>(null);
+  const overlays = useRef<any[]>([]);
   const fitted = useRef(false);
 
-  const districts = useMemo(() => [...new Set(spaces.map((s) => s.district).filter(Boolean) as string[])].sort(), [spaces]);
+  const regionKeys = useMemo(() => regionOptions(regions, spaces), [regions, spaces]);
   const types = useMemo(() => [...new Set(spaces.map((s) => s.typeLabel).filter(Boolean))].sort(), [spaces]);
 
+  const needle = q.trim().toLowerCase();
   const filtered = useMemo(() => {
-    const needle = q.trim().toLowerCase();
     return spaces.filter((s) => {
       if (!showDemo && s.status === "demo") return false;
-      if (district && s.district !== district) return false;
+      if (region && normalizeArea(s.district) !== region) return false;
       if (type && s.typeLabel !== type) return false;
       if (status && s.status !== status) return false;
-      if (needle && !(s.name.toLowerCase().includes(needle) || s.address.toLowerCase().includes(needle))) return false;
+      if (needle && !(s.name.toLowerCase().includes(needle) || s.address.toLowerCase().includes(needle) || (s.district ?? "").toLowerCase().includes(needle))) return false;
       return true;
     });
-  }, [spaces, q, district, type, status, showDemo]);
+  }, [spaces, region, type, status, showDemo, needle]);
 
-  const onMap = filtered.filter((s) => s.lat !== null && s.lng !== null);
-  const noLocation = filtered.filter((s) => s.lat === null || s.lng === null);
+  // 지역 마커: 지역 선택 시 그 지역만, 검색 중에는 이름이 맞거나 결과 공간이 있는 지역만, 그 외엔 전부(빈 지역도 보여야 공백을 알 수 있다)
+  const visibleRegions = useMemo(() => regions.filter((r) => {
+    if (region) return normalizeArea(r.name) === region;
+    if (needle) return r.name.toLowerCase().includes(needle) || filtered.some((s) => sameArea(s.district, r.name));
+    return true;
+  }), [regions, region, needle, filtered]);
+
+  const onMap = filtered.filter(hasCoord);
+  const noLocation = filtered.filter((s) => !hasCoord(s));
+  const regionsOnMap = visibleRegions.filter(hasCoord);
+  const regionsNoLocation = regions.filter((r) => !hasCoord(r));
+
+  const baseSpaces = useMemo(() => spaces.filter((s) => showDemo || s.status !== "demo"), [spaces, showDemo]);
+  const countIn = (r: MapRegion) => spacesInRegion(r.name, baseSpaces).length;
 
   // SDK + 지도 초기화
   useEffect(() => {
@@ -76,61 +126,86 @@ export default function AdminSpaceMap({ spaces, jsKey }: { spaces: MapSpace[]; j
       .then((kakao) => {
         if (cancelled || !el.current) return;
         map.current = new kakao.maps.Map(el.current, { center: new kakao.maps.LatLng(37.5665, 126.978), level: 8 });
-        clusterer.current = new kakao.maps.MarkerClusterer({ map: map.current, averageCenter: true, minLevel: 6 });
         setReady(true);
       })
       .catch(() => { if (!cancelled) setMapError("LOAD"); });
     return () => { cancelled = true; };
   }, [jsKey]);
 
-  // 필터 결과 → 마커
+  function fit() {
+    const kakao = window.kakao;
+    const pts = [...onMap, ...regionsOnMap];
+    if (!map.current || pts.length === 0) return;
+    if (isSinglePoint(pts)) {
+      map.current.setLevel(4);
+      map.current.setCenter(new kakao.maps.LatLng(pts[0].lat, pts[0].lng));
+      return;
+    }
+    const b = new kakao.maps.LatLngBounds();
+    pts.forEach((p) => b.extend(new kakao.maps.LatLng(p.lat, p.lng)));
+    map.current.setBounds(b, 60, 60, 60, 60);
+    if (map.current.getLevel() < 3) map.current.setLevel(3);
+  }
+
+  // 필터 결과 → 오버레이(지역은 더 크고 위에, 공간은 작게)
   useEffect(() => {
     if (!ready) return;
     const kakao = window.kakao;
-    clusterer.current.clear();
-    const bounds = new kakao.maps.LatLngBounds();
-    const list = onMap.map((s) => {
-      const pos = new kakao.maps.LatLng(s.lat, s.lng);
-      const m = new kakao.maps.Marker({ position: pos, title: s.name });
-      kakao.maps.event.addListener(m, "click", () => setSelected(s));
-      bounds.extend(pos);
-      return m;
+    overlays.current.forEach((o) => o.setMap(null));
+    overlays.current = [];
+    onMap.forEach((s) => {
+      const o = new kakao.maps.CustomOverlay({
+        position: new kakao.maps.LatLng(s.lat, s.lng),
+        content: spaceDot(s.name, () => setSelected({ kind: "space", space: s })),
+        zIndex: 1,
+      });
+      o.setMap(map.current);
+      overlays.current.push(o);
     });
-    clusterer.current.addMarkers(list);
-    if (list.length > 0 && !fitted.current) {
-      map.current.setBounds(bounds);
+    regionsOnMap.forEach((r) => {
+      const o = new kakao.maps.CustomOverlay({
+        position: new kakao.maps.LatLng(r.lat, r.lng),
+        content: regionPin(r.name, () => setSelected({ kind: "region", region: r })),
+        yAnchor: 0.35,
+        zIndex: 5,
+      });
+      o.setMap(map.current);
+      overlays.current.push(o);
+    });
+    if (!fitted.current && (onMap.length > 0 || regionsOnMap.length > 0)) {
+      fit();
       fitted.current = true;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready, filtered]);
+  }, [ready, filtered, visibleRegions]);
 
   // 필터를 바꾸면 결과 전체가 보이도록 다시 맞춘다(검색어 입력 중에는 지도를 흔들지 않음)
-  useEffect(() => { fitted.current = false; }, [district, type, status, showDemo]);
+  useEffect(() => { fitted.current = false; }, [region, type, status, showDemo]);
 
-  function focus(s: MapSpace) {
-    setSelected(s);
-    if (!ready || s.lat === null || s.lng === null) return;
+  function focusSpace(s: MapSpace) {
+    setSelected({ kind: "space", space: s });
+    if (!ready || !hasCoord(s)) return;
     map.current.setLevel(3);
     map.current.panTo(new window.kakao.maps.LatLng(s.lat, s.lng));
   }
 
-  function refit() {
-    if (!ready || onMap.length === 0) return;
-    const b = new window.kakao.maps.LatLngBounds();
-    onMap.forEach((s) => b.extend(new window.kakao.maps.LatLng(s.lat, s.lng)));
-    map.current.setBounds(b);
+  function pickRegion(r: MapRegion) {
+    setRegion(normalizeArea(r.name) ?? "");
+    setQ("");
+    setSelected(null);
   }
 
   const ctl = "text-sm px-3 py-2 border bg-transparent";
   const border = { borderColor: "var(--a-line)" };
+  const matchedRegions = needle ? regions.filter((r) => r.name.toLowerCase().includes(needle)) : [];
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-2 items-center">
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="공간명 또는 주소 검색" className={`${ctl} w-64`} style={border} />
-        <select value={district} onChange={(e) => setDistrict(e.target.value)} className={ctl} style={border}>
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="지역·공간명·주소 검색" className={`${ctl} w-64`} style={border} />
+        <select value={region} onChange={(e) => setRegion(e.target.value)} className={ctl} style={border}>
           <option value="">지역 전체</option>
-          {districts.map((d) => <option key={d} value={d}>{d}</option>)}
+          {regionKeys.map((d) => <option key={d} value={d}>{d}</option>)}
         </select>
         <select value={type} onChange={(e) => setType(e.target.value)} className={ctl} style={border}>
           <option value="">유형 전체</option>
@@ -145,19 +220,32 @@ export default function AdminSpaceMap({ spaces, jsKey }: { spaces: MapSpace[]; j
         <label className="text-sm flex items-center gap-1.5">
           <input type="checkbox" checked={showDemo} onChange={(e) => setShowDemo(e.target.checked)} /> 시연 공간 포함
         </label>
-        <button type="button" onClick={refit} className={ctl} style={border}>전체 보기</button>
+        <button type="button" onClick={() => { setRegion(""); setQ(""); fitted.current = false; fit(); }} className={ctl} style={border}>전체 보기</button>
       </div>
 
-      <p className="text-sm tabular-nums" style={{ color: "var(--a-dim)" }}>
-        전체 {filtered.length}곳 · 지도 표시 {onMap.length}곳 · 위치 정보 없음 {noLocation.length}곳
-      </p>
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-1">
+        <p className="text-sm tabular-nums" style={{ color: "var(--a-dim)" }}>
+          공간 {filtered.length} · 지역 {visibleRegions.length} · 지도 표시 공간 {onMap.length} · 위치 미연결 {noLocation.length}
+        </p>
+        <p className="text-xs flex items-center gap-3" style={{ color: "var(--a-dim)" }} aria-label="범례">
+          <span className="flex items-center gap-1.5"><span style={{ width: 14, height: 14, borderRadius: "50%", background: REGION_COLOR, display: "inline-block" }} />지역</span>
+          <span className="flex items-center gap-1.5"><span style={{ width: 8, height: 8, borderRadius: "50%", background: SPACE_COLOR, display: "inline-block" }} />공간</span>
+        </p>
+      </div>
 
-      {q.trim() && onMap.length > 0 && (
+      {needle && (matchedRegions.length > 0 || onMap.length > 0) && (
         <ul className="flex flex-wrap gap-2">
+          {matchedRegions.slice(0, 4).map((r) => (
+            <li key={r.id}>
+              <button type="button" onClick={() => pickRegion(r)} className="text-xs px-2.5 py-1.5 border hover:opacity-70" style={{ ...border, color: REGION_COLOR }}>
+                지역 — {r.name}
+              </button>
+            </li>
+          ))}
           {onMap.slice(0, 8).map((s) => (
             <li key={s.id}>
-              <button type="button" onClick={() => focus(s)} className="text-xs px-2.5 py-1.5 border hover:opacity-70" style={border}>
-                {s.name} <span style={{ color: "var(--a-faint)" }}>{s.district}</span>
+              <button type="button" onClick={() => focusSpace(s)} className="text-xs px-2.5 py-1.5 border hover:opacity-70" style={border}>
+                공간 — {s.name} <span style={{ color: "var(--a-faint)" }}>{s.district}</span>
               </button>
             </li>
           ))}
@@ -177,26 +265,44 @@ export default function AdminSpaceMap({ spaces, jsKey }: { spaces: MapSpace[]; j
         {selected && (
           <div className="absolute left-3 top-3 z-10 w-64 p-4 space-y-1.5 shadow-lg" style={{ background: "#fff", color: "#111", border: "1px solid var(--a-line)" }}>
             <button type="button" onClick={() => setSelected(null)} className="absolute right-2 top-1 text-lg leading-none opacity-60" aria-label="닫기">×</button>
-            <p className="font-semibold pr-4">{selected.name}</p>
-            <p className="text-xs">{selected.district ?? "지역 없음"} · {STATUS_LABEL[selected.status]}</p>
-            {selected.address && <p className="text-xs opacity-70">{selected.address}</p>}
-            <Link href={`/admin/${selected.id}/edit`} className="inline-block text-xs underline underline-offset-4 pt-1">공간 관리 열기</Link>
+            {selected.kind === "space" ? (
+              <>
+                <p className="font-semibold pr-4">{selected.space.name}</p>
+                <p className="text-xs">{selected.space.district ?? "지역 없음"} · {STATUS_LABEL[selected.space.status]}</p>
+                {selected.space.address && <p className="text-xs opacity-70">{selected.space.address}</p>}
+                <Link href={`/admin/${selected.space.id}/edit`} className="inline-block text-xs underline underline-offset-4 pt-1">공간 관리 열기</Link>
+              </>
+            ) : (
+              <>
+                <p className="font-semibold pr-4" style={{ color: REGION_COLOR }}>{selected.region.name}</p>
+                <p className="text-xs">등록된 공간 {countIn(selected.region)}곳</p>
+                <button type="button" onClick={() => pickRegion(selected.region)} className="inline-block text-xs underline underline-offset-4 pt-1">이 지역만 보기</button>
+              </>
+            )}
           </div>
         )}
       </div>
 
+      {regionsNoLocation.length > 0 && (
+        <p className="text-xs" style={{ color: "var(--a-dim)" }}>
+          지도 위치가 없는 지역 {regionsNoLocation.length}곳({regionsNoLocation.map((r) => r.name).join(", ")}) —{" "}
+          <Link href="/admin/districts" className="underline underline-offset-4">지역 관리에서 위치 연결</Link>
+        </p>
+      )}
+
       {noLocation.length > 0 && (
-        <details className="text-sm">
+        <details className="text-sm" open>
           <summary className="cursor-pointer">위치 정보 없음 {noLocation.length}곳</summary>
           <ul className="mt-2 grid gap-1 sm:grid-cols-2">
             {noLocation.map((s) => (
-              <li key={s.id}>
+              <li key={s.id} className="flex items-center gap-2">
                 <Link href={`/admin/${s.id}/edit`} className="hover:underline underline-offset-4">{s.name}</Link>
-                <span className="text-xs ml-2" style={{ color: "var(--a-faint)" }}>{s.district ?? "—"}</span>
+                <span className="text-xs" style={{ color: "var(--a-faint)" }}>{s.district ?? "—"}</span>
+                <Link href={`/admin/${s.id}/edit`} className="text-xs underline underline-offset-4 ml-auto" style={{ color: REGION_COLOR }}>위치 연결</Link>
               </li>
             ))}
           </ul>
-          <p className="text-xs mt-2" style={{ color: "var(--a-dim)" }}>공간 수정 화면의 “위치 검색”에서 장소를 선택하면 지도에 나타나요.</p>
+          <p className="text-xs mt-2" style={{ color: "var(--a-dim)" }}>공간 수정 화면의 “지도 위치”에서 장소를 검색해 선택하면 지도에 나타나요. 저장은 기존 공간 저장 버튼으로 해요.</p>
         </details>
       )}
     </div>

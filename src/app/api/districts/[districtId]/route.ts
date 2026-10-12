@@ -6,6 +6,7 @@ import { isAdmin } from "@/lib/admin";
 import { prisma } from "@/lib/prisma";
 import { cleanRegionName, countSpacesInRegion, findRegionConflict } from "@/lib/regions";
 import { getUsedAreaValues } from "@/lib/regionAdmin";
+import { isValidKoreaCoord } from "@/lib/kakaoLocal";
 import { sameArea } from "@/lib/editorial/area";
 
 export const dynamic = "force-dynamic";
@@ -49,6 +50,18 @@ export async function PATCH(req: Request, { params }: Props) {
       return NextResponse.json({ error: "status가 올바르지 않아요." }, { status: 400 });
     }
     data.status = body.status;
+  }
+  // 실제 지도 중심 좌표(SVG 좌표와 별개) — 둘 다 null이면 연결 해제, 아니면 한국 범위 검증
+  if ("lat" in body || "lng" in body) {
+    if (body.lat === null && body.lng === null) {
+      data.lat = null;
+      data.lng = null;
+    } else if (isValidKoreaCoord(body.lat, body.lng)) {
+      data.lat = body.lat;
+      data.lng = body.lng;
+    } else {
+      return NextResponse.json({ error: "좌표가 올바르지 않아요." }, { status: 400 });
+    }
   }
   for (const key of ["markerX", "markerY", "zoomX", "zoomY", "zoomScale"] as const) {
     if (key in body) {

@@ -795,6 +795,9 @@ model District {
   zoomX     Float          @default(155)
   zoomY     Float          @default(195)
   zoomScale Float          @default(1.8)
+  // 실제 지도(Kakao) 중심 좌표 — SVG 좌표(markerX/Y)와 별개. 관리자 Coverage Map 전용, 미입력 가능.
+  lat       Float?
+  lng       Float?
   createdAt DateTime       @default(now())
   updatedAt DateTime       @updatedAt
 

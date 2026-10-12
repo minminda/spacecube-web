@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { isAdmin } from "@/lib/admin";
-import { searchKakaoPlaces } from "@/lib/kakaoLocal";
+import { searchKakaoPlaces, searchKakaoRegions } from "@/lib/kakaoLocal";
 
 export const dynamic = "force-dynamic";
 
@@ -12,10 +12,12 @@ export async function GET(req: NextRequest) {
   if (!isAdmin(session.user.email)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const q = req.nextUrl.searchParams.get("q")?.trim() ?? "";
-  if (q.length < 2) return NextResponse.json({ places: [] });
+  if (q.length < 1 || (q.length < 2 && req.nextUrl.searchParams.get("mode") !== "region")) return NextResponse.json({ places: [] });
 
   try {
-    return NextResponse.json({ places: await searchKakaoPlaces(q.slice(0, 80)) });
+    const region = req.nextUrl.searchParams.get("mode") === "region";
+    const query = q.slice(0, 80);
+    return NextResponse.json({ places: region ? await searchKakaoRegions(query) : await searchKakaoPlaces(query) });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "";
     if (msg === "NO_KEY") {

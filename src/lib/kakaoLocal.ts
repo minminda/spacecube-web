@@ -51,3 +51,40 @@ export async function searchKakaoPlaces(query: string): Promise<PlaceResult[]> {
     }))
     .filter((p) => isValidKoreaCoord(p.lat, p.lng));
 }
+
+async function kakaoGet<T>(path: string, query: string): Promise<T> {
+  const key = getKakaoRestKey();
+  if (!key) throw new Error("NO_KEY");
+  const res = await fetch(`https://dapi.kakao.com/v2/local/search/${path}.json?size=8&query=${encodeURIComponent(query)}`, {
+    headers: { Authorization: `KakaoAK ${key}` },
+    cache: "no-store",
+  });
+  if (!res.ok) throw new Error(`KAKAO_${res.status}`);
+  return (await res.json()) as T;
+}
+
+/** 지역 중심점 검색 — 주소 검색(동·구 이름에 강함)을 먼저, 부족하면 키워드 검색으로 채운다. 서버 전용. */
+export async function searchKakaoRegions(query: string): Promise<PlaceResult[]> {
+  const addr = await kakaoGet<{ documents?: { address_name: string; x: string; y: string }[] }>("address", query).catch((e) => {
+    if (e instanceof Error && e.message === "NO_KEY") throw e;
+    return { documents: [] };
+  });
+  const fromAddress: PlaceResult[] = (addr.documents ?? []).map((d, i) => ({
+    id: `addr-${i}`,
+    name: d.address_name,
+    address: d.address_name,
+    lat: Number(d.y),
+    lng: Number(d.x),
+  }));
+  const merged = fromAddress.length >= 3 ? fromAddress : [...fromAddress, ...(await searchKakaoPlaces(query))];
+  const seen = new Set<string>();
+  return merged
+    .filter((p) => isValidKoreaCoord(p.lat, p.lng))
+    .filter((p) => {
+      const k = `${p.lat.toFixed(4)},${p.lng.toFixed(4)}`;
+      if (seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    })
+    .slice(0, 8);
+}

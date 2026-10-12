@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { isAdmin } from "@/lib/admin";
 import { resolveSpaceTypeLabel } from "@/lib/spaceType";
 import { AdminPageHeader } from "@/components/admin/ui";
-import AdminSpaceMap, { type MapSpace } from "./AdminSpaceMap";
+import AdminSpaceMap, { type MapSpace, type MapRegion } from "./AdminSpaceMap";
 
 export const dynamic = "force-dynamic";
 
@@ -14,6 +14,7 @@ export default async function AdminSpaceMapPage() {
   if (!session?.user?.email) redirect("/login");
   if (!isAdmin(session.user.email)) redirect("/");
 
+  const regions: MapRegion[] = await prisma.district.findMany({ orderBy: { order: "asc" }, select: { id: true, name: true, lat: true, lng: true } });
   const spaces = await prisma.space.findMany({
     orderBy: { createdAt: "desc" },
     select: {
@@ -39,9 +40,9 @@ export default async function AdminSpaceMapPage() {
       <AdminPageHeader
         area="cube"
         title="공간 지도"
-        description="등록된 운영 공간이 어느 지역에 분포하는지 확인합니다 · 내부 운영용"
+        description="지역과 공간이 어디에 분포하는지, 어디가 비어 있는지 확인합니다 · 내부 운영용"
       />
-      <AdminSpaceMap spaces={data} jsKey={process.env.NEXT_PUBLIC_KAKAO_MAP_JS_KEY ?? ""} />
+      <AdminSpaceMap spaces={data} regions={regions} jsKey={process.env.NEXT_PUBLIC_KAKAO_MAP_JS_KEY ?? ""} />
     </>
   );
 }

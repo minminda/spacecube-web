@@ -7,12 +7,15 @@ import { useToast } from "@/hooks/useToast";
 import Toast from "@/components/Toast";
 import AdminModal from "@/components/admin/ui/AdminModal";
 import { findRegionConflict } from "@/lib/regions";
+import PlaceSearch from "@/app/admin/PlaceSearch";
 
 export interface RegionRow {
   id: string;
   name: string;
   status: DistrictStatus;
   spaceCount: number;
+  lat: number | null;
+  lng: number | null;
 }
 
 export interface UnregisteredRow { label: string; count: number; values: string[] }
@@ -40,6 +43,7 @@ export default function DistrictManager({ initialRegions, unregistered }: { init
   const [editName, setEditName] = useState("");
   const [renameTarget, setRenameTarget] = useState<RegionRow | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<RegionRow | null>(null);
+  const [locatingId, setLocatingId] = useState<string | null>(null);
 
   const trimmedNew = newName.trim().replace(/\s+/g, " ");
   const newConflict = trimmedNew ? findRegionConflict(trimmedNew, regions) : null;
@@ -54,7 +58,7 @@ export default function DistrictManager({ initialRegions, unregistered }: { init
       const res = await fetch("/api/districts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name }) });
       if (!res.ok) return showToast(await readError(res, "지역을 추가하지 못했어요."));
       const created = await res.json();
-      setRegions((prev) => [...prev, { id: created.id, name: created.name, status: created.status, spaceCount: unregistered.find((u) => u.label === created.name)?.count ?? 0 }]);
+      setRegions((prev) => [...prev, { id: created.id, name: created.name, status: created.status, spaceCount: unregistered.find((u) => u.label === created.name)?.count ?? 0, lat: null, lng: null }]);
       setNewName("");
       showToast(`'${created.name}' 지역을 추가했어요.`);
       router.refresh();
@@ -102,6 +106,14 @@ export default function DistrictManager({ initialRegions, unregistered }: { init
       setRegions((p) => p.map((r) => (r.id === row.id ? { ...r, status: prev } : r)));
       showToast(await readError(res, "상태를 바꾸지 못했어요."));
     }
+  }
+
+  async function setLocation(row: RegionRow, lat: number | null, lng: number | null) {
+    const res = await fetch(`/api/districts/${row.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ lat, lng }) });
+    if (!res.ok) return showToast(await readError(res, "지도 위치를 저장하지 못했어요."));
+    setRegions((p) => p.map((r) => (r.id === row.id ? { ...r, lat, lng } : r)));
+    setLocatingId(null);
+    showToast(lat === null ? "지도 위치를 해제했어요." : `'${row.name}' 지도 위치를 저장했어요.`);
   }
 
   async function move(row: RegionRow, direction: "up" | "down") {
@@ -210,7 +222,16 @@ export default function DistrictManager({ initialRegions, unregistered }: { init
                     )}
                     <p className="text-xs pt-0.5" style={{ color: "var(--a-dim)" }}>
                       등록 공간 {r.spaceCount}개{r.spaceCount === 0 && " · 쓰는 공간 없음"}
+                      {" · "}
+                      {r.lat !== null && r.lng !== null ? `지도 위치 연결됨 (${r.lat.toFixed(4)}, ${r.lng.toFixed(4)})` : "지도 위치 없음"}
                     </p>
+                    {locatingId === r.id && (
+                      <div className="pt-2 space-y-1.5">
+                        <p className="text-[11px]" style={{ color: "var(--a-dim)" }}>지역의 중심점 용도예요(행정구역 경계 아님). 결과 하나를 선택하면 저장돼요.</p>
+                        <PlaceSearch mode="region" buttonLabel={`${r.name} 검색`} defaultQuery={r.name} onPick={(p) => void setLocation(r, p.lat, p.lng)} />
+                        {r.lat !== null && <button type="button" className="text-xs underline" onClick={() => void setLocation(r, null, null)}>지도 위치 해제</button>}
+                      </div>
+                    )}
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                     <select
@@ -224,6 +245,7 @@ export default function DistrictManager({ initialRegions, unregistered }: { init
                     </select>
                     <button type="button" className="a-btn a-btn-ghost a-btn-sm" disabled={idx === 0} onClick={() => move(r, "up")} aria-label="위로">▲</button>
                     <button type="button" className="a-btn a-btn-ghost a-btn-sm" disabled={idx === regions.length - 1} onClick={() => move(r, "down")} aria-label="아래로">▼</button>
+                    <button type="button" className="a-btn a-btn-sm" onClick={() => setLocatingId(locatingId === r.id ? null : r.id)}>{r.lat !== null ? "위치 변경" : "지도 위치"}</button>
                     <button type="button" className="a-btn a-btn-sm" onClick={() => { setEditingId(r.id); setEditName(r.name); }}>수정</button>
                     <button type="button" className="a-btn a-btn-danger a-btn-sm" onClick={() => setDeleteTarget(r)}>삭제</button>
                   </div>

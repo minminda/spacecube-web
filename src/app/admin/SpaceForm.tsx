@@ -120,6 +120,7 @@ export default function SpaceForm({ mode, space, categories, existingTagLinks }:
   const [pinError, setPinError] = useState("");
 
   // 지도 좌표 — 장소 검색으로만 채운다(직접 입력 없음). 기존 공간은 비어 있을 수 있다.
+  const [showPlaceSearch, setShowPlaceSearch] = useState(false);
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(
     typeof space?.lat === "number" && typeof space?.lng === "number" ? { lat: space.lat, lng: space.lng } : null,
   );
@@ -371,18 +372,31 @@ export default function SpaceForm({ mode, space, categories, existingTagLinks }:
             className="w-full text-sm px-3 py-2.5 border" style={inputStyle} />
         </Field>
 
-        <Field label="위치 검색 (지도 좌표)">
-          <PlaceSearch
-            defaultQuery={form.name}
-            onPick={(p) => {
-              setForm((prev) => ({ ...prev, location: p.address }));
-              setCoords({ lat: p.lat, lng: p.lng });
-            }}
-          />
-          <p className="text-xs mt-1.5 opacity-60">
-            {coords ? `지도 좌표 저장됨 (${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)})` : "지도 좌표 없음 — 장소를 선택하면 상세 위치와 좌표가 채워져요."}
-            {coords && <button type="button" className="ml-2 underline" onClick={() => setCoords(null)}>좌표 지우기</button>}
-          </p>
+        <Field label="지도 위치">
+          <div className="space-y-2">
+            {form.location && <p className="text-sm">{form.location}</p>}
+            {coords ? (
+              <p className="text-xs opacity-70">
+                지도 연결됨 · 위도 {coords.lat.toFixed(5)} · 경도 {coords.lng.toFixed(5)}
+                <button type="button" className="ml-2 underline" onClick={() => setCoords(null)}>좌표 지우기</button>
+              </p>
+            ) : (
+              <p className="text-xs" style={{ color: "#b45309" }}>지도 위치가 연결되지 않았어요. 장소를 검색해서 하나 선택하면 상세 위치와 좌표가 함께 저장돼요.</p>
+            )}
+            <button type="button" className="text-xs underline" onClick={() => setShowPlaceSearch((v) => !v)}>
+              {showPlaceSearch ? "검색 닫기" : coords ? "위치 다시 검색" : "주소로 위치 찾기"}
+            </button>
+            {showPlaceSearch && (
+              <PlaceSearch
+                defaultQuery={form.location || form.name}
+                onPick={(p) => {
+                  setForm((prev) => ({ ...prev, location: p.address }));
+                  setCoords({ lat: p.lat, lng: p.lng });
+                  setShowPlaceSearch(false);
+                }}
+              />
+            )}
+          </div>
         </Field>
 
         <Field label="상세 위치 *">
