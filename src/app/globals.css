@@ -186,6 +186,10 @@ html[data-ed-theme="dark"]:has(.editorial-bleed) { color-scheme: dark; }
 @media (min-width: 768px) {
   .ed-container { padding-left: 40px; padding-right: 40px; }
 }
+/* 공간 상세(SpaceDetail) — 넓은 웹페이지가 아니라 읽는 패널 하나. 데스크톱 본문 폭 720px(800 − 좌우 40).
+   대표 사진은 이 폭에서 16:9 그대로(약 405px 높이) — 높이를 줄이려고 사진 비율을 바꾸지 않고 창 폭을 줄인다.
+   데스크톱 창(SpaceDetailModal)의 패널 폭도 같은 800px. */
+.ed-container.ed-detail { max-width: 800px; }
 .ed-label {
   font-size: 11px;
   font-weight: 600;
@@ -299,12 +303,12 @@ html[data-ed-theme="dark"]:has(.editorial-bleed) { color-scheme: dark; }
   min-width: 0;
   scroll-snap-align: start;
 }
-.ed-rail-story { --rail-card: 236px; }
-.ed-rail-space { --rail-card: 120px; }
+.ed-rail-story { --rail-card: 224px; }
+.ed-rail-space { --rail-card: 112px; }
 @media (min-width: 768px) {
   .ed-rail { gap: 12px; scroll-padding-left: 40px; margin-left: -40px; margin-right: -40px; padding-left: 40px; padding-right: 40px; }
-  .ed-rail-story { --rail-card: 264px; }
-  .ed-rail-space { --rail-card: 148px; }
+  .ed-rail-story { --rail-card: 240px; }
+  .ed-rail-space { --rail-card: 128px; }
 }
 
 /* ── 발견 화면(HOME) 넓은 컨테이너(상단 내비도 같은 폭 — 큰 모니터에서도 화면 가장자리를 쓴다) + 가로 선반 ──────────────────────────────

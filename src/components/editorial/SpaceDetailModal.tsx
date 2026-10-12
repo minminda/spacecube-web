@@ -74,7 +74,7 @@ export default function SpaceDetailModal({ children }: { children: React.ReactNo
         aria-modal="true"
         aria-label="공간 상세"
         tabIndex={-1}
-        className="ed-modal-panel relative mx-auto mt-12 w-[min(1280px,calc(100%-64px))] min-h-[calc(100vh-48px)] rounded-t-[var(--ed-radius-lg)] outline-none"
+        className="ed-modal-panel relative mx-auto mt-12 w-[min(800px,calc(100%-64px))] min-h-[calc(100vh-48px)] rounded-t-[var(--ed-radius-lg)] outline-none"
         style={{ background: "var(--ed-bg)", color: "var(--ed-fg)" }}
       >
         <div className="sticky top-3 z-20 h-0 flex justify-end pr-3 pointer-events-none">

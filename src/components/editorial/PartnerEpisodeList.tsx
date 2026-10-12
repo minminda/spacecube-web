@@ -25,10 +25,12 @@ export default function PartnerEpisodeList({ slug, episodes, unlocked }: Props) 
         {episodes.map((ep) => {
           const open = unlocked && ep.state !== "LOCKED";
           const row = (
-            <span className="flex items-center gap-3 py-3.5 text-sm w-full text-left" style={{ borderBottom: "1px solid var(--ed-line)" }}>
-              <span className="text-xs shrink-0" style={{ color: "var(--ed-dim)" }}>EP.{ep.episodeNumber}</span>
+            // 한 줄: EP.1 · 제목 →  (여러 개면 얇게 쌓인다 — 큰 카드로 만들지 않는다)
+            <span className="flex items-center gap-1.5 py-2 text-sm w-full text-left" style={{ borderBottom: "1px solid var(--ed-line)" }}>
+              <span className="text-xs shrink-0 tabular-nums" style={{ color: "var(--ed-dim)" }}>EP.{ep.episodeNumber}</span>
+              <span aria-hidden className="text-xs shrink-0" style={{ color: "var(--ed-dim)" }}>·</span>
               <span className="flex-1 min-w-0 font-semibold break-keep" style={{ color: open ? undefined : "var(--ed-dim)" }}>{ep.title}</span>
-              {open ? <span aria-hidden>→</span> : <LockIcon className="w-4 h-4 shrink-0" />}
+              {open ? <span aria-hidden className="shrink-0">→</span> : <LockIcon className="w-3.5 h-3.5 shrink-0" />}
             </span>
           );
           return (
