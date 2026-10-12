@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { CloseIcon } from "@/components/icons";
+import { rememberModalOnLeave } from "@/lib/editorial/modalRestore";
 
 /** 프로젝트의 휴대폰/데스크톱 경계(Tailwind md) — 그 미만은 창이 아니라 독립 페이지 */
 const DESKTOP_QUERY = "(min-width: 768px)";
@@ -22,13 +23,23 @@ function subscribeDesktop(cb: () => void) {
  * 구조(X 화면 고정): 바탕(fixed, 스크롤 없음) > 창 껍데기(relative, 높이 고정, 스크롤 없음) > [X(absolute) · 내용 상자(overflow-y-auto)].
  * X는 스크롤되는 상자 밖, 껍데기 기준이라 내용을 얼마나 내려도 화면 좌표가 변하지 않는다(sticky 의존 없음).
  * 내용 상자의 세로 스크롤바 폭만큼 껍데기를 넓히고 X를 그만큼 안쪽에 둔다 → 본문 폭(720px) · 사진 크기 그대로, X가 스크롤바를 가리지 않음.
+ *
+ * 새로고침해도 창 유지(src/lib/editorial/modalRestore.ts): 창이 열린 채 문서를 떠나면 짧은 쿠키를 남기고,
+ * 다음 요청의 /spaces/[slug] 서버 페이지가 HOME + 이 창(restored)을 그린다. restored 창 위에 앱 안 이동으로 새 창(가로채기)이 뜨면
+ * restored 창은 숨고(globals.css) 키 입력도 위 창에 양보한다 — 두 창이 함께 뒤로 가지 않게.
  */
-export default function SpaceDetailModal({ children }: { children: React.ReactNode }) {
+export default function SpaceDetailModal({ children, restored = false }: { children: React.ReactNode; restored?: boolean }) {
   const router = useRouter();
   const panelRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   // 내용 상자의 스크롤바 폭(macOS 겹침 스크롤바는 0)
   const [bar, setBar] = useState(0);
+  // X · 바깥 클릭 · ESC로 닫는 중 — 이때 문서가 바뀌면(새로고침으로 복원된 창의 뒤로 가기) 도착 공간도 창으로 그린다
+  const closingRef = useRef(false);
+  const close = () => {
+    closingRef.current = true;
+    router.back();
+  };
   const desktop = useSyncExternalStore(subscribeDesktop, () => window.matchMedia(DESKTOP_QUERY).matches, () => false);
 
   useEffect(() => {
@@ -51,8 +62,15 @@ export default function SpaceDetailModal({ children }: { children: React.ReactNo
     measure();
     window.addEventListener("resize", measure);
 
+    // 창이 열린 채 이 문서를 떠나면(새로고침 · 뒤로/앞으로 · 탭 닫기) 다음 요청에서 창으로 다시 그리도록 알린다.
+    // beforeunload — 다음 문서 요청이 나가기 전에 실행된다(pagehide는 새 요청을 보낸 뒤라 쿠키가 실리지 않는다 — 실측)
+    const onLeave = () => rememberModalOnLeave(closingRef.current);
+    window.addEventListener("beforeunload", onLeave);
+
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") { e.preventDefault(); router.back(); return; }
+      // 복원된 창 위에 다른 창이 떠 있으면 키 입력은 위 창 몫
+      if (restored && document.querySelector(".ed-modal-backdrop:not([data-restored])")) return;
+      if (e.key === "Escape") { e.preventDefault(); close(); return; }
       if (e.key !== "Tab" || !panelRef.current) return;
       const items = Array.from(panelRef.current.querySelectorAll<HTMLElement>(FOCUSABLE)).filter((el) => el.offsetParent !== null);
       if (items.length === 0) return;
@@ -66,19 +84,23 @@ export default function SpaceDetailModal({ children }: { children: React.ReactNo
     return () => {
       document.removeEventListener("keydown", onKey);
       window.removeEventListener("resize", measure);
+      window.removeEventListener("beforeunload", onLeave);
       body.style.overflow = prevOverflow;
       body.style.paddingRight = prevPad;
       opener?.focus?.({ preventScroll: true });
     };
-  }, [desktop, router]);
+    // close는 router · closingRef만 쓴다(매 렌더 새 함수라 의존성에서 뺀다)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [desktop, router, restored]);
 
   if (!desktop) return null;
 
   return (
     <div
       className="ed-modal-backdrop fixed inset-0 z-[70]"
+      data-restored={restored ? "" : undefined}
       style={{ background: "rgba(0,0,0,0.38)", backdropFilter: "blur(2px)" }}
-      onMouseDown={(e) => { if (e.target === e.currentTarget) router.back(); }}
+      onMouseDown={(e) => { if (e.target === e.currentTarget) close(); }}
       // 창 바깥(어두운 바탕)에서 굴린 휠도 내용 상자를 스크롤한다(바탕 자체는 스크롤되지 않음)
       onWheel={(e) => { if (e.target === e.currentTarget) scrollRef.current?.scrollBy({ top: e.deltaY }); }}
     >
@@ -96,7 +118,7 @@ export default function SpaceDetailModal({ children }: { children: React.ReactNo
             테두리 · 상자 없이 X만, 누르는 영역 44px. 반투명 원(.ed-close-btn)은 내용이 X 아래로 지나갈 때만 보인다. */}
         <button
           type="button"
-          onClick={() => router.back()}
+          onClick={close}
           aria-label="공간 상세 닫기"
           className="ed-close-btn z-20"
           // 위치는 인라인으로 — .ed-close-btn(globals.css, 레이어 밖)의 position: relative가 Tailwind의 absolute 유틸리티를 이긴다

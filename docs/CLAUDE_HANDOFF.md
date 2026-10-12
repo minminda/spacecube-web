@@ -1,8 +1,17 @@
 # Claude Code Latest Handoff
 
-Updated: 2026-10-12 (후속) · 데스크톱 상세 X 구조 수정 · 스키마 · API · 데이터 변경 없음
+Updated: 2026-10-12 (후속 2) · 새로고침해도 상세 창 유지 · 데스크톱 상세 X 구조 수정 · 스키마 · API · 데이터 변경 없음
 
-## 최신: 데스크톱 상세 X — 스크롤 영역 밖으로 분리 (`SpaceDetailModal.tsx`만)
+## 최신: 데스크톱 상세 창 — 새로고침해도 HOME 위 창 유지
+- 원인: 창은 `@modal/(.)spaces/[slug]` 가로채기 라우트라 앱 안 이동에서만 뜬다. 새로고침 = 서버 요청이라 가로채기가 없고 `app/spaces/[slug]/page.tsx`(독립 페이지)가 그려지며 @modal 슬롯은 `[...catchAll]`(null).
+- 방식(`src/lib/editorial/modalRestore.ts`): 창이 열린 채 문서를 떠날 때 **beforeunload**에서 짧은 쿠키 `sc_modal=<slug>`(10초, X · 바깥 · ESC로 닫는 중이면 `*`). `/spaces/[slug]` 서버 페이지가 쿠키 일치 + 데스크톱(sec-ch-ua-mobile ≠ ?1)이면 `HOME(app/page) + <SpaceDetailModal restored>`를 그림(서버에서 바로 → 독립 페이지 깜빡임 없음). 모든 문서 `<head>`에서 쿠키 즉시 삭제(일회성).
+  - pagehide는 새 요청이 나간 뒤에 실행돼 쿠키가 실리지 않음(실측) → beforeunload.
+  - query param(공유 주소에 남음) · sessionStorage/history.state(서버가 몰라 독립 페이지가 먼저 보임) 대신 이 방식.
+  - 복원된 창 위에 앱 안 이동으로 새 창이 뜨면 아래 창은 숨김(globals.css `body:has(...)`), 키 입력(ESC · Tab)은 위 창만.
+- 실측(로컬 dev, iframe 1280 · 375): HOME → 북눅 창 → 새로고침 → HOME + 북눅 창(주소 그대로) / 주소 직접 → 독립 페이지 / 창 A → 함께 소개된 B → 새로고침 → B 창 / 복원 창 X → HOME, 다시 새로고침 → 창 없음 / 복원 후 뒤로 → HOME, 앞으로 → 창, 뒤로 → HOME / 복원 B에서 X → A 창 → X → HOME / 복원 창 위 새 창 → ESC 1번에 한 단계만 / 375px: 독립 페이지 · X (323, 59) 그대로.
+- 한계: 복원 창에서 X로 HOME에 돌아오면 HOME 스크롤이 정확히 복원되지 않을 수 있음(실측 700 → 69 — 다른 문서로 돌아가 브라우저 기본 복원이 스트리밍 중 잘림). 복원된 창 뒤 HOME은 항상 기본 HOME(지역 · 검색 화면에서 열었어도). 뒤로 갔다가 10초 넘게 지나 앞으로 가면 독립 페이지. 실제 보이는 창 · Safari 미확인.
+
+## 데스크톱 상세 X — 스크롤 영역 밖으로 분리 (d04ff89) (`SpaceDetailModal.tsx`만)
 - 운영 웹에서 `sticky top-12`(ffdd771) 상태에서도 X가 스크롤을 따라 움직인다는 보고. 배포 청크에 top-12가 실제로 있었음을 확인했지만 원인은 재현하지 못함 → sticky 자체를 버림.
 - 이전 구조: 바탕(fixed, **overflow-y-auto = 실제 스크롤 요소**) > 창(min-h) > [sticky 래퍼 > X] + 내용. X와 스크롤되는 내용이 같은 스크롤 영역 안.
 - 새 구조: 바탕(fixed, 스크롤 없음) > 창 껍데기(relative · 높이 calc(100dvh-48px) · overflow hidden, role=dialog) > [X(absolute, top 6 · right 2+스크롤바 폭) · 내용 상자(h-full overflow-y-auto)]. X는 스크롤 요소 밖.

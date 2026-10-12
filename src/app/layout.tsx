@@ -8,6 +8,7 @@ import { ENABLE_DARK_MODE_TOGGLE, ENABLE_INITIAL_ONBOARDING } from "@/lib/featur
 import { getBaseUrl } from "@/lib/config";
 import { THEME_INIT_SCRIPT } from "@/lib/theme";
 import { RELOAD_SCROLL_TOP_SCRIPT } from "@/lib/reloadScroll";
+import { MODAL_COOKIE_CLEAR_SCRIPT } from "@/lib/editorial/modalRestore";
 
 const BASE_URL = getBaseUrl();
 
@@ -37,6 +38,7 @@ export default function RootLayout({ children, modal }: { children: React.ReactN
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
         <script dangerouslySetInnerHTML={{ __html: RELOAD_SCROLL_TOP_SCRIPT }} />
+        <script dangerouslySetInnerHTML={{ __html: MODAL_COOKIE_CLEAR_SCRIPT }} />
         <link rel="preconnect" href="https://cdn.jsdelivr.net" />
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard-dynamic-subset.min.css" />
       </head>
