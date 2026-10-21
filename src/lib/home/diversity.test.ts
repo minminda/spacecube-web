@@ -36,4 +36,14 @@ describe("HOME 선반 다양성", () => {
     expect(ids(r[0])).toEqual(["1", "2"]);
     expect([...exposureCounts(r, (x) => x.id).values()]).toEqual([1, 1]);
   });
+
+  it("공간이 6곳에서 24곳으로 늘면 같은 공간이 HOME에서 나오는 횟수가 줄어든다", () => {
+    const maxExposure = (n: number) => {
+      const pool = Array.from({ length: n }, (_, i) => String(i));
+      const shelves = Array.from({ length: 8 }, (_, i) => shelf(`s${i}`, "strong", pool, 4));
+      return Math.max(...exposureCounts(run(shelves), (x) => x.id).values());
+    };
+    expect(maxExposure(6)).toBeGreaterThan(maxExposure(24));
+    expect(maxExposure(24)).toBeLessThanOrEqual(2); // 8선반 × 4장 = 32장을 24곳에 나누면 한 공간은 많아야 2번
+  });
 });

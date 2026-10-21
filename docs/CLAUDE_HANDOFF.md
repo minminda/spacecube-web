@@ -1,99 +1,78 @@
 # Claude Code Latest Handoff
 
-Updated: 2026-10-12 (후속 3) · 상세 X 화면 고정 형제 · 새로고침해도 상세 창 유지 · 데스크톱 상세 X 구조 수정 · 스키마 · API · 데이터 변경 없음
+Updated: 2026-10-21 · 일반 문화공간 일괄 등록 스크립트 + 입력 템플릿 · 스키마 · 디자인 · 추천 알고리즘 · 운영 데이터 변경 없음 (실제 등록 안 함)
 
-## 최신: 데스크톱 상세 X — 화면 고정(fixed) 형제로 완전 분리 (`SpaceDetailModal.tsx`, `globals.css`)
-- 운영 웹에서 d04ff89(껍데기 안 absolute) 후에도 X가 스크롤을 따라 움직인다는 보고. 운영 DOM 추적 결과 스크롤 요소는 내용 상자(`h-full overflow-y-auto`) 하나, X는 껍데기(`.ed-modal-panel`, relative · overflow hidden · 열림 애니메이션 transform) 안 absolute, 바탕은 fixed + backdrop-filter. 숨긴 브라우저 창에서는 움직임을 재현하지 못함.
-- 새 구조: `.ed-modal-root`(role=dialog, position 없음) > [바탕(fixed) > 껍데기(애니메이션) > 내용 상자(스크롤)] + [X(position: fixed, 형제)]. X는 스크롤 요소 · transform 걸린 껍데기 · backdrop-filter 바탕 어느 것의 자손도 아님.
-  - 위치: top 54px(= 껍데기 위 48 + 6), right = calc((100% − 창 폭) / 2 + 2px + 스크롤바 폭) — 껍데기와 같은 폭 식(min(800px, 100% − 64px) + 스크롤바)이라 창 크기가 바뀌어도 창 오른쪽 위.
-  - X 위 휠도 내용 상자로. 열림은 투명도만(.ed-modal-close). 다크 토큰 · focus-visible · 복원 창 숨김 선택자를 `.ed-modal-root` 기준으로.
-- 실측(로컬 dev, iframe 1280, HOME 600 → 카드 클릭 → 가로채기 창): scrollTop 0 / 300 / 700 / 977(끝) 모두 X (top 54, right 1036). 휠 이벤트(X 위 · 바탕 위)로 끝까지 스크롤 후에도 같음. 새로고침 복원 창도 같은 좌표(껍데기 transform이 남아 있는 상태에서도). X → HOME y=600. 복원 창 위 새 창: 아래 창 X도 숨김, ESC 한 단계. 다크: X #ecebe8 + 원 #161616 78%. 375px: 변경 없음(독립 페이지, X 323 · 59).
-- 확인 못 한 것: 브라우저 창이 숨겨져 있어 실제 마우스 휠 · 트랙패드 입력은 못 함(휠 이벤트는 합성, 스크롤은 scrollTop · 휠 핸들러). Safari.
+## 목적
+홈페이지에 실제 공개 공간이 6곳뿐이라 같은 공간이 반복 노출됨. 10/30 한이음 제출·11/4 졸업전시 전에 **최소 정보만으로 일반 문화공간을 한꺼번에 등록**할 준비. QR·Episode·방명록 시연은 기존 Partner 6곳 중 하나로.
 
-## 데스크톱 상세 창 — 새로고침해도 HOME 위 창 유지 (043c162)
-- 원인: 창은 `@modal/(.)spaces/[slug]` 가로채기 라우트라 앱 안 이동에서만 뜬다. 새로고침 = 서버 요청이라 가로채기가 없고 `app/spaces/[slug]/page.tsx`(독립 페이지)가 그려지며 @modal 슬롯은 `[...catchAll]`(null).
-- 방식(`src/lib/editorial/modalRestore.ts`): 창이 열린 채 문서를 떠날 때 **beforeunload**에서 짧은 쿠키 `sc_modal=<slug>`(10초, X · 바깥 · ESC로 닫는 중이면 `*`). `/spaces/[slug]` 서버 페이지가 쿠키 일치 + 데스크톱(sec-ch-ua-mobile ≠ ?1)이면 `HOME(app/page) + <SpaceDetailModal restored>`를 그림(서버에서 바로 → 독립 페이지 깜빡임 없음). 모든 문서 `<head>`에서 쿠키 즉시 삭제(일회성).
-  - pagehide는 새 요청이 나간 뒤에 실행돼 쿠키가 실리지 않음(실측) → beforeunload.
-  - query param(공유 주소에 남음) · sessionStorage/history.state(서버가 몰라 독립 페이지가 먼저 보임) 대신 이 방식.
-  - 복원된 창 위에 앱 안 이동으로 새 창이 뜨면 아래 창은 숨김(globals.css `body:has(...)`), 키 입력(ESC · Tab)은 위 창만.
-- 실측(로컬 dev, iframe 1280 · 375): HOME → 북눅 창 → 새로고침 → HOME + 북눅 창(주소 그대로) / 주소 직접 → 독립 페이지 / 창 A → 함께 소개된 B → 새로고침 → B 창 / 복원 창 X → HOME, 다시 새로고침 → 창 없음 / 복원 후 뒤로 → HOME, 앞으로 → 창, 뒤로 → HOME / 복원 B에서 X → A 창 → X → HOME / 복원 창 위 새 창 → ESC 1번에 한 단계만 / 375px: 독립 페이지 · X (323, 59) 그대로.
-- 한계: 복원 창에서 X로 HOME에 돌아오면 HOME 스크롤이 정확히 복원되지 않을 수 있음(실측 700 → 69 — 다른 문서로 돌아가 브라우저 기본 복원이 스트리밍 중 잘림). 복원된 창 뒤 HOME은 항상 기본 HOME(지역 · 검색 화면에서 열었어도). 뒤로 갔다가 10초 넘게 지나 앞으로 가면 독립 페이지. 실제 보이는 창 · Safari 미확인.
+## 만든 것
+- `src/lib/editorial/bulkSpaceImport.ts` — 순수 함수(입력 → 등록 계획). 필드 검증은 관리자 저장과 같은 `parseSpaceInput` 재사용.
+- `scripts/bulk-import-spaces.ts` — 파일·DB·업로드 담당. **기본 Dry-run**(DB 읽기만).
+- `docs/space-import/spaces.template.json` — 입력 템플릿.
+- 테스트: `bulkSpaceImport.test.ts` 10개, `diversity.test.ts` 1개 추가(공간 6→24곳이면 HOME 최대 반복 노출이 줄어듦).
 
-## 데스크톱 상세 X — 스크롤 영역 밖으로 분리 (d04ff89) (`SpaceDetailModal.tsx`만)
-- 운영 웹에서 `sticky top-12`(ffdd771) 상태에서도 X가 스크롤을 따라 움직인다는 보고. 배포 청크에 top-12가 실제로 있었음을 확인했지만 원인은 재현하지 못함 → sticky 자체를 버림.
-- 이전 구조: 바탕(fixed, **overflow-y-auto = 실제 스크롤 요소**) > 창(min-h) > [sticky 래퍼 > X] + 내용. X와 스크롤되는 내용이 같은 스크롤 영역 안.
-- 새 구조: 바탕(fixed, 스크롤 없음) > 창 껍데기(relative · 높이 calc(100dvh-48px) · overflow hidden, role=dialog) > [X(absolute, top 6 · right 2+스크롤바 폭) · 내용 상자(h-full overflow-y-auto)]. X는 스크롤 요소 밖.
-  - 내용 상자 스크롤바 폭만큼 껍데기를 넓혀 본문 720px · 사진 크기 그대로, X가 스크롤바를 가리지 않음.
-  - 바탕(창 바깥)에서 굴린 휠은 내용 상자로 넘김. 처음 포커스는 내용 상자(키보드 스크롤).
-  - 함정: `.ed-close-btn`(globals.css, 레이어 밖)의 `position: relative`가 Tailwind `absolute`를 이겨 X가 왼쪽에 붙었음 → 위치를 인라인 style로 지정.
-- 실측(로컬 dev, 실제 브라우저 창 1280×720, HOME 600 → 북눅 카드 클릭): 내용 상자 scrollTop 0 / 300 / 600 / 1017(끝) → X top 54 · right 1036 모두 같음. 사진 720px, X 아래 6px · 오른쪽 6px 떨어짐. X 클릭 → HOME y=600, body 잠금 해제. 바탕 휠 → 내용 400px 스크롤.
-- 확인 못 한 것: 창이 숨겨진 상태라 실제 마우스 휠 스크롤 · Safari. 휴대폰 변경 없음(창을 쓰지 않음).
-- 참고(기존 동작, 이번에 안 바꿈): 창이 열릴 때 뒤의 HOME 문서가 맨 아래로 스크롤됨(창 잠금 중이라 안 보이고, 닫으면 600으로 복원).
+```bash
+npx tsx --env-file=.env scripts/bulk-import-spaces.ts <입력.json>                    # 미리보기(기본)
+npx tsx --env-file=.env scripts/bulk-import-spaces.ts <입력.json> --apply            # DRAFT(비공개 초안)로 등록
+npx tsx --env-file=.env scripts/bulk-import-spaces.ts <입력.json> --apply --publish  # 공개(PUBLISHED)로 등록
+# --allow-new : 정본에 없는 유형·태그를 오류 대신 경고로
+```
 
----
+## 동작 원칙
+- **새 EditorialSpace 행 생성만.** 기존 행 수정·삭제 없음. Episode/Scene/Cube/운영자/방명록/운영 Space/Partner 관계 안 만듦, `cubeAvailable=false` 고정, `story=[]`. 입력에 `episodes`·`cube` 등 허용 목록 밖 필드가 있으면 오류.
+- 필수: 공간명·slug·지역·유형·대표 이미지·한 줄 소개·**태그 3~5개**. 선택: description·address·mapUrl·openingHours·instagram·website·images.
+- **정본 재사용**: 지역 = 관리자 `District` 이름 + 기존 공간 area(정규화 비교, 정본 표기로 통일). 유형 = "공간 유형" 카테고리 태그 + 기존 category. 태그 = 활성 `Tag` + 기존 태그(공백·대소문자 차이는 정본 표기로 통일). 정본에 없으면 오류(`--allow-new`면 유형·태그만 경고, 지역은 항상 오류).
+- **중복**: 파일 내부 slug·이름, DB(초안·보관·가상 포함) slug·이름. 같은 slug+같은 이름이면 **건너뜀**(= 재실행 안전), 다른 공간과 겹치면 오류. 오류가 하나라도 있으면 아무것도 쓰지 않음.
+- **이미지**: `coverImage`/`images`에 https URL(예: 관리자에서 올린 Cloudinary URL) 또는 **입력 JSON 폴더 기준 로컬 경로**. 로컬 경로는 `--apply` 때 관리자와 같은 Cloudinary unsigned preset으로 업로드(10MB 초과·파일 없음은 미리보기에서 오류). 이미지 압축은 안 함 — 큰 원본은 미리 줄일 것.
+- **가상 정보 구분**: `"fictional": true` → `isDemo=true` → HOME·검색·지역·테마·추천·상세 어디에도 안 나옴(`queries.ts`/`finderData.ts` 필터). `--publish`여도 fictional은 DRAFT로 등록.
+- 출력: 대상 DB host, 항목별 등록/건너뜀/오류 + 사유, 요약(총·등록·가상·건너뜀·오류).
 
-## 이전 handoff (ffdd771 — 운영시간 · 로그인 의도)
+## 공개 조건과 노출 (코드로 확인)
+공개 = `status=PUBLISHED` **그리고** `isDemo=false`. 이것만 맞으면 Partner(cubeAvailable) 여부와 무관하게 아래에 노출 후보가 된다. 일반 공간은 카드에서 Partner 표시(`partner: cubeAvailable`)가 안 붙어 기존 Partner와 구분된다.
+| 영역 | 조건 |
+|---|---|
+| 새롭게 소개한 공간 | `publishedAt` 최신순(공개 시각이 곧 소개 시각) |
+| 지역별 선반 | 정규화 지역 기준 **그 지역 공개 공간 3곳 이상**, 최대 3개 지역 |
+| 유형 선반 | 같은 유형 2곳 이상, 최대 2개 |
+| 테마 선반 | 유형·태그·이름이 테마 키워드와 맞는 공간 **3곳 이상**(`themeRules.ts`; 소개 문장은 안 봄) |
+| 검색·FIND/추천 | `getFinderPool`: PUBLISHED & !isDemo 전체가 풀 |
+| 다양성 | `diversifyShelves`가 노출 횟수 적은 공간을 앞세움 — 후보가 늘면 반복이 줄어듦(테스트) |
+- **주의**: 기존 실제 6곳은 `tags`가 비어 있어 테마 선반에는 신규 공간(태그 3~5개)만 모인다. 신규를 같은 지역(연남·망원)에 3곳 이상 넣어야 지역 선반이 생김. 지금 지역 정본(District)은 연남동·망원동·용인 처인구 세 곳뿐 — 다른 지역 공간을 넣으려면 관리자에서 지역을 먼저 추가해야 함.
+- 현재 DB에는 가상 공간(`proto-*`, isDemo) 여러 곳이 있어 slug 충돌 검사 대상이다(공개에는 안 나옴).
+- 실제 확인한 것: 템플릿으로 운영 DB 대상 Dry-run(읽기만) 정상, 정본 불일치/이미지 없음 오류 출력 확인. 브라우저 HOME 노출은 실제 등록이 없어 **확인 못 함**(코드·단위 테스트 기준).
 
-QR 이전 Journey(`docs/pre-qr-persona-user-journey-2026-10.md`)의 friction 세 가지만 처리. 새 기능 · 대규모 리팩터링 없음.
-
-## 1. 데스크톱 상세 X 화면 고정 (`SpaceDetailModal.tsx`)
-- 원인: X가 `sticky top-0`인데 창(panel)은 스크롤 영역 안에서 `mt-12`(48px) 아래에서 시작 → 처음 48px 스크롤하는 동안 X가 화면 54px → 6px로 따라 올라감.
-- 수정: sticky 기준을 창 위 여백과 같게 `top-12`. 스크롤 0에서 이미 기준선에 닿아 있어 이후 어떤 스크롤에도 X 화면 좌표가 같다. 구조 · 디자인(.ed-close-btn) 그대로, 휴대폰(창을 쓰지 않음)은 영향 없음.
-- 실측(1280×760, HOME → 북눅 창): 창 스크롤 0 / 37 / 48 / 120 / 489 / 977(끝) / 다시 0 → X 모두 (992, 54). 사진과 세로 6px · 가로 6px 떨어짐. 닫기 → HOME 600 위치 그대로.
-
-## 2. 운영시간(방문 정보)
-- 스키마(변경 없음): 공개 `EditorialSpace` — address · openingHours · mapUrl · instagram · website(좌표 없음). 운영 `Space` — location · district · openingHours · naverMapUrl · lat/lng · experienceGuide. 휴무일 전용 필드는 없음(운영시간 문자열에 함께 씀).
-- 비어 있던 이유: 공개 상세는 `EditorialSpace.openingHours`만 읽는데, 공개 계층은 운영 계층과 따로 입력돼 6곳 모두 null. 같은 공간의 운영 `Space.openingHours`에는 관리자가 입력한 값이 6곳 모두 있었다.
-- 처리: `scripts/backfill-editorial-opening-hours.ts` — 빈 공개 값만 같은 slug 운영 값으로 채움(덮어쓰기 없음, 조건부 updateMany, 기본 미리보기, `--apply`). 2026-10-12 운영 DB에 적용 → 6곳 채움, 재실행 0곳(멱등). 되돌리려면 해당 행 openingHours를 null로.
-- 관리자 입력: 관리자 > 콘텐츠 > 공간 편집(`EditorialSpaceForm`)의 "운영 시간" 칸(원래 있었음). 공개 화면은 이 값만 읽는다.
-- 상세 표시(`SpaceDetail.tsx`): 정보 = 지역 · 종류 · 주소 · **운영시간** → 바로 아래 "지도에서 보기 ↗". 라벨 "운영" → "운영시간"(라벨 칸 48 → 56px), 값이 있을 때만 행 표시, 줄바꿈 입력 허용(pre-line). 375px 실측: 한 줄 · 가로 넘침 없음.
-
-### 공개 6곳 현황(2026-10-12)
-| 공간 | 주소 | 운영시간 값(운영 공간에서 옮김 — 사람 확인 필요) | 관리자 수정 | 상세 표시 | 좌표 |
-|---|---|---|---|---|---|
-| 북눅 연남 | 서울 마포구 월드컵북로6길 93 2층 203호(2.5층) | 매일 08:00 - 다음 날 05:30 / 예약제 | 가능 | 표시(실측) | 있음 |
-| 내면의 발견 | 서울 마포구 월드컵북로5길 53 | 일~월 12:00 - 19:00 | 가능 | 표시 | 있음 |
-| 턴다운서비스 | 서울 마포구 동교로50길 7 반지층 | 매일 12:00 - 23:00 | 가능 | 표시 | 있음 |
-| 다시점 | 서울 마포구 월드컵로29길 51 3층 | 매일 10:00 - 23:00 / 일요일 마감은 22:00 | 가능 | 표시(실측) | 있음 |
-| 녹화버튼 | 서울 마포구 희우정로20길 22-13 1층 101호 | 매일 10:00 - 21:00 / 예약 시간 상주 | 가능 | 표시 | 있음 |
-| 아카커피룸 | 경기 용인시 처인구 명지로 5 2층 | 매일 12:00 - 22:00 | 가능 | 표시 | 있음 |
-(좌표 = 운영 Space.lat/lng. 공개 EditorialSpace에는 좌표 필드가 없음.)
-
-### Cube 위치 정보(조사만)
-- `Cube` 모델은 code · status · spaceId · activatedAt뿐 — 설치 위치 · 안내 필드 없음.
-- 운영 `Space.experienceGuide`(Text, nullable)가 있으나 어떤 화면도 읽거나 입력하지 않음(API 저장만), 6곳 모두 null. "현장 Cube 위치 안내"의 후보 — 쓰려면 관리자 입력 칸 + 상세 Cube 섹션 표시가 필요(후속).
-
-## 3. 비로그인 저장 · 다녀왔어요 → 로그인 후 자동 완료
-- before: 누르면 `/login?callbackUrl=<지금 주소>` → 로그인 → 같은 화면 복귀 → **다시 눌러야 함**.
-- after: 누르면 같은 로그인 화면이지만 callbackUrl에 `?sc_intent=<일회용 번호>` → 로그인 → 상세 복귀 → **자동 저장("저장됨 · 내 공간에 저장했어요.") / 자동 첫 방문("한 번 다녀온 곳이에요 · 다녀온 곳으로 남겼어요…")**.
-- 의도 보존(`src/lib/editorial/pendingIntent.ts`): 클릭한 기기 localStorage `sc-pending-intent` = {행동(save|visited), 공간 id, 번호, 시각} + 주소에는 번호만. 기존 callbackUrl · `sanitizeRedirectPath` · NextAuth redirectTo 그대로(새 인증 없음).
-- 일회성: 돌아온 상세(`SpaceRelation` 첫 렌더 effect)가 ① 주소의 sc_intent를 history.replaceState로 즉시 제거 ② 기기 기록을 꺼내 즉시 삭제 ③ 번호 · 공간 · 행동 · 30분이 모두 맞을 때만 실행. 새로고침 · 뒤로가기 · 같은 주소 재방문 → 실행 없음(로그인 화면은 로그인돼 있어도 자동 이동하지 않으므로 뒤로가기로 재실행 경로 없음).
-- 중복 방지: 판단은 로그인 계정 기준으로 서버가 다시 그린 값 — 이미 저장 → 요청 없이 "이미 내 공간에 저장되어 있어요." / 이미 다녀옴(내 기록 방문 + Cube Record ≥1) → 방문을 만들지 않고 "이미 다녀온 곳으로 기록되어 있어요." 저장 API는 upsert라 행 중복도 불가.
-- 보안: 남이 만든 링크(`?sc_intent=…`)는 번호가 기기 기록과 맞지 않아 무시. 실제 변경은 기존 API가 로그인 본인 기준으로 검증(저장: 발행 공간만, 방문: archiveCaller).
-- 창(@modal)에서 시작한 경우: 로그인 후 **독립 상세 페이지**(/spaces/[slug])로 돌아와 행동 완료(창 복원은 하지 않음 — routing hack 없음).
-- 범위: 공간 상세의 "내 공간" 줄(저장하기 · 다녀왔어요)만. 다른 화면(카드 모서리 · 큐레이션 블록)의 저장 버튼은 기존 동작(SaveButton에 선택 prop `loginHref`만 추가). 재방문(또 갔어요) · 취소는 의도를 싣지 않음.
-
-## 검증
-- tsc 통과 · 변경 파일 eslint 통과 · vitest `src/lib/{editorial,archive,home,search}` 226개 통과(신규 `pendingIntent.test.ts` 7개).
-- 브라우저: 창이 숨겨져 있어 고정 크기 iframe + rAF 대체로 로컬 dev(운영 DB) 실측. 로그인은 OAuth 대신 isDemo 테스트 계정 + DB 세션 쿠키로 대체(로그인 "성공 후 callbackUrl 도착"을 그대로 재현).
-  - 저장: 비로그인 클릭 → 로그인 주소에 번호 · 기기 기록 생성 → 복귀 → 저장 POST 1회 → 주소 정리 · 기록 삭제 → 새로고침 쓰기 0 → 옛 callback 주소 재방문 쓰기 0. DB 저장 1행.
-  - 다녀왔어요: 같은 방식 → 방문 POST 1회 → 새로고침 2번 쓰기 0. DB 방문 정확히 1.
-  - 이미 다녀옴 + 다녀왔어요 의도 / 이미 저장 + 저장 의도 → 쓰기 0, 안내 문구.
-  - 남이 만든 번호 · 다른 공간 · 지원하지 않는 행동 · 비로그인 복귀 → 모두 쓰기 0.
-  - 회귀: 로그인 상태 저장 · 저장 해제, 첫 다녀왔어요, 또 갔어요 → ✓ → 취소(DELETE 1회, 2번 → 1번), 내 공간(가보고 싶은 곳) 반영, 창 → 로그인 → 독립 상세에서 저장 완료.
-- 확인 못 한 것: 실제 카카오 · Google OAuth 왕복(특히 휴대폰에서 카카오톡 앱으로 넘어갔다 돌아오는 경우 — 같은 브라우저로 돌아오면 localStorage가 남아 동작, 다른 브라우저로 돌아오면 의도만 사라지고 예전처럼 다시 누르면 됨). Cube Record만 있는 계정의 다녀왔어요 의도는 코드 경로(visits에 Cube 포함)로만 확인. 키보드 포커스 · 실제 iPhone.
-- 테스트 데이터 정리: 테스트 계정(세션 · 저장 · 방문 cascade) 삭제, 내 테스트 브라우저 DiscoveryEvent 6행 삭제(계정 1 + 익명 5), 남은 것 0.
-
-## 운영에서 확인할 것
-1. 관리자 > 콘텐츠 > 공간 편집에서 6곳 운영시간을 실제와 대조(특히 북눅 "08:00 - 다음 날 05:30 / 예약제", 내면의 발견 "일~월" — 일·월만 여는지 표기 오류인지). 휴무일이 있으면 같은 칸에 함께("화~일 12:00 - 21:00 / 월 휴무").
-2. 노트북: HOME → 공간 카드 → 창 안을 끝까지 스크롤 — X가 처음 자리에서 움직이지 않는지, 누르면 HOME 같은 위치.
-3. 휴대폰: 상세 X 위치가 이전과 같은지.
-4. 상세 "정보"에 주소 · 운영시간 · 지도에서 보기가 이어서 보이는지.
-5. 로그아웃 상태(시크릿 창): 상세 → 저장하기 → 카카오 로그인 → 상세로 돌아와 "저장됨"인지 → 새로고침해도 그대로, 내 공간에 1곳.
-6. 같은 방식으로 다녀왔어요 → "한 번 다녀온 곳이에요" → 새로고침 → 내 기록 방문 1회.
-7. 노트북 창에서 시작 → 로그인 후 독립 상세 페이지로 돌아오는지(창이 아니어도 정상).
+## 운영 DB vs 시연용 DB
+- 같은 스크립트·같은 모델. 달라지는 건 `.env`의 `DATABASE_URL`뿐 — 실행 첫 줄에 대상 host를 출력하니 확인 후 `--apply`.
+- 운영 DB: 실제 방문자에게 보임. 실제 존재하는 공간만, 사진으로 확인된 사실만, `--publish`는 사람이 검수한 뒤. 가상 항목은 `fictional`로 비공개.
+- 시연용 DB: 전시 화면용으로 일반 공간을 모두 `--publish`해도 되지만, 가상 정보가 섞이면 `fictional`(보이지 않음)과 "시연에서 보이게" 사이에서 결정 필요(아래).
 
 ## 결정이 필요한 것
-- 운영시간 표의 값 확인(위 1번). 공개 · 운영 두 계층의 운영시간이 이제 각각 따로 수정됨 — 운영 공간 값을 바꿔도 공개 상세는 자동으로 안 바뀜.
-- Cube 위치 안내: `Space.experienceGuide`를 쓸지, 공개 공간 소개 문단에 한 줄로 쓸지.
-- 로그인 의도를 카드 · 큐레이션의 저장 버튼까지 넓힐지(이번 범위는 상세만).
+- 시연에서 가상 공간을 **보이게** 할지: 현재 기존 정책(isDemo=절대 비공개)을 유지했다. 보이게 하려면 별도 결정·구현 필요.
+- 신규 공간의 지역이 연남·망원 외일 때 District 추가 여부.
+- `tags` 비어 있는 기존 6곳에 태그를 채울지(테마 선반 참여, 이번 범위 밖).
+
+## ChatGPT에 전달할 JSON 형식
+```json
+{
+  "spaces": [
+    {
+      "slug": "mangwon-example-bookshop",
+      "name": "공간 이름",
+      "area": "망원동",
+      "category": "독립서점",
+      "coverImage": "images/mangwon-example-bookshop.jpg",
+      "summary": "사진으로 확인되는 것만 쓴 한 줄 소개",
+      "tags": ["책", "조용한", "혼자"],
+      "description": "선택. 사진으로 확인된 사실만. 문단은 빈 줄로 구분.",
+      "address": "선택. 확인된 경우만",
+      "mapUrl": "https://map.naver.com/...",
+      "images": ["images/mangwon-example-bookshop-2.jpg"],
+      "fictional": false
+    }
+  ]
+}
+```
+규칙: `slug`는 영문 소문자·숫자·하이픈 / `area`·`category`·`tags`는 정본 표기 사용(모르면 비워 두지 말고 목록 요청) / 확인 안 된 정보(주소·운영시간·SNS)는 **필드를 빼기** / 가상 정보가 있으면 `"fictional": true`.
+
+## 검증
+- tsc 통과 · 변경 파일 eslint 통과 · vitest `src/lib/{home,editorial}` 136개 통과.
