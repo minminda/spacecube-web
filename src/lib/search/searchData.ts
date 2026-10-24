@@ -12,7 +12,8 @@ import { listAreas } from "@/lib/editorial/queries";
 import { normalizeArea } from "@/lib/editorial/area";
 import { getSavedEditorialSpaceIds } from "@/lib/editorial/saves";
 import { homeSpaceFromFinder, mergeAreaCounts } from "@/lib/home/homeData";
-import { fixtureAreaCounts, fixtureSpaces } from "@/lib/home/fixtures";
+import { demoSpaces, fixtureAreaCounts, fixtureSpaces } from "@/lib/home/fixtures";
+import { ENABLE_PUBLIC_DEMO_SPACES } from "@/lib/features";
 import { buildAreaOptions, type AreaOption, type HomeSpace } from "@/lib/home/shelves";
 import { searchRegions, searchSpaces, type SearchDoc } from "./spaceSearch";
 
@@ -85,14 +86,16 @@ async function buildSearchCorpus(opts: { admin: boolean; fixtures?: boolean }): 
     const why = notes[0] ?? f.view.summary;
     if (why) reasons.set(f.id, why);
   }
-  if (opts.fixtures) {
-    for (const f of fixtureSpaces(pool.length + 1)) {
+  // 미리보기는 글자만 있는 임시 공간까지, 일반 방문자는 사진 기반 시연용 공간만(ENABLE_PUBLIC_DEMO_SPACES)
+  const extra = opts.fixtures ? fixtureSpaces(pool.length + 1) : ENABLE_PUBLIC_DEMO_SPACES ? demoSpaces(pool.length + 1) : [];
+  if (extra.length > 0) {
+    for (const f of extra) {
       docs.push({ id: f.id, name: f.name, area: f.area, category: f.category, tags: f.tags, summary: f.summary ?? "", description: "", curation: [], reasons: [f.reason], order: f.order });
       spaces.set(f.id, f);
       reasons.set(f.id, f.reason);
     }
   }
-  return { docs, spaces, reasons, areaOptions: buildAreaOptions(opts.fixtures ? mergeAreaCounts(areas, fixtureAreaCounts()) : areas) };
+  return { docs, spaces, reasons, areaOptions: buildAreaOptions(extra.length ? mergeAreaCounts(areas, fixtureAreaCounts(!opts.fixtures)) : areas) };
 }
 
 export interface SearchSpaceItem {

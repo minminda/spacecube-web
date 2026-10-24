@@ -20,6 +20,7 @@ import { libraryHref } from "@/lib/archive/library";
 import { getPartnerEpisodes } from "@/lib/editorial/partnerEpisodes";
 import PartnerEpisodeList from "@/components/editorial/PartnerEpisodeList";
 import { findFixtureSpace, fixtureEpisodes, fixtureSpaceView } from "@/lib/home/fixtures";
+import { ENABLE_PUBLIC_DEMO_SPACES } from "@/lib/features";
 import { normalizeArea } from "@/lib/editorial/area";
 import { INSTAGRAM_URL } from "@/content/site";
 import { curatorAccess } from "@/lib/curators/access";
@@ -51,7 +52,8 @@ export default async function SpaceDetail({ slug, presentation }: Props) {
   const access = curatorAccess(viewer);
   // 큐레이터 프로토타입 가상 공간은 미리보기 권한(관리자·로컬)이 있을 때만 열린다.
   // Discovery 확인용 임시 공간(fixture-N)은 관리자 · 로컬에서만 열린다 — DB를 조회하지 않고 fixtures.ts로만 그린다
-  const fixture = access.includeDemo ? findFixtureSpace(slug) : null;
+  // 사진 기반 시연용 공간(DEMO_SEEDS)은 일반 방문자에게도 열린다(ENABLE_PUBLIC_DEMO_SPACES) — 글자만 있는 임시 공간은 관리자 · 로컬만
+  const fixture = access.includeDemo ? findFixtureSpace(slug) : ENABLE_PUBLIC_DEMO_SPACES ? findFixtureSpace(slug, { publicOnly: true }) : null;
   const space = fixture ? fixtureSpaceView(fixture) : await getSpaceBySlug(slug, { preview: viewer.admin, allowDemo: access.includeDemo });
   if (!space) notFound();
 
@@ -88,7 +90,11 @@ export default async function SpaceDetail({ slug, presentation }: Props) {
   return (
     <div className={modal ? "ed-modal-body" : "editorial-bleed"}>
       {fixture ? (
-        <p className="ed-container pt-3 text-xs" style={{ color: "var(--ed-dim)" }}>임시 공간 미리보기 — UI 확인용이며 실제 공간이 아닙니다. 일반 방문자에게는 보이지 않아요.</p>
+        fixture.image.src ? (
+          <p className="ed-container pt-3 text-xs" style={{ color: "var(--ed-dim)" }}>시연용 공간 — 공간큐브를 보여 주기 위해 만든 가상 공간이며 실제 장소가 아닙니다.</p>
+        ) : (
+          <p className="ed-container pt-3 text-xs" style={{ color: "var(--ed-dim)" }}>임시 공간 미리보기 — UI 확인용이며 실제 공간이 아닙니다. 일반 방문자에게는 보이지 않아요.</p>
+        )
       ) : space.isDemo ? <PrototypeBanner demo /> : <PreviewBanner status={space.status} editHref={`/admin/content/spaces/${space.id}`} />}
       {!fixture && !space.isDemo && <DiscoveryTracker spaceId={space.id} />}
       <main className={modal ? "pt-14" : "relative pt-12 md:pt-8"}>

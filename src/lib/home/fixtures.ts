@@ -168,11 +168,18 @@ export function fixtureSpaces(startOrder: number): FixtureSpace[] {
   return SEEDS.map((s, i) => fixtureOf(s, i, startOrder + i));
 }
 
-/** slug(fixture-N)로 임시 공간 하나 — 없으면 null */
-export function findFixtureSpace(slug: string): FixtureSpace | null {
+/** 사진 기반 가상 공간만(시연용, 일반 방문자에게도 공개 가능 — ENABLE_PUBLIC_DEMO_SPACES). slug 번호는 SEEDS 순서 그대로다. */
+export function demoSpaces(startOrder: number): FixtureSpace[] {
+  return SEEDS.map((s, i) => (s.image ? fixtureOf(s, i, startOrder + i) : null)).filter((f): f is FixtureSpace => f !== null);
+}
+
+/** slug(fixture-N)로 임시 공간 하나 — 없으면 null. publicOnly면 사진 기반 가상 공간만(글자만 있는 임시 공간은 null). */
+export function findFixtureSpace(slug: string, opts: { publicOnly?: boolean } = {}): FixtureSpace | null {
   if (!slug.startsWith(FIXTURE_SLUG_PREFIX)) return null;
   const i = Number(slug.slice(FIXTURE_SLUG_PREFIX.length)) - 1;
-  return Number.isInteger(i) && SEEDS[i] ? fixtureOf(SEEDS[i], i, i + 1) : null;
+  if (!Number.isInteger(i) || !SEEDS[i]) return null;
+  if (opts.publicOnly && !SEEDS[i].image) return null;
+  return fixtureOf(SEEDS[i], i, i + 1);
 }
 
 const seedOf = (f: FixtureSpace): Seed | undefined => SEEDS[Number((f.slug ?? "").slice(FIXTURE_SLUG_PREFIX.length)) - 1];
@@ -204,8 +211,8 @@ export function fixtureEpisodes(f: FixtureSpace) {
 }
 
 /** 임시 지역 — 지역 선택 목록에서 실제 데이터가 없는 지역도 선반이 생기는지 확인용 */
-export function fixtureAreaCounts(): { area: string; spaceCount: number; curationCount: number }[] {
+export function fixtureAreaCounts(onlyPhoto = false): { area: string; spaceCount: number; curationCount: number }[] {
   const map = new Map<string, number>();
-  for (const s of SEEDS) map.set(s.area, (map.get(s.area) ?? 0) + 1);
+  for (const s of SEEDS) if (!onlyPhoto || s.image) map.set(s.area, (map.get(s.area) ?? 0) + 1);
   return [...map].map(([area, spaceCount]) => ({ area, spaceCount, curationCount: 0 }));
 }

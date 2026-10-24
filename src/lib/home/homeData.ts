@@ -29,7 +29,8 @@ import {
   type HomeSpace,
 } from "./shelves";
 import { similarPeopleForHome, type SimilarPerson } from "@/lib/people/peopleData";
-import { fixtureAreaCounts, fixtureSpaces, type FixtureSpace } from "./fixtures";
+import { demoSpaces, fixtureAreaCounts, fixtureSpaces, type FixtureSpace } from "./fixtures";
+import { ENABLE_PUBLIC_DEMO_SPACES } from "@/lib/features";
 import { diversifyShelves, type DiversityStrength } from "./diversity";
 import { buildShelfPlan, type PlanItem } from "./shelfConfig";
 import { loadShelfRows } from "./shelfData";
@@ -143,10 +144,11 @@ export async function getHomeData(opts: { userId: string | null; admin: boolean;
   const reasonOf = (s: HomeSpace) => notes.get(s.id) ?? (s.fixture ? (s as FixtureSpace).reason : null) ?? s.summary ?? null;
 
   const real = pool.map(homeSpaceFromFinder);
-  const fixtures = opts.fixtures ? fixtureSpaces(real.length + 1) : [];
+  // 미리보기(?preview=fixtures)는 글자만 있는 임시 공간까지, 일반 방문자는 사진 기반 시연용 공간만(ENABLE_PUBLIC_DEMO_SPACES)
+  const fixtures = opts.fixtures ? fixtureSpaces(real.length + 1) : ENABLE_PUBLIC_DEMO_SPACES ? demoSpaces(real.length + 1) : [];
   const all = [...real, ...fixtures];
 
-  const areaOptions = buildAreaOptions(mergeAreaCounts(areas, opts.fixtures ? fixtureAreaCounts() : []));
+  const areaOptions = buildAreaOptions(mergeAreaCounts(areas, fixtures.length ? fixtureAreaCounts(!opts.fixtures) : []));
   const area = normalizeArea(opts.area);
   const inArea = area ? spacesInArea(all, area) : all;
   const areaRow = area ? areaOptions.find((o) => o.area === area) : null;
@@ -167,7 +169,7 @@ export async function getHomeData(opts: { userId: string | null; admin: boolean;
   const forYouShown = Math.min(forYouCards.length, PER_SHELF);
   let forYouFixtureCount = 0;
   const fixtureFill = area ? fixtures.filter((f) => f.area === area) : fixtures;
-  if (opts.fixtures) {
+  if (fixtures.length > 0) {
     // 첫 선반에 한 지역만 몰리지 않도록 지역을 돌아가며 6곳
     const byArea = new Map<string, HomeSpace[]>();
     for (const f of fixtureFill) byArea.set(f.area ?? "", [...(byArea.get(f.area ?? "") ?? []), f]);

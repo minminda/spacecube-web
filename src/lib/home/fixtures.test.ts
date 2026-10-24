@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { findFixtureSpace, fixtureSpaces, fixtureSpaceView } from "./fixtures";
+import { demoSpaces, findFixtureSpace, fixtureAreaCounts, fixtureSpaces, fixtureSpaceView } from "./fixtures";
 
 // 관리자 태그 정본(운영 DB 활성 태그, 2026-10-24) — 사진 기반 가상 공간은 이 이름만 쓴다
 const CANON_TAGS = new Set([
@@ -48,5 +48,15 @@ describe("사진 기반 가상 공간(fixtures)", () => {
     expect(v.hours).toBeUndefined();
     expect(v.mapUrl).toBeUndefined();
     expect(v.cubeAvailable).toBe(false);
+  });
+
+  it("일반 방문자용 목록(demoSpaces)은 사진 기반 11곳만이고, publicOnly 조회는 글자만 있는 임시 공간을 막는다", () => {
+    const pub = demoSpaces(1);
+    expect(pub).toHaveLength(11);
+    expect(pub.every((s) => s.image.src && s.fixture)).toBe(true);
+    expect(findFixtureSpace("fixture-1", { publicOnly: true })).toBeNull();
+    expect(findFixtureSpace("fixture-1")).not.toBeNull();
+    expect(findFixtureSpace(pub[0].slug as string, { publicOnly: true })?.id).toBe(pub[0].id);
+    expect(fixtureAreaCounts(true).reduce((n, a) => n + a.spaceCount, 0)).toBe(11);
   });
 });

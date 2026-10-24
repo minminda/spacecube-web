@@ -92,3 +92,11 @@ export const ENABLE_EDITORIAL_HOME = true;
  *   true여도 관리자/로컬 미리보기에서만 보인다(src/lib/curators/access.ts). 실제 큐레이터 데이터가 준비된 뒤에만 켤 것.
  */
 export const ENABLE_CURATOR_PROTOTYPE = false;
+
+/**
+ * 사진 기반 가상 공간(시연용, src/lib/home/fixtures.ts의 DEMO_SEEDS 11곳)을 일반 방문자에게도 보일지.
+ * - true: HOME · 검색 · 지역 · 테마 · 공간 상세(/spaces/fixture-N)에 실제 공간과 함께 나온다. 카드와 상세에 "시연용 공간" 표시가 붙는다.
+ *   운영 DB에는 없는 코드 데이터라 저장 · 방문 기록 · Discovery 이벤트 · KPI · 추천 통계에 들어가지 않는다.
+ * - false: 관리자 · 로컬의 ?preview=fixtures에서만 보인다(이전 동작). 글자만 있는 임시 공간(30곳)은 이 값과 무관하게 항상 미리보기 전용.
+ */
+export const ENABLE_PUBLIC_DEMO_SPACES = true;
