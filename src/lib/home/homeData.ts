@@ -16,7 +16,9 @@ import { getFinderPool, getFinderViewer, type FinderSpace } from "@/lib/finder/f
 import { cardReason, rankCandidates } from "@/lib/finder/spaceFinder";
 import { previewDemoUsers } from "@/lib/demoData";
 import {
+  applyDemoRegion,
   buildAreaOptions,
+  DEMO_REGION,
   buildAreaShelves,
   buildCategoryShelves,
   buildThemeShelves,
@@ -73,6 +75,8 @@ export interface HomeData {
   area: string | null;
   /** 고른 지역에 공간이 하나도 없을 때 */
   areaEmpty: boolean;
+  /** 시연 지역 모드 — 이용 가능한 지역이 DEMO_REGION 하나뿐(나머지는 "준비 중"). 지역 "전체" 보기는 없다. */
+  regionLocked: boolean;
   areaCounts: { spaces: number; curations: number } | null;
   /** 개인화(또는 편집) 선반 — 맨 위 */
   forYou: HomeSpaceShelf | null;
@@ -144,7 +148,7 @@ export async function getHomeData(opts: { userId: string | null; admin: boolean;
     getFinderPool(access),
     getFinderViewer(opts.userId, access),
     // 지역을 고른 화면에서는 쓰지 않는다 — 계산하지 않는다(관리자 · 로컬 개발은 더미 계정도 섞인 미리보기)
-    opts.area ? Promise.resolve({ people: [] as SimilarPerson[], spaces: [] as { slug: string; visited: boolean }[] }) : similarPeopleForHome(opts.userId, { includeDemo: previewDemoUsers(opts.admin) }),
+    opts.area && !ENABLE_PUBLIC_DEMO_SPACES ? Promise.resolve({ people: [] as SimilarPerson[], spaces: [] as { slug: string; visited: boolean }[] }) : similarPeopleForHome(opts.userId, { includeDemo: previewDemoUsers(opts.admin) }),
     loadShelfRows(),
   ]);
   const visible = <T extends { status: string }>(rows: T[]) => rows.filter((r) => r.status !== "ARCHIVED");
@@ -159,9 +163,13 @@ export async function getHomeData(opts: { userId: string | null; admin: boolean;
   const fixtures = opts.fixtures || ENABLE_PUBLIC_DEMO_SPACES ? fixtureSpaces(real.length + 1) : [];
   const all = [...real, ...fixtures];
 
-  const areaOptions = buildAreaOptions(mergeAreaCounts(areas, fixtures.length ? fixtureAreaCounts() : []));
-  const area = normalizeArea(opts.area);
-  const inArea = area ? spacesInArea(all, area) : all;
+  // 시연 지역 모드: 기본 지역은 망원이고, 실제 Partner 공간(연남 · 아카커피룸 포함) + 시연용 공간이 모두 망원 컬렉션에 모인다.
+  // 공간의 DB 지역 · 주소 · 좌표는 그대로이며 카드와 상세에는 실제 지역이 표시된다 — 이 모드는 탐색 분류만 바꾼다.
+  const regionMode = ENABLE_PUBLIC_DEMO_SPACES;
+  const rawAreaOptions = buildAreaOptions(mergeAreaCounts(areas, fixtures.length ? fixtureAreaCounts() : []));
+  const areaOptions = regionMode ? applyDemoRegion(rawAreaOptions) : rawAreaOptions;
+  const area = regionMode ? DEMO_REGION : normalizeArea(opts.area);
+  const inArea = area && !regionMode ? spacesInArea(all, area) : all;
   const areaRow = area ? areaOptions.find((o) => o.area === area) : null;
 
   const cardsOf = (list: HomeSpace[], reason: (s: HomeSpace) => string | null = reasonOf, n = PER_SHELF): HomeCard[] =>
@@ -169,7 +177,7 @@ export async function getHomeData(opts: { userId: string | null; admin: boolean;
 
   // ── 개인화(또는 편집) 선반: 이미 다녀왔거나 찜한 곳은 빼고 "새로 발견할" 공간만 — 기존 추천 정렬 그대로 ──
   const exclude = (f: FinderSpace) => me.visitedSlugs.has(f.view.slug) || me.savedIds.has(f.id);
-  const rankPool = pool.filter((f) => !exclude(f) && (!area || normalizeArea(f.area) === area));
+  const rankPool = pool.filter((f) => !exclude(f) && (!area || regionMode || normalizeArea(f.area) === area));
   const ranked = rankCandidates(rankPool, me.personalized ? me.profile : null, me.curatorBoost);
   const cardOfRanked = (r: (typeof ranked)[number]): HomeCard => {
     const space = homeSpaceFromFinder(r.space);
@@ -177,7 +185,7 @@ export async function getHomeData(opts: { userId: string | null; admin: boolean;
     return { space, reason: notes.get(space.id) ?? why ?? space.summary ?? null };
   };
   const rankedCards: HomeCard[] = ranked.slice(0, CANDIDATES).map(cardOfRanked);
-  const fixtureFill = area ? fixtures.filter((f) => f.area === area) : fixtures;
+  const fixtureFill = area && !regionMode ? fixtures.filter((f) => f.area === area) : fixtures;
   // 개인화 순위가 충분하면(MIN_PERSONAL곳 이상) 기존 개인화 결과 그대로. 근거(저장 · 방문 · 아카이브)가 없거나 부족하면 "취향 분석"처럼 말하지 않고,
   // 유효한 대표 이미지가 있는 공개 공간(실제 + 시연용)을 고른 지역 우선 · 유형/지역/태그 다양성 · 날짜 단위 결정적 셔플(새로고침해도 같은 순서)로
   // "지금 둘러보기 좋은 공간"으로 보여 준다. 실제 데이터가 쌓여 개인화 순위가 나오면 자동으로 위 경로를 쓴다. 이 선반은 KPI에 따로 집계되지 않는다.
@@ -190,9 +198,10 @@ export async function getHomeData(opts: { userId: string | null; admin: boolean;
   const forYou: HomeSpaceShelf | null = forYouCards.length
     ? {
         key: "for-you",
-        title: usePersonal ? (area ? `${area}에서 먼저 가볼 공간` : "회원님을 위해 엄선한 공간") : area ? `${area}에서 지금 둘러보기 좋은 공간` : "지금 둘러보기 좋은 공간",
-        href: area ? `/find?area=${encodeURIComponent(area)}` : "/find",
-        cta: "더 보기",
+        title: usePersonal ? (area && !regionMode ? `${area}에서 먼저 가볼 공간` : "회원님을 위해 엄선한 공간") : area && !regionMode ? `${area}에서 지금 둘러보기 좋은 공간` : "지금 둘러보기 좋은 공간",
+        // 시연 지역 모드에서는 "더 보기"를 두지 않는다 — /find는 시연용 공간이 없는 별도 화면이라 같은 선반의 연장이 아니다
+        href: regionMode ? undefined : area ? `/find?area=${encodeURIComponent(area)}` : "/find",
+        cta: regionMode ? undefined : "더 보기",
         cards: forYouCards,
       }
     : null;
@@ -240,10 +249,10 @@ export async function getHomeData(opts: { userId: string | null; admin: boolean;
   const spaceShelves: HomeSpaceShelf[] = [];
   if (area) {
     for (const c of buildCategoryShelves(inArea, { min: 2, max: 2 })) {
-      spaceShelves.push({ key: `cat-${c.category}`, title: `${area}의 ${c.category}`, cards: cardsOf(c.spaces, reasonOf, CANDIDATES) });
+      spaceShelves.push({ key: `cat-${c.category}`, title: regionMode ? c.category : `${area}의 ${c.category}`, cards: cardsOf(c.spaces, reasonOf, CANDIDATES) });
     }
     const themes = buildThemeShelves(inArea, { min: 2, perShelf: CANDIDATES, themes: themeDefs });
-    for (const t of themes) spaceShelves.push({ key: `theme-${t.theme.key}`, title: `${area}에서 ${t.theme.short}`, cards: cardsOf(t.spaces, reasonOf, CANDIDATES) });
+    for (const t of themes) spaceShelves.push({ key: `theme-${t.theme.key}`, title: regionMode ? t.theme.title : `${area}에서 ${t.theme.short}`, cards: cardsOf(t.spaces, reasonOf, CANDIDATES) });
   } else {
     const fresh = newestFirst(all).slice(0, CANDIDATES);
     if (fresh.length >= 3) spaceShelves.push({ key: "new", title: "새롭게 소개한 공간", href: "/spaces", cta: "공간 전체", cards: cardsOf(fresh, reasonOf, CANDIDATES) });
@@ -282,8 +291,8 @@ export async function getHomeData(opts: { userId: string | null; admin: boolean;
     if (cards.length > 0 && r.title) editorialShelves[r.key] = { key: r.key, title: r.title, description: r.description ?? undefined, cards };
   }
 
-  const areaCurations = visible(curations).filter((c) => !area || normalizeArea(c.area) === area);
-  const cubeList = visible(cubeViews).map((s, i) => fromView(s, cubeViews.length - i)).filter((s) => hasValidImageSrc(s.image.src) && (!area || s.area === area));
+  const areaCurations = visible(curations).filter((c) => !area || regionMode || normalizeArea(c.area) === area);
+  const cubeList = visible(cubeViews).map((s, i) => fromView(s, cubeViews.length - i)).filter((s) => hasValidImageSrc(s.image.src) && (!area || regionMode || s.area === area));
 
   const cubeSpaces: HomeSpaceShelf | null = cubeList.length ? { key: "cube", title: "공간큐브와 함께한 공간", href: "/cube-spaces", cta: "함께한 공간", cards: cardsOf(cubeList) } : null;
   const plan = buildShelfPlan(shelfRows);
@@ -309,6 +318,7 @@ export async function getHomeData(opts: { userId: string | null; admin: boolean;
     areaOptions,
     area,
     areaEmpty: !!area && inArea.length === 0,
+    regionLocked: regionMode,
     areaCounts: area ? { spaces: inArea.length, curations: areaRow?.curationCount ?? areaCurations.length } : null,
     forYou,
     personalized: usePersonal,

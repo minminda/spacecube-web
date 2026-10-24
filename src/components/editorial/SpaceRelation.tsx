@@ -98,7 +98,8 @@ export default function SpaceRelation({ spaceId, spaceName, loggedIn, initialSav
 
   async function onVisitClick() {
     if (inFlight.current) return;
-    if (!mock && !loggedIn) return toLogin("visited");
+    // 시연용 공간(mock)도 실제 공간처럼 로그인이 필요하다 — 의도(저장 · 방문 자동 완료)는 싣지 않는다(서버에 없는 공간)
+    if (!loggedIn) return toLogin(mock ? undefined : "visited");
     inFlight.current = true;
     setBusy(true);
     setError(null);

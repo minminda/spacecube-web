@@ -37,13 +37,18 @@ export default function SaveButton({ spaceId, spaceName, initialSaved, loggedIn,
     // 카드 전체가 링크인 곳에서도 상세로 이동하지 않게 한다.
     e.preventDefault();
     e.stopPropagation();
+    // 로그인 후 돌아올 곳은 검색어·지역까지 포함한 지금 주소(/find?area=망원 → 로그인 → 같은 화면)
+    const here = `${pathname}${window.location.search}`;
     if (mock) {
+      // 시연용 공간도 실제 공간처럼 로그인이 필요하다(같은 행동 규칙). 로그인한 뒤의 저장은 화면 안에서만 바뀐다 — 서버에 기록하지 않는다.
+      if (!loggedIn) {
+        router.push(`/login?callbackUrl=${encodeURIComponent(here)}`);
+        return;
+      }
       setSaved(!saved);
       onChange?.(!saved);
       return;
     }
-    // 로그인 후 돌아올 곳은 검색어·지역까지 포함한 지금 주소(/find?area=망원 → 로그인 → 같은 화면)
-    const here = `${pathname}${window.location.search}`;
     const toLogin = () => router.push(loginHref ? loginHref() : `/login?callbackUrl=${encodeURIComponent(here)}`);
     if (!loggedIn) {
       toLogin();

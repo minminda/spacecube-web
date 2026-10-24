@@ -1,6 +1,9 @@
 import { auth } from "@/auth";
 import { isAdmin } from "@/lib/admin";
-import { ENABLE_EDITORIAL_HOME } from "@/lib/features";
+import { redirect } from "next/navigation";
+import { ENABLE_EDITORIAL_HOME, ENABLE_PUBLIC_DEMO_SPACES } from "@/lib/features";
+import { normalizeArea } from "@/lib/editorial/area";
+import { DEMO_REGION, homeHref } from "@/lib/home/shelves";
 import LegacyHome from "./LegacyHome";
 import EditorialHome from "./EditorialHome";
 import { getSavedRegions } from "@/lib/regions/savedRegions";
@@ -24,6 +27,10 @@ export default async function Home({ searchParams }: Props) {
   const editorial = ENABLE_EDITORIAL_HOME || admin;
 
   if (editorial && !(admin && legacy === "1")) {
+    // 시연 지역 모드 — 이용 가능한 지역은 망원뿐이다. 기본 지역이 망원이고, 다른 지역을 주소로 직접 넣어도 빈 화면 대신 망원으로 안내한다.
+    if (ENABLE_PUBLIC_DEMO_SPACES && typeof area === "string" && area && normalizeArea(area) !== DEMO_REGION) {
+      redirect(homeHref({ preview: typeof preview === "string" ? preview : null }));
+    }
     const previewAllowed = admin || process.env.NODE_ENV === "development";
     const savedRegions = await getSavedRegions(session?.user?.id ?? null);
     return (

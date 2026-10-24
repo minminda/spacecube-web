@@ -147,6 +147,24 @@ export interface AreaOption {
   spaceCount: number;
   curationCount: number;
   suggested: boolean;
+  /** false면 아직 이용할 수 없는 지역("준비 중", 선택 불가). 없으면 이용 가능 — 시연 지역 모드(applyDemoRegion)에서만 쓴다. */
+  ready?: boolean;
+}
+
+/** 시연 지역 — 심사 · 전시 시연에서 이용할 수 있는 유일한 지역(시연용 분류, 실제 소재지 주장이 아니다) */
+export const DEMO_REGION = "망원";
+
+/**
+ * 시연 지역 모드의 지역 목록 — 목록(지역 확장 가능성)은 그대로 두고, DEMO_REGION만 이용 가능으로, 나머지는 "준비 중"(ready=false)으로 만든다.
+ * 이용 가능한 지역의 공간 · 큐레이션 수는 전체 합(실제 Partner 공간 + 시연용 공간이 모두 이 지역 컬렉션에 모이므로). DB의 지역 정본은 바꾸지 않는다.
+ */
+export function applyDemoRegion(options: AreaOption[]): AreaOption[] {
+  const spaceTotal = options.reduce((n, o) => n + o.spaceCount, 0);
+  const curationTotal = options.reduce((n, o) => n + o.curationCount, 0);
+  const base = options.some((o) => o.area === DEMO_REGION) ? options : [{ area: DEMO_REGION, spaceCount: 0, curationCount: 0, suggested: true }, ...options];
+  return base.map((o) =>
+    o.area === DEMO_REGION ? { ...o, spaceCount: spaceTotal, curationCount: curationTotal, ready: true } : { ...o, spaceCount: 0, curationCount: 0, ready: false },
+  );
 }
 
 /**

@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import RegionStar from "@/components/home/RegionStar";
 import { ChevronDownIcon, CloseIcon } from "@/components/icons";
-import { filterAreaOptions, homeHref, type AreaOption } from "@/lib/home/shelves";
+import { DEMO_REGION, filterAreaOptions, homeHref, type AreaOption } from "@/lib/home/shelves";
 
 interface Props {
   options: AreaOption[];
@@ -43,12 +43,24 @@ export default function RegionPicker({ options, current, preview, savedRegions, 
 
   const shownSaved = filterAreaOptions(savedOptions, query);
   const shown = filterAreaOptions(options, query).filter((o) => !savedSet.has(o.area));
-  const suggested = shown.filter((o) => o.suggested);
-  const others = shown.filter((o) => !o.suggested);
+  const readyFirst = (list: AreaOption[]) => [...list].sort((a, b) => Number(b.ready !== false) - Number(a.ready !== false));
+  const suggested = readyFirst(shown.filter((o) => o.suggested));
+  const others = readyFirst(shown.filter((o) => !o.suggested));
   const close = () => { setOpen(false); setQuery(""); };
+
+  // 시연 지역 모드: 이용 가능한 지역(ready)만 선택할 수 있고 나머지는 "준비 중"으로 보여 준다(누르면 빈 화면으로 가지 않는다)
+  const locked = options.some((o) => o.ready === false);
 
   const item = (o: AreaOption) => {
     const active = o.area === current;
+    if (o.ready === false) {
+      return (
+        <li key={o.area} className="flex items-center min-h-12 px-1 text-[15px]" style={{ borderBottom: "1px solid var(--ed-line)", color: "var(--ed-dim)" }} aria-disabled="true">
+          <span className="truncate">{o.area}</span>
+          <span className="ml-auto shrink-0 pl-3 text-xs">준비 중</span>
+        </li>
+      );
+    }
     return (
       <li key={o.area} className="flex items-center" style={{ borderBottom: "1px solid var(--ed-line)" }}>
         <Link
@@ -64,7 +76,7 @@ export default function RegionPicker({ options, current, preview, savedRegions, 
             {o.spaceCount > 0 ? `공간 ${o.spaceCount}곳` : "준비 중"}
           </span>
         </Link>
-        <RegionStar area={o.area} initialSaved={savedSet.has(o.area)} loggedIn={loggedIn} refresh className="-mr-2" />
+        {!locked && <RegionStar area={o.area} initialSaved={savedSet.has(o.area)} loggedIn={loggedIn} refresh className="-mr-2" />}
       </li>
     );
   };
@@ -109,7 +121,7 @@ export default function RegionPicker({ options, current, preview, savedRegions, 
               />
             </div>
             <div className="flex-1 overflow-y-auto px-5 pt-3 pb-6" style={{ overscrollBehavior: "contain" }}>
-              {!query && (
+              {!query && !locked && (
                 <Link
                   href={homeHref({ area: null, preview })}
                   scroll={false}
@@ -129,7 +141,7 @@ export default function RegionPicker({ options, current, preview, savedRegions, 
               )}
               {suggested.length > 0 && (
                 <>
-                  <p className="pt-5 pb-1 ed-label" style={{ color: "var(--ed-dim)" }}>추천 지역</p>
+                  <p className="pt-5 pb-1 ed-label" style={{ color: "var(--ed-dim)" }}>{locked ? `지역 · 지금은 ${DEMO_REGION}만 이용할 수 있어요` : "추천 지역"}</p>
                   <ul>{suggested.map(item)}</ul>
                 </>
               )}

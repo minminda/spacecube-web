@@ -166,17 +166,26 @@ export default function SearchView({ initialQuery, initialResult, areaOptions, t
                   <ul style={{ borderTop: "1px solid var(--ed-line)" }}>
                     {shown.regions.map((r) => (
                       <li key={r.area} className="flex items-center" style={{ borderBottom: "1px solid var(--ed-line)" }}>
-                        <Link href={homeHref({ area: r.area, preview: fixtures ? "fixtures" : null })} className="group flex-1 min-w-0 flex items-center justify-between gap-3 min-h-16 py-3">
-                          <span className="min-w-0">
-                            <span className="block text-base md:text-lg font-bold group-hover:underline underline-offset-4">{r.area} 둘러보기</span>
-                            <span className="block pt-0.5 text-xs md:text-sm" style={{ color: "var(--ed-dim)" }}>
-                              {r.spaceCount > 0 ? `공간 ${r.spaceCount}곳` : "준비 중"}
-                              {r.curationCount > 0 ? ` · 큐레이션 ${r.curationCount}편` : ""}
-                            </span>
+                        {r.ready ? (
+                          <>
+                            <Link href={homeHref({ area: r.area, preview: fixtures ? "fixtures" : null })} className="group flex-1 min-w-0 flex items-center justify-between gap-3 min-h-16 py-3">
+                              <span className="min-w-0">
+                                <span className="block text-base md:text-lg font-bold group-hover:underline underline-offset-4">{r.area} 둘러보기</span>
+                                <span className="block pt-0.5 text-xs md:text-sm" style={{ color: "var(--ed-dim)" }}>
+                                  {r.spaceCount > 0 ? `공간 ${r.spaceCount}곳` : "준비 중"}
+                                  {r.curationCount > 0 ? ` · 큐레이션 ${r.curationCount}편` : ""}
+                                </span>
+                              </span>
+                              <ChevronRightIcon className="w-5 h-5 shrink-0" strokeWidth={1.6} />
+                            </Link>
+                            <RegionStar area={r.area} initialSaved={r.saved} loggedIn={loggedIn} />
+                          </>
+                        ) : (
+                          <span className="flex-1 min-w-0 min-h-16 py-3 flex flex-col justify-center" style={{ color: "var(--ed-dim)" }} aria-disabled="true">
+                            <span className="block text-base md:text-lg font-bold">{r.area}</span>
+                            <span className="block pt-0.5 text-xs md:text-sm">준비 중</span>
                           </span>
-                          <ChevronRightIcon className="w-5 h-5 shrink-0" strokeWidth={1.6} />
-                        </Link>
-                        <RegionStar area={r.area} initialSaved={r.saved} loggedIn={loggedIn} />
+                        )}
                       </li>
                     ))}
                   </ul>
@@ -263,15 +272,24 @@ export default function SearchView({ initialQuery, initialResult, areaOptions, t
 function RegionGrid({ options, savedRegions, loggedIn, fixtures }: { options: AreaOption[]; savedRegions: string[]; loggedIn: boolean; fixtures?: boolean }) {
   return (
     <ul className="pt-4 grid grid-cols-2 gap-2 md:grid-cols-3 lg:grid-cols-5">
-      {options.map((o) => (
-        <li key={o.area} className="flex items-center min-w-0 border rounded-[var(--ed-radius)] overflow-hidden" style={{ borderColor: "var(--ed-line)" }}>
-          <Link href={homeHref({ area: o.area, preview: fixtures ? "fixtures" : null })} className="flex-1 min-w-0 px-3.5 py-2.5 hover:bg-[var(--ed-soft)] transition-colors">
-            <span className="block text-[15px] font-semibold truncate">{o.area}</span>
-            <span className="block text-xs truncate" style={{ color: "var(--ed-dim)" }}>{o.spaceCount > 0 ? `공간 ${o.spaceCount}곳` : "준비 중"}</span>
-          </Link>
-          <RegionStar area={o.area} initialSaved={savedRegions.includes(o.area)} loggedIn={loggedIn} size="sm" className="mr-1" />
-        </li>
-      ))}
+      {options.map((o) =>
+        o.ready === false ? (
+          <li key={o.area} className="flex items-center min-w-0 border rounded-[var(--ed-radius)] px-3.5 py-2.5" style={{ borderColor: "var(--ed-line)", color: "var(--ed-dim)" }} aria-disabled="true">
+            <span className="min-w-0">
+              <span className="block text-[15px] font-semibold truncate">{o.area}</span>
+              <span className="block text-xs truncate">준비 중</span>
+            </span>
+          </li>
+        ) : (
+          <li key={o.area} className="flex items-center min-w-0 border rounded-[var(--ed-radius)] overflow-hidden" style={{ borderColor: "var(--ed-line)" }}>
+            <Link href={homeHref({ area: o.area, preview: fixtures ? "fixtures" : null })} className="flex-1 min-w-0 px-3.5 py-2.5 hover:bg-[var(--ed-soft)] transition-colors">
+              <span className="block text-[15px] font-semibold truncate">{o.area}</span>
+              <span className="block text-xs truncate" style={{ color: "var(--ed-dim)" }}>{o.spaceCount > 0 ? `공간 ${o.spaceCount}곳` : "준비 중"}</span>
+            </Link>
+            <RegionStar area={o.area} initialSaved={savedRegions.includes(o.area)} loggedIn={loggedIn} size="sm" className="mr-1" />
+          </li>
+        ),
+      )}
     </ul>
   );
 }

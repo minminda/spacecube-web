@@ -61,7 +61,7 @@ export default async function EditorialHome({ admin, previewDrafts, fixtures, us
   const named = (key: string, fallback: string) => (!d.area && titleOf.get(key)) || fallback;
 
   const curationShelf = d.curations.length > 0 ? (
-    <Shelf key="curation" id="curation" title={d.area ? `${d.area}의 CURATION` : named("curation", "최근 올라온 CURATION")} href={d.area ? `/curation?area=${encodeURIComponent(d.area)}` : "/curation"} cta="큐레이션" kind="curation">
+    <Shelf key="curation" id="curation" title={d.area && !d.regionLocked ? `${d.area}의 CURATION` : named("curation", "최근 올라온 CURATION")} href={d.area && !d.regionLocked ? `/curation?area=${encodeURIComponent(d.area)}` : "/curation"} cta="큐레이션" kind="curation">
       {d.curations.map((c) => (
         <li key={c.id}><CurationCard c={c} ratio="4 / 3" sizes="(min-width: 1024px) 440px, 64vw" showArea={!d.area} /></li>
       ))}
@@ -154,7 +154,12 @@ export default async function EditorialHome({ admin, previewDrafts, fixtures, us
             {d.area && d.areaCounts && !d.areaEmpty && (
               <p className="pt-2 text-xs md:text-sm" style={{ color: "var(--ed-dim)" }}>
                 공간 {d.areaCounts.spaces}곳{d.areaCounts.curations > 0 ? ` · 큐레이션 ${d.areaCounts.curations}편` : ""}
-                <Link href={homeHref({ preview })} scroll={false} className="ml-3 font-semibold underline underline-offset-4" style={{ color: "var(--ed-fg)" }}>전체 지역 보기</Link>
+                {!d.regionLocked && <Link href={homeHref({ preview })} scroll={false} className="ml-3 font-semibold underline underline-offset-4" style={{ color: "var(--ed-fg)" }}>전체 지역 보기</Link>}
+              </p>
+            )}
+            {d.regionLocked && (
+              <p className="pt-1 text-xs md:text-sm" style={{ color: "var(--ed-dim)" }}>
+                지금은 {d.area} 지역만 이용할 수 있어요. 다른 지역은 준비 중이고, 일부 공간은 시연용입니다.
               </p>
             )}
             {!d.area && d.savedRegions.length > 0 && (

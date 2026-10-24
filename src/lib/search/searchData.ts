@@ -14,7 +14,7 @@ import { getSavedEditorialSpaceIds } from "@/lib/editorial/saves";
 import { homeSpaceFromFinder, mergeAreaCounts } from "@/lib/home/homeData";
 import { demoSpaces, fixtureAreaCounts, fixtureSpaces } from "@/lib/home/fixtures";
 import { ENABLE_PUBLIC_DEMO_SPACES } from "@/lib/features";
-import { buildAreaOptions, type AreaOption, type HomeSpace } from "@/lib/home/shelves";
+import { applyDemoRegion, buildAreaOptions, type AreaOption, type HomeSpace } from "@/lib/home/shelves";
 import { searchRegions, searchSpaces, type SearchDoc } from "./spaceSearch";
 
 export interface SearchCorpus {
@@ -95,7 +95,9 @@ async function buildSearchCorpus(opts: { admin: boolean; fixtures?: boolean }): 
       reasons.set(f.id, f.reason);
     }
   }
-  return { docs, spaces, reasons, areaOptions: buildAreaOptions(extra.length ? mergeAreaCounts(areas, fixtureAreaCounts(!opts.fixtures)) : areas) };
+  // 시연 지역 모드: 이용 가능한 지역은 망원뿐(나머지 "준비 중") — HOME 지역 선택과 같은 규칙
+  const areaOptions = buildAreaOptions(extra.length ? mergeAreaCounts(areas, fixtureAreaCounts(!opts.fixtures)) : areas);
+  return { docs, spaces, reasons, areaOptions: ENABLE_PUBLIC_DEMO_SPACES ? applyDemoRegion(areaOptions) : areaOptions };
 }
 
 export interface SearchSpaceItem {
@@ -109,6 +111,8 @@ export interface SearchRegionItem {
   curationCount: number;
   exact: boolean;
   saved: boolean;
+  /** false면 아직 이용할 수 없는 지역("준비 중") */
+  ready: boolean;
 }
 export interface SearchResponse {
   q: string;
@@ -125,7 +129,7 @@ export function runSearch(corpus: SearchCorpus, q: string, saved: { spaceIds: Se
   const hits = searchSpaces(corpus.docs, q);
   const regions = searchRegions(corpus.areaOptions.map((o) => o.area), q).map((r) => {
     const opt = corpus.areaOptions.find((o) => o.area === r.area)!;
-    return { area: r.area, spaceCount: opt.spaceCount, curationCount: opt.curationCount, exact: r.exact, saved: saved.regions.includes(r.area) };
+    return { area: r.area, spaceCount: opt.spaceCount, curationCount: opt.curationCount, exact: r.exact, saved: saved.regions.includes(r.area), ready: opt.ready !== false };
   });
   const spaces = hits.slice(0, MAX_RESULTS).flatMap((h) => {
     const space = corpus.spaces.get(h.doc.id);

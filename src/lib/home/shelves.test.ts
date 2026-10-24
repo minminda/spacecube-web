@@ -11,6 +11,8 @@ import {
   newestFirst,
   spacesInArea,
   pickDiscoverySet,
+  applyDemoRegion,
+  DEMO_REGION,
   type HomeSpace,
 } from "./shelves";
 import { findFixtureSpace, fixtureSpaces } from "./fixtures";
@@ -182,5 +184,34 @@ describe("개인화 데이터가 없을 때의 먼저 둘러보기(pickDiscovery
     const bad = (i: number, src: string): HomeSpace => ({ ...mk(i, "카페", "망원", ["커피"]), image: { src, alt: "" } });
     const out = pickDiscoverySet([bad(1, ""), bad(2, "  "), bad(3, "photo.jpg"), bad(4, "null"), mk(5, "서점", "망원", ["책"])], 5);
     expect(out.map((s) => s.id)).toEqual(["p5"]);
+  });
+});
+
+describe("시연 지역 모드(applyDemoRegion)", () => {
+  const options = buildAreaOptions([
+    { area: "연남", spaceCount: 3, curationCount: 2 },
+    { area: "망원", spaceCount: 13, curationCount: 4 },
+    { area: "용인 처인구", spaceCount: 1, curationCount: 0 },
+  ]);
+
+  it("망원만 이용 가능하고 나머지는 준비 중(ready=false, 수 0)이며 지역 목록은 그대로 유지된다", () => {
+    const out = applyDemoRegion(options);
+    expect(out.map((o) => o.area)).toEqual(options.map((o) => o.area));
+    expect(out.filter((o) => o.ready).map((o) => o.area)).toEqual([DEMO_REGION]);
+    for (const o of out.filter((x) => x.area !== DEMO_REGION)) {
+      expect(o.ready).toBe(false);
+      expect(o.spaceCount).toBe(0);
+    }
+  });
+
+  it("망원의 공간 · 큐레이션 수는 전체 합이다(실제 Partner + 시연용이 한 지역 컬렉션에 모인다)", () => {
+    const m = applyDemoRegion(options).find((o) => o.area === DEMO_REGION)!;
+    expect(m.spaceCount).toBe(17);
+    expect(m.curationCount).toBe(6);
+  });
+
+  it("망원이 목록에 없어도 만들어 넣는다", () => {
+    const out = applyDemoRegion([{ area: "연남", spaceCount: 3, curationCount: 0, suggested: false }]);
+    expect(out.find((o) => o.area === DEMO_REGION)?.ready).toBe(true);
   });
 });

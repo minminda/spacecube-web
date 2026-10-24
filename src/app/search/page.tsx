@@ -4,7 +4,7 @@ import SiteFooter from "@/components/editorial/SiteFooter";
 import SearchView from "@/components/search/SearchView";
 import { getEditorialViewer } from "@/lib/editorial/viewer";
 import { getSavedRegions } from "@/lib/regions/savedRegions";
-import { searchForViewer } from "@/lib/search/searchData";
+import { runSearch, searchForViewer } from "@/lib/search/searchData";
 import { HOME_THEMES } from "@/lib/home/shelves";
 import { similarPeopleForHome } from "@/lib/people/peopleData";
 import { previewDemoUsers } from "@/lib/demoData";
@@ -39,7 +39,8 @@ export default async function SearchPage({ searchParams }: Props) {
           initialQuery={q}
           initialResult={result}
           areaOptions={corpus.areaOptions}
-          themes={HOME_THEMES.map((t) => ({ key: t.key, chip: t.chip }))}
+          // 눌렀을 때 결과가 하나도 없는 테마 칩(예: 영화)은 보여 주지 않는다 — 빈 화면으로 가는 입구를 만들지 않는다
+          themes={HOME_THEMES.filter((t) => runSearch(corpus, t.chip, { spaceIds: new Set(), regions: [] }).total > 0).map((t) => ({ key: t.key, chip: t.chip }))}
           savedRegions={regions}
           loggedIn={viewer.loggedIn}
           similarPeople={similar.people}
