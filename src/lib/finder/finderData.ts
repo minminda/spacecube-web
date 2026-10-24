@@ -2,6 +2,7 @@
    후보 Pool = 발행된 공개 공간 전부(가상 공간은 큐레이터 미리보기에서만). 각 공간에 공식 큐레이션·큐레이터 컬렉션 관계를 붙이고,
    보는 사람의 취향 프로필(기존 발견 추천 신호 — 방문·저장·아카이브·직접 고른 태그)을 만든다. 새 추천 알고리즘은 없다. ── */
 
+import { hasValidImageSrc } from "@/lib/editorial/imageValid";
 import { prisma } from "@/lib/prisma";
 import { toSpaceView } from "@/lib/editorial/queries";
 import type { SpaceView } from "@/lib/editorial/types";
@@ -34,7 +35,8 @@ export async function getFinderPool(access: CuratorAccess): Promise<FinderSpace[
     list.push({ title: p.collectionTitle, slug: p.collectionSlug, curatorSlug: p.curatorSlug, curatorName: p.curatorName, curatorIsOfficial: p.curatorIsOfficial, keywords: p.keywords });
     collectionsBySpace.set(p.spaceId, list);
   }
-  return rows.map((r, i) => ({
+  // 대표 이미지가 유효하지 않은 공간(사진 없는 가상 · 더미 포함)은 HOME · 검색 · 추천 후보에서 제외한다(공개 해제 · 삭제가 아니라 노출만 막는다)
+  return rows.filter((r) => hasValidImageSrc(r.coverImage)).map((r, i) => ({
     id: r.id,
     name: r.name,
     area: r.area,

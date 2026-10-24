@@ -9,9 +9,15 @@ Updated: 2026-10-24 · 한이음 최종 제출 전 소스 감사 (코드·DB·�
 ## 2026-10-24 망원동 중심 시연 구성 · 추천 Fallback · 시연 CURATION/STORY
 - 시연용 가상 공간 11곳(`src/lib/home/fixtures.ts`, `public/demo/*.jpg`, slug `fixture-1~11`)은 일반 방문자에게 공개(`ENABLE_PUBLIC_DEMO_SPACES`, features.ts). 사진 없는 임시 공간 30곳은 코드에서 제거. 지역은 전부 시연용 분류 "망원"(실제 소재지 아님). DB·Cloudinary 변경 없음, KPI·저장·방문·Discovery 이벤트에 안 들어감.
 - HOME: 개인화 근거가 있으면 기존 "회원님을 위해 엄선한 공간"(개인화 순위), 없으면 `pickDiscoverySet`(shelves.ts)으로 사진 있는 공간을 유형·지역·태그가 겹치지 않게 골라 "먼저 둘러보기 좋은 공간"(취향 분석 아님, 별도 집계 없음). "망원동 시연 컬렉션" 선반(가상 11 + Partner 5, 아카커피룸 제외; Partner의 DB 지역·좌표는 그대로)이 기본 HOME의 망원 지역 선반을 대신하고, `?area=망원` 지역 화면은 그대로 동작.
-- 시연 콘텐츠: `src/lib/editorial/demoContent.ts`(코드 데이터) — CURATION 4(혼자 보내는 오후 / 음악을 천천히 듣는 날 / 책과 함께 머무는 공간 / 작은 물건을 오래 들여다보는 날), PEOPLE 3(가상 페르소나, 인용·인터뷰 없음), THOUGHT 3. 모두 맨 앞 "시연용 콘텐츠" 안내, 카드 머리줄에 "시연용", 대표 이미지는 콘텐츠마다 서로 다른 사진. `queries.ts`가 DB 콘텐츠 앞에 합쳐 HOME·/curation·/story·상세·공간 상세 "소개된 이야기"에 나옴.
+- 시연 콘텐츠: `src/lib/editorial/demoContent.ts`(코드 데이터) — CURATION 4(혼자 보내는 오후 / 음악을 천천히 듣는 날 / 책과 함께 머무는 공간 / 작은 물건을 오래 들여다보는 날), PEOPLE 2(가상 페르소나, 인용·인터뷰 없음; `demo-persona-records`는 10/24 제거), THOUGHT 3. 모두 맨 앞 "시연용 콘텐츠" 안내, 카드 머리줄에 "시연용", 대표 이미지는 콘텐츠마다 서로 다른 사진. `queries.ts`가 DB 콘텐츠 앞에 합쳐 HOME·/curation·/story·상세·공간 상세 "소개된 이야기"에 나옴.
 - 기존 콘텐츠 12개(전부 "더미 콘텐츠"·샘플 본문, 실제 Partner 사진 사용)는 삭제 없이 대표 이미지 중복 5건만 DB에서 ARCHIVED(상태만 변경, 복원은 status=PUBLISHED): CURATION `places-to-clear-your-mind`·`places-for-two-with-space`·`spaces-worth-visiting-themselves`, PEOPLE `a-place-built-around-music`, THOUGHT `why-we-return-to-the-same-place`. 유지: CURATION 3 · PEOPLE 2 · THOUGHT 2.
 - 끄기: `ENABLE_PUBLIC_DEMO_SPACES=false`(공간·콘텐츠 모두 사라짐). 한계: 시연 공간의 "저장"은 화면 안에서만 바뀜(mock), 개인화 순위 후보에는 가상 공간이 들어가지 않음.
+
+## 2026-10-24 HOME 정리 2차 — 둘러보기 Fallback · 사진 없는 공간 차단 · LATEST 이미지 적합도
+- 사진 없는 공간 차단: `getFinderPool`이 유효한 대표 이미지(`hasValidImageSrc`, 경로/https 형태)가 없는 공간을 후보에서 뺌 → HOME·검색·추천·/find 공통. 원인은 관리자(큐레이터 미리보기)에게 열리던 DB 데모 공간 23곳(`proto-*`, 대표 이미지 없음 · 망원 8)이었음. DB는 그대로(삭제 없음), 노출만 차단. `함께한 공간` 선반도 같은 검사.
+- 추천 Fallback: 개인화 순위가 6곳 미만이면 "지금 둘러보기 좋은 공간"(`pickDiscoverySet`: 고른 지역 우선 · 유형/지역/태그 다양성 · 날짜(KST) seed 결정적 셔플). 6곳 이상이면 기존 "회원님을 위해 엄선한 공간". 
+- LATEST(`latestPick.ts`): 가로형(비율 1.25~2.2)+가로 1000px↑ 이미지 우선 → 종류 다양성 → 최신순, 같은 이미지는 1회, 세로형·정사각형·이미지 없음 제외. 이미지 크기는 DB에 없어 `KNOWN_SIZES` 표(실측 2026-10-24)를 쓰며 새 대표 이미지를 올리면 한 줄 추가(없으면 "크기 모름"으로 뒤쪽 배치). 시연 사진(`public/demo`)은 전부 세로형이라 LATEST에는 안 나옴(HOME 다른 선반·목록에는 나옴).
+- 콘텐츠 정리: CURATION `yeonnam-slow-alone`을 DB에서 ARCHIVED(복원: status=PUBLISHED), PEOPLE `demo-persona-records`(코드 데이터)는 정의 삭제 → 둘 다 직접 URL 404.
 
 ## 다음 P0 작업
 1. 공개 실제 6곳 태그 입력 (현재 전부 `tags=[]`)

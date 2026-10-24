@@ -32,6 +32,8 @@ import {
 import { similarPeopleForHome, type SimilarPerson } from "@/lib/people/peopleData";
 import { fixtureAreaCounts, fixtureSpaces, type FixtureSpace } from "./fixtures";
 import { ENABLE_PUBLIC_DEMO_SPACES } from "@/lib/features";
+import { hasValidImageSrc } from "@/lib/editorial/imageValid";
+import { pickLatest } from "./latestPick";
 import { diversifyShelves, type DiversityStrength } from "./diversity";
 import { buildShelfPlan, type PlanItem } from "./shelfConfig";
 import { loadShelfRows } from "./shelfData";
@@ -39,6 +41,10 @@ import { applyThemeRules } from "./themeRules";
 
 const LATEST_COUNT = 5;
 const PER_SHELF = 12;
+/** 개인화 순위를 "충분하다"고 볼 최소 공간 수 — 미만이면 둘러보기 Fallback */
+const MIN_PERSONAL = 6;
+/** 날짜(KST) 단위 seed — 하루 동안은 새로고침해도 같은 순서, 날이 바뀌면 다른 조합 */
+const kstDateKey = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" }).format(new Date());
 /** 시연용 가상 공간의 지역(시연용 분류 — 실제 소재지 주장이 아니다) */
 const DEMO_AREA = "망원";
 /** 망원동 시연 컬렉션에서 뺄 실제 공간 — 아카커피룸은 기존 지역 정보를 유지한다 */
@@ -172,18 +178,19 @@ export async function getHomeData(opts: { userId: string | null; admin: boolean;
   };
   const rankedCards: HomeCard[] = ranked.slice(0, CANDIDATES).map(cardOfRanked);
   const fixtureFill = area ? fixtures.filter((f) => f.area === area) : fixtures;
-  // 개인화 근거(저장 · 방문 · 아카이브)가 있으면 기존 개인화 순위 그대로. 근거가 부족하면 "취향 분석"처럼 말하지 않고,
-  // 사진이 있는 공개 공간(실제 + 시연용)을 유형 · 지역 · 태그가 겹치지 않게 골라 "먼저 둘러보기" 선반으로 보여 준다.
-  // 실제 데이터가 쌓여 개인화 순위가 나오면 자동으로 위 경로를 쓴다. 이 선반은 KPI에 따로 집계되지 않는다.
-  const usePersonal = me.personalized && rankedCards.length >= 3;
+  // 개인화 순위가 충분하면(MIN_PERSONAL곳 이상) 기존 개인화 결과 그대로. 근거(저장 · 방문 · 아카이브)가 없거나 부족하면 "취향 분석"처럼 말하지 않고,
+  // 유효한 대표 이미지가 있는 공개 공간(실제 + 시연용)을 고른 지역 우선 · 유형/지역/태그 다양성 · 날짜 단위 결정적 셔플(새로고침해도 같은 순서)로
+  // "지금 둘러보기 좋은 공간"으로 보여 준다. 실제 데이터가 쌓여 개인화 순위가 나오면 자동으로 위 경로를 쓴다. 이 선반은 KPI에 따로 집계되지 않는다.
+  const usePersonal = me.personalized && rankedCards.length >= MIN_PERSONAL;
+  const fallbackPool = [...rankedCards.map((c) => c.space), ...fixtureFill].filter((sp) => !!sp.slug);
   const forYouCards: HomeCard[] = usePersonal
     ? rankedCards
-    : pickDiscoverySet([...rankedCards.map((c) => c.space), ...fixtureFill], PER_SHELF).map((space) => ({ space, reason: reasonOf(space) }));
+    : pickDiscoverySet(fallbackPool, PER_SHELF, { seed: kstDateKey(), area }).map((space) => ({ space, reason: reasonOf(space) }));
   const forYouShown = Math.min(forYouCards.length, PER_SHELF);
   const forYou: HomeSpaceShelf | null = forYouCards.length
     ? {
         key: "for-you",
-        title: usePersonal ? (area ? `${area}에서 먼저 가볼 공간` : "회원님을 위해 엄선한 공간") : area ? `${area}에서 먼저 둘러보기 좋은 공간` : "먼저 둘러보기 좋은 공간",
+        title: usePersonal ? (area ? `${area}에서 먼저 가볼 공간` : "회원님을 위해 엄선한 공간") : area ? `${area}에서 지금 둘러보기 좋은 공간` : "지금 둘러보기 좋은 공간",
         href: area ? `/find?area=${encodeURIComponent(area)}` : "/find",
         cta: "더 보기",
         cards: forYouCards,
@@ -276,7 +283,7 @@ export async function getHomeData(opts: { userId: string | null; admin: boolean;
   }
 
   const areaCurations = visible(curations).filter((c) => !area || normalizeArea(c.area) === area);
-  const cubeList = visible(cubeViews).map((s, i) => fromView(s, cubeViews.length - i)).filter((s) => !area || s.area === area);
+  const cubeList = visible(cubeViews).map((s, i) => fromView(s, cubeViews.length - i)).filter((s) => hasValidImageSrc(s.image.src) && (!area || s.area === area));
 
   const cubeSpaces: HomeSpaceShelf | null = cubeList.length ? { key: "cube", title: "공간큐브와 함께한 공간", href: "/cube-spaces", cta: "함께한 공간", cards: cardsOf(cubeList) } : null;
   const plan = buildShelfPlan(shelfRows);
@@ -297,7 +304,8 @@ export async function getHomeData(opts: { userId: string | null; admin: boolean;
   });
 
   return {
-    latest: stream.slice(0, LATEST_COUNT),
+    // LATEST — 이미지가 카드 비율에 맞는(가로형 · 충분한 해상도) 최신 콘텐츠를, 종류가 쏠리지 않고 같은 이미지가 반복되지 않게 고른다(latestPick.ts)
+    latest: pickLatest(stream, LATEST_COUNT),
     areaOptions,
     area,
     areaEmpty: !!area && inArea.length === 0,

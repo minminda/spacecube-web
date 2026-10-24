@@ -10,10 +10,10 @@ const all = () => [...demoCurations(), ...demoPeople(), ...demoThoughts()];
 describe("시연용 CURATION · STORY", () => {
   it("개수와 번호 · slug · id가 겹치지 않는다", () => {
     expect(demoCurations()).toHaveLength(4);
-    expect(demoPeople()).toHaveLength(3);
+    expect(demoPeople()).toHaveLength(2);
     expect(demoThoughts()).toHaveLength(3);
-    expect(new Set(all().map((c) => c.id)).size).toBe(10);
-    expect(new Set(all().map((c) => c.slug)).size).toBe(10);
+    expect(new Set(all().map((c) => c.id)).size).toBe(9);
+    expect(new Set(all().map((c) => c.slug)).size).toBe(9);
     for (const list of [demoCurations(), demoPeople(), demoThoughts()]) expect(new Set(list.map((c) => c.number)).size).toBe(list.length);
   });
 
@@ -42,6 +42,10 @@ describe("시연용 CURATION · STORY", () => {
       expect(p.subjectRole).toContain("가상 페르소나");
       expect(p.blocks.some((b) => b.type === "QUOTE" || b.type === "QNA")).toBe(false);
     }
+  });
+
+  it("제거한 시연 PEOPLE(demo-persona-records)은 더 이상 정의되어 있지 않다", () => {
+    expect(demoPeople().some((p) => p.slug === "demo-persona-records")).toBe(false);
   });
 
   it("공간 상세용 소개된 이야기가 연결된다", () => {

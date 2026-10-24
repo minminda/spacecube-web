@@ -131,29 +131,6 @@ const PERSONA_ROLE = "가상 페르소나 · 시연용 프로필";
 export function demoPeople(): PersonView[] {
   return [
     {
-      id: "demo-person-4", slug: "demo-persona-records", number: 4,
-      title: "퇴근길에 음반장 앞에 서는 사람",
-      subject: "음반을 고르는 사람", subjectRole: PERSONA_ROLE,
-      summary: "실존 인물이 아닌 가상 페르소나로, 취향이 공간 추천으로 이어지는 방식을 보여 줍니다.",
-      cover: cover("/demo/notes-and-records.jpg", "퇴근길에 음반장 앞에 서는 사람 — 쪽지와 음반"),
-      spaces: [
-        link("재즈 음반장", "저녁에 음악을 듣는 취향과 맞닿는 공간."),
-        link("쪽지와 음반", "음반을 고르다 다른 사람의 글을 읽는 공간."),
-      ],
-      blocks: [
-        disclaimer,
-        text("이 글의 주인공은 실제 인물이 아니다. 공간큐브가 취향을 읽는 방식을 보여 주려고 만든 가상의 사람이며, 인터뷰나 발언은 없다."),
-        head("프로필"),
-        text("저녁 시간대에 움직이고, 한 곳에 오래 서서 고르는 일을 좋아한다. 새로운 음악을 찾기보다 이미 아는 음악을 다른 자리에서 다시 듣는 편이다."),
-        head("이 프로필이 가는 곳"),
-        card("재즈 음반장", "저녁에 음악을 듣는 취향과 맞닿는 공간."),
-        card("쪽지와 음반", "음반을 고르다 다른 사람의 글을 읽는 공간."),
-        head("공간큐브가 읽는 것"),
-        text("이 프로필에서 읽히는 신호는 LP, 음악, 저녁이다. 공간을 저장하고 다녀온 기록이 쌓이면, 비슷한 신호를 가진 공간이 홈에서 먼저 보이게 된다. 이 글에는 그 과정이 실제로 일어났다는 뜻이 담겨 있지 않다."),
-      ],
-      status: "PUBLISHED", publishedAt: at("2026-10-04T04:26:35Z"),
-    },
-    {
       id: "demo-person-5", slug: "demo-persona-tools", number: 5,
       title: "쓰는 도구를 먼저 보는 사람",
       subject: "문구와 찻잔을 고르는 사람", subjectRole: PERSONA_ROLE,

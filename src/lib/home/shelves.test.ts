@@ -164,4 +164,23 @@ describe("개인화 데이터가 없을 때의 먼저 둘러보기(pickDiscovery
     expect(pickDiscoverySet(list, 4).map((s) => s.id)).toEqual(pickDiscoverySet([...list].reverse(), 4).map((s) => s.id));
     expect(pickDiscoverySet(list, 4)).toHaveLength(4);
   });
+
+  it("고른 지역(area)의 공간을 먼저 쓴다", () => {
+    const list = [mk(1, "카페", "연남", ["커피"]), mk(2, "서점", "연남", ["책"]), mk(3, "카페", "망원", ["커피"]), mk(4, "서점", "망원", ["책"]), mk(5, "LP카페", "망원", ["LP"])];
+    const out = pickDiscoverySet(list, 3, { area: "망원", seed: "2026-10-24" });
+    expect(out.every((s) => s.area === "망원")).toBe(true);
+  });
+
+  it("seed가 같으면 결과가 같고(새로고침해도 안정), seed가 다르면 섞인다", () => {
+    const list = Array.from({ length: 12 }, (_, i) => mk(i + 1, `유형${i % 4}`, "망원", [`태그${i}`]));
+    const a = pickDiscoverySet(list, 6, { seed: "2026-10-24" }).map((s) => s.id);
+    expect(pickDiscoverySet(list, 6, { seed: "2026-10-24" }).map((s) => s.id)).toEqual(a);
+    expect(new Set(["a", "b", "c", "d", "e"].map((sd) => pickDiscoverySet(list, 6, { seed: sd }).map((s) => s.id).join(","))).size).toBeGreaterThan(1);
+  });
+
+  it("유효하지 않은 이미지(빈 문자열 · 공백 · 상대 문자열)는 고르지 않는다", () => {
+    const bad = (i: number, src: string): HomeSpace => ({ ...mk(i, "카페", "망원", ["커피"]), image: { src, alt: "" } });
+    const out = pickDiscoverySet([bad(1, ""), bad(2, "  "), bad(3, "photo.jpg"), bad(4, "null"), mk(5, "서점", "망원", ["책"])], 5);
+    expect(out.map((s) => s.id)).toEqual(["p5"]);
+  });
 });

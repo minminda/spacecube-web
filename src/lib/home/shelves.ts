@@ -5,6 +5,7 @@
    지역 · 테마를 실제 데이터 구조(Region · Theme 테이블)로 옮길 때는 이 파일의 입력만 바꾸면 된다.
    별점 · 순위 · 퍼센트는 만들지 않는다. 선반 제목은 "왜 이 공간들인가"를 말한다. ── */
 
+import { hasValidImageSrc } from "@/lib/editorial/imageValid";
 import type { ResolvedImage } from "@/lib/editorial/types";
 import { normalizeArea } from "@/lib/editorial/area";
 
@@ -178,14 +179,27 @@ export function homeHref(params: { area?: string | null; preview?: string | null
   return qs ? `/?${qs}` : "/";
 }
 
-/* ── 개인화 데이터가 없을 때의 "먼저 둘러보기" 선정(Fallback) ─────────────────────────
+/* ── 개인화 데이터가 부족할 때의 "지금 둘러보기" 선정(Fallback) ───────────────────────
    취향 · 저장 · 방문 기록이 부족해 개인화 순위를 낼 수 없을 때만 쓴다 — 취향을 분석한 결과가 아니다.
-   사진이 있는 공간만, 이미 고른 것과 유형 · 지역 · 태그가 겹칠수록 뒤로 미뤄 한 가지에 쏠리지 않게 고른다(공간 다양성).
-   같은 입력이면 항상 같은 결과(공개 순서 order가 같을 때의 기준). 순수 함수. ── */
-export function pickDiscoverySet(spaces: HomeSpace[], n: number): HomeSpace[] {
+   - 유효한 대표 이미지가 있는 공간만(hasValidImageSrc), 같은 공간은 한 번만.
+   - 이미 고른 것과 유형 · 지역 · 태그가 겹칠수록 뒤로 미뤄 한 가지에 쏠리지 않게 고른다(공간 다양성).
+   - 고른 지역(area)에 속한 공간을 먼저 쓴다.
+   - 같은 점수대 안에서는 seed로 섞는다(결정적 셔플) — 같은 seed · 같은 입력이면 새로고침해도 결과가 같다(호출부가 날짜 단위 seed를 준다).
+   순수 함수. ── */
+function hash01(s: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return ((h >>> 0) % 100000) / 100000;
+}
+
+export function pickDiscoverySet(spaces: HomeSpace[], n: number, opts: { seed?: string; area?: string | null } = {}): HomeSpace[] {
+  const seed = opts.seed ?? "";
   const seen = new Set<string>();
   const pool = spaces
-    .filter((s) => s.image.src && !seen.has(s.id) && !!seen.add(s.id))
+    .filter((s) => hasValidImageSrc(s.image.src) && !seen.has(s.id) && !!seen.add(s.id))
     .sort((a, b) => a.order - b.order);
   const picked: HomeSpace[] = [];
   const cat = new Map<string, number>();
@@ -198,7 +212,9 @@ export function pickDiscoverySet(spaces: HomeSpace[], n: number): HomeSpace[] {
       const score =
         (cat.get(s.category) ?? 0) * 2 +
         (area.get(s.area ?? "") ?? 0) * 0.3 +
-        s.tags.reduce((sum, t) => sum + (tag.get(t) ?? 0), 0) * 0.25;
+        s.tags.reduce((sum, t) => sum + (tag.get(t) ?? 0), 0) * 0.25 -
+        (opts.area && s.area === opts.area ? 3 : 0) +
+        hash01(`${seed}|${s.id}`) * 0.9;
       if (score < bestScore) { bestScore = score; best = i; }
     });
     const [s] = pool.splice(best, 1);
