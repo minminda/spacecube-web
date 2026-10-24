@@ -23,13 +23,14 @@ import {
   HOME_THEMES,
   homeHref,
   newestFirst,
+  pickDiscoverySet,
   spacesInArea,
   type AreaOption,
   type AreaShelf,
   type HomeSpace,
 } from "./shelves";
 import { similarPeopleForHome, type SimilarPerson } from "@/lib/people/peopleData";
-import { demoSpaces, fixtureAreaCounts, fixtureSpaces, type FixtureSpace } from "./fixtures";
+import { fixtureAreaCounts, fixtureSpaces, type FixtureSpace } from "./fixtures";
 import { ENABLE_PUBLIC_DEMO_SPACES } from "@/lib/features";
 import { diversifyShelves, type DiversityStrength } from "./diversity";
 import { buildShelfPlan, type PlanItem } from "./shelfConfig";
@@ -38,6 +39,10 @@ import { applyThemeRules } from "./themeRules";
 
 const LATEST_COUNT = 5;
 const PER_SHELF = 12;
+/** 시연용 가상 공간의 지역(시연용 분류 — 실제 소재지 주장이 아니다) */
+const DEMO_AREA = "망원";
+/** 망원동 시연 컬렉션에서 뺄 실제 공간 — 아카커피룸은 기존 지역 정보를 유지한다 */
+const DEMO_COLLECTION_EXCLUDED_SLUGS = new Set(["aka-coffee-room"]);
 /** 선반이 중복을 피해 고를 수 있도록 먼저 만들어 두는 후보 수(화면에는 PER_SHELF까지만) */
 const CANDIDATES = 36;
 
@@ -144,11 +149,11 @@ export async function getHomeData(opts: { userId: string | null; admin: boolean;
   const reasonOf = (s: HomeSpace) => notes.get(s.id) ?? (s.fixture ? (s as FixtureSpace).reason : null) ?? s.summary ?? null;
 
   const real = pool.map(homeSpaceFromFinder);
-  // 미리보기(?preview=fixtures)는 글자만 있는 임시 공간까지, 일반 방문자는 사진 기반 시연용 공간만(ENABLE_PUBLIC_DEMO_SPACES)
-  const fixtures = opts.fixtures ? fixtureSpaces(real.length + 1) : ENABLE_PUBLIC_DEMO_SPACES ? demoSpaces(real.length + 1) : [];
+  // 사진 기반 시연용 가상 공간(코드 데이터) — 일반 방문자에게도 보인다(ENABLE_PUBLIC_DEMO_SPACES). ?preview=fixtures도 같은 목록.
+  const fixtures = opts.fixtures || ENABLE_PUBLIC_DEMO_SPACES ? fixtureSpaces(real.length + 1) : [];
   const all = [...real, ...fixtures];
 
-  const areaOptions = buildAreaOptions(mergeAreaCounts(areas, fixtures.length ? fixtureAreaCounts(!opts.fixtures) : []));
+  const areaOptions = buildAreaOptions(mergeAreaCounts(areas, fixtures.length ? fixtureAreaCounts() : []));
   const area = normalizeArea(opts.area);
   const inArea = area ? spacesInArea(all, area) : all;
   const areaRow = area ? areaOptions.find((o) => o.area === area) : null;
@@ -165,23 +170,20 @@ export async function getHomeData(opts: { userId: string | null; admin: boolean;
     const why = cardReason({ visited: false, personalized: me.personalized, matched: r.matched, curationTitle: r.space.curations[0]?.title, collection: null });
     return { space, reason: notes.get(space.id) ?? why ?? space.summary ?? null };
   };
-  const forYouCards: HomeCard[] = ranked.slice(0, CANDIDATES).map(cardOfRanked);
-  const forYouShown = Math.min(forYouCards.length, PER_SHELF);
-  let forYouFixtureCount = 0;
+  const rankedCards: HomeCard[] = ranked.slice(0, CANDIDATES).map(cardOfRanked);
   const fixtureFill = area ? fixtures.filter((f) => f.area === area) : fixtures;
-  if (fixtures.length > 0) {
-    // 첫 선반에 한 지역만 몰리지 않도록 지역을 돌아가며 6곳
-    const byArea = new Map<string, HomeSpace[]>();
-    for (const f of fixtureFill) byArea.set(f.area ?? "", [...(byArea.get(f.area ?? "") ?? []), f]);
-    const rotated: HomeSpace[] = [];
-    for (let i = 0; rotated.length < fixtureFill.length; i++) for (const list of byArea.values()) if (list[i]) rotated.push(list[i]);
-    forYouCards.push(...cardsOf(rotated.slice(0, 6)));
-    forYouFixtureCount = Math.min(6, rotated.length);
-  }
+  // 개인화 근거(저장 · 방문 · 아카이브)가 있으면 기존 개인화 순위 그대로. 근거가 부족하면 "취향 분석"처럼 말하지 않고,
+  // 사진이 있는 공개 공간(실제 + 시연용)을 유형 · 지역 · 태그가 겹치지 않게 골라 "먼저 둘러보기" 선반으로 보여 준다.
+  // 실제 데이터가 쌓여 개인화 순위가 나오면 자동으로 위 경로를 쓴다. 이 선반은 KPI에 따로 집계되지 않는다.
+  const usePersonal = me.personalized && rankedCards.length >= 3;
+  const forYouCards: HomeCard[] = usePersonal
+    ? rankedCards
+    : pickDiscoverySet([...rankedCards.map((c) => c.space), ...fixtureFill], PER_SHELF).map((space) => ({ space, reason: reasonOf(space) }));
+  const forYouShown = Math.min(forYouCards.length, PER_SHELF);
   const forYou: HomeSpaceShelf | null = forYouCards.length
     ? {
         key: "for-you",
-        title: area ? `${area}에서 먼저 가볼 공간` : me.personalized ? "회원님을 위해 엄선한 공간" : "공간큐브가 엄선한 공간",
+        title: usePersonal ? (area ? `${area}에서 먼저 가볼 공간` : "회원님을 위해 엄선한 공간") : area ? `${area}에서 먼저 둘러보기 좋은 공간` : "먼저 둘러보기 좋은 공간",
         href: area ? `/find?area=${encodeURIComponent(area)}` : "/find",
         cta: "더 보기",
         cards: forYouCards,
@@ -238,8 +240,23 @@ export async function getHomeData(opts: { userId: string | null; admin: boolean;
   } else {
     const fresh = newestFirst(all).slice(0, CANDIDATES);
     if (fresh.length >= 3) spaceShelves.push({ key: "new", title: "새롭게 소개한 공간", href: "/spaces", cta: "공간 전체", cards: cardsOf(fresh, reasonOf, CANDIDATES) });
+    // 시연 컬렉션 — 시연용 가상 공간(전부 시연용 지역 "망원")과 실제 Partner 공간을 함께 보여 준다.
+    // Partner의 지역(DB 주소 · District · 좌표)은 그대로 두고, 지역 필터와 별개로 이 선반에만 묶는다. 아카커피룸은 제외한다.
+    // 지역 선반 "망원"은 이 컬렉션이 대신하므로 중복해서 만들지 않는다(지역 화면 ?area=망원은 그대로 동작).
+    const demoCollection = fixtures.length > 0;
+    if (demoCollection) {
+      const partners = real.filter((s) => s.partner && s.slug && !DEMO_COLLECTION_EXCLUDED_SLUGS.has(s.slug) && s.image.src);
+      spaceShelves.push({
+        key: "area-demo-mangwon",
+        title: "망원동 시연 컬렉션",
+        description: "시연을 위해 구성한 모음이에요. 일부는 실제 공간(PARTNER), 일부는 가상 공간(시연용)입니다.",
+        href: homeHref({ area: DEMO_AREA }),
+        cta: `${DEMO_AREA} 둘러보기`,
+        cards: cardsOf([...newestFirst(fixtures), ...partners], reasonOf, CANDIDATES),
+      });
+    }
     // 관심 지역은 위의 "관심 지역에서 발견한 공간"이 이미 맡았으므로 일반 지역 선반에서는 뺀다
-    const areaShelves: AreaShelf[] = buildAreaShelves(all.filter((s) => !(s.area && savedSet.has(s.area))), { min: 3, max: 3, perShelf: CANDIDATES });
+    const areaShelves: AreaShelf[] = buildAreaShelves(all.filter((s) => !(s.area && savedSet.has(s.area)) && !(demoCollection && s.area === DEMO_AREA)), { min: 3, max: 3, perShelf: CANDIDATES });
     for (const a of areaShelves) {
       spaceShelves.push({ key: `area-${a.area}`, title: `${a.area}에서 머물고 싶은 곳`, href: `/find?area=${encodeURIComponent(a.area)}`, cta: `${a.area} 더 보기`, cards: cardsOf(a.spaces, reasonOf, CANDIDATES) });
     }
@@ -268,7 +285,7 @@ export async function getHomeData(opts: { userId: string | null; admin: boolean;
   diversifyHome({
     plan,
     shelves: [
-      { shelf: forYou, strength: "light", limit: forYouShown + forYouFixtureCount },
+      { shelf: forYou, strength: "light", limit: forYouShown },
       { shelf: interest, strength: "light", limit: PER_SHELF },
       { shelf: similar, strength: "light", limit: PER_SHELF },
       { shelf: saved, strength: "none", limit: PER_SHELF },
@@ -286,7 +303,7 @@ export async function getHomeData(opts: { userId: string | null; admin: boolean;
     areaEmpty: !!area && inArea.length === 0,
     areaCounts: area ? { spaces: inArea.length, curations: areaRow?.curationCount ?? areaCurations.length } : null,
     forYou,
-    personalized: me.personalized,
+    personalized: usePersonal,
     interest,
     similar,
     similarPeople: similarCards.length >= 2 ? similarRaw.people : [],

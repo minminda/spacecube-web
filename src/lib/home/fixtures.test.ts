@@ -50,13 +50,12 @@ describe("사진 기반 가상 공간(fixtures)", () => {
     expect(v.cubeAvailable).toBe(false);
   });
 
-  it("일반 방문자용 목록(demoSpaces)은 사진 기반 11곳만이고, publicOnly 조회는 글자만 있는 임시 공간을 막는다", () => {
+  it("일반 방문자용 목록(demoSpaces)과 publicOnly 조회는 11곳 전부를 다룬다 — 사진 없는 공간은 더 이상 없다", () => {
     const pub = demoSpaces(1);
     expect(pub).toHaveLength(11);
-    expect(pub.every((s) => s.image.src && s.fixture)).toBe(true);
-    expect(findFixtureSpace("fixture-1", { publicOnly: true })).toBeNull();
-    expect(findFixtureSpace("fixture-1")).not.toBeNull();
-    expect(findFixtureSpace(pub[0].slug as string, { publicOnly: true })?.id).toBe(pub[0].id);
-    expect(fixtureAreaCounts(true).reduce((n, a) => n + a.spaceCount, 0)).toBe(11);
+    expect(pub.every((s) => s.image.src && s.fixture && s.area === "망원")).toBe(true);
+    expect(findFixtureSpace("fixture-1", { publicOnly: true })?.id).toBe(pub[0].id);
+    expect(findFixtureSpace("fixture-12", { publicOnly: true })).toBeNull();
+    expect(fixtureAreaCounts(true)).toEqual([{ area: "망원", spaceCount: 11, curationCount: 0 }]);
   });
 });

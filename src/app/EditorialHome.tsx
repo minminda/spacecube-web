@@ -115,8 +115,8 @@ export default async function EditorialHome({ admin, previewDrafts, fixtures, us
       {(previewDrafts || fixtures) && (
         <div className="sticky top-[var(--nav-h)] z-40" style={{ background: "#fff6e6", borderBottom: "1px solid #f0dcb0" }}>
           <p className="ed-wide py-2.5 text-xs" style={{ color: "#8a5a00" }}>
-            <strong className="font-semibold">미리보기 · {fixtures ? "임시 공간 포함" : "초안 포함"}</strong>
-            <span className="ml-2">{fixtures ? "‘임시 ·’로 시작하는 카드는 UI 확인용입니다. 일반 방문자에게는 보이지 않아요." : "초안 콘텐츠가 함께 표시됩니다. 일반 방문자에게는 발행된 콘텐츠만 보여요."}</span>
+            <strong className="font-semibold">미리보기 · {fixtures ? "시연용 공간 포함" : "초안 포함"}</strong>
+            <span className="ml-2">{fixtures ? "시연용 가상 공간은 이제 일반 방문자에게도 보입니다(카드에 ‘시연용 공간’ 표시)." : "초안 콘텐츠가 함께 표시됩니다. 일반 방문자에게는 발행된 콘텐츠만 보여요."}</span>
             <Link href={homeHref({ area: d.area })} className="ml-3 underline underline-offset-4">발행본만 보기</Link>
           </p>
         </div>

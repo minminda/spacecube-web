@@ -11,7 +11,7 @@ export default function CurationCard({ c, ratio = "1 / 1", sizes = INDEX_GRID_SI
     <StoryCard
       href={`/curation/${c.slug}`}
       image={c.cover}
-      eyebrow={curationLabel(showArea ? c : { number: c.number }, false)}
+      eyebrow={`${curationLabel(showArea ? c : { number: c.number }, false)}${c.id.startsWith("demo-") ? " · 시연용" : ""}`}
       title={c.title}
       line={c.summary}
       ratio={ratio}

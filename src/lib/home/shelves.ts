@@ -177,3 +177,35 @@ export function homeHref(params: { area?: string | null; preview?: string | null
   const qs = p.toString();
   return qs ? `/?${qs}` : "/";
 }
+
+/* ── 개인화 데이터가 없을 때의 "먼저 둘러보기" 선정(Fallback) ─────────────────────────
+   취향 · 저장 · 방문 기록이 부족해 개인화 순위를 낼 수 없을 때만 쓴다 — 취향을 분석한 결과가 아니다.
+   사진이 있는 공간만, 이미 고른 것과 유형 · 지역 · 태그가 겹칠수록 뒤로 미뤄 한 가지에 쏠리지 않게 고른다(공간 다양성).
+   같은 입력이면 항상 같은 결과(공개 순서 order가 같을 때의 기준). 순수 함수. ── */
+export function pickDiscoverySet(spaces: HomeSpace[], n: number): HomeSpace[] {
+  const seen = new Set<string>();
+  const pool = spaces
+    .filter((s) => s.image.src && !seen.has(s.id) && !!seen.add(s.id))
+    .sort((a, b) => a.order - b.order);
+  const picked: HomeSpace[] = [];
+  const cat = new Map<string, number>();
+  const area = new Map<string, number>();
+  const tag = new Map<string, number>();
+  while (picked.length < n && pool.length > 0) {
+    let best = 0;
+    let bestScore = Infinity;
+    pool.forEach((s, i) => {
+      const score =
+        (cat.get(s.category) ?? 0) * 2 +
+        (area.get(s.area ?? "") ?? 0) * 0.3 +
+        s.tags.reduce((sum, t) => sum + (tag.get(t) ?? 0), 0) * 0.25;
+      if (score < bestScore) { bestScore = score; best = i; }
+    });
+    const [s] = pool.splice(best, 1);
+    picked.push(s);
+    cat.set(s.category, (cat.get(s.category) ?? 0) + 1);
+    area.set(s.area ?? "", (area.get(s.area ?? "") ?? 0) + 1);
+    for (const t of s.tags) tag.set(t, (tag.get(t) ?? 0) + 1);
+  }
+  return picked;
+}

@@ -21,6 +21,7 @@ import { getPartnerEpisodes } from "@/lib/editorial/partnerEpisodes";
 import PartnerEpisodeList from "@/components/editorial/PartnerEpisodeList";
 import { findFixtureSpace, fixtureEpisodes, fixtureSpaceView } from "@/lib/home/fixtures";
 import { ENABLE_PUBLIC_DEMO_SPACES } from "@/lib/features";
+import { demoStoriesForSpace } from "@/lib/editorial/demoContent";
 import { normalizeArea } from "@/lib/editorial/area";
 import { INSTAGRAM_URL } from "@/content/site";
 import { curatorAccess } from "@/lib/curators/access";
@@ -58,7 +59,7 @@ export default async function SpaceDetail({ slug, presentation }: Props) {
   if (!space) notFound();
 
   const [{ curations, people, thoughts }, published, savedIds, partnerEp] = fixture
-    ? [{ curations: [], people: [], thoughts: [] }, await listSpaces(), new Set<string>(), space.cubeAvailable ? fixtureEpisodes(fixture) : null] as const
+    ? [demoStoriesForSpace(space.id), await listSpaces(), new Set<string>(), space.cubeAvailable ? fixtureEpisodes(fixture) : null] as const
     : await Promise.all([
         getStoriesForSpace(space.id),
         listSpaces(),

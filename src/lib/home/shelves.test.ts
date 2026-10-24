@@ -10,6 +10,7 @@ import {
   matchesTheme,
   newestFirst,
   spacesInArea,
+  pickDiscoverySet,
   type HomeSpace,
 } from "./shelves";
 import { findFixtureSpace, fixtureSpaces } from "./fixtures";
@@ -110,11 +111,10 @@ describe("HOME 지역 선택", () => {
   });
 });
 
-describe("HOME 임시 공간(fixtures)", () => {
-  it("fixture-N slug · 임시 이름이며, 글자만 있는 공간은 사진을 넣지 않고, 태그 3~5개를 갖는다", () => {
-    // 사진 기반 가상 공간(fixtures.test.ts)은 자연스러운 이름과 사진을 갖는다 — 여기서는 글자만 있는 임시 공간만 본다
-    const list = fixtureSpaces(100).filter((f) => !f.image.src);
-    expect(list.length).toBeGreaterThan(10);
+describe("HOME 시연용 가상 공간(fixtures)", () => {
+  it("fixture-N slug · 사진 · 태그 3~5개를 갖고 모두 시연용 지역 망원이다", () => {
+    const list = fixtureSpaces(100);
+    expect(list).toHaveLength(11);
     for (const f of list) {
       expect(f.fixture).toBe(true);
       expect(f.slug).toMatch(/^fixture-\d+$/);
@@ -122,29 +122,46 @@ describe("HOME 임시 공간(fixtures)", () => {
       expect(f.tags.length).toBeGreaterThanOrEqual(3);
       expect(f.tags.length).toBeLessThanOrEqual(5);
       expect(f.id.startsWith("fixture:")).toBe(true);
-      expect(f.name.startsWith("임시")).toBe(true);
-      expect(f.image.src).toBeNull();
+      expect(f.image.src).toMatch(/^\/demo\//);
+      expect(f.area).toBe("망원");
+      expect(f.partner).toBe(false);
     }
-  });
-
-  it("지역 5 · 유형 6이 섞이고 Partner는 일부만이다", () => {
-    const list = fixtureSpaces(0).filter((f) => !f.image.src);
-    expect(new Set(list.map((f) => f.area)).size).toBe(5);
-    expect(new Set(list.map((f) => f.category)).size).toBe(6);
-    const partners = list.filter((f) => f.partner).length;
-    expect(partners).toBeGreaterThan(0);
-    expect(partners).toBeLessThan(list.length / 2);
   });
 
   it("fixture slug가 아니면 찾지 않는다(실제 공간 slug와 섞이지 않는다)", () => {
     expect(findFixtureSpace("buk")).toBeNull();
     expect(findFixtureSpace("fixture-9999")).toBeNull();
     expect(findFixtureSpace("fixture-0")).toBeNull();
+    expect(findFixtureSpace("fixture-12")).toBeNull();
   });
 
-  it("임시 공간만으로도 지역 · 테마 선반 구조가 생긴다(UI 확인용)", () => {
+  it("시연용 공간만으로도 지역 · 테마 선반 구조가 생긴다", () => {
     const list = fixtureSpaces(0);
     expect(buildAreaShelves(list, { min: 3 }).length).toBeGreaterThan(0);
     expect(buildThemeShelves(list, { min: 3 }).length).toBeGreaterThan(0);
+  });
+});
+
+describe("개인화 데이터가 없을 때의 먼저 둘러보기(pickDiscoverySet)", () => {
+  const photo = { src: "/x.jpg", alt: "" };
+  const mk = (i: number, category: string, area: string, tags: string[], src: string | null = photo.src): HomeSpace =>
+    ({ id: `p${i}`, slug: `p${i}`, name: `p${i}`, area, category, tags, image: src ? photo : { src: null, alt: "" }, partner: false, order: i });
+
+  it("사진 없는 공간은 고르지 않고 같은 공간을 두 번 넣지 않는다", () => {
+    const list = [mk(1, "카페", "망원", ["커피"], null), mk(2, "카페", "망원", ["커피"]), mk(2, "카페", "망원", ["커피"]), mk(3, "서점", "연남", ["책"])];
+    const out = pickDiscoverySet(list, 10);
+    expect(out.map((s) => s.id)).toEqual(["p2", "p3"]);
+  });
+
+  it("유형이 겹치지 않게 먼저 고른다 — 카페가 앞에 몰려 있어도 다른 유형이 일찍 나온다", () => {
+    const list = [mk(1, "카페", "망원", ["커피"]), mk(2, "카페", "망원", ["커피"]), mk(3, "카페", "망원", ["커피"]), mk(4, "북카페", "망원", ["책"]), mk(5, "LP카페", "망원", ["LP"])];
+    const out = pickDiscoverySet(list, 3);
+    expect(new Set(out.map((s) => s.category)).size).toBe(3);
+  });
+
+  it("같은 입력이면 같은 결과이고 n을 넘기지 않는다", () => {
+    const list = Array.from({ length: 8 }, (_, i) => mk(i + 1, i % 2 ? "카페" : "서점", "망원", ["조용한"]));
+    expect(pickDiscoverySet(list, 4).map((s) => s.id)).toEqual(pickDiscoverySet([...list].reverse(), 4).map((s) => s.id));
+    expect(pickDiscoverySet(list, 4)).toHaveLength(4);
   });
 });

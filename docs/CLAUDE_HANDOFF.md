@@ -6,14 +6,12 @@ Updated: 2026-10-24 · 한이음 최종 제출 전 소스 감사 (코드·DB·�
 - 감사 문서: `docs/final-submission-audit-2026-10-24.md` (요약 7항목, 9/7→HEAD 변경, DB/ERD, KPI, 운영 데이터, Golden Path, Gap, 보고서·설계서 Delta, 검증 상태)
 - 원칙: 9/7 QR 이후 경험은 유지, Discovery는 "추가 개발"로 구분 (기존 핵심 구현 / 이후 추가 / 현재 상태)
 
-## 2026-10-24 사진 기반 가상 공간 11곳 (시연 미리보기 전용 · DB 변경 없음)
-- 방식: 운영 DB·Cloudinary에 쓰지 않고 기존 fixtures(`src/lib/home/fixtures.ts`)에 사진 기반 가상 공간 `DEMO_SEEDS` 11곳 추가(slug `fixture-31~41`). 사진은 `public/demo/*.jpg`(EXIF 제거, 폭 1400px 이하). 테스트 `fixtures.test.ts` 추가.
-- 공개(2026-10-24 변경): `ENABLE_PUBLIC_DEMO_SPACES=true`(features.ts) → 일반 방문자도 HOME·검색·지역·테마·`/spaces/fixture-31~41` 상세에서 11곳을 본다. 카드에 "시연용 공간", 상세 상단에 "시연용 공간 — 실제 장소가 아닙니다" 표시. 글자만 있는 임시 30곳은 계속 관리자·로컬 `?preview=fixtures` 전용(상세는 일반 방문자에게 404). 끄려면 상수를 false로.
-- KPI·통계: 코드 데이터라 DB 행이 없고 상세는 DiscoveryTracker·지도 클릭 계측을 안 붙이며 저장은 화면 안에서만 바뀐다(mock) → 방문 통계·전환 KPI에 안 들어감. 개인화 추천 후보에도 안 들어감.
-- 공간: 망원 5(창가의 오후·서가 뒤의 창·재즈 음반장·종이 아카이브·구형 카메라 진열) / 연남 5(쪽지와 음반·슬라이드 룸·찻잔 선반·만년필과 우체통·초록 서가) / 용인 처인구 1(물가의 창). 유형·태그는 정본 이름만(3~4개).
-- 제외한 사진 4장: 1(앨범 표지 벽) · 2(`Music Complex Seoul` 간판, 기존 DB의 뮤직컴플렉스와 겹침) · 11(손님 얼굴 + 브랜드 머그) · 14(영화·도서 표지/인물). 10(재즈 음반장)은 벽 포스터가 보여 판단 필요, 4(쪽지와 음반)는 타인 손글씨 쪽지가 큼직해 판단 필요.
-- 한계: 개인화 추천 후보(`rankCandidates`)는 DB 공간만 대상이라 가상 공간은 정렬·추천 이유에 안 들어가고 HOME 첫 선반 끝에 덧붙음. 가상 공간 이름은 "임시 ·" 접두어가 없다(상세 상단 미리보기 배너·HOME 미리보기 배너로만 표시).
-- 이전 시도(실제 공간 식별 등록)는 등록 0건으로 종료.
+## 2026-10-24 망원동 중심 시연 구성 · 추천 Fallback · 시연 CURATION/STORY
+- 시연용 가상 공간 11곳(`src/lib/home/fixtures.ts`, `public/demo/*.jpg`, slug `fixture-1~11`)은 일반 방문자에게 공개(`ENABLE_PUBLIC_DEMO_SPACES`, features.ts). 사진 없는 임시 공간 30곳은 코드에서 제거. 지역은 전부 시연용 분류 "망원"(실제 소재지 아님). DB·Cloudinary 변경 없음, KPI·저장·방문·Discovery 이벤트에 안 들어감.
+- HOME: 개인화 근거가 있으면 기존 "회원님을 위해 엄선한 공간"(개인화 순위), 없으면 `pickDiscoverySet`(shelves.ts)으로 사진 있는 공간을 유형·지역·태그가 겹치지 않게 골라 "먼저 둘러보기 좋은 공간"(취향 분석 아님, 별도 집계 없음). "망원동 시연 컬렉션" 선반(가상 11 + Partner 5, 아카커피룸 제외; Partner의 DB 지역·좌표는 그대로)이 기본 HOME의 망원 지역 선반을 대신하고, `?area=망원` 지역 화면은 그대로 동작.
+- 시연 콘텐츠: `src/lib/editorial/demoContent.ts`(코드 데이터) — CURATION 4(혼자 보내는 오후 / 음악을 천천히 듣는 날 / 책과 함께 머무는 공간 / 작은 물건을 오래 들여다보는 날), PEOPLE 3(가상 페르소나, 인용·인터뷰 없음), THOUGHT 3. 모두 맨 앞 "시연용 콘텐츠" 안내, 카드 머리줄에 "시연용", 대표 이미지는 콘텐츠마다 서로 다른 사진. `queries.ts`가 DB 콘텐츠 앞에 합쳐 HOME·/curation·/story·상세·공간 상세 "소개된 이야기"에 나옴.
+- 기존 콘텐츠 12개(전부 "더미 콘텐츠"·샘플 본문, 실제 Partner 사진 사용)는 삭제 없이 대표 이미지 중복 5건만 DB에서 ARCHIVED(상태만 변경, 복원은 status=PUBLISHED): CURATION `places-to-clear-your-mind`·`places-for-two-with-space`·`spaces-worth-visiting-themselves`, PEOPLE `a-place-built-around-music`, THOUGHT `why-we-return-to-the-same-place`. 유지: CURATION 3 · PEOPLE 2 · THOUGHT 2.
+- 끄기: `ENABLE_PUBLIC_DEMO_SPACES=false`(공간·콘텐츠 모두 사라짐). 한계: 시연 공간의 "저장"은 화면 안에서만 바뀜(mock), 개인화 순위 후보에는 가상 공간이 들어가지 않음.
 
 ## 다음 P0 작업
 1. 공개 실제 6곳 태그 입력 (현재 전부 `tags=[]`)

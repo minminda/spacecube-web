@@ -11,6 +11,13 @@ import { readStoredBlocks, collectBlockSpaceIds } from "./input";
 import type { ContentItem, CurationView, LinkedSpace, PersonView, ResolvedImage, SpaceView, EditorialBlock, StoryItem, ThoughtView } from "./types";
 import { curationLabel, formatEditorialDate, formatPeopleNumber, formatSerial, formatThoughtNumber, spaceCoverImage, spaceHref } from "./types";
 import { normalizeArea } from "./area";
+import { DEMO_MARK, demoContentEnabled, demoCurations, demoPeople, demoThoughts } from "./demoContent";
+import { fixtureSpaces, fixtureSpaceView } from "@/lib/home/fixtures";
+
+/* 시연용 콘텐츠(demoContent.ts)는 DB 콘텐츠 앞에 합친다 — number DESC 정렬 규칙은 그대로. 카드 머리줄에는 "시연용"이 붙는다. */
+const isDemoId = (id: string) => id.startsWith("demo-");
+const withDemoMark = (eyebrow: string, id: string) => (isDemoId(id) ? `${eyebrow} · ${DEMO_MARK}` : eyebrow);
+const byNumberDesc = <T extends { number: number }>(rows: T[]) => [...rows].sort((a, b) => b.number - a.number);
 
 export interface Visibility {
   preview?: boolean;
@@ -76,8 +83,12 @@ export async function getSpaceBySlug(slug: string, v?: Visibility & { allowDemo?
 export async function getSpacesByIds(ids: string[], v?: Visibility): Promise<Map<string, SpaceView>> {
   const unique = [...new Set(ids)].filter(Boolean);
   if (unique.length === 0) return new Map();
-  const rows = await prisma.editorialSpace.findMany({ where: { id: { in: unique }, ...statusFilter(v) } });
-  return new Map(rows.map((r) => [r.id, toSpaceView(r)]));
+  const dbIds = unique.filter((id) => !id.startsWith("fixture:"));
+  const rows = dbIds.length ? await prisma.editorialSpace.findMany({ where: { id: { in: dbIds }, ...statusFilter(v) } }) : [];
+  const map = new Map(rows.map((r) => [r.id, toSpaceView(r)]));
+  // 시연용 가상 공간(코드 데이터) — 시연 콘텐츠의 공간 카드가 가리킨다
+  if (demoContentEnabled()) for (const f of fixtureSpaces(0)) if (unique.includes(f.id)) map.set(f.id, fixtureSpaceView(f));
+  return map;
 }
 
 /** ids 순서를 유지한 배열. */
@@ -154,10 +165,13 @@ export async function listThoughts(v?: Visibility): Promise<ThoughtView[]> {
     orderBy: { number: "desc" },
     include: { spaces: linkInclude },
   });
-  return rows.map((r) => toThoughtView(r, v));
+  const list = rows.map((r) => toThoughtView(r, v));
+  return demoContentEnabled() ? byNumberDesc([...demoThoughts(), ...list]) : list;
 }
 
 export async function getThoughtBySlug(slug: string, v?: Visibility): Promise<ThoughtView | null> {
+  const demo = demoContentEnabled() ? demoThoughts().find((t) => t.slug === slug) : undefined;
+  if (demo) return demo;
   const row = await prisma.editorialThought.findUnique({ where: { slug }, include: { spaces: linkInclude } });
   if (!row || (!v?.preview && row.status !== "PUBLISHED")) return null;
   return toThoughtView(row, v);
@@ -198,6 +212,7 @@ export async function listAreas(v?: Visibility): Promise<AreaSummary[]> {
   };
   spaces.forEach((s) => bump(s.area, "spaceCount"));
   curations.forEach((c) => bump(c.area, "curationCount"));
+  if (demoContentEnabled()) demoCurations().forEach((c) => bump(c.area ?? null, "curationCount"));
   return [...map.values()].sort((a, b) => b.curationCount - a.curationCount || b.spaceCount - a.spaceCount || a.area.localeCompare(b.area, "ko"));
 }
 
@@ -207,10 +222,13 @@ export async function listCurations(v?: Visibility): Promise<CurationView[]> {
     orderBy: { number: "desc" },
     include: { spaces: linkInclude },
   });
-  return rows.map((r) => toCurationView(r, v));
+  const list = rows.map((r) => toCurationView(r, v));
+  return demoContentEnabled() ? byNumberDesc([...demoCurations(), ...list]) : list;
 }
 
 export async function getCurationBySlug(slug: string, v?: Visibility): Promise<CurationView | null> {
+  const demo = demoContentEnabled() ? demoCurations().find((c) => c.slug === slug) : undefined;
+  if (demo) return demo;
   const row = await prisma.editorialCuration.findUnique({ where: { slug }, include: { spaces: linkInclude } });
   if (!row || (!v?.preview && row.status !== "PUBLISHED")) return null;
   return toCurationView(row, v);
@@ -222,10 +240,13 @@ export async function listPeople(v?: Visibility): Promise<PersonView[]> {
     orderBy: { number: "desc" },
     include: { spaces: linkInclude },
   });
-  return rows.map((r) => toPersonView(r, v));
+  const list = rows.map((r) => toPersonView(r, v));
+  return demoContentEnabled() ? byNumberDesc([...demoPeople(), ...list]) : list;
 }
 
 export async function getPersonBySlug(slug: string, v?: Visibility): Promise<PersonView | null> {
+  const demo = demoContentEnabled() ? demoPeople().find((p) => p.slug === slug) : undefined;
+  if (demo) return demo;
   const row = await prisma.editorialPerson.findUnique({ where: { slug }, include: { spaces: linkInclude } });
   if (!row || (!v?.preview && row.status !== "PUBLISHED")) return null;
   return toPersonView(row, v);
@@ -311,6 +332,27 @@ export async function listContentStream(v?: Visibility): Promise<ContentItem[]> 
       },
     });
   }
+  if (demoContentEnabled()) {
+    const stamp = (d: Date | null) => ({ t: (d ?? new Date(0)).getTime(), created: (d ?? new Date(0)).getTime() });
+    for (const c of demoCurations()) {
+      rows.push({ ...stamp(c.publishedAt), item: {
+        key: `curation-${c.id}`, kind: "curation", eyebrow: withDemoMark(curationLabel(c), c.id), label: withDemoMark(curationLabel(c, false), c.id), title: c.title, summary: c.summary,
+        meta: c.spaces.length ? `공간 ${c.spaces.length}곳` : undefined, href: `/curation/${c.slug}`, image: c.cover, date: formatEditorialDate(c.publishedAt), status: c.status,
+      } });
+    }
+    for (const p of demoPeople()) {
+      rows.push({ ...stamp(p.publishedAt), item: {
+        key: `person-${p.id}`, kind: "person", eyebrow: withDemoMark(formatPeopleNumber(p.number), p.id), label: withDemoMark(formatSerial(p.number), p.id),
+        title: p.title, summary: p.summary, href: `/people/${p.slug}`, image: p.cover, date: formatEditorialDate(p.publishedAt), status: p.status,
+      } });
+    }
+    for (const t of demoThoughts()) {
+      rows.push({ ...stamp(t.publishedAt), item: {
+        key: `thought-${t.id}`, kind: "thought", eyebrow: withDemoMark(formatThoughtNumber(t.number), t.id), label: withDemoMark(formatSerial(t.number), t.id),
+        title: t.title, summary: t.summary, href: `/thought/${t.slug}`, image: t.cover, date: formatEditorialDate(t.publishedAt), status: t.status,
+      } });
+    }
+  }
   for (const r of spaces) {
     const s = toSpaceView(r);
     rows.push({
@@ -332,7 +374,7 @@ export async function listContentStream(v?: Visibility): Promise<ContentItem[]> 
 export function personStoryItem(p: PersonView): StoryItem {
   return {
     key: `people-${p.id}`, type: "people",
-    eyebrow: formatPeopleNumber(p.number), label: formatSerial(p.number),
+    eyebrow: withDemoMark(formatPeopleNumber(p.number), p.id), label: withDemoMark(formatSerial(p.number), p.id),
     title: p.title, summary: p.summary, href: `/people/${p.slug}`, cover: p.cover,
     date: formatEditorialDate(p.publishedAt), publishedAt: p.publishedAt, status: p.status,
   };
@@ -341,7 +383,7 @@ export function personStoryItem(p: PersonView): StoryItem {
 export function thoughtStoryItem(t: ThoughtView): StoryItem {
   return {
     key: `thought-${t.id}`, type: "thought",
-    eyebrow: formatThoughtNumber(t.number), label: formatSerial(t.number),
+    eyebrow: withDemoMark(formatThoughtNumber(t.number), t.id), label: withDemoMark(formatSerial(t.number), t.id),
     title: t.title, summary: t.summary, href: `/thought/${t.slug}`, cover: t.cover,
     date: formatEditorialDate(t.publishedAt), publishedAt: t.publishedAt, status: t.status,
   };
