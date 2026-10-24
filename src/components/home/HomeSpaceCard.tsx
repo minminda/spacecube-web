@@ -3,6 +3,7 @@ import EdImage from "@/components/editorial/EdImage";
 import PartnerMark from "@/components/editorial/PartnerMark";
 import SaveButton from "@/components/editorial/SaveButton";
 import { spaceHref } from "@/lib/editorial/types";
+import { demoBadge } from "@/lib/demoSpaces";
 import type { HomeSpace } from "@/lib/home/shelves";
 
 export const HOME_SPACE_SIZES = "(min-width: 1024px) 220px, (min-width: 768px) 16vw, (min-width: 640px) 22vw, 31vw";
@@ -30,7 +31,7 @@ export default function HomeSpaceCard({ space, reason, save, priority }: Props) 
         {space.partner && <PartnerMark size={13} />}
       </span>
       {meta && <span className="block pt-0.5 text-[10.5px] md:text-xs truncate" style={{ color: "var(--ed-dim)" }}>{meta}</span>}
-      {space.demo && <span className="block pt-0.5 text-[10px] md:text-[11px] tracking-wide" style={{ color: "var(--ed-dim)" }}>시연용 공간</span>}
+      {space.demo && <span className="block pt-0.5 text-[10px] md:text-[11px] tracking-wide" style={{ color: "var(--ed-dim)" }}>{demoBadge(space.slug)}</span>}
       {reason && <span className="block pt-1 text-[10.5px] md:text-xs leading-snug break-keep line-clamp-2">{reason}</span>}
     </>
   );

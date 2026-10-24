@@ -7,7 +7,7 @@ import type { LibraryItem } from "./library";
 
 const item = (o: Partial<LibraryItem>): LibraryItem => ({
   key: "s-a", name: "공간", area: "연남동", meta: "", cover: null, coverIsMine: false, visited: false, saved: false,
-  visitCount: 0, cubeVisits: 0, photoCount: 0, lastAt: new Date(0), tags: [], personal: false, demo: false, source: null, ...o,
+  visitCount: 0, cubeVisits: 0, photoCount: 0, lastAt: new Date(0), tags: [], personal: false, demo: false, source: null, slug: null, ...o,
 });
 const hrefOf = (i: LibraryItem) => `/h/${i.key}`;
 

@@ -46,4 +46,35 @@ describe("HOME 선반 다양성", () => {
     expect(maxExposure(6)).toBeGreaterThan(maxExposure(24));
     expect(maxExposure(24)).toBeLessThanOrEqual(2); // 8선반 × 4장 = 32장을 24곳에 나누면 한 공간은 많아야 2번
   });
+
+  describe("hardCap — 한 공간은 HOME에서 2번까지, 남은 카드가 적은 선반은 비운다", () => {
+    const cap = (s: DiversityShelf<{ id: string }>[], minCards = 3) => diversifyShelves(s, (x) => x.id, { hardCap: true, minCards });
+
+    it("2번 나온 공간은 세 번째 선반에서 제외된다(후보가 모자라도 채우지 않음)", () => {
+      const r = cap([shelf("a", "strong", ["1", "2", "3"], 3), shelf("b", "strong", ["1", "2", "3"], 3), shelf("c", "strong", ["1", "2", "3", "4", "5", "6"], 3)]);
+      expect(ids(r[2])).toEqual(["4", "5", "6"]);
+      expect(Math.max(...exposureCounts(r, (x) => x.id).values())).toBeLessThanOrEqual(2);
+    });
+
+    it("minCards보다 적게 남은 선반은 통째로 비운다", () => {
+      const r = cap([shelf("a", "strong", ["1", "2", "3"], 3), shelf("b", "strong", ["1", "2", "3"], 3), shelf("c", "strong", ["1", "2", "3", "4"], 3)]);
+      expect(r[2].cards).toEqual([]);
+    });
+
+    it("비워진 선반은 노출 횟수를 쓰지 않는다", () => {
+      const r = cap([shelf("a", "strong", ["1", "2", "3"], 3), shelf("b", "strong", ["1", "2", "3"], 3), shelf("c", "strong", ["1", "2", "3", "4"], 3), shelf("d", "strong", ["4", "5", "6"], 3)]);
+      expect(ids(r[3])).toEqual(["4", "5", "6"]);
+    });
+
+    it("none 선반은 항상 보이므로 먼저 세어 둔다 — 앞 선반이 그 공간을 덜 쓴다", () => {
+      const r = cap([shelf("a", "strong", ["1", "2", "3", "4"], 3), shelf("saved", "none", ["1", "2"], 2)], 1);
+      expect(ids(r[0])).toEqual(["3", "4", "1"]);
+      expect(ids(r[1])).toEqual(["1", "2"]);
+    });
+
+    it("hardCap이 아니면 기존처럼 후순위로만 보낸다(빼지 않음)", () => {
+      const r = run([shelf("a", "strong", ["1"], 1), shelf("b", "strong", ["1"], 1), shelf("c", "strong", ["1"], 1)]);
+      expect(ids(r[2])).toEqual(["1"]);
+    });
+  });
 });

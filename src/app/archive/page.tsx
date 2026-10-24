@@ -16,7 +16,8 @@ import { getUserDiscoveryContext } from "@/lib/discoverySignals";
 import { buildTasteProfile, topAttributes } from "@/lib/discoveryRecommend";
 import { formatDotDate } from "@/lib/time";
 import { normalizeArea } from "@/lib/editorial/area";
-import { filterLibrary, getLibrary, libraryHref, parseLibraryFilter, type LibraryFilter } from "@/lib/archive/library";
+import { defaultLibraryView, filterLibrary, getLibrary, libraryOpenHref, parseLibraryFilter, type LibraryFilter } from "@/lib/archive/library";
+import { demoBadge } from "@/lib/demoSpaces";
 import { curatorAccess } from "@/lib/curators/access";
 import { profilePath } from "@/lib/profile/publicProfile";
 import { ShareProfileButton } from "@/components/profile/ProfileActions";
@@ -39,7 +40,8 @@ const TRACE_PREVIEW = 4;
 function hrefWith(f: LibraryFilter, patch: Partial<LibraryFilter> & { n?: number }): string {
   const next = { ...f, ...patch };
   const p = new URLSearchParams();
-  if (next.view !== "all") p.set("view", next.view);
+  // 보기는 항상 주소에 둔다 — 기본 보기(다녀왔어요 우선)가 사람마다 달라질 수 있어, 눌러서 간 탭이 그대로 유지되게
+  p.set("view", next.view);
   if (next.q) p.set("q", next.q);
   if (next.area) p.set("area", next.area);
   if (next.tag) p.set("tag", next.tag);
@@ -50,7 +52,7 @@ function hrefWith(f: LibraryFilter, patch: Partial<LibraryFilter> & { n?: number
 
 /**
  * 내 공간(주소는 그대로 /archive) — 내가 발견하고 머물렀던 공간이 사진 중심으로 쌓이는 개인 공간.
- * 위에서부터: 핵심 행동(공간 추가 · 공유) → 담은 공간(전체 · 다녀온 곳 · 가보고 싶은 곳) → 공간큐브와 함께한 공간 → 이 취향과 비슷한 공간(HOME으로)
+ * 위에서부터: 핵심 행동(공간 추가 · 공유) → 담은 공간(다녀왔어요 · 저장 · 전체 — 기본은 다녀왔어요) → 공간큐브와 함께한 공간 → 이 취향과 비슷한 공간(HOME으로)
  * → 관심 지역(별표) → 나의 흔적(방명록) → 설정. 새 저장소 없이 기존 데이터를 재배치한 것이다.
  * 공간큐브 안의 저장 · Cube 방문 · 큐레이터 컬렉션에서의 저장 · 사진/링크로 직접 추가한 공간이 한 그리드에 모인다
  * (src/lib/archive/library.ts가 공간 기준으로 합친다). + 공간 추가로 몇 초 만에 기록하고, 쌓인 기록은 취향과 추천으로 이어진다.
@@ -72,7 +74,7 @@ export default async function ArchivePage({ searchParams }: Props) {
   const handle = editorial ? user.profileHandle ?? (await ensureProfileHandle(user.id)) : user.profileHandle;
   const access = curatorAccess({ admin, editorial });
   const includeDemo = admin || process.env.NODE_ENV === "development";
-  const filter = parseLibraryFilter(sp);
+  const parsedFilter = parseLibraryFilter(sp);
   const limit = Math.min(Math.max(Number(sp.n) || PAGE, PAGE), 600);
 
   const unreadNotificationCount = ENABLE_NOTIFICATIONS
@@ -95,12 +97,15 @@ export default async function ArchivePage({ searchParams }: Props) {
   // 공간큐브(Cube)로 현장을 다녀온 공간 — 내가 Cube로 방문한 기록이 있는 공간
   const cubeItems = library.filter((i) => i.cubeVisits > 0 && !i.personal);
 
-  const shown = filterLibrary(library, filter);
+  // 다녀왔어요가 저장보다 중요한 상태 — 주소에 ?view=가 없으면 다녀왔어요(없으면 저장)부터. 같은 공간이 저장 + 다녀왔어요면 다녀왔어요에만 들어간다.
   const counts = {
     all: library.length,
     visited: library.filter((i) => i.visited).length,
     saved: library.filter((i) => i.saved && !i.visited).length,
   };
+  const explicitView = sp.view === "all" || sp.view === "visited" || sp.view === "saved";
+  const filter: LibraryFilter = { ...parsedFilter, view: explicitView ? parsedFilter.view : defaultLibraryView(counts) };
+  const shown = filterLibrary(library, filter);
   const areas = [...new Set(library.map((i) => normalizeArea(i.area)).filter((a): a is string => !!a))].sort((a, b) => a.localeCompare(b, "ko"));
   // 취향 가중치는 추천에만 쓴다 — 화면에는 태그·통계로 내보내지 않고, 추천 입구를 보일지만 판단한다.
   const hasTaste = topAttributes(buildTasteProfile(discovery.signals), 1).length > 0;
@@ -109,7 +114,7 @@ export default async function ArchivePage({ searchParams }: Props) {
   // 지도 보기(?mode=map) — 같은 라이브러리 데이터를 공간으로 보는 두 번째 보기. 기본은 리스트.
   const mapMode = sp.mode === "map";
   const mapData = mapMode
-    ? buildMapPoints(library, await getLibraryCoords(library), (it) => (!it.visited && it.key.startsWith("s-") ? `/spaces/${it.key.slice(2)}` : libraryHref(it.key)))
+    ? buildMapPoints(library, await getLibraryCoords(library), libraryOpenHref)
     : null;
 
   return (
@@ -171,15 +176,25 @@ export default async function ArchivePage({ searchParams }: Props) {
         {/* 보기 · 검색 · 지역 — 100곳 이상이어도 찾을 수 있도록. 태그는 화면에 내지 않는다(취향은 사진으로) */}
         {!mapMode && (<>
         <section className="ed-container" style={{ borderBottom: "1px solid var(--ed-line)" }}>
+          {/* 요약 — 쌓이는 것은 저장이 아니라 다녀온 경험이다: 다녀왔어요를 크게, 저장은 보조로 */}
+          <p className="flex flex-wrap items-baseline gap-x-6 gap-y-1 pt-6 pb-1">
+            <span className="inline-flex items-baseline gap-2">
+              <span className="text-[44px] md:text-[60px] font-bold leading-none tabular-nums tracking-[-0.04em]">{counts.visited}</span>
+              <span className="text-base md:text-lg font-semibold">다녀왔어요</span>
+            </span>
+            <span className="inline-flex items-baseline gap-1.5 text-sm" style={{ color: "var(--ed-dim)" }}>
+              <span className="text-lg font-semibold tabular-nums" style={{ color: "var(--ed-fg)" }}>{counts.saved}</span> 저장
+            </span>
+          </p>
           <div className="flex flex-wrap items-center justify-between gap-x-6">
             <TabLinks
               label="보기"
               active={filter.view}
-              tabs={([["all", "전체"], ["visited", "다녀온 곳"], ["saved", "가보고 싶은 곳"]] as const).map(([v, label]) => ({ key: v, label: `${label} ${counts[v]}`, href: hrefWith(filter, { view: v }) }))}
+              tabs={([["visited", "다녀왔어요"], ["saved", "저장"], ["all", "전체"]] as const).map(([v, label]) => ({ key: v, label: `${label} ${counts[v]}`, href: hrefWith(filter, { view: v }) }))}
             />
             {library.length > 0 && (
               <form method="get" action="/archive" className="w-full sm:w-auto pb-3 sm:py-2" role="search">
-                {filter.view !== "all" && <input type="hidden" name="view" value={filter.view} />}
+                <input type="hidden" name="view" value={filter.view} />
                 <input name="q" type="search" defaultValue={filter.q} placeholder="공간 이름" aria-label="공간 이름으로 찾기" className="h-10 w-full sm:w-48 px-3 text-sm outline-none" style={{ border: "1px solid var(--ed-line)" }} />
               </form>
             )}
@@ -200,20 +215,40 @@ export default async function ArchivePage({ searchParams }: Props) {
           {library.length === 0 ? (
             <div className="py-12 space-y-4">
               <p className="text-base font-semibold">아직 담은 공간이 없어요.</p>
+              <p className="text-sm break-keep" style={{ color: "var(--ed-dim)" }}>공간 상세에서 저장하거나, 다녀온 곳은 &lsquo;다녀왔어요&rsquo;를 눌러 남겨 보세요.</p>
               {editorial && <Link href="/search" className="ed-btn ed-btn-sm">검색에서 찾아보기</Link>}
             </div>
           ) : shown.length === 0 ? (
-            <p className="py-12 text-sm" style={{ color: "var(--ed-dim)" }}>조건에 맞는 공간이 없어요.</p>
+            filtered ? (
+              <p className="py-12 text-sm" style={{ color: "var(--ed-dim)" }}>조건에 맞는 공간이 없어요.</p>
+            ) : (
+              <div className="py-12 space-y-4">
+                <p className="text-base font-semibold">{filter.view === "saved" ? "저장한 공간이 아직 없어요." : "아직 다녀왔어요로 남긴 공간이 없어요."}</p>
+                <p className="text-sm break-keep" style={{ color: "var(--ed-dim)" }}>
+                  {filter.view === "saved" ? "마음에 드는 공간 상세에서 저장하면 여기에 모여요." : "공간 상세에서 ‘다녀왔어요’를 누르면 여기에 쌓여요. 저장해 둔 곳도 다녀오면 이쪽으로 옮겨져요."}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {editorial && <Link href="/search" className="ed-btn ed-btn-sm">공간 찾아보기</Link>}
+                  {filter.view === "visited" && counts.saved > 0 && <Link href={hrefWith(filter, { view: "saved" })} className="ed-btn ed-btn-sm">저장한 공간 {counts.saved}곳 보기</Link>}
+                </div>
+              </div>
+            )
           ) : (
             <>
               <ul className={SPACE_GRID_CLASS}>
                 {shown.slice(0, limit).map((it, i) => (
                   <li key={it.key} className="min-w-0">
                     <SpaceTile
-                      href={libraryHref(it.key)}
+                      href={libraryOpenHref(it)}
                       image={{ src: it.cover, alt: it.name }}
                       name={it.name}
-                      meta={[normalizeArea(it.area), it.personal ? "개인 기록" : null, it.demo ? "가상" : null].filter(Boolean).join(" · ")}
+                      meta={[
+                        normalizeArea(it.area),
+                        // 상태 — 다녀왔어요가 우선(저장도 해 둔 공간이면 다녀왔어요로 보인다)
+                        it.visited ? (it.visitCount >= 2 ? `${it.visitCount}번 다녀왔어요` : "다녀왔어요") : "저장",
+                        it.personal ? "개인 기록" : null,
+                        it.demo ? demoBadge(it.slug) : null,
+                      ].filter(Boolean).join(" · ")}
                       sizes={SPACE_GRID_SIZES}
                       priority={i < 4}
                     />
@@ -249,7 +284,7 @@ export default async function ArchivePage({ searchParams }: Props) {
             <ul className={SPACE_GRID_CLASS}>
               {cubeItems.slice(0, 8).map((it) => (
                 <li key={it.key} className="min-w-0">
-                  <SpaceTile href={libraryHref(it.key)} image={{ src: it.cover, alt: it.name }} name={it.name} meta={normalizeArea(it.area) ?? ""} sizes={SPACE_GRID_SIZES} />
+                  <SpaceTile href={libraryOpenHref(it)} image={{ src: it.cover, alt: it.name }} name={it.name} meta={normalizeArea(it.area) ?? ""} sizes={SPACE_GRID_SIZES} />
                 </li>
               ))}
             </ul>

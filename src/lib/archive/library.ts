@@ -36,10 +36,20 @@ export interface LibraryItem {
   demo: boolean;
   /** 직접 추가한 경로(사진·Instagram·네이버 지도 등) — 사진 없는 칸에 표시 */
   source: string | null;
+  /** 공개 공간 상세(/spaces/[slug])가 열리는 공간의 slug — 있으면 카드를 눌렀을 때 HOME과 같은 상세 창으로 열린다. 개인 기록 · 상세 없는 운영 공간은 null */
+  slug: string | null;
 }
 
 export function libraryHref(key: string): string {
   return `/archive/p/${encodeURIComponent(key)}`;
+}
+
+/**
+ * 내 공간 카드를 눌렀을 때 가는 곳 — 공개 상세가 있는 공간(실제 · 시연용 모두)은 HOME · 검색과 같은 /spaces/[slug](데스크톱은 가로채기 창),
+ * 개인 기록 · 공개 상세가 없는 공간은 내 기록 상세. 상세 안의 "내 기록 보기 →"로 내 기록(사진 · 메모 · 방문)에 들어간다.
+ */
+export function libraryOpenHref(it: Pick<LibraryItem, "key" | "slug" | "personal">): string {
+  return !it.personal && it.slug ? `/spaces/${encodeURIComponent(it.slug)}` : libraryHref(it.key);
 }
 
 async function fetchLibraryRows(userIds: string[], opts: { includeDemo: boolean }) {
@@ -71,7 +81,17 @@ async function fetchLibraryRows(userIds: string[], opts: { includeDemo: boolean 
       select: { userId: true, createdAt: true, space: { select: { slug: true, name: true, district: true, imageUrl: true, type: true, spaceTagLinks: { include: { tag: { include: { categoryRef: true } } } } } } },
     }),
   ]);
-  return { entries, records, savedEds, savedOps };
+  // 운영 공간(Cube 방문 · Cube 상세 저장)에 같은 slug의 공개 상세가 있는지 — 있으면 카드가 상세 창으로 열린다
+  const opSlugs = [...new Set([...records.map((r) => r.space.slug), ...savedOps.map((s) => s.space.slug)])];
+  const publicSlugs = new Set(
+    opSlugs.length === 0
+      ? []
+      : (await prisma.editorialSpace.findMany({
+          where: { slug: { in: opSlugs }, status: "PUBLISHED", ...(opts.includeDemo ? {} : publicSpaceFilter()) },
+          select: { slug: true },
+        })).map((r) => r.slug),
+  );
+  return { entries, records, savedEds, savedOps, publicSlugs };
 }
 
 type LibraryRows = Awaited<ReturnType<typeof fetchLibraryRows>>;
@@ -90,7 +110,7 @@ export async function getLibraries(userIds: string[], opts: { includeDemo: boole
   const spaceVisible = (sp: { status: string; isDemo: boolean; slug: string } | null) => !!sp && sp.status === "PUBLISHED" && (opts.includeDemo || spaceUsable(sp));
   for (const id of userIds) {
     out.set(id, assembleLibrary(spaceVisible, {
-      entries: gEntries.get(id) ?? [], records: gRecords.get(id) ?? [], savedEds: gEds.get(id) ?? [], savedOps: gOps.get(id) ?? [],
+      entries: gEntries.get(id) ?? [], records: gRecords.get(id) ?? [], savedEds: gEds.get(id) ?? [], savedOps: gOps.get(id) ?? [], publicSlugs: rows.publicSlugs,
     }));
   }
   return out;
@@ -102,7 +122,7 @@ export async function getLibrary(userId: string, opts: { includeDemo: boolean })
 
 function assembleLibrary(
   spaceVisible: (sp: { status: string; isDemo: boolean; slug: string } | null) => boolean,
-  { entries, records, savedEds, savedOps }: LibraryRows,
+  { entries, records, savedEds, savedOps, publicSlugs }: LibraryRows,
 ): LibraryItem[] {
   const items = new Map<string, LibraryItem>();
   const touch = (key: string, base: () => LibraryItem): LibraryItem => {
@@ -122,7 +142,7 @@ function assembleLibrary(
       meta: [e.placeArea ?? linked?.area, linked?.category].filter(Boolean).join(" · "),
       cover: null, coverIsMine: false, visited: false, saved: false, visitCount: 0, cubeVisits: 0, photoCount: 0,
       lastAt: e.updatedAt, tags: [], personal: !linked, demo: !!linked?.isDemo,
-      source: e.sourceKind === "MANUAL" || e.sourceKind === "PHOTO" ? null : SOURCE_KIND_LABEL[e.sourceKind],
+      source: e.sourceKind === "MANUAL" || e.sourceKind === "PHOTO" ? null : SOURCE_KIND_LABEL[e.sourceKind], slug: null,
     }));
     if (e.photos[0]) { it.cover = e.photos[0].url; it.coverIsMine = true; }
     else if (!it.cover && linked?.coverImage) it.cover = linked.coverImage;
@@ -138,7 +158,7 @@ function assembleLibrary(
     const key = `s-${r.space.slug}`;
     const it = touch(key, () => ({
       key, name: r.space.name, area: r.space.district, meta: [r.space.district, resolveSpaceTypeLabel(r.space.spaceTagLinks, r.space.type)].filter(Boolean).join(" · "),
-      cover: null, coverIsMine: false, visited: true, saved: false, visitCount: 0, cubeVisits: 0, photoCount: 0, lastAt: r.visitedAt, tags: [], personal: false, demo: false, source: null,
+      cover: null, coverIsMine: false, visited: true, saved: false, visitCount: 0, cubeVisits: 0, photoCount: 0, lastAt: r.visitedAt, tags: [], personal: false, demo: false, source: null, slug: null,
     }));
     it.visited = true;
     it.cubeVisits += 1;
@@ -151,7 +171,7 @@ function assembleLibrary(
     const key = `s-${s.space.slug}`;
     const it = touch(key, () => ({
       key, name: s.space.name, area: s.space.area, meta: [s.space.area, s.space.category].filter(Boolean).join(" · "),
-      cover: null, coverIsMine: false, visited: false, saved: true, visitCount: 0, cubeVisits: 0, photoCount: 0, lastAt: s.createdAt, tags: [], personal: false, demo: s.space.isDemo, source: null,
+      cover: null, coverIsMine: false, visited: false, saved: true, visitCount: 0, cubeVisits: 0, photoCount: 0, lastAt: s.createdAt, tags: [], personal: false, demo: s.space.isDemo, source: null, slug: null,
     }));
     it.saved = true;
     if (!it.cover && s.space.coverImage) it.cover = s.space.coverImage;
@@ -162,12 +182,18 @@ function assembleLibrary(
     const key = `s-${s.space.slug}`;
     const it = touch(key, () => ({
       key, name: s.space.name, area: s.space.district, meta: [s.space.district, resolveSpaceTypeLabel(s.space.spaceTagLinks, s.space.type)].filter(Boolean).join(" · "),
-      cover: null, coverIsMine: false, visited: false, saved: true, visitCount: 0, cubeVisits: 0, photoCount: 0, lastAt: s.createdAt, tags: [], personal: false, demo: false, source: null,
+      cover: null, coverIsMine: false, visited: false, saved: true, visitCount: 0, cubeVisits: 0, photoCount: 0, lastAt: s.createdAt, tags: [], personal: false, demo: false, source: null, slug: null,
     }));
     it.saved = true;
     if (!it.cover && s.space.imageUrl) it.cover = s.space.imageUrl;
     it.lastAt = later(it.lastAt, s.createdAt);
   }
+
+  // 공개 상세가 있는 공간 — 연결된 공개 공간(기록 · 저장) 또는 같은 slug의 공개 상세가 있는 운영 공간
+  const detailSlugs = new Set<string>(publicSlugs);
+  for (const e of entries) if (e.space && spaceVisible(e.space)) detailSlugs.add(e.space.slug);
+  for (const s of savedEds) detailSlugs.add(s.space.slug);
+  for (const it of items.values()) it.slug = it.key.startsWith("s-") && detailSlugs.has(it.key.slice(2)) ? it.key.slice(2) : null;
 
   // 다녀온 곳은 "저장"보다 "다녀옴"이 대표 상태다(둘 다 참일 수 있지만 필터는 아래 filterLibrary에서 구분).
   return [...items.values()].sort((a, b) => b.lastAt.getTime() - a.lastAt.getTime());
@@ -185,13 +211,23 @@ export function parseLibraryFilter(sp: { view?: string; q?: string; area?: strin
   return { view, q: (sp.q ?? "").trim().slice(0, 40), area: normalizeArea(sp.area), tag: sp.tag?.trim().slice(0, 20) || null };
 }
 
-/** 순수 필터 — 보기(전체/다녀온/저장한) · 이름 · 지역 · 내 태그. 저장한 공간 = 아직 다녀오지 않은 곳. */
+/**
+ * 기본 보기 — "다녀왔어요"가 저장보다 중요한 상태라 먼저 보여 준다. 다녀온 공간이 아직 없으면 저장을, 둘 다 없으면 다녀왔어요(빈 상태 안내)를.
+ * 주소에 ?view=가 있으면 그 값이 우선이라 이 함수는 쓰지 않는다.
+ */
+export function defaultLibraryView(counts: { visited: number; saved: number }): LibraryView {
+  if (counts.visited > 0) return "visited";
+  return counts.saved > 0 ? "saved" : "visited";
+}
+
+/** 순수 필터 — 보기(전체/다녀왔어요/저장) · 이름 · 지역 · 내 태그. 저장 = 아직 다녀오지 않은 곳. 전체 보기에서는 다녀온 공간이 저장한 공간보다 앞(각각 최근 활동 순). */
 export function filterLibrary(items: LibraryItem[], f: LibraryFilter): LibraryItem[] {
   const needle = compactName(f.q);
-  return items.filter((it) =>
+  const list = items.filter((it) =>
     (f.view === "all" || (f.view === "visited" ? it.visited : it.saved && !it.visited)) &&
     (!needle || compactName(it.name).includes(needle)) &&
     (!f.area || normalizeArea(it.area) === f.area) &&
     (!f.tag || it.tags.includes(f.tag)),
   );
+  return f.view === "all" ? [...list].sort((a, b) => Number(b.visited) - Number(a.visited) || b.lastAt.getTime() - a.lastAt.getTime()) : list;
 }

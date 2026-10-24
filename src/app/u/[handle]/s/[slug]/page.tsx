@@ -57,7 +57,7 @@ export default async function PublicRecordPage({ params }: Props) {
               </p>
               <h1 className="text-[36px] md:text-[52px] font-bold leading-[1.05] tracking-[-0.04em] break-keep">{r.space.name}</h1>
               <p className="text-sm" style={{ color: "var(--ed-dim)" }}>
-                {r.profile.name}{hasBatchim(r.profile.name) ? "이" : "가"} {r.visited ? "다녀온 곳" : "가보고 싶은 곳"}
+                {r.profile.name}{hasBatchim(r.profile.name) ? "이" : "가"} {r.visited ? "다녀온 곳" : "저장한 곳"}
                 {r.month && <span className="tabular-nums"> · {r.month}</span>}
               </p>
             </div>

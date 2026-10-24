@@ -7,18 +7,19 @@
    - 이유 문구는 실제로 겹친 속성 이름으로만 만든다. AI·임의 점수 없음.
    순수 함수 — Prisma 의존 없음(단위 테스트: discoveryRecommend.test.ts). ── */
 
-/** 방문 1건(취향 점수 반영) 대비 저장 1건의 무게 — 저장은 "가보고 싶다"는 중간 신호. */
-export const SAVE_WEIGHT = 2;
+/** 저장 1건의 무게 — 저장은 "관심 표시"라 다녀왔어요(실제 경험)보다 약한 신호(2026-10-24: 2 → 1.5, 다녀왔어요를 더 중요하게). */
+export const SAVE_WEIGHT = 1.5;
 
 /**
  * 개인 아카이브 신호 무게(단순 고정값). 기준: Cube 방문 Record는 취향 점수(1~5) × 태그 가중치(보통 1)라 3~5.
- * - 직접 추가(가보고 싶어요): 공간큐브 안에서 저장(2)보다 조금 강한 관심 → 2.5
- * - 다녀왔어요(직접 기록한 실제 경험): 점수 없는 방문의 중립값 → 3 (Cube로 검증된 방문은 점수 반영으로 더 클 수 있음)
+ * - 저장(아카이브에서 직접 추가): 관심 표시일 뿐이라 공간큐브 안의 저장과 같은 1.5
+ * - 다녀왔어요(직접 기록한 실제 경험): 저장보다 분명히 강한 신호 → 4 (Cube로 검증된 방문은 점수 반영으로 더 클 수 있음)
+ * 같은 공간이 저장 + 다녀왔어요면 다녀왔어요 기록 하나만 센다(discoverySignals.ts) — 저장 신호는 더해지지 않는다.
  * - 사용자가 직접 고른 태그: 명시적 취향 신호 → 기록 무게 위에 +1을 더 얹는다
  * 연결된 공간이 없는 개인 기록은 사용자가 고른 태그만 쓴다(공간 특징을 추측하지 않음).
  */
-export const ARCHIVE_SAVED_WEIGHT = 2.5;
-export const ARCHIVE_VISITED_WEIGHT = 3;
+export const ARCHIVE_SAVED_WEIGHT = 1.5;
+export const ARCHIVE_VISITED_WEIGHT = 4;
 export const EXPLICIT_TAG_BONUS = 1;
 
 export function attrKey(name: string): string {

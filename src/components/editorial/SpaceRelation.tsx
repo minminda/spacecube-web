@@ -19,8 +19,6 @@ interface Props {
   hasEntry: boolean;
   /** 아카이브 상세 주소(/archive/p/s-<slug>) */
   archiveHref: string;
-  /** 임시(fixture) 공간 — 서버에 요청하지 않는다 */
-  mock?: boolean;
 }
 
 /**
@@ -33,7 +31,7 @@ interface Props {
  * 이때 상태는 로그인한 계정 기준으로 서버가 다시 그린 값(initialSaved · initialVisits)으로 판단한다 —
  * 이미 저장된 곳이면 저장 요청 없이 안내만, 이미 다녀온 곳(내 기록 · Cube 방문 1회 이상)이면 방문을 더 만들지 않는다.
  */
-export default function SpaceRelation({ spaceId, spaceName, loggedIn, initialSaved, initialVisits, hasEntry, archiveHref, mock }: Props) {
+export default function SpaceRelation({ spaceId, spaceName, loggedIn, initialSaved, initialVisits, hasEntry, archiveHref }: Props) {
   const [saved, setSaved] = useState(initialSaved);
   const [visits, setVisits] = useState(initialVisits);
   const [entry, setEntry] = useState(hasEntry);
@@ -57,11 +55,6 @@ export default function SpaceRelation({ spaceId, spaceName, loggedIn, initialSav
 
   async function addVisit() {
     const first = action === "first";
-    if (mock) {
-      setVisits((v) => v + 1);
-      if (!first) setAdded({ entryId: "mock", visitId: "mock" });
-      return;
-    }
     const res = await fetch("/api/archive/entries", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -81,16 +74,14 @@ export default function SpaceRelation({ spaceId, spaceName, loggedIn, initialSav
   }
 
   async function undoVisit(target: { entryId: string; visitId: string }) {
-    if (!mock) {
-      const res = await fetch(`/api/archive/entries/${encodeURIComponent(target.entryId)}/visits`, {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ visitId: target.visitId }),
-      });
-      if (res.status === 401) return toLogin();
-      const data = (await res.json().catch(() => ({}))) as { error?: string };
-      if (!res.ok) throw new Error(data.error ?? "취소하지 못했어요.");
-    }
+    const res = await fetch(`/api/archive/entries/${encodeURIComponent(target.entryId)}/visits`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ visitId: target.visitId }),
+    });
+    if (res.status === 401) return toLogin();
+    const data = (await res.json().catch(() => ({}))) as { error?: string };
+    if (!res.ok) throw new Error(data.error ?? "취소하지 못했어요.");
     setVisits((v) => Math.max(v - 1, 0));
     setAdded(null);
     setMessage("방금 남긴 방문을 취소했어요.");
@@ -98,8 +89,7 @@ export default function SpaceRelation({ spaceId, spaceName, loggedIn, initialSav
 
   async function onVisitClick() {
     if (inFlight.current) return;
-    // 시연용 공간(mock)도 실제 공간처럼 로그인이 필요하다 — 의도(저장 · 방문 자동 완료)는 싣지 않는다(서버에 없는 공간)
-    if (!loggedIn) return toLogin(mock ? undefined : "visited");
+    if (!loggedIn) return toLogin("visited");
     inFlight.current = true;
     setBusy(true);
     setError(null);
@@ -107,6 +97,8 @@ export default function SpaceRelation({ spaceId, spaceName, loggedIn, initialSav
     try {
       if (added) await undoVisit(added);
       else await addVisit();
+      // 뒤에 깔린 화면(내 공간 · 검색 · HOME)의 저장 · 다녀왔어요 표시가 창을 닫았을 때 오래된 값이 아니게
+      router.refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : added ? "취소하지 못했어요." : "기록하지 못했어요.");
     } finally {
@@ -142,6 +134,7 @@ export default function SpaceRelation({ spaceId, spaceName, loggedIn, initialSav
         await addVisit();
         setMessage("다녀온 곳으로 남겼어요. 날짜 · 사진 · 메모는 내 기록에서 더할 수 있어요.");
       }
+      router.refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : "기록하지 못했어요.");
     } finally {
@@ -151,7 +144,7 @@ export default function SpaceRelation({ spaceId, spaceName, loggedIn, initialSav
   }
 
   useEffect(() => {
-    if (mock || intentChecked.current) return;
+    if (intentChecked.current) return;
     intentChecked.current = true;
     // 주소의 일회용 번호를 지우고 기기 기록도 지운 뒤 맞을 때만 — 새로고침 · 뒤로가기로 다시 실행되지 않는다
     const kind = takePendingIntent(spaceId);
@@ -162,7 +155,7 @@ export default function SpaceRelation({ spaceId, spaceName, loggedIn, initialSav
 
   const savedLike = saved || entry;
   const text = relationText(visits, savedLike);
-  const linkable = !mock && hasArchiveRecord(visits, savedLike);
+  const linkable = hasArchiveRecord(visits, savedLike);
   const on = action === "undo";
   const note = error ?? message;
 
@@ -186,8 +179,7 @@ export default function SpaceRelation({ spaceId, spaceName, loggedIn, initialSav
           initialSaved={saveKey > 0 ? saved : initialSaved}
           loggedIn={loggedIn}
           variant="text"
-          mock={mock}
-          onChange={setSaved}
+          onChange={(v) => { setSaved(v); router.refresh(); }}
           loginHref={() => loginHrefWithIntent("save", spaceId)}
         />
         <button

@@ -121,7 +121,7 @@ export default function ArchiveAddSheet({ className = "ed-btn ed-btn-primary" }:
 
   const mine = picked?.mine ?? { kind: "none" as const };
   const visitedLabel = mine.kind === "visited" ? "또 다녀왔어요" : "다녀왔어요";
-  const savedLabel = mine.kind === "visited" ? "메모만 고칠게요" : mine.kind === "saved" ? "가보고 싶어요 (그대로)" : "가보고 싶어요";
+  const savedLabel = mine.kind === "visited" ? "메모만 고칠게요" : mine.kind === "saved" ? "저장 (그대로)" : "저장";
 
   async function saveDirect() {
     if (!choice || !directName.trim()) return;
@@ -277,7 +277,7 @@ export default function ArchiveAddSheet({ className = "ed-btn ed-btn-primary" }:
                               <span className="block text-xs truncate" style={{ color: "var(--ed-dim)" }}>{[r.area, r.category].filter(Boolean).join(" · ")}</span>
                             </span>
                             <span className="shrink-0 text-xs font-semibold">
-                              {r.mine.kind === "visited" ? "다녀온 곳" : r.mine.kind === "saved" ? "저장한 곳" : "선택"}
+                              {r.mine.kind === "visited" ? "다녀왔어요" : r.mine.kind === "saved" ? "저장" : "선택"}
                             </span>
                           </button>
                         </li>
@@ -325,7 +325,7 @@ export default function ArchiveAddSheet({ className = "ed-btn ed-btn-primary" }:
                   <div className="space-y-2">
                     <p className="text-sm font-semibold">이 공간을 어떻게 기록할까요?</p>
                     <div className="grid grid-cols-2" role="radiogroup" aria-label="기록 방식">
-                      {([["SAVED", "가보고 싶어요"], ["VISITED", "다녀왔어요"]] as const).map(([v, label]) => (
+                      {([["VISITED", "다녀왔어요"], ["SAVED", "저장"]] as const).map(([v, label]) => (
                         <button key={v} type="button" role="radio" aria-checked={choice === v} onClick={() => setChoice(v)} className="h-12 text-sm font-semibold" style={chip(choice === v)}>
                           {label}
                         </button>
@@ -371,7 +371,7 @@ export default function ArchiveAddSheet({ className = "ed-btn ed-btn-primary" }:
 
                   {mine.kind !== "none" && (
                     <p className="text-sm py-3 px-4 leading-relaxed" style={{ background: "var(--ed-soft)" }}>
-                      {mine.kind === "visited" ? `이미 다녀온 공간이에요 · ${mine.visits}번` : "이미 가보고 싶은 곳에 있어요"}
+                      {mine.kind === "visited" ? `이미 다녀왔어요 · ${mine.visits}번` : "이미 저장한 공간이에요"}
                       <span style={{ color: "var(--ed-dim)" }}> · </span>
                       <Link href={`/archive/p/s-${picked.slug}`} onClick={close} className="underline underline-offset-4">기록 보기</Link>
                     </p>

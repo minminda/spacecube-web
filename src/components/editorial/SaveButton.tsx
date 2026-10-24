@@ -11,8 +11,6 @@ interface Props {
   loggedIn: boolean;
   /** icon: 글 옆 작은 아이콘 / corner: 카드 사진 모서리 아이콘 / text: 텍스트 버튼 / detail: 공간 상세 대표 이미지 우측 상단 아이콘 */
   variant?: "icon" | "corner" | "text" | "detail";
-  /** 임시(fixture) 공간 — 서버에 요청하지 않고 화면 안에서만 켜고 끈다 */
-  mock?: boolean;
   /** 저장 상태가 확정될 때(서버 응답 · 임시 공간 토글) — 같은 화면의 상태 문장을 맞출 때만 넘긴다 */
   onChange?: (saved: boolean) => void;
   /** 비로그인일 때 보낼 로그인 주소(공간 상세는 로그인 후 저장을 이어서 끝내도록 의도를 실어 보낸다 — pendingIntent.ts). 없으면 기존처럼 지금 주소로 복귀만 */
@@ -26,7 +24,7 @@ const ICON_SIZE = { icon: 18, corner: 14, text: 16, detail: 22 } as const;
  * 요청이 진행 중일 때 다시 누르면 무시해 순서가 뒤바뀐 응답으로 화면과 DB가 어긋나지 않게 한다.
  * 실패하면 원래 상태로 되돌리고 짧게 알린다. 비로그인이면 로그인 후 같은 페이지로 돌아온다.
  */
-export default function SaveButton({ spaceId, spaceName, initialSaved, loggedIn, variant = "icon", mock, onChange, loginHref }: Props) {
+export default function SaveButton({ spaceId, spaceName, initialSaved, loggedIn, variant = "icon", onChange, loginHref }: Props) {
   const [saved, setSaved] = useState(initialSaved);
   const [error, setError] = useState(false);
   const inFlight = useRef(false);
@@ -39,16 +37,6 @@ export default function SaveButton({ spaceId, spaceName, initialSaved, loggedIn,
     e.stopPropagation();
     // 로그인 후 돌아올 곳은 검색어·지역까지 포함한 지금 주소(/find?area=망원 → 로그인 → 같은 화면)
     const here = `${pathname}${window.location.search}`;
-    if (mock) {
-      // 시연용 공간도 실제 공간처럼 로그인이 필요하다(같은 행동 규칙). 로그인한 뒤의 저장은 화면 안에서만 바뀐다 — 서버에 기록하지 않는다.
-      if (!loggedIn) {
-        router.push(`/login?callbackUrl=${encodeURIComponent(here)}`);
-        return;
-      }
-      setSaved(!saved);
-      onChange?.(!saved);
-      return;
-    }
     const toLogin = () => router.push(loginHref ? loginHref() : `/login?callbackUrl=${encodeURIComponent(here)}`);
     if (!loggedIn) {
       toLogin();

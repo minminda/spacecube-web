@@ -8,10 +8,22 @@ import type { Prisma } from "@prisma/client";
 import { ENABLE_PUBLIC_DEMO_SPACES } from "@/lib/features";
 
 export const DEMO_SPACE_SLUG_PREFIX = "demo-";
+/** 시연 컬렉션에 더한 "실제 장소의 일반 공간"(Partner 아님 · Cube/Episode 없음). 접두어가 "demo-"로 시작하므로 같은 공개 경로를 쓰고, 화면 문구만 가상 공간과 다르다. */
+export const EXTENDED_SPACE_SLUG_PREFIX = "demo-ext-";
 
 /** 일반 사용자에게 열어 준 시연용 공개 가상 공간인가 */
 export function isPublicDemoSpace(sp: { isDemo: boolean; slug: string }): boolean {
   return ENABLE_PUBLIC_DEMO_SPACES && sp.isDemo && sp.slug.startsWith(DEMO_SPACE_SLUG_PREFIX);
+}
+
+/** 시연 컬렉션용 확장 공간(실제 장소 · Partner 아님)인가 — 가상 공간과 문구를 구분할 때 쓴다 */
+export function isExtendedSpace(slug: string | null | undefined): boolean {
+  return !!slug && slug.startsWith(EXTENDED_SPACE_SLUG_PREFIX);
+}
+
+/** 카드의 작은 출처 표시 — 가상 공간은 "시연용 공간", 실제 장소를 더한 확장 공간은 "시연 컬렉션" */
+export function demoBadge(slug: string | null | undefined): string {
+  return isExtendedSpace(slug) ? "시연 컬렉션" : "시연용 공간";
 }
 
 /** 일반 사용자 화면에서 쓸 수 있는 공간인가 — 실제 공간이거나 시연용 공개 가상 공간 */

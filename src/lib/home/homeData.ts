@@ -44,6 +44,8 @@ const LATEST_COUNT = 5;
 const PER_SHELF = 12;
 /** 개인화 순위를 "충분하다"고 볼 최소 공간 수 — 미만이면 둘러보기 Fallback */
 const MIN_PERSONAL = 6;
+/** 한 공간이 HOME에서 2회까지만 나오게 자르고 난 뒤, 이보다 카드가 적게 남는 선반은 보이지 않게 한다 */
+const MIN_SHELF_CARDS = 4;
 /** 날짜(KST) 단위 seed — 하루 동안은 새로고침해도 같은 순서, 날이 바뀌면 다른 조합 */
 const kstDateKey = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" }).format(new Date());
 /** 선반이 중복을 피해 고를 수 있도록 먼저 만들어 두는 후보 수(화면에는 PER_SHELF까지만) */
@@ -291,6 +293,11 @@ export async function getHomeData(opts: { userId: string | null; admin: boolean;
     ],
   });
 
+  // 반복 제한으로 비워진 선반은 내보내지 않는다
+  const kept = <T extends { cards: unknown[] }>(s: T | null): T | null => (s && s.cards.length > 0 ? s : null);
+  const keptShelves = spaceShelves.filter((s) => s.cards.length > 0);
+  for (const [k, v] of Object.entries(editorialShelves)) if (v.cards.length === 0) delete editorialShelves[k];
+
   return {
     // LATEST — 이미지가 카드 비율에 맞는(가로형 · 충분한 해상도) 최신 콘텐츠를, 종류가 쏠리지 않고 같은 이미지가 반복되지 않게 고른다(latestPick.ts)
     latest: pickLatest(stream, LATEST_COUNT),
@@ -299,18 +306,18 @@ export async function getHomeData(opts: { userId: string | null; admin: boolean;
     areaEmpty: !!area && inArea.length === 0,
     regionLocked: regionMode,
     areaCounts: area ? { spaces: inArea.length, curations: areaRow?.curationCount ?? areaCurations.length } : null,
-    forYou,
+    forYou: kept(forYou),
     personalized: usePersonal,
-    interest,
-    similar,
+    interest: kept(interest),
+    similar: kept(similar),
     similarPeople: similarCards.length >= 2 ? similarRaw.people : [],
     savedRegions,
-    saved,
-    revisit,
-    spaceShelves,
+    saved: kept(saved),
+    revisit: kept(revisit),
+    spaceShelves: keptShelves,
     curations: areaCurations.slice(0, 10),
     stories: visible(stories).slice(0, 10),
-    cubeSpaces,
+    cubeSpaces: kept(cubeSpaces),
     savedIds: me.savedIds,
     loggedIn: !!opts.userId,
     plan,
@@ -353,7 +360,7 @@ export function diversifyHome(input: { plan: PlanItem[]; shelves: DiversityEntry
   const visible = entries.map((e, idx) => ({ e, idx })).filter((x) => rank(x.e) !== Number.MAX_SAFE_INTEGER).sort((a, b) => rank(a.e) - rank(b.e) || a.idx - b.idx).map((x) => x.e);
   // 엄선한 공간은 계획상 어디에 있든 먼저 센다 — 새롭게 소개한 공간이 그만큼 덜 노출된 공간을 먼저 고르도록
   visible.sort((a, b) => Number(b.shelf.key === "for-you") - Number(a.shelf.key === "for-you"));
-  const result = diversifyShelves(visible.map((e) => ({ key: e.shelf.key, strength: e.strength, limit: e.limit, cards: e.shelf.cards })), (c) => c.space.id);
+  const result = diversifyShelves(visible.map((e) => ({ key: e.shelf.key, strength: e.strength, limit: e.limit, cards: e.shelf.cards })), (c) => c.space.id, { hardCap: true, minCards: MIN_SHELF_CARDS });
   result.forEach((r, i) => { visible[i].shelf.cards = r.cards; });
   // 보이지 않는 선반은 화면 수만큼만
   for (const e of entries) if (!visible.includes(e)) e.shelf.cards = e.shelf.cards.slice(0, e.limit);

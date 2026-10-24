@@ -19,7 +19,7 @@ import { getMySpaceState } from "@/lib/archive/entries";
 import { libraryHref } from "@/lib/archive/library";
 import { getPartnerEpisodes } from "@/lib/editorial/partnerEpisodes";
 import PartnerEpisodeList from "@/components/editorial/PartnerEpisodeList";
-import { isPublicDemoSpace } from "@/lib/demoSpaces";
+import { demoBadge, isExtendedSpace, isPublicDemoSpace } from "@/lib/demoSpaces";
 import { normalizeArea } from "@/lib/editorial/area";
 import { INSTAGRAM_URL } from "@/content/site";
 import { curatorAccess } from "@/lib/curators/access";
@@ -90,7 +90,11 @@ export default async function SpaceDetail({ slug, presentation }: Props) {
   return (
     <div className={modal ? "ed-modal-body" : "editorial-bleed"}>
       {publicDemo ? (
-        <p className="ed-container pt-3 text-xs" style={{ color: "var(--ed-dim)" }}>시연용 공간 — 공간큐브를 보여 주기 위해 만든 가상 공간이며 실제 장소가 아닙니다. 지역 &ldquo;망원&rdquo;은 시연용 분류예요.</p>
+        isExtendedSpace(space.slug) ? (
+          <p className="ed-container pt-3 text-xs" style={{ color: "var(--ed-dim)" }}>시연 컬렉션 — 망원 시연을 위해 등록한 실제 장소의 일반 공간이에요. 공간큐브 QR · Episode는 아직 없고, 등록된 정보만 보여 드려요.</p>
+        ) : (
+          <p className="ed-container pt-3 text-xs" style={{ color: "var(--ed-dim)" }}>시연용 공간 — 공간큐브를 보여 주기 위해 만든 가상 공간이며 실제 장소가 아닙니다. 지역 &ldquo;망원&rdquo;은 시연용 분류예요.</p>
+        )
       ) : space.isDemo ? <PrototypeBanner demo /> : <PreviewBanner status={space.status} editHref={`/admin/content/spaces/${space.id}`} />}
       {!space.isDemo && <DiscoveryTracker spaceId={space.id} />}
       <main className={modal ? "pt-14" : "relative pt-12 md:pt-8"}>
@@ -243,7 +247,7 @@ export default async function SpaceDetail({ slug, presentation }: Props) {
                     <span className="block min-w-0">
                       <span className="block text-[13px] font-semibold leading-snug truncate group-hover:underline underline-offset-4">{s.name}</span>
                       <span className="block text-xs truncate" style={{ color: "var(--ed-dim)" }}>
-                        {[normalizeArea(s.area) ?? s.area, s.isDemo ? "시연용 공간" : null].filter(Boolean).join(" · ")}
+                        {[normalizeArea(s.area) ?? s.area, s.isDemo ? demoBadge(s.slug) : null].filter(Boolean).join(" · ")}
                       </span>
                     </span>
                   </Link>

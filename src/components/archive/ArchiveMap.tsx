@@ -8,9 +8,9 @@ import type { MapMissing, MapPoint, MapState } from "@/lib/archive/libraryMap";
 
 /** 내 공간 지도 — 내 Archive(저장 · 다녀온 · 재방문)만 보여주는 보기. 주변 검색 · 현재 위치 · 장소 검색은 없다. */
 
-const LABEL: Record<MapState, string> = { saved: "저장", visited: "다녀온 곳", revisit: "또 간 곳" };
+const LABEL: Record<MapState, string> = { saved: "저장", visited: "다녀왔어요", revisit: "또 갔어요" };
 const STATUS_TEXT = (p: MapPoint) =>
-  p.state === "saved" ? "가보고 싶은 곳" : p.state === "revisit" ? `또 간 곳 · ${p.visitCount}번 방문` : "다녀온 곳";
+  p.state === "saved" ? "저장" : p.state === "revisit" ? `또 갔어요 · ${p.visitCount}번 방문` : "다녀왔어요";
 
 // 색만으로 구분하지 않는다 — 저장: 속이 빈 원 / 다녀온 곳: 채운 원 / 또 간 곳: 채운 원 + 바깥 링 + 가운데 점
 const SVG: Record<MapState, string> = {
