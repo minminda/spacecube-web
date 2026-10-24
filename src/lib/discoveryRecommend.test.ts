@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  ARCHIVE_VISITED_WEIGHT, EXPLICIT_TAG_BONUS,
+  ARCHIVE_SAVED_WEIGHT, ARCHIVE_VISITED_WEIGHT, EXPLICIT_TAG_BONUS,
   SAVE_WEIGHT, attrKey, buildTasteProfile, candidateAttributes, discoveryReason, isEmptyProfile,
   profileSummary, rankDiscovery, topAttributes,
 } from "./discoveryRecommend";
@@ -74,5 +74,13 @@ describe("개인 아카이브 신호", () => {
     expect(p.weights.get("조용한")).toBe(ARCHIVE_VISITED_WEIGHT + EXPLICIT_TAG_BONUS);
     expect(p.visitCount).toBe(1);
     expect(p.saveCount).toBe(0);
+  });
+});
+
+describe("다녀왔어요가 저장보다 강한 신호", () => {
+  it("아카이브 다녀왔어요 · 일반 저장 · 아카이브 저장 순으로 무겁다", () => {
+    expect(ARCHIVE_VISITED_WEIGHT).toBeGreaterThan(ARCHIVE_SAVED_WEIGHT);
+    expect(ARCHIVE_VISITED_WEIGHT).toBeGreaterThan(SAVE_WEIGHT);
+    expect(SAVE_WEIGHT).toBeGreaterThanOrEqual(ARCHIVE_SAVED_WEIGHT);
   });
 });
