@@ -1,23 +1,14 @@
 # Claude Code Latest Handoff
 
-Updated: 2026-10-24 · 심사위원 시연 UX 보완 · 확장 공간 9곳 · 내 공간 다녀왔어요 우선
+Updated: 2026-10-24 · HOME 상단 원상복구 · LATEST 5개 순서 고정
 
 ## 완료
-- **내 공간(`/archive`)**: 탭 다녀왔어요 · 저장 · 전체(기본 다녀왔어요, 없으면 저장), 상단 요약에서 다녀왔어요를 크게, 전체 보기는 다녀온 공간이 앞, 카드 메타 "다녀왔어요 / N번 다녀왔어요 / 저장". 같은 공간이 저장 + 다녀왔어요면 다녀왔어요에만. 빈 상태 안내 탭별. 라벨을 상세 CTA와 통일(지도 · 공간 추가 시트 포함).
-- **상세 창 통일**: 시연 공간은 HOME · 검색에서는 이미 창으로 열렸고(운영 확인), 페이지로 튀던 곳은 내 공간 카드(`/archive/p/…`)였다 → `libraryOpenHref`: 공개 상세가 있는 공간(실제 · 시연 · 확장)은 `/spaces/[slug]`(데스크톱 창, 휴대폰은 기존대로 전체 페이지), 개인 기록 · 상세 없는 운영 공간만 내 기록 상세. 상세의 저장/다녀왔어요 후 `router.refresh()`로 뒤 화면 갱신.
-- **확장 공간 9곳**(운영 DB 적용 완료): 테일탱고 · 사일로 상점 · 테라픽 잼 · 고리 · 시도플레이스 · 덴마크 서재 · 컷더케이크 · 구스커피앤바 · 브라운 프론트 도어. 원본은 DB의 비활성 운영 Space 행(새 업로드 없음), EditorialSpace `isDemo=true` + slug `demo-ext-*`, 카드 "시연 컬렉션". 제외: 별관(제3자 워터마크), 뮤직컴플렉스(인사동), 라이팅룸(인사말 소개). 출처 · 복구: `docs/extended-spaces-2026-10-24.md` (`scripts/seed-extended-spaces.ts --archive/--delete`).
-- **HOME**: 한 공간 최대 2회(`diversifyShelves` hardCap) + 4장 미만 선반 숨김 → 운영 실측 카드 63 → 42, 고유 17 → 25, 공간 선반 12 → 5, 선반별 공간당 ≤2. 서비스 한 줄 정의 + 공간큐브 소개 링크.
-- **추천**: 아카이브 다녀왔어요 무게 3 → 4, 저장 2/2.5 → 1.5(방문이 저장보다 강함, 테스트 추가). 알고리즘 구조는 그대로.
-- `SaveButton`/`SpaceRelation`의 `mock`(화면에서만 바뀌는 저장) 분기 제거.
+- **HOME 상단**: 서비스 한 줄 정의 두 문구 + "공간큐브 소개 →" 버튼(`/about` 링크) 섹션 전체 제거(`src/app/EditorialHome.tsx`). 소개 섹션 이전 레이아웃(LATEST가 맨 위)으로 복원. `/about` 페이지 · 푸터/내비/Experience 영역의 소개 링크는 그대로.
+- **LATEST 고정**: `src/lib/home/latestPick.ts`의 `PINNED_LATEST_HREFS`(상세 주소로 식별) + `pinLatest()`. `homeData.ts`의 `latest`는 이 목록을 순서대로 쓴다. 발행일 · 이미지 적합도 · 개인화 · 랜덤과 무관, 로그인 여부와 무관. 순서: `/thought/demo-conditions-to-stay` → `/curation/demo-small-objects` → `/curation/places-for-music` → `/curation/mangwon-making` → `/curation/demo-solo-afternoon`.
+- 조회되지 않는 항목은 대체하지 않고 서버 로그 `console.warn("[home] LATEST 고정 콘텐츠를 찾지 못했어요…")`로 알리고 빠진다. 슬라이더(`LatestSlider`)는 변경 없음(시작 index 0, 자동 전환 순환).
+- 기존 `pickLatest`(이미지 적합도 선정)는 코드 · 테스트 유지, HOME에서만 쓰지 않는다.
+- 콘텐츠 · 발행 상태 · DB 변경 없음.
 
 ## 검증
-- tsc · eslint(변경 파일) · 전체 vitest · `next build` 통과. 코드 커밋 1411d7f, 배포 확인 후 seed 적용, 운영에서 HOME 문구 · 확장 공간 노출 · 검색("탱고") · 카드 클릭 → 상세 창(배너 "시연 컬렉션") 확인.
-- 실제 데이터로 `getLibrary`(데모 계정 하린) → 기본 보기 visited, 카드 링크가 `/spaces/<slug>`.
-- **미검증(로그인 필요)**: 비로그인 저장 → 로그인 → 복귀 → 저장 유지 → 내 공간 → 다녀왔어요 → 새로고침. 로그인 UI는 인증 정보 입력이 필요하고, 테스트 세션 쿠키를 직접 심는 방법은 자동 권한 검사에서 거부돼 수행하지 않음(만든 테스트 계정 · 세션은 즉시 삭제, 잔여 없음). 새 `/archive` 화면 렌더도 같은 이유로 미확인.
-
-## DB
-- 추가만: EditorialSpace 9행. 기존 행 · Partner · KPI 영향 없음(`isDemo=true`는 KPI 제외). 스키마 변경 없음.
-
-## 사용자 결정 / 다음
-- 로그인 흐름 실검증: 사용자가 내장 브라우저에서 직접 로그인하거나, 로컬 테스트 세션 쿠키 방식을 허용해야 함.
-- 이전 UX 감사 P1 중 이번에 하지 않은 것: 지역 "준비 중" 문구 통일, og:image, 로그인 화면 문구, CURATION 제목 위계, PEOPLE 001, 404 톤.
+- tsc · vitest(home 5파일 55개, `pinLatest` 테스트 2개 추가) · `next build` 통과.
+- 로컬 dev(실 DB): 소개 문구 · 버튼 없음, LATEST 5장 지정 순서, 휴대폰에서 01/05 · 망원 기본 · 검색창 정상.

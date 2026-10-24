@@ -122,19 +122,6 @@ export default async function EditorialHome({ admin, previewDrafts, fixtures, us
         </div>
       )}
       <main className="pb-6">
-        {/* ── 서비스 한 줄 정의 — 첫 화면에서 "이게 무슨 서비스인가"가 바로 읽히게(자세한 설명은 /about) ── */}
-        <section className="ed-wide pt-5 md:pt-8" aria-label="공간큐브 소개">
-          <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between md:gap-8">
-            <div className="min-w-0">
-              <p className="text-[19px] md:text-[28px] font-bold leading-snug tracking-[-0.03em] break-keep">공간을 발견하고, 이야기를 읽고, 취향으로 남기는 곳.</p>
-              <p className="pt-1.5 text-[13px] md:text-[15px] leading-relaxed break-keep" style={{ color: "var(--ed-dim)" }}>
-                공간에 도착한 뒤 더 깊이 바라보는 경험 &mdash; 발견 &rarr; 저장 &rarr; 방문 &rarr; 이야기 &rarr; 기록
-              </p>
-            </div>
-            <Link href="/about" className="ed-btn ed-btn-sm self-start md:self-auto shrink-0">공간큐브 소개 &rarr;</Link>
-          </div>
-        </section>
-
         {/* ── LATEST(Hero) ── */}
         {d.latest.length > 0 ? (
           <LatestSlider items={d.latest} allHref="/latest" containerClassName="ed-wide" />

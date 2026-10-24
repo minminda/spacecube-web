@@ -34,13 +34,18 @@ import {
 import { similarPeopleForHome, type SimilarPerson } from "@/lib/people/peopleData";
 import { ENABLE_PUBLIC_DEMO_SPACES } from "@/lib/features";
 import { hasValidImageSrc } from "@/lib/editorial/imageValid";
-import { pickLatest } from "./latestPick";
+import { pinLatest } from "./latestPick";
 import { diversifyShelves, type DiversityStrength } from "./diversity";
 import { buildShelfPlan, type PlanItem } from "./shelfConfig";
 import { loadShelfRows } from "./shelfData";
 import { applyThemeRules } from "./themeRules";
 
-const LATEST_COUNT = 5;
+function pinnedLatest(stream: ContentItem[]): ContentItem[] {
+  const { items, missing } = pinLatest(stream);
+  if (missing.length > 0) console.warn(`[home] LATEST 고정 콘텐츠를 찾지 못했어요(미발행 · 삭제 · 주소 변경 확인): ${missing.join(", ")}`);
+  return items;
+}
+
 const PER_SHELF = 12;
 /** 개인화 순위를 "충분하다"고 볼 최소 공간 수 — 미만이면 둘러보기 Fallback */
 const MIN_PERSONAL = 6;
@@ -300,7 +305,7 @@ export async function getHomeData(opts: { userId: string | null; admin: boolean;
 
   return {
     // LATEST — 이미지가 카드 비율에 맞는(가로형 · 충분한 해상도) 최신 콘텐츠를, 종류가 쏠리지 않고 같은 이미지가 반복되지 않게 고른다(latestPick.ts)
-    latest: pickLatest(stream, LATEST_COUNT),
+    latest: pinnedLatest(stream),
     areaOptions,
     area,
     areaEmpty: !!area && inArea.length === 0,

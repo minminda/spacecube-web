@@ -59,6 +59,27 @@ export function latestFit(src: string | null | undefined): LatestFit | "none" {
   return w >= GOOD_WIDTH ? "good" : "ok";
 }
 
+/** HOME LATEST에 고정 노출하는 콘텐츠(이 순서 그대로). 상세 주소로 식별한다 — 발행일 · 이미지 비율 · 개인화는 순서에 영향을 주지 않는다. */
+export const PINNED_LATEST_HREFS: readonly string[] = [
+  "/thought/demo-conditions-to-stay",
+  "/curation/demo-small-objects",
+  "/curation/places-for-music",
+  "/curation/mangwon-making",
+  "/curation/demo-solo-afternoon",
+];
+
+/** 고정 목록 순서대로 stream에서 찾는다. 조회되지 않는 항목은 다른 콘텐츠로 대체하지 않고 missing으로 알린다. */
+export function pinLatest(stream: ContentItem[], hrefs: readonly string[] = PINNED_LATEST_HREFS): { items: ContentItem[]; missing: string[] } {
+  const items: ContentItem[] = [];
+  const missing: string[] = [];
+  for (const href of hrefs) {
+    const found = stream.find((i) => i.href === href);
+    if (found) items.push(found);
+    else missing.push(href);
+  }
+  return { items, missing };
+}
+
 /** stream: 최신순으로 정렬된 콘텐츠. 최근 windowSize개 안에서 n개를 고른다(오래된 콘텐츠를 끌어올리지 않는다). */
 export function pickLatest(stream: ContentItem[], n: number, windowSize = 24): ContentItem[] {
   const candidates = stream

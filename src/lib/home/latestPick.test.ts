@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import sharp from "sharp";
 import type { ContentItem } from "@/lib/editorial/types";
-import { KNOWN_SIZES, latestFit, pickLatest } from "./latestPick";
+import { KNOWN_SIZES, PINNED_LATEST_HREFS, latestFit, pickLatest, pinLatest } from "./latestPick";
 
 const item = (key: string, kind: ContentItem["kind"], src: string | null): ContentItem => ({
   key, kind, eyebrow: key, label: key, title: key, href: `/${key}`, image: { src, alt: key }, date: "", status: "PUBLISHED",
@@ -59,5 +59,21 @@ describe("pickLatest", () => {
   it("최근 windowSize개 안에서만 고른다(오래된 콘텐츠를 끌어올리지 않는다)", () => {
     const list = [item("p1", "curation", P), item("p2", "curation", P), item("old", "thought", A)];
     expect(pickLatest(list, 5, 2)).toEqual([]);
+  });
+});
+
+describe("pinLatest", () => {
+  const mk = (href: string) => ({ ...item(href, "curation", null), href });
+  it("고정 목록 순서대로 내고, 입력 순서 · 이미지와 무관하다", () => {
+    const stream = PINNED_LATEST_HREFS.map(mk).reverse();
+    stream.unshift(mk("/curation/other"));
+    const { items, missing } = pinLatest(stream);
+    expect(items.map((i) => i.href)).toEqual([...PINNED_LATEST_HREFS]);
+    expect(missing).toEqual([]);
+  });
+  it("조회되지 않는 항목은 대체 없이 missing으로 보고한다", () => {
+    const { items, missing } = pinLatest([mk(PINNED_LATEST_HREFS[0]), mk("/curation/other")]);
+    expect(items).toHaveLength(1);
+    expect(missing).toEqual(PINNED_LATEST_HREFS.slice(1));
   });
 });
