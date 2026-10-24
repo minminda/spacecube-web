@@ -111,8 +111,9 @@ describe("HOME 지역 선택", () => {
 });
 
 describe("HOME 임시 공간(fixtures)", () => {
-  it("fixture-N slug · 임시 이름이며, 사진을 넣지 않고, 태그 3~5개를 갖는다", () => {
-    const list = fixtureSpaces(100);
+  it("fixture-N slug · 임시 이름이며, 글자만 있는 공간은 사진을 넣지 않고, 태그 3~5개를 갖는다", () => {
+    // 사진 기반 가상 공간(fixtures.test.ts)은 자연스러운 이름과 사진을 갖는다 — 여기서는 글자만 있는 임시 공간만 본다
+    const list = fixtureSpaces(100).filter((f) => !f.image.src);
     expect(list.length).toBeGreaterThan(10);
     for (const f of list) {
       expect(f.fixture).toBe(true);
@@ -127,7 +128,7 @@ describe("HOME 임시 공간(fixtures)", () => {
   });
 
   it("지역 5 · 유형 6이 섞이고 Partner는 일부만이다", () => {
-    const list = fixtureSpaces(0);
+    const list = fixtureSpaces(0).filter((f) => !f.image.src);
     expect(new Set(list.map((f) => f.area)).size).toBe(5);
     expect(new Set(list.map((f) => f.category)).size).toBe(6);
     const partners = list.filter((f) => f.partner).length;
