@@ -15,7 +15,6 @@ import {
   DEMO_REGION,
   type HomeSpace,
 } from "./shelves";
-import { findFixtureSpace, fixtureSpaces } from "./fixtures";
 
 let n = 0;
 function sp(p: Partial<HomeSpace> & { area: string | null }): HomeSpace {
@@ -110,37 +109,6 @@ describe("HOME 지역 선택", () => {
     expect(homeHref({})).toBe("/");
     expect(homeHref({ area: "후암" })).toBe(`/?area=${encodeURIComponent("후암")}`);
     expect(homeHref({ area: "후암", preview: "fixtures" })).toBe(`/?area=${encodeURIComponent("후암")}&preview=fixtures`);
-  });
-});
-
-describe("HOME 시연용 가상 공간(fixtures)", () => {
-  it("fixture-N slug · 사진 · 태그 3~5개를 갖고 모두 시연용 지역 망원이다", () => {
-    const list = fixtureSpaces(100);
-    expect(list).toHaveLength(11);
-    for (const f of list) {
-      expect(f.fixture).toBe(true);
-      expect(f.slug).toMatch(/^fixture-\d+$/);
-      expect(findFixtureSpace(f.slug as string)?.id).toBe(f.id);
-      expect(f.tags.length).toBeGreaterThanOrEqual(3);
-      expect(f.tags.length).toBeLessThanOrEqual(5);
-      expect(f.id.startsWith("fixture:")).toBe(true);
-      expect(f.image.src).toMatch(/^\/demo\//);
-      expect(f.area).toBe("망원");
-      expect(f.partner).toBe(false);
-    }
-  });
-
-  it("fixture slug가 아니면 찾지 않는다(실제 공간 slug와 섞이지 않는다)", () => {
-    expect(findFixtureSpace("buk")).toBeNull();
-    expect(findFixtureSpace("fixture-9999")).toBeNull();
-    expect(findFixtureSpace("fixture-0")).toBeNull();
-    expect(findFixtureSpace("fixture-12")).toBeNull();
-  });
-
-  it("시연용 공간만으로도 지역 · 테마 선반 구조가 생긴다", () => {
-    const list = fixtureSpaces(0);
-    expect(buildAreaShelves(list, { min: 3 }).length).toBeGreaterThan(0);
-    expect(buildThemeShelves(list, { min: 3 }).length).toBeGreaterThan(0);
   });
 });
 

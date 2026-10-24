@@ -19,7 +19,6 @@ interface Props {
  * 미리보기는 관리자이거나 로컬 개발 환경(NODE_ENV=development)일 때만 적용된다 — 운영(production)에서 일반 방문자는
  * 이 파라미터를 붙여도 항상 발행본 · 실제 공간만 본다.
  *   /?preview=drafts   초안 콘텐츠 포함
- *   /?preview=fixtures UI 확인용 임시 공간(src/lib/home/fixtures.ts)을 선반에 섞어 본다
  */
 export default async function Home({ searchParams }: Props) {
   const [session, { legacy, preview, area }] = await Promise.all([auth(), searchParams]);
@@ -37,7 +36,7 @@ export default async function Home({ searchParams }: Props) {
       <EditorialHome
         admin={admin}
         previewDrafts={previewAllowed && preview === "drafts"}
-        fixtures={previewAllowed && preview === "fixtures"}
+        fixtures={false}
         userId={session?.user?.id ?? null}
         area={typeof area === "string" ? area.slice(0, 30) : null}
         savedRegions={savedRegions}

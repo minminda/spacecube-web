@@ -6,6 +6,7 @@
    시연 공간 기록·저장은 신호에서 뺀다(demoData.ts). 공간 상세 조회·지도 클릭 같은 약한 신호는
    아직 계측하지 않으므로 쓰지 않는다. ── */
 
+import { publicSpaceFilter, spaceUsable } from "@/lib/demoSpaces";
 import { prisma } from "@/lib/prisma";
 import { buildWeightedTasteVector } from "@/lib/recommend";
 import { LISTED_SPACE_WHERE, TASTE_SIGNAL_RECORD_WHERE } from "@/lib/demoData";
@@ -35,7 +36,7 @@ export async function getUserDiscoveryContext(userId: string, opts: { includeDem
       select: { space: { select: { slug: true, spaceTagLinks: TAG_LINKS } } },
     }),
     prisma.savedEditorialSpace.findMany({
-      where: { userId, space: { status: "PUBLISHED", ...(opts.includeDemo ? {} : { isDemo: false }) } },
+      where: { userId, space: { status: "PUBLISHED", ...(opts.includeDemo ? {} : publicSpaceFilter()) } },
       select: { spaceId: true, space: { select: { slug: true, category: true, tags: true } } },
     }),
     prisma.archiveEntry.findMany({
@@ -44,7 +45,7 @@ export async function getUserDiscoveryContext(userId: string, opts: { includeDem
     }),
   ]);
   // 연결 공간이 보이지 않는 기록(보관된 공간·미리보기 아닌데 가상 공간)은 공간 특징 없이 내 태그만 쓴다.
-  const usableSpace = (sp: { status: string; isDemo: boolean } | null) => !!sp && sp.status === "PUBLISHED" && (opts.includeDemo || !sp.isDemo);
+  const usableSpace = (sp: { status: string; isDemo: boolean; slug: string } | null) => !!sp && sp.status === "PUBLISHED" && (opts.includeDemo || spaceUsable(sp));
   const archiveSpaceIds = new Set(archive.flatMap((a) => (a.spaceId && usableSpace(a.space) ? [a.spaceId] : [])));
 
   const vector = buildWeightedTasteVector(records);

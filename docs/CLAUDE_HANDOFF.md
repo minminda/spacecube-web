@@ -26,6 +26,13 @@ Updated: 2026-10-24 · 한이음 최종 제출 전 소스 감사 (코드·DB·�
 - 검증: tsc · 전체 vitest 119파일/1102개 · next build · 로컬 prod 크롤(내부 링크 54개·이미지 19개 오류 0) · 운영 QR→Episode→방명록 렌더(buk). 미검증: 로그인 후 저장·다녀왔어요 실제 흐름, 포스트잇 작성(기존 코드 무변경), `/c/[code]` 클라이언트 브리지 자동 이동(검증용 숨김 브라우저 창에서 rAF가 멈춰 확인 못 함 — API는 307→Episode 정상), 실기기 모바일.
 - 남은 P1(내용 필요): 실제 Partner 6곳 중 4곳은 한 줄 소개·설명 없음("공간 소개를 준비하고 있어요"), 6곳 모두 태그 0 → 검증된 문구·태그 입력 필요(지어내지 않음). P2: 큐레이터·SNS·새 추천 알고리즘·지도 탐색·비활성 기능 재개발.
 
+## 2026-10-24 공간 데이터 정비 — Partner 태그 · 시연 공간 DB화 · 망원 통합 (복구: `docs/demo-region-restore-2026-10.md`)
+- **운영 DB 변경(적용 완료, `scripts/seed-demo-spaces.ts --apply`)**: ① 시연용 가상 공간 11곳을 EditorialSpace 새 행으로 추가(`isDemo=true`, slug `demo-*`, `cubeAvailable=false`, 주소·지도·운영시간 없음, 사진 `public/demo`) ② 실제 Partner 6곳의 **빈 `tags`만** 채움(3~5개, 근거는 Episode·Scene). 지역·주소·좌표·그 밖 필드는 변경 없음. 삭제·마이그레이션 없음.
+- 코드: 시연 공간은 더 이상 fixture가 아니라 DB 공간 — `src/lib/demoSpaces.ts`(`isPublicDemoSpace` · `spaceUsable` · `publicSpaceFilter`)가 "isDemo + demo- 접두어"만 일반 사용자 경로(HOME · 검색 · 상세 · 저장 API · 내 공간 · 방문 기록 · 개인화 신호)에 열어 줌. `proto-*` 프로토타입은 계속 관리자·로컬 전용. KPI 쿼리는 `isDemo=false`만 세므로 시연 공간 활동은 자동 제외(조회 이벤트도 안 남김). fixtures.ts 삭제, 시연 콘텐츠(`demoContent.ts`)는 DB 공간을 이름으로 찾아 연결(11곳이 모두 있을 때만 노출). 옛 `/spaces/fixture-N`은 `demo-*`로 redirect.
+- 망원 통합은 DB가 아니라 코드(`ENABLE_PUBLIC_DEMO_SPACES`의 시연 지역 모드): 기본 지역 망원, 다른 지역 준비 중, 모든 공간 17곳이 망원 컬렉션. 카드·상세·주소·좌표는 원본 그대로, 가상 공간 주소는 "위치 정보 준비 중".
+- 검증: tsc · 전체 vitest · build · 로컬 prod 크롤(링크·이미지 오류 0) · 임시 사용자(`isDemo`, 검증 후 삭제)로 저장→재조회→내 공간→다녀왔어요/재방문/취소→개인화 후보→저장 해제 통과. 미검증: 실제 로그인 UI 흐름(Google/Kakao), 모바일 실기기, 포스트잇 작성.
+- 알려진 한계: 가상 공간은 좌표가 없어 내 공간 지도에는 안 나옴(목록에는 나옴). 일반 사용자의 공개 프로필(`/@handle`)에는 시연 공간이 나오지 않음(기존 isDemo 규칙).
+
 ## 다음 P0 작업
 1. 공개 실제 6곳 태그 입력 (현재 전부 `tags=[]`)
 2. 일반 문화공간 확장(`scripts/bulk-import-spaces.ts`, 기본 Dry-run, 미실행) 또는 "6곳 파일럿" 범위 확정 — 일반 공간은 지도 좌표 없음

@@ -11,13 +11,34 @@ import { readStoredBlocks, collectBlockSpaceIds } from "./input";
 import type { ContentItem, CurationView, LinkedSpace, PersonView, ResolvedImage, SpaceView, EditorialBlock, StoryItem, ThoughtView } from "./types";
 import { curationLabel, formatEditorialDate, formatPeopleNumber, formatSerial, formatThoughtNumber, spaceCoverImage, spaceHref } from "./types";
 import { normalizeArea } from "./area";
-import { DEMO_MARK, demoContentEnabled, demoCurations, demoPeople, demoThoughts } from "./demoContent";
-import { fixtureSpaces, fixtureSpaceView } from "@/lib/home/fixtures";
+import { DEMO_MARK, demoContentEnabled, demoCurations, demoPeople, demoSpacesComplete, demoStoriesForSpace, demoThoughts, type SpaceByName } from "./demoContent";
+import { DEMO_SPACE_SLUG_PREFIX, publicSpaceFilter, spaceUsable } from "@/lib/demoSpaces";
 
 /* 시연용 콘텐츠(demoContent.ts)는 DB 콘텐츠 앞에 합친다 — number DESC 정렬 규칙은 그대로. 카드 머리줄에는 "시연용"이 붙는다. */
 const isDemoId = (id: string) => id.startsWith("demo-");
 const withDemoMark = (eyebrow: string, id: string) => (isDemoId(id) ? `${eyebrow} · ${DEMO_MARK}` : eyebrow);
 const byNumberDesc = <T extends { number: number }>(rows: T[]) => [...rows].sort((a, b) => b.number - a.number);
+
+/* 시연 콘텐츠(코드 데이터)가 연결할 가상 공간은 DB의 EditorialSpace(isDemo=true, slug 접두어 demo-)에서 읽는다. 30초 메모(같은 서버 인스턴스) —
+   공간 11곳이 모두 있을 때만 콘텐츠를 낸다(아직 DB에 넣기 전이면 빈 목록). */
+let demoMemo: { at: number; set: { curations: CurationView[]; people: PersonView[]; thoughts: ThoughtView[]; by: SpaceByName } } | null = null;
+const EMPTY_DEMO = { curations: [] as CurationView[], people: [] as PersonView[], thoughts: [] as ThoughtView[], by: new Map() as SpaceByName };
+
+async function demoSet() {
+  if (!demoContentEnabled()) return EMPTY_DEMO;
+  if (demoMemo && Date.now() - demoMemo.at < 30_000) return demoMemo.set;
+  const rows = await prisma.editorialSpace.findMany({ where: { isDemo: true, status: "PUBLISHED", slug: { startsWith: DEMO_SPACE_SLUG_PREFIX } } });
+  const by: SpaceByName = new Map(rows.map((r) => [r.name, toSpaceView(r)]));
+  const set = demoSpacesComplete(by) ? { curations: demoCurations(by), people: demoPeople(by), thoughts: demoThoughts(by), by } : EMPTY_DEMO;
+  demoMemo = { at: Date.now(), set };
+  return set;
+}
+
+/** 시연용 공간(id)이 소개된 시연 콘텐츠 — 공간 상세의 "소개된 이야기"에 DB 콘텐츠와 함께 합친다 */
+export async function getDemoStoriesForSpace(spaceId: string) {
+  const ds = await demoSet();
+  return demoStoriesForSpace(spaceId, ds.by);
+}
 
 export interface Visibility {
   preview?: boolean;
@@ -28,7 +49,7 @@ export interface Visibility {
  * 이 모듈의 어떤 조회에도 섞이지 않는다 — 가상 공간은 src/lib/curators/queries.ts에서만 읽는다.
  */
 function statusFilter(v?: Visibility): Prisma.EditorialSpaceWhereInput {
-  return v?.preview ? { isDemo: false } : { status: "PUBLISHED", isDemo: false };
+  return v?.preview ? { ...publicSpaceFilter() } : { status: "PUBLISHED", ...publicSpaceFilter() };
 }
 
 export function toSpaceView(row: EditorialSpace): SpaceView {
@@ -74,7 +95,7 @@ export async function getSpaceBySlug(slug: string, v?: Visibility & { allowDemo?
   const row = await prisma.editorialSpace.findUnique({ where: { slug } });
   if (!row) return null;
   // 가상 공간은 큐레이터 프로토타입 미리보기 권한이 있을 때만(호출부가 allowDemo로 판단).
-  if (row.isDemo && !v?.allowDemo) return null;
+  if (!spaceUsable(row) && !v?.allowDemo) return null;
   if (!v?.preview && row.status !== "PUBLISHED") return null;
   return toSpaceView(row);
 }
@@ -83,12 +104,8 @@ export async function getSpaceBySlug(slug: string, v?: Visibility & { allowDemo?
 export async function getSpacesByIds(ids: string[], v?: Visibility): Promise<Map<string, SpaceView>> {
   const unique = [...new Set(ids)].filter(Boolean);
   if (unique.length === 0) return new Map();
-  const dbIds = unique.filter((id) => !id.startsWith("fixture:"));
-  const rows = dbIds.length ? await prisma.editorialSpace.findMany({ where: { id: { in: dbIds }, ...statusFilter(v) } }) : [];
-  const map = new Map(rows.map((r) => [r.id, toSpaceView(r)]));
-  // 시연용 가상 공간(코드 데이터) — 시연 콘텐츠의 공간 카드가 가리킨다
-  if (demoContentEnabled()) for (const f of fixtureSpaces(0)) if (unique.includes(f.id)) map.set(f.id, fixtureSpaceView(f));
-  return map;
+  const rows = await prisma.editorialSpace.findMany({ where: { id: { in: unique }, ...statusFilter(v) } });
+  return new Map(rows.map((r) => [r.id, toSpaceView(r)]));
 }
 
 /** ids 순서를 유지한 배열. */
@@ -105,7 +122,7 @@ type LinkRow = { note: string | null; space: EditorialSpace };
 
 function linked(rows: LinkRow[], v?: Visibility): LinkedSpace[] {
   return rows
-    .filter((l) => !l.space.isDemo && (v?.preview || l.space.status === "PUBLISHED"))
+    .filter((l) => spaceUsable(l.space) && (v?.preview || l.space.status === "PUBLISHED"))
     .map((l) => ({ space: toSpaceView(l.space), note: l.note ?? undefined }));
 }
 
@@ -166,11 +183,11 @@ export async function listThoughts(v?: Visibility): Promise<ThoughtView[]> {
     include: { spaces: linkInclude },
   });
   const list = rows.map((r) => toThoughtView(r, v));
-  return demoContentEnabled() ? byNumberDesc([...demoThoughts(), ...list]) : list;
+  return byNumberDesc([...(await demoSet()).thoughts, ...list]);
 }
 
 export async function getThoughtBySlug(slug: string, v?: Visibility): Promise<ThoughtView | null> {
-  const demo = demoContentEnabled() ? demoThoughts().find((t) => t.slug === slug) : undefined;
+  const demo = (await demoSet()).thoughts.find((t) => t.slug === slug);
   if (demo) return demo;
   const row = await prisma.editorialThought.findUnique({ where: { slug }, include: { spaces: linkInclude } });
   if (!row || (!v?.preview && row.status !== "PUBLISHED")) return null;
@@ -212,7 +229,7 @@ export async function listAreas(v?: Visibility): Promise<AreaSummary[]> {
   };
   spaces.forEach((s) => bump(s.area, "spaceCount"));
   curations.forEach((c) => bump(c.area, "curationCount"));
-  if (demoContentEnabled()) demoCurations().forEach((c) => bump(c.area ?? null, "curationCount"));
+  (await demoSet()).curations.forEach((c) => bump(c.area ?? null, "curationCount"));
   return [...map.values()].sort((a, b) => b.curationCount - a.curationCount || b.spaceCount - a.spaceCount || a.area.localeCompare(b.area, "ko"));
 }
 
@@ -223,11 +240,11 @@ export async function listCurations(v?: Visibility): Promise<CurationView[]> {
     include: { spaces: linkInclude },
   });
   const list = rows.map((r) => toCurationView(r, v));
-  return demoContentEnabled() ? byNumberDesc([...demoCurations(), ...list]) : list;
+  return byNumberDesc([...(await demoSet()).curations, ...list]);
 }
 
 export async function getCurationBySlug(slug: string, v?: Visibility): Promise<CurationView | null> {
-  const demo = demoContentEnabled() ? demoCurations().find((c) => c.slug === slug) : undefined;
+  const demo = (await demoSet()).curations.find((c) => c.slug === slug);
   if (demo) return demo;
   const row = await prisma.editorialCuration.findUnique({ where: { slug }, include: { spaces: linkInclude } });
   if (!row || (!v?.preview && row.status !== "PUBLISHED")) return null;
@@ -241,11 +258,11 @@ export async function listPeople(v?: Visibility): Promise<PersonView[]> {
     include: { spaces: linkInclude },
   });
   const list = rows.map((r) => toPersonView(r, v));
-  return demoContentEnabled() ? byNumberDesc([...demoPeople(), ...list]) : list;
+  return byNumberDesc([...(await demoSet()).people, ...list]);
 }
 
 export async function getPersonBySlug(slug: string, v?: Visibility): Promise<PersonView | null> {
-  const demo = demoContentEnabled() ? demoPeople().find((p) => p.slug === slug) : undefined;
+  const demo = (await demoSet()).people.find((p) => p.slug === slug);
   if (demo) return demo;
   const row = await prisma.editorialPerson.findUnique({ where: { slug }, include: { spaces: linkInclude } });
   if (!row || (!v?.preview && row.status !== "PUBLISHED")) return null;
@@ -293,7 +310,7 @@ export async function getStoriesForSpace(spaceId: string) {
 export async function listContentStream(v?: Visibility): Promise<ContentItem[]> {
   const where = v?.preview ? { status: { in: ["PUBLISHED" as const, "DRAFT" as const] } } : { status: "PUBLISHED" as const };
   const [spaces, curations, people, thoughts] = await Promise.all([
-    prisma.editorialSpace.findMany({ where: { ...where, isDemo: false } }),
+    prisma.editorialSpace.findMany({ where: { ...where, ...publicSpaceFilter() } }),
     prisma.editorialCuration.findMany({ where, include: { spaces: linkInclude } }),
     prisma.editorialPerson.findMany({ where, include: { spaces: linkInclude } }),
     prisma.editorialThought.findMany({ where, include: { spaces: linkInclude } }),
@@ -332,21 +349,22 @@ export async function listContentStream(v?: Visibility): Promise<ContentItem[]> 
       },
     });
   }
-  if (demoContentEnabled()) {
+  {
+    const ds = await demoSet();
     const stamp = (d: Date | null) => ({ t: (d ?? new Date(0)).getTime(), created: (d ?? new Date(0)).getTime() });
-    for (const c of demoCurations()) {
+    for (const c of ds.curations) {
       rows.push({ ...stamp(c.publishedAt), item: {
         key: `curation-${c.id}`, kind: "curation", eyebrow: withDemoMark(curationLabel(c), c.id), label: withDemoMark(curationLabel(c, false), c.id), title: c.title, summary: c.summary,
         meta: c.spaces.length ? `공간 ${c.spaces.length}곳` : undefined, href: `/curation/${c.slug}`, image: c.cover, date: formatEditorialDate(c.publishedAt), status: c.status,
       } });
     }
-    for (const p of demoPeople()) {
+    for (const p of ds.people) {
       rows.push({ ...stamp(p.publishedAt), item: {
         key: `person-${p.id}`, kind: "person", eyebrow: withDemoMark(formatPeopleNumber(p.number), p.id), label: withDemoMark(formatSerial(p.number), p.id),
         title: p.title, summary: p.summary, href: `/people/${p.slug}`, image: p.cover, date: formatEditorialDate(p.publishedAt), status: p.status,
       } });
     }
-    for (const t of demoThoughts()) {
+    for (const t of ds.thoughts) {
       rows.push({ ...stamp(t.publishedAt), item: {
         key: `thought-${t.id}`, kind: "thought", eyebrow: withDemoMark(formatThoughtNumber(t.number), t.id), label: withDemoMark(formatSerial(t.number), t.id),
         title: t.title, summary: t.summary, href: `/thought/${t.slug}`, image: t.cover, date: formatEditorialDate(t.publishedAt), status: t.status,

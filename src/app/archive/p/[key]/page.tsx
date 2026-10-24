@@ -81,7 +81,7 @@ export default async function ArchiveDetailPage({ params }: Props) {
               <p className="ed-label" style={{ color: "var(--ed-dim)" }}>
                 {[d.area, d.category].filter(Boolean).join(" · ") || "지역 미입력"}
                 {personal && " · 개인 기록"}
-                {d.editorial?.isDemo && " · 가상 공간"}
+                {d.editorial?.isDemo && " · 시연용 공간"}
               </p>
               <h1 className="text-[36px] md:text-[52px] font-bold leading-[1.05] tracking-[-0.04em] break-keep">{d.name}</h1>
               <p className="text-sm tabular-nums">

@@ -30,6 +30,11 @@ const nextConfig: NextConfig = {
     return [
       { source: "/owner", destination: "/admin", permanent: false },
       { source: "/owner/:path*", destination: "/admin/:path*", permanent: false },
+      // 시연용 공간이 코드 fixture(fixture-N)에서 DB 행(demo-*)으로 옮겨 가면서 바뀐 주소(2026-10-24)
+      ...[
+        "window-afternoon", "notes-records", "slide-room", "water-window", "shelf-window", "teacup-shelf",
+        "pen-postbox", "jazz-shelf", "paper-archive", "camera-display", "green-shelf",
+      ].map((name, i) => ({ source: `/spaces/fixture-${i + 1}`, destination: `/spaces/demo-${name}`, permanent: false })),
     ];
   },
 };

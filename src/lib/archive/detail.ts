@@ -2,6 +2,7 @@
    키: s-<slug>(공간큐브 공간 — 개인 기록·Cube 방문·저장을 합침) / e-<entryId>(공간큐브에 없는 개인 기록).
    공개 공간에 연결된 개인 기록을 e-로 열면 s-로 보낸다(같은 공간이 두 주소를 갖지 않게). ── */
 
+import { spaceUsable } from "@/lib/demoSpaces";
 import { prisma } from "@/lib/prisma";
 
 export type DetailResult =
@@ -46,7 +47,7 @@ export interface ArchiveDetail {
 const photoSelect = { id: true, url: true, width: true, height: true } as const;
 
 export async function getArchiveDetail(userId: string, key: string, opts: { includeDemo: boolean }): Promise<DetailResult> {
-  const visible = (sp: { status: string; isDemo: boolean }) => sp.status === "PUBLISHED" && (opts.includeDemo || !sp.isDemo);
+  const visible = (sp: { status: string; isDemo: boolean; slug: string }) => sp.status === "PUBLISHED" && (opts.includeDemo || spaceUsable(sp));
 
   if (key.startsWith("e-")) {
     const entry = await prisma.archiveEntry.findFirst({

@@ -30,7 +30,7 @@ export default function HomeSpaceCard({ space, reason, save, priority }: Props) 
         {space.partner && <PartnerMark size={13} />}
       </span>
       {meta && <span className="block pt-0.5 text-[10.5px] md:text-xs truncate" style={{ color: "var(--ed-dim)" }}>{meta}</span>}
-      {space.fixture && <span className="block pt-0.5 text-[10px] md:text-[11px] tracking-wide" style={{ color: "var(--ed-dim)" }}>시연용 공간</span>}
+      {space.demo && <span className="block pt-0.5 text-[10px] md:text-[11px] tracking-wide" style={{ color: "var(--ed-dim)" }}>시연용 공간</span>}
       {reason && <span className="block pt-1 text-[10.5px] md:text-xs leading-snug break-keep line-clamp-2">{reason}</span>}
     </>
   );

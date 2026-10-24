@@ -11,8 +11,7 @@ import { getFinderPool } from "@/lib/finder/finderData";
 import { listAreas } from "@/lib/editorial/queries";
 import { normalizeArea } from "@/lib/editorial/area";
 import { getSavedEditorialSpaceIds } from "@/lib/editorial/saves";
-import { homeSpaceFromFinder, mergeAreaCounts } from "@/lib/home/homeData";
-import { demoSpaces, fixtureAreaCounts, fixtureSpaces } from "@/lib/home/fixtures";
+import { homeSpaceFromFinder } from "@/lib/home/homeData";
 import { ENABLE_PUBLIC_DEMO_SPACES } from "@/lib/features";
 import { applyDemoRegion, buildAreaOptions, type AreaOption, type HomeSpace } from "@/lib/home/shelves";
 import { searchRegions, searchSpaces, type SearchDoc } from "./spaceSearch";
@@ -86,17 +85,8 @@ async function buildSearchCorpus(opts: { admin: boolean; fixtures?: boolean }): 
     const why = notes[0] ?? f.view.summary;
     if (why) reasons.set(f.id, why);
   }
-  // 미리보기는 글자만 있는 임시 공간까지, 일반 방문자는 사진 기반 시연용 공간만(ENABLE_PUBLIC_DEMO_SPACES)
-  const extra = opts.fixtures ? fixtureSpaces(pool.length + 1) : ENABLE_PUBLIC_DEMO_SPACES ? demoSpaces(pool.length + 1) : [];
-  if (extra.length > 0) {
-    for (const f of extra) {
-      docs.push({ id: f.id, name: f.name, area: f.area, category: f.category, tags: f.tags, summary: f.summary ?? "", description: "", curation: [], reasons: [f.reason], order: f.order });
-      spaces.set(f.id, f);
-      reasons.set(f.id, f.reason);
-    }
-  }
   // 시연 지역 모드: 이용 가능한 지역은 망원뿐(나머지 "준비 중") — HOME 지역 선택과 같은 규칙
-  const areaOptions = buildAreaOptions(extra.length ? mergeAreaCounts(areas, fixtureAreaCounts(!opts.fixtures)) : areas);
+  const areaOptions = buildAreaOptions(areas);
   return { docs, spaces, reasons, areaOptions: ENABLE_PUBLIC_DEMO_SPACES ? applyDemoRegion(areaOptions) : areaOptions };
 }
 

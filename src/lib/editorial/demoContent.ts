@@ -1,34 +1,40 @@
 /* ── 시연용 CURATION · PEOPLE · THOUGHT (코드 데이터) ──────────────────────────────
-   ⚠ 가상 콘텐츠다. 운영 DB에 넣지 않고(Editorial CMS 행이 아니다), 시연용 가상 공간(src/lib/home/fixtures.ts)만 연결한다.
+   ⚠ 가상 콘텐츠다. Editorial CMS 행이 아니라 코드 데이터이고, 시연용 가상 공간(DB의 EditorialSpace, slug 접두어 demo-)만 연결한다.
    - 실제 취재 · 방문 · 인터뷰에 근거하지 않는다. PEOPLE은 실존 인물이 아니라 "가상 페르소나"이며 인물의 발언(인용)을 만들지 않는다.
    - 모든 글 맨 앞에 시연용임을 밝히는 안내 블록을 둔다. 카드 머리줄에도 "시연용"이 붙는다(queries.ts).
-   - 대표 이미지는 콘텐츠마다 서로 다른 사진 한 장(public/demo)이며 다른 콘텐츠와 겹치지 않는다. 사진을 다른 공간의 것처럼 쓰지 않는다 —
-     각 콘텐츠 대표 사진은 그 콘텐츠가 소개하는 공간의 사진이다.
+   - 대표 이미지는 콘텐츠마다 서로 다른 사진 한 장(public/demo)이며 다른 콘텐츠와 겹치지 않는다. 각 콘텐츠 대표 사진은 그 콘텐츠가 소개하는 공간의 사진이다.
+   - 공간 연결은 공간 이름 → DB에서 읽은 SpaceView(실제 id · slug)로 한다(queries.ts가 map을 만들어 넘긴다). 가상 공간 11곳이 DB에 모두 있을 때만 쓴다.
    - queries.ts가 DB 콘텐츠 앞에 합쳐 HOME · /curation · /story · 상세 · 공간 상세의 "소개된 이야기"에 같은 경로로 나온다.
    - ENABLE_PUBLIC_DEMO_SPACES가 꺼지면 모두 사라진다(호출부가 demoContentEnabled로 판단). ── */
 
 import { ENABLE_PUBLIC_DEMO_SPACES } from "@/lib/features";
-import { fixtureSpaces, fixtureSpaceView, type FixtureSpace } from "@/lib/home/fixtures";
+import { DEMO_SPACE_SEEDS } from "@/lib/home/demoSpaceSeeds";
 import type { CurationView, EditorialBlock, LinkedSpace, PersonView, ResolvedImage, SpaceView, ThoughtView } from "./types";
 
 export const demoContentEnabled = (): boolean => ENABLE_PUBLIC_DEMO_SPACES;
 
 export const DEMO_MARK = "시연용";
 
+/** 공간 이름 → DB의 시연용 공간 SpaceView */
+export type SpaceByName = Map<string, SpaceView>;
+
+/** 시연 콘텐츠가 쓰는 공간 11곳이 모두 있는가(없으면 시연 콘텐츠를 내지 않는다) */
+export const demoSpacesComplete = (by: SpaceByName): boolean => DEMO_SPACE_SEEDS.every((s) => by.has(s.name));
+
 const DISCLAIMER =
   "시연용 콘텐츠 — 공간큐브 시연을 위해 만든 가상의 글입니다. 등장하는 공간은 실제 장소가 아니며, 취재나 방문에 근거하지 않았습니다.";
 
-const spaces = (): FixtureSpace[] => fixtureSpaces(0);
-
-function byName(name: string): FixtureSpace {
-  const f = spaces().find((s) => s.name === name);
-  if (!f) throw new Error(`demo space not found: ${name}`);
-  return f;
+function helpers(by: SpaceByName) {
+  const get = (name: string): SpaceView => {
+    const v = by.get(name);
+    if (!v) throw new Error(`demo space not found: ${name}`);
+    return v;
+  };
+  return {
+    link: (name: string, note: string): LinkedSpace => ({ space: get(name), note }),
+    card: (name: string, note: string): EditorialBlock => ({ type: "SPACE_CARD", spaceId: get(name).id, note }),
+  };
 }
-
-const view = (name: string): SpaceView => fixtureSpaceView(byName(name));
-const card = (name: string, note: string): EditorialBlock => ({ type: "SPACE_CARD", spaceId: byName(name).id, note });
-const link = (name: string, note: string): LinkedSpace => ({ space: view(name), note });
 const text = (t: string): EditorialBlock => ({ type: "TEXT", text: t });
 const head = (t: string): EditorialBlock => ({ type: "HEADING", text: t });
 const disclaimer: EditorialBlock = { type: "TEXT", text: DISCLAIMER, small: true };
@@ -37,7 +43,8 @@ const at = (iso: string) => new Date(iso);
 
 /* ── CURATION ── */
 
-export function demoCurations(): CurationView[] {
+export function demoCurations(by: SpaceByName): CurationView[] {
+  const { link, card } = helpers(by);
   const items: CurationView[] = [
     {
       id: "demo-curation-7", slug: "demo-solo-afternoon", number: 7, area: "망원", perspective: "SITUATION",
@@ -128,7 +135,8 @@ export function demoCurations(): CurationView[] {
 
 const PERSONA_ROLE = "가상 페르소나 · 시연용 프로필";
 
-export function demoPeople(): PersonView[] {
+export function demoPeople(by: SpaceByName): PersonView[] {
+  const { link, card } = helpers(by);
   return [
     {
       id: "demo-person-5", slug: "demo-persona-tools", number: 5,
@@ -181,7 +189,8 @@ export function demoPeople(): PersonView[] {
 
 /* ── THOUGHT ── */
 
-export function demoThoughts(): ThoughtView[] {
+export function demoThoughts(by: SpaceByName): ThoughtView[] {
+  const { link, card } = helpers(by);
   return [
     {
       id: "demo-thought-4", slug: "demo-conditions-to-stay", number: 4,
@@ -237,12 +246,13 @@ export function demoThoughts(): ThoughtView[] {
   ];
 }
 
-/** 공간(id: fixture:N)이 소개된 시연 콘텐츠 — 시연용 공간 상세의 "소개된 이야기" */
-export function demoStoriesForSpace(spaceId: string): { curations: CurationView[]; people: PersonView[]; thoughts: ThoughtView[] } {
+/** 공간(id)이 소개된 시연 콘텐츠 — 시연용 공간 상세의 "소개된 이야기" */
+export function demoStoriesForSpace(spaceId: string, by: SpaceByName): { curations: CurationView[]; people: PersonView[]; thoughts: ThoughtView[] } {
+  if (!demoSpacesComplete(by)) return { curations: [], people: [], thoughts: [] };
   const has = (l: LinkedSpace[]) => l.some((x) => x.space.id === spaceId);
   return {
-    curations: demoCurations().filter((c) => has(c.spaces)),
-    people: demoPeople().filter((p) => has(p.spaces)),
-    thoughts: demoThoughts().filter((t) => has(t.spaces)),
+    curations: demoCurations(by).filter((c) => has(c.spaces)),
+    people: demoPeople(by).filter((p) => has(p.spaces)),
+    thoughts: demoThoughts(by).filter((t) => has(t.spaces)),
   };
 }

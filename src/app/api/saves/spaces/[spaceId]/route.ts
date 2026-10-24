@@ -1,3 +1,4 @@
+import { spaceUsable } from "@/lib/demoSpaces";
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
@@ -16,10 +17,11 @@ export async function POST(_req: Request, { params }: Ctx) {
   if (!session?.user?.id) return NextResponse.json({ error: "로그인이 필요해요." }, { status: 401 });
   const { spaceId } = await params;
 
-  const space = await prisma.editorialSpace.findUnique({ where: { id: spaceId }, select: { status: true, isDemo: true } });
+  const space = await prisma.editorialSpace.findUnique({ where: { id: spaceId }, select: { status: true, isDemo: true, slug: true } });
   const preview = isAdmin(session.user.email);
   // 큐레이터 프로토타입 가상 공간은 미리보기 권한(관리자·로컬 개발)이 있을 때만 저장할 수 있다.
-  const demoBlocked = !!space?.isDemo && !(preview || process.env.NODE_ENV === "development");
+  // 시연용 공개 가상 공간(demo- 접두어)은 누구나 저장할 수 있다. 그 밖의 가상 공간(프로토타입)은 미리보기 권한일 때만.
+  const demoBlocked = !!space && !spaceUsable(space) && !(preview || process.env.NODE_ENV === "development");
   if (!space || demoBlocked || (space.status !== "PUBLISHED" && !preview)) {
     return NextResponse.json({ error: "공간을 찾을 수 없어요." }, { status: 404 });
   }

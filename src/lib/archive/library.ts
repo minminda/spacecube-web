@@ -6,6 +6,7 @@
    공간이 있는 기록은 slug 기준(s-<slug>, 공개 공간과 운영 공간은 slug가 같다), 공개 공간이 없는 개인 기록은 e-<id>.
    커버는 내가 찍은 사진을 먼저, 없으면 공간 대표 사진. 모두 본인만 보는 화면이다. ── */
 
+import { publicSpaceFilter, spaceUsable } from "@/lib/demoSpaces";
 import { prisma } from "@/lib/prisma";
 import { LISTED_SPACE_WHERE } from "@/lib/demoData";
 import { normalizeArea } from "@/lib/editorial/area";
@@ -62,7 +63,7 @@ async function fetchLibraryRows(userIds: string[], opts: { includeDemo: boolean 
       },
     }),
     prisma.savedEditorialSpace.findMany({
-      where: { userId: { in: userIds }, space: { status: "PUBLISHED", ...(opts.includeDemo ? {} : { isDemo: false }) } },
+      where: { userId: { in: userIds }, space: { status: "PUBLISHED", ...(opts.includeDemo ? {} : publicSpaceFilter()) } },
       select: { userId: true, createdAt: true, space: { select: { slug: true, name: true, area: true, category: true, coverImage: true, isDemo: true } } },
     }),
     prisma.savedSpace.findMany({
@@ -86,7 +87,7 @@ export async function getLibraries(userIds: string[], opts: { includeDemo: boole
     return m;
   };
   const gEntries = group(rows.entries), gRecords = group(rows.records), gEds = group(rows.savedEds), gOps = group(rows.savedOps);
-  const spaceVisible = (sp: { status: string; isDemo: boolean } | null) => !!sp && sp.status === "PUBLISHED" && (opts.includeDemo || !sp.isDemo);
+  const spaceVisible = (sp: { status: string; isDemo: boolean; slug: string } | null) => !!sp && sp.status === "PUBLISHED" && (opts.includeDemo || spaceUsable(sp));
   for (const id of userIds) {
     out.set(id, assembleLibrary(spaceVisible, {
       entries: gEntries.get(id) ?? [], records: gRecords.get(id) ?? [], savedEds: gEds.get(id) ?? [], savedOps: gOps.get(id) ?? [],
@@ -100,7 +101,7 @@ export async function getLibrary(userId: string, opts: { includeDemo: boolean })
 }
 
 function assembleLibrary(
-  spaceVisible: (sp: { status: string; isDemo: boolean } | null) => boolean,
+  spaceVisible: (sp: { status: string; isDemo: boolean; slug: string } | null) => boolean,
   { entries, records, savedEds, savedOps }: LibraryRows,
 ): LibraryItem[] {
   const items = new Map<string, LibraryItem>();

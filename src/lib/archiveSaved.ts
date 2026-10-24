@@ -4,6 +4,7 @@
    - 공개 공간: 발행(PUBLISHED)된 것만 — 보관된 공간은 목록에서 빠질 뿐 저장 행은 남는다.
    - 운영 공간: 공개 중이고 시연 공간이 아닌 것만(demoData.ts의 LISTED_SPACE_WHERE). ── */
 
+import { publicSpaceFilter, spaceUsable } from "@/lib/demoSpaces";
 import { prisma } from "@/lib/prisma";
 import { LISTED_SPACE_WHERE } from "@/lib/demoData";
 import { resolveSpaceTypeLabel } from "@/lib/spaceType";
@@ -14,7 +15,7 @@ export async function getArchiveSavedTiles(userId: string, opts: { visitedSpaceI
   const [eds, ops] = await Promise.all([
     prisma.savedEditorialSpace.findMany({
       // 큐레이터 프로토타입 가상 공간은 미리보기 권한(includeDemo)이 있을 때만
-      where: { userId, space: { status: "PUBLISHED", ...(opts.includeDemo ? {} : { isDemo: false }) } },
+      where: { userId, space: { status: "PUBLISHED", ...(opts.includeDemo ? {} : publicSpaceFilter()) } },
       orderBy: { createdAt: "desc" },
       select: { createdAt: true, space: { select: { slug: true, name: true, area: true, category: true, coverImage: true, cubeAvailable: true, isDemo: true } } },
     }),

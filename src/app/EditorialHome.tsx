@@ -42,7 +42,7 @@ function SpaceShelf({ shelf, savedIds, loggedIn, id }: { shelf: HomeSpaceShelf; 
     <Shelf id={id} title={shelf.title} description={shelf.description} href={shelf.href} cta={shelf.cta} kind="space">
       {shelf.cards.map(({ space, reason }) => (
         <li key={space.id}>
-          <HomeSpaceCard space={space} reason={reason} save={space.fixture ? undefined : { saved: savedIds.has(space.id), loggedIn }} />
+          <HomeSpaceCard space={space} reason={reason} save={{ saved: savedIds.has(space.id), loggedIn }} />
         </li>
       ))}
     </Shelf>

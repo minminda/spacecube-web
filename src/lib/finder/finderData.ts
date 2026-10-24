@@ -2,6 +2,7 @@
    후보 Pool = 발행된 공개 공간 전부(가상 공간은 큐레이터 미리보기에서만). 각 공간에 공식 큐레이션·큐레이터 컬렉션 관계를 붙이고,
    보는 사람의 취향 프로필(기존 발견 추천 신호 — 방문·저장·아카이브·직접 고른 태그)을 만든다. 새 추천 알고리즘은 없다. ── */
 
+import { publicSpaceFilter } from "@/lib/demoSpaces";
 import { hasValidImageSrc } from "@/lib/editorial/imageValid";
 import { prisma } from "@/lib/prisma";
 import { toSpaceView } from "@/lib/editorial/queries";
@@ -23,7 +24,7 @@ export async function getFinderPool(access: CuratorAccess): Promise<FinderSpace[
   const includeDemo = access.enabled && access.includeDemo;
   const [rows, universe] = await Promise.all([
     prisma.editorialSpace.findMany({
-      where: { status: "PUBLISHED", ...(includeDemo ? {} : { isDemo: false }) },
+      where: { status: "PUBLISHED", ...(includeDemo ? {} : publicSpaceFilter()) },
       orderBy: [{ createdAt: "asc" }],
       include: { curationLinks: { where: { curation: { status: "PUBLISHED" } }, include: { curation: { select: { title: true, slug: true } } } } },
     }),

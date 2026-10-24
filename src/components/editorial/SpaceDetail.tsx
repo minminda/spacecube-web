@@ -11,7 +11,7 @@ import MapLink from "@/components/editorial/MapLink";
 import BlockRenderer from "@/components/editorial/BlockRenderer";
 import { getEditorialViewer } from "@/lib/editorial/viewer";
 import PreviewBanner from "@/components/editorial/PreviewBanner";
-import { getSpaceBySlug, getStoriesForSpace, listSpaces, personStoryItem, thoughtStoryItem } from "@/lib/editorial/queries";
+import { getSpaceBySlug, getDemoStoriesForSpace, getStoriesForSpace, listSpaces, personStoryItem, thoughtStoryItem } from "@/lib/editorial/queries";
 import { curationEyebrow, spaceCoverImage, spaceHref } from "@/lib/editorial/types";
 import { getSavedEditorialSpaceIds } from "@/lib/editorial/saves";
 import { pickSpaceReasons, relatedSpacesFor } from "@/lib/editorial/spaceDetailLinks";
@@ -19,9 +19,7 @@ import { getMySpaceState } from "@/lib/archive/entries";
 import { libraryHref } from "@/lib/archive/library";
 import { getPartnerEpisodes } from "@/lib/editorial/partnerEpisodes";
 import PartnerEpisodeList from "@/components/editorial/PartnerEpisodeList";
-import { findFixtureSpace, fixtureEpisodes, fixtureSpaceView } from "@/lib/home/fixtures";
-import { ENABLE_PUBLIC_DEMO_SPACES } from "@/lib/features";
-import { demoStoriesForSpace } from "@/lib/editorial/demoContent";
+import { isPublicDemoSpace } from "@/lib/demoSpaces";
 import { normalizeArea } from "@/lib/editorial/area";
 import { INSTAGRAM_URL } from "@/content/site";
 import { curatorAccess } from "@/lib/curators/access";
@@ -51,23 +49,23 @@ export default async function SpaceDetail({ slug, presentation }: Props) {
   if (!viewer.editorial) redirect("/");
 
   const access = curatorAccess(viewer);
-  // 큐레이터 프로토타입 가상 공간은 미리보기 권한(관리자·로컬)이 있을 때만 열린다.
-  // Discovery 확인용 임시 공간(fixture-N)은 관리자 · 로컬에서만 열린다 — DB를 조회하지 않고 fixtures.ts로만 그린다
-  // 사진 기반 시연용 공간(DEMO_SEEDS)은 일반 방문자에게도 열린다(ENABLE_PUBLIC_DEMO_SPACES) — 글자만 있는 임시 공간은 관리자 · 로컬만
-  const fixture = access.includeDemo ? findFixtureSpace(slug) : ENABLE_PUBLIC_DEMO_SPACES ? findFixtureSpace(slug, { publicOnly: true }) : null;
-  const space = fixture ? fixtureSpaceView(fixture) : await getSpaceBySlug(slug, { preview: viewer.admin, allowDemo: access.includeDemo });
+  // 시연용 공개 가상 공간(demo- 접두어)은 일반 공간처럼 DB에서 열린다. 그 밖의 가상 공간(큐레이터 프로토타입)은 미리보기 권한(관리자 · 로컬)일 때만.
+  const space = await getSpaceBySlug(slug, { preview: viewer.admin, allowDemo: access.includeDemo });
   if (!space) notFound();
+  const publicDemo = isPublicDemoSpace({ isDemo: !!space.isDemo, slug: space.slug });
 
-  const [{ curations, people, thoughts }, published, savedIds, partnerEp] = fixture
-    ? [demoStoriesForSpace(space.id), await listSpaces(), new Set<string>(), space.cubeAvailable ? fixtureEpisodes(fixture) : null] as const
-    : await Promise.all([
-        getStoriesForSpace(space.id),
-        listSpaces(),
-        getSavedEditorialSpaceIds(viewer.userId),
-        space.cubeAvailable ? getPartnerEpisodes(space.slug) : Promise.resolve(null),
-      ]);
+  const [stories0, published, savedIds, partnerEp, demoStories] = await Promise.all([
+    getStoriesForSpace(space.id),
+    listSpaces(),
+    getSavedEditorialSpaceIds(viewer.userId),
+    space.cubeAvailable ? getPartnerEpisodes(space.slug) : Promise.resolve(null),
+    publicDemo ? getDemoStoriesForSpace(space.id) : Promise.resolve({ curations: [], people: [], thoughts: [] }),
+  ]);
+  const curations = [...demoStories.curations, ...stories0.curations];
+  const people = [...demoStories.people, ...stories0.people];
+  const thoughts = [...demoStories.thoughts, ...stories0.thoughts];
   const saved = savedIds.has(space.id);
-  const mine = viewer.userId && !fixture ? await getMySpaceState(viewer.userId, space, saved) : null;
+  const mine = viewer.userId ? await getMySpaceState(viewer.userId, space, saved) : null;
   const area = normalizeArea(space.area);
   const sameArea = published.filter((s) => s.id !== space.id && normalizeArea(s.area) === area);
   // 큐레이션은 number DESC(getStoriesForSpace) — HOME · 검색 카드의 선정 이유와 같은 첫 note
@@ -80,7 +78,8 @@ export default async function SpaceDetail({ slug, presentation }: Props) {
   const info = [
     { label: "지역", value: area ?? space.area },
     { label: "종류", value: space.category },
-    { label: "주소", value: space.address },
+    // 시연용 가상 공간은 실제 주소가 없다 — 만들어 쓰지 않고 준비 중으로 표시한다
+    { label: "주소", value: space.address ?? (publicDemo ? "위치 정보 준비 중" : undefined) },
     { label: "운영시간", value: space.hours },
   ].filter((r): r is { label: string; value: string } => !!r.value);
   const links = [
@@ -90,14 +89,10 @@ export default async function SpaceDetail({ slug, presentation }: Props) {
 
   return (
     <div className={modal ? "ed-modal-body" : "editorial-bleed"}>
-      {fixture ? (
-        fixture.image.src ? (
-          <p className="ed-container pt-3 text-xs" style={{ color: "var(--ed-dim)" }}>시연용 공간 — 공간큐브를 보여 주기 위해 만든 가상 공간이며 실제 장소가 아닙니다.</p>
-        ) : (
-          <p className="ed-container pt-3 text-xs" style={{ color: "var(--ed-dim)" }}>임시 공간 미리보기 — UI 확인용이며 실제 공간이 아닙니다. 일반 방문자에게는 보이지 않아요.</p>
-        )
+      {publicDemo ? (
+        <p className="ed-container pt-3 text-xs" style={{ color: "var(--ed-dim)" }}>시연용 공간 — 공간큐브를 보여 주기 위해 만든 가상 공간이며 실제 장소가 아닙니다. 지역 &ldquo;망원&rdquo;은 시연용 분류예요.</p>
       ) : space.isDemo ? <PrototypeBanner demo /> : <PreviewBanner status={space.status} editHref={`/admin/content/spaces/${space.id}`} />}
-      {!fixture && !space.isDemo && <DiscoveryTracker spaceId={space.id} />}
+      {!space.isDemo && <DiscoveryTracker spaceId={space.id} />}
       <main className={modal ? "pt-14" : "relative pt-12 md:pt-8"}>
         {/* 휴대폰 상세는 전체 페이지 — 화면 오른쪽 위에 닫기(이전 화면으로). 사진 위가 아니라 사진 위쪽 여백(pt-12)에 둬서 겹치지 않는다.
             데스크톱 창은 창 자체의 X · 바깥 클릭 · ESC */}
@@ -131,7 +126,6 @@ export default async function SpaceDetail({ slug, presentation }: Props) {
             initialVisits={mine?.kind === "visited" ? mine.visits : 0}
             hasEntry={!!mine && mine.kind !== "none" && !!mine.entryId}
             archiveHref={libraryHref(`s-${space.slug}`)}
-            mock={!!fixture}
           />
         </div>
 
@@ -185,7 +179,7 @@ export default async function SpaceDetail({ slug, presentation }: Props) {
           {(space.mapUrl || links.length > 0) && (
             <div className="flex flex-wrap gap-x-5 gap-y-1 pt-2.5">
               {space.mapUrl && (
-                <MapLink href={space.mapUrl} spaceId={space.id} track={!fixture && !space.isDemo} className="text-sm font-medium hover:underline underline-offset-4">
+                <MapLink href={space.mapUrl} spaceId={space.id} track={!space.isDemo} className="text-sm font-medium hover:underline underline-offset-4">
                   지도에서 보기 ↗
                 </MapLink>
               )}
@@ -249,7 +243,7 @@ export default async function SpaceDetail({ slug, presentation }: Props) {
                     <span className="block min-w-0">
                       <span className="block text-[13px] font-semibold leading-snug truncate group-hover:underline underline-offset-4">{s.name}</span>
                       <span className="block text-xs truncate" style={{ color: "var(--ed-dim)" }}>
-                        {[normalizeArea(s.area) ?? s.area, s.isDemo ? "가상 공간" : null].filter(Boolean).join(" · ")}
+                        {[normalizeArea(s.area) ?? s.area, s.isDemo ? "시연용 공간" : null].filter(Boolean).join(" · ")}
                       </span>
                     </span>
                   </Link>

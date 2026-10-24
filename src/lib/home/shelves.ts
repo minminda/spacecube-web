@@ -9,9 +9,9 @@ import { hasValidImageSrc } from "@/lib/editorial/imageValid";
 import type { ResolvedImage } from "@/lib/editorial/types";
 import { normalizeArea } from "@/lib/editorial/area";
 
-/** HOME 카드 한 장에 필요한 공간 정보 — 실제 공개 공간과 임시(fixture) 공간이 같은 모양을 쓴다. */
+/** HOME 카드 한 장에 필요한 공간 정보 — 실제 공개 공간과 시연용 공간이 같은 모양을 쓴다. */
 export interface HomeSpace {
-  /** 공개 공간 id(임시 공간은 "fixture:…") */
+  /** 공개 공간 id */
   id: string;
   /** 상세 주소 slug — 임시 공간은 null(상세가 없으므로 카드가 링크가 아니다) */
   slug: string | null;
@@ -26,8 +26,8 @@ export interface HomeSpace {
   partner: boolean;
   /** 공개 순서(작을수록 먼저 소개됨) */
   order: number;
-  /** UI 확인용 임시 공간 — src/lib/home/fixtures.ts에서만 만든다 */
-  fixture?: boolean;
+  /** 시연용 가상 공간(EditorialSpace isDemo=true) — 카드에 "시연용 공간" 표시 */
+  demo?: boolean;
 }
 
 export interface HomeTheme {

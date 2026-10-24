@@ -203,7 +203,7 @@ export default function SearchView({ initialQuery, initialResult, areaOptions, t
                 <ul className={RESULT_GRID}>
                   {shown.spaces.map((s, i) => (
                     <li key={s.space.id} className="min-w-0">
-                      <HomeSpaceCard space={s.space} reason={s.reason} save={s.space.fixture ? undefined : { saved: s.saved, loggedIn }} priority={i < 4} />
+                      <HomeSpaceCard space={s.space} reason={s.reason} save={{ saved: s.saved, loggedIn }} priority={i < 4} />
                     </li>
                   ))}
                 </ul>

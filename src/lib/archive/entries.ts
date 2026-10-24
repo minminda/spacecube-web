@@ -4,6 +4,7 @@
    상태를 바꿔도 지우지 않는다: 저장 → 다녀왔어요(방문 1건 추가) → 또 갔어요(방문 추가).
    예외는 하나 — 공간 상세에서 방금 남긴 재방문 1건의 취소(undoRevisit). ── */
 
+import { publicSpaceFilter, spaceUsable } from "@/lib/demoSpaces";
 import { prisma } from "@/lib/prisma";
 import { parseHttpUrl, placeKey, detectSourceKind, type SourceKind } from "./source";
 import { addressHint, myStateOf, searchSpaces, type MyState } from "./spaceSearch";
@@ -38,7 +39,7 @@ export interface SpaceSearchResult {
  */
 export async function searchArchiveSpaces(userId: string, q: string, opts: { includeDemo: boolean }): Promise<SpaceSearchResult[]> {
   const rows = await prisma.editorialSpace.findMany({
-    where: { status: "PUBLISHED", ...(opts.includeDemo ? {} : { isDemo: false }) },
+    where: { status: "PUBLISHED", ...(opts.includeDemo ? {} : publicSpaceFilter()) },
     select: { id: true, slug: true, name: true, area: true, category: true, address: true, coverImage: true },
   });
   const hits = searchSpaces(rows, q);
@@ -113,7 +114,7 @@ export async function createOrMergeEntry(userId: string, input: CreateEntryInput
   let space: { id: string; name: string; area: string } | null = null;
   if (input.spaceId) {
     space = await prisma.editorialSpace.findFirst({
-      where: { id: input.spaceId, status: "PUBLISHED", ...(opts.includeDemo ? {} : { isDemo: false }) },
+      where: { id: input.spaceId, status: "PUBLISHED", ...(opts.includeDemo ? {} : publicSpaceFilter()) },
       select: { id: true, name: true, area: true },
     });
     if (!space) throw new ArchiveError(404, "연결할 공간을 찾을 수 없어요.");
