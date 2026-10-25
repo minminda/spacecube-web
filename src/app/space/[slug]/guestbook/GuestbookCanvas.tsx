@@ -681,10 +681,10 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
     // full-bleed: 공용 레이아웃(layout.tsx)의 max-w-sm/md:max-w-2xl 중앙 정렬 wrapper를 뚫고
     // 뷰포트 폭 전체를 채운다(768px 미만에서만 적용, 데스크톱은 기존 중앙 정렬 폭 그대로 —
     // globals.css 참고, 대표사진에 이미 쓰이던 것과 동일한 유틸리티를 그대로 재사용).
-    <div className="full-bleed flex flex-col" style={{ height: "calc(100dvh - var(--nav-h))", background: worldBg }}>
+    <div className="full-bleed gb-shell flex flex-col" style={{ background: worldBg }}>
 
       {/* ── 상단 ── */}
-      <div className="flex items-center justify-between px-6 py-4 gap-3">
+      <div className="flex-shrink-0 flex items-center justify-between px-6 py-3 gap-3">
         <Link href={`/space/${space.slug}`} className="text-xs flex-shrink-0" style={{ color: "#888" }}>
           ← {space.name}
         </Link>
@@ -701,7 +701,7 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
       {/* ── 캔버스 ── */}
       <div
         ref={viewportRef}
-        className="relative flex-1 overflow-hidden cursor-grab active:cursor-grabbing"
+        className="relative flex-1 min-h-0 overflow-hidden cursor-grab active:cursor-grabbing"
         style={{ touchAction: "none", background: worldBg }}
       >
         <AnimatePresence>
@@ -916,6 +916,16 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
             </div>
           </TransformComponent>
         </TransformWrapper>
+
+        {/* 줌 컨트롤 — 캔버스 우하단에 겹쳐 둔다. 하단 액션 바에서 한 줄(약 40px)을 덜어내 캔버스를 더 크게 쓴다. */}
+        <div
+          className="absolute bottom-3 right-3 z-20 flex items-center gap-1 transition-opacity"
+          style={{ opacity: introPlaying ? 0.3 : 1, pointerEvents: introPlaying ? "none" : "auto" }}
+        >
+          <button type="button" aria-label="줌 아웃" onClick={() => transformRef.current?.zoomOut(0.35)} className="w-9 h-9 border text-sm" style={{ borderColor: "#333", color: "#999", background: "rgba(0,0,0,0.55)" }}>−</button>
+          <span className="text-xs w-11 text-center tabular-nums" style={{ color: "#999" }}>{scalePct}%</span>
+          <button type="button" aria-label="줌 인" onClick={() => transformRef.current?.zoomIn(0.35)} className="w-9 h-9 border text-sm" style={{ borderColor: "#333", color: "#999", background: "rgba(0,0,0,0.55)" }}>+</button>
+        </div>
       </div>
 
       {/* ── 하단 액션 영역 — 모바일 safe-area까지 자연스럽게 채우는 고정 액션 바.
@@ -932,16 +942,9 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
           pointerEvents: introPlaying ? "none" : "auto",
         }}
       >
-        <div className="flex items-center justify-center gap-1.5 px-6 pt-2">
-          <button type="button" aria-label="줌 아웃" onClick={() => transformRef.current?.zoomOut(0.35)} className="w-8 h-8 border text-sm flex-shrink-0" style={{ borderColor: "#333", color: "#999" }}>−</button>
-          <span className="text-xs w-12 text-center tabular-nums flex-shrink-0" style={{ color: "#999" }}>{scalePct}%</span>
-          <button type="button" aria-label="줌 인" onClick={() => transformRef.current?.zoomIn(0.35)} className="w-8 h-8 border text-sm flex-shrink-0" style={{ borderColor: "#333", color: "#999" }}>+</button>
-        </div>
-
-        {/* px-6/pb-6: 다른 화면의 CTA 컨테이너(예: Episode 페이지 "방명록 열기")와 동일한 좌우
-            여백, 안전 영역(env(safe-area-inset-bottom), 위 wrapper) 위에 추가 여유를 둬 버튼이
-            화면 맨 아래 가장자리에 붙어 잘려 보이지 않게 한다. */}
-        <div className="max-w-md mx-auto w-full px-6 pt-2 pb-6 flex flex-col gap-2">
+        {/* px-6: 다른 화면의 CTA 컨테이너(예: Episode 페이지 "방명록 열기")와 동일한 좌우 여백.
+            pb-3 + 위 wrapper의 env(safe-area-inset-bottom)로 홈 인디케이터/브라우저 바와 겹치지 않게 한다. */}
+        <div className="max-w-md mx-auto w-full px-6 pt-3 pb-3 flex flex-col gap-2">
           {/* 별도의 "작성" CTA는 없다 — 캔버스 배경을 직접 눌러 그 자리에 바로 흔적을 남긴다
               (handleWorldClick). 여기에는 이미 흔적을 남긴 뒤에만 나오는 보조 링크만 둔다. */}
           {myNoteId && (
