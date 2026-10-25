@@ -35,6 +35,8 @@ interface Props {
   area: string | null;
   /** 별표한 관심 지역(최근 순) */
   savedRegions: string[];
+  /** 촬영 전용 — 엄선한 공간 선반 맨 앞에 올릴 공간 slug(?demoShot=) */
+  demoShot?: string | null;
 }
 
 function SpaceShelf({ shelf, savedIds, loggedIn, id }: { shelf: HomeSpaceShelf; savedIds: Set<string>; loggedIn: boolean; id?: string }) {
@@ -49,8 +51,8 @@ function SpaceShelf({ shelf, savedIds, loggedIn, id }: { shelf: HomeSpaceShelf; 
   );
 }
 
-export default async function EditorialHome({ admin, previewDrafts, fixtures, userId, area, savedRegions }: Props) {
-  const d = await getHomeData({ userId, admin, previewDrafts, fixtures, area, savedRegions });
+export default async function EditorialHome({ admin, previewDrafts, fixtures, userId, area, savedRegions, demoShot }: Props) {
+  const d = await getHomeData({ userId, admin, previewDrafts, fixtures, area, savedRegions, demoShot });
   const preview = fixtures ? "fixtures" : previewDrafts ? "drafts" : null;
   const shelf = (s: HomeSpaceShelf, id?: string) => <SpaceShelf key={s.key} id={id ?? s.key} shelf={s} savedIds={d.savedIds} loggedIn={d.loggedIn} />;
   const lead = d.spaceShelves.filter((s) => !s.key.startsWith("theme-"));

@@ -9,7 +9,7 @@ import EditorialHome from "./EditorialHome";
 import { getSavedRegions } from "@/lib/regions/savedRegions";
 
 interface Props {
-  searchParams: Promise<{ legacy?: string; preview?: string; area?: string }>;
+  searchParams: Promise<{ legacy?: string; preview?: string; area?: string; demoShot?: string }>;
 }
 
 /**
@@ -21,7 +21,7 @@ interface Props {
  *   /?preview=drafts   초안 콘텐츠 포함
  */
 export default async function Home({ searchParams }: Props) {
-  const [session, { legacy, preview, area }] = await Promise.all([auth(), searchParams]);
+  const [session, { legacy, preview, area, demoShot }] = await Promise.all([auth(), searchParams]);
   const admin = isAdmin(session?.user?.email);
   const editorial = ENABLE_EDITORIAL_HOME || admin;
 
@@ -40,6 +40,7 @@ export default async function Home({ searchParams }: Props) {
         userId={session?.user?.id ?? null}
         area={typeof area === "string" ? area.slice(0, 30) : null}
         savedRegions={savedRegions}
+        demoShot={typeof demoShot === "string" && /^[a-z0-9-]{1,60}$/.test(demoShot) ? demoShot : null}
       />
     );
   }

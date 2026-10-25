@@ -139,7 +139,7 @@ function fromView(v: SpaceView, order: number): HomeSpace {
   };
 }
 
-export async function getHomeData(opts: { userId: string | null; admin: boolean; previewDrafts: boolean; fixtures: boolean; area: string | null; savedRegions?: string[] }): Promise<HomeData> {
+export async function getHomeData(opts: { userId: string | null; admin: boolean; previewDrafts: boolean; fixtures: boolean; area: string | null; savedRegions?: string[]; demoShot?: string | null }): Promise<HomeData> {
   const v = { preview: opts.previewDrafts };
   const access = curatorAccess({ admin: opts.admin, editorial: true });
   const savedRegions = opts.savedRegions ?? [];
@@ -297,6 +297,17 @@ export async function getHomeData(opts: { userId: string | null; admin: boolean;
       ...(area ? [] : Object.values(editorialShelves).map((shelf) => ({ shelf, strength: "strong" as DiversityStrength, limit: shelf.cards.length }))),
     ],
   });
+
+  // 촬영 전용(?demoShot=<slug>): 그 요청의 "엄선한 공간" 선반 맨 앞에 지정 공간 카드를 올린다. 순위 · 가중치 · DB는 건드리지 않고,
+  // 저장 · 방문해서 추천 후보에서 빠진 공간은 올리지 않는다. 파라미터가 없으면 아무 일도 하지 않는다.
+  if (opts.demoShot && forYou) {
+    const hit = rankPool.find((f) => f.view.slug === opts.demoShot);
+    if (hit) {
+      const space = homeSpaceFromFinder(hit);
+      const card: HomeCard = { space, reason: reasonOf(space) };
+      forYou.cards = [card, ...forYou.cards.filter((c) => c.space.slug !== opts.demoShot)].slice(0, Math.max(forYouShown, 1));
+    }
+  }
 
   // 반복 제한으로 비워진 선반은 내보내지 않는다
   const kept = <T extends { cards: unknown[] }>(s: T | null): T | null => (s && s.cards.length > 0 ? s : null);
