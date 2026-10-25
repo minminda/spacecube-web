@@ -299,9 +299,9 @@ export async function getHomeData(opts: { userId: string | null; admin: boolean;
   });
 
   // 촬영 전용(?demoShot=<slug>): 그 요청의 "엄선한 공간" 선반 맨 앞에 지정 공간 카드를 올린다. 순위 · 가중치 · DB는 건드리지 않고,
-  // 저장 · 방문해서 추천 후보에서 빠진 공간은 올리지 않는다. 파라미터가 없으면 아무 일도 하지 않는다.
+  // 저장 · 방문 이력과 무관하게 올린다(이미 저장했으면 상세에서 "저장됨"으로 보인다). 파라미터가 없으면 아무 일도 하지 않는다.
   if (opts.demoShot && forYou) {
-    const hit = rankPool.find((f) => f.view.slug === opts.demoShot);
+    const hit = pool.find((f) => f.view.slug === opts.demoShot);
     if (hit) {
       const space = homeSpaceFromFinder(hit);
       const card: HomeCard = { space, reason: reasonOf(space) };
