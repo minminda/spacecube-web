@@ -1,6 +1,7 @@
 import { auth } from "@/auth";
 import { isAdmin } from "@/lib/admin";
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { ENABLE_EDITORIAL_HOME, ENABLE_PUBLIC_DEMO_SPACES } from "@/lib/features";
 import { normalizeArea } from "@/lib/editorial/area";
 import { DEMO_REGION, homeHref } from "@/lib/home/shelves";
@@ -40,7 +41,7 @@ export default async function Home({ searchParams }: Props) {
         userId={session?.user?.id ?? null}
         area={typeof area === "string" ? area.slice(0, 30) : null}
         savedRegions={savedRegions}
-        demoShot={typeof demoShot === "string" && /^[a-z0-9-]{1,60}$/.test(demoShot) ? demoShot : null}
+        demoShot={[typeof demoShot === "string" ? demoShot : null, (await cookies()).get("demoShot")?.value ?? null].find((v) => !!v && /^[a-z0-9-]{1,60}$/.test(v)) ?? null}
       />
     );
   }
