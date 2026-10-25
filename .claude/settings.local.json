@@ -11,7 +11,9 @@
       "Bash(git merge *)",
       "Read(//c/Users/alseh/spacecube-app/**)",
       "Bash(gh run *)",
-      "Bash(npx prisma *)"
+      "Bash(npx prisma *)",
+      "Bash(node -e ' *)",
+      "Bash(npx tsc *)"
     ]
   }
 }
