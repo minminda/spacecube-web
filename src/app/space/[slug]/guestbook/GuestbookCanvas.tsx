@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { createPortal } from "react-dom";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -53,8 +54,6 @@ const SINGLE_NOTE_INTRO_MS = 600; // 포스트잇이 정확히 1개일 때 과�
 const HERO_SPAN_MULTIPLIER = 1.3; // 히어로 포스트잇이 화면을 거의 채우되 잘리지 않도록 하는 여유 배수
 const GRID_CELL_W = 220;
 const GRID_CELL_H = 260;
-const COMPOSE_SCALE = 1.15; // 작성 중 편하게 볼 수 있는 확대 비율
-const COMPOSE_DURATION_MS = 550; // 포스트잇 생성 직후 줌인 애니메이션 길이
 const CANCEL_DURATION_MS = 420; // 취소 시 이전 화면으로 되돌아가는 애니메이션 길이
 
 const CLOUDINARY_URL = `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload`;
@@ -464,45 +463,37 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
     }).catch(() => {});
 
     requireNickname(() => {
-      // 생성 직후 해당 위치로 부드럽게 이동/확대하고, 취소 시 되돌아갈 이전 위치를 기억해둔다
-      preComposeTransformRef.current = { ...lastTransformRef.current };
+      // 작성창은 캔버스 transform과 무관한 화면 중앙 오버레이다 — 카메라(pan/zoom)는 건드리지 않고,
+      // 눌렀던 캔버스 좌표(x, y)만 기억했다가 저장할 때 그 자리에 포스트잇을 만든다.
       setComposer({ x, y });
       setComposerClusterType(nearestClusterType(x + NOTE_W / 2, y + 70));
-      focusOnPoint(x + NOTE_W / 2, y + 70, COMPOSE_SCALE, COMPOSE_DURATION_MS);
     });
   }
 
-  // 모바일 키보드가 열리면 작성창이 가려지지 않도록, "지금 실제로 보이는 영역(visualViewport) 안에서" 작성창이 가운데에 오게 카메라를 다시 맞춘다.
-  // - Android Chrome: 키보드가 visualViewport.height만 줄인다(레이아웃 뷰포트는 그대로).
-  // - iOS Safari: 키보드가 뜨면 visualViewport가 아래로 밀려(offsetTop>0) 상단 바가 화면 밖으로 올라가기도 한다.
-  // 두 경우 모두 캔버스(viewportRef)의 화면 좌표와 visualViewport의 교집합 가운데로 초점을 옮기면 된다.
-  // 키보드가 닫히면 같은 계산이 offset 0으로 돌아와 원래 가운데로 복귀한다. 핀치 확대 중(scale>1)에는 건드리지 않는다.
+  // 작성창 오버레이가 차지할 "지금 실제로 보이는 영역" — 키보드가 올라오면 그 위쪽(visualViewport)으로 줄어든다.
+  // Android Chrome은 visualViewport.height만 줄고, iOS Safari는 offsetTop까지 밀리므로 위치와 크기를 함께 따른다.
+  // 지원하지 않으면 null → CSS(inset: 0)로 화면 전체.
+  const [visibleRect, setVisibleRect] = useState<{ left: number; top: number; width: number; height: number } | null>(null);
   useEffect(() => {
     if (!composer) return;
     const vv = window.visualViewport;
     if (!vv) return;
-    let lastOffset = 0;
-    let lastHeight = viewportRef.current?.clientHeight ?? 0;
-    function refocus() {
-      const el = viewportRef.current;
-      if (!vv || !composer || !el || vv.scale > 1.01) return;
-      const rect = el.getBoundingClientRect();
-      const top = Math.max(rect.top, vv.offsetTop);
-      const bottom = Math.min(rect.bottom, vv.offsetTop + vv.height);
-      if (bottom - top < 80) return;
-      const offset = (top + bottom) / 2 - rect.top - rect.height / 2;
-      if (Math.abs(offset - lastOffset) < 8 && Math.abs(rect.height - lastHeight) < 8) return;
-      lastOffset = offset;
-      lastHeight = rect.height; // 회전 · 주소창 변화로 캔버스 높이 자체가 바뀐 경우에도 작성창을 가운데로 다시 맞춘다
-      focusOnPoint(composer.x + NOTE_W / 2, composer.y + 70, COMPOSE_SCALE, 300, offset);
-    }
-    vv.addEventListener("resize", refocus);
-    vv.addEventListener("scroll", refocus);
-    return () => {
-      vv.removeEventListener("resize", refocus);
-      vv.removeEventListener("scroll", refocus);
+    // 키보드 등으로 보이는 영역이 레이아웃 뷰포트와 달라졌을 때만 px로 고정한다 — 평소에는 CSS(inset 0)가 화면 크기 변화를 그대로 따른다.
+    const update = () => {
+      const shifted = Math.abs(vv.height - window.innerHeight) > 1 || Math.abs(vv.width - window.innerWidth) > 1 || vv.offsetTop > 1 || vv.offsetLeft > 1;
+      setVisibleRect(shifted ? { left: vv.offsetLeft, top: vv.offsetTop, width: vv.width, height: vv.height } : null);
     };
-  }, [composer, focusOnPoint]);
+    update();
+    vv.addEventListener("resize", update);
+    vv.addEventListener("scroll", update);
+    window.addEventListener("resize", update); // 회전 · 주소창 변화 — visualViewport 이벤트가 오지 않는 환경 대비
+    return () => {
+      setVisibleRect(null);
+      vv.removeEventListener("resize", update);
+      vv.removeEventListener("scroll", update);
+      window.removeEventListener("resize", update);
+    };
+  }, [composer]);
 
   async function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -873,63 +864,13 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
                 );
               })}
 
-              {/* 작성창 — 선택한 위치에 뜨는 포스트잇 */}
+              {/* 저장될 자리 표시 — 작성창은 화면 중앙 오버레이이고, 포스트잇은 여기(눌렀던 캔버스 좌표)에 만들어진다 */}
               {composer && (
                 <div
-                  className="composer-block absolute p-3.5 z-10"
-                  style={{ left: composer.x, top: composer.y, width: NOTE_W + 30, background: settings.defaultPostitColor, boxShadow: "0 4px 18px rgba(0,0,0,0.6)" }}
-                  onPointerDown={(e) => e.stopPropagation()}
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <p className="text-xs font-medium mb-2" style={{ color: INK }}>
-                    이 공간에 어떤 흔적을 남길까요?
-                  </p>
-
-                  {enableImage && settings.allowImage && (
-                    <div className="mb-2">
-                      {photoPreview ? (
-                        <div className="relative">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={photoPreview} alt="" className="w-full aspect-square object-cover" />
-                          {photoUploading && (
-                            <div className="absolute inset-0 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.4)" }}>
-                              <span className="text-[10px]" style={{ color: "#fff" }}>업로드 중...</span>
-                            </div>
-                          )}
-                          <button type="button" onClick={removePhoto} className="absolute top-1 right-1 text-[10px] px-1.5 py-0.5" style={{ background: "rgba(0,0,0,0.6)", color: "#fff" }}>
-                            삭제
-                          </button>
-                        </div>
-                      ) : (
-                        <label className="block text-[11px] py-1.5 text-center border cursor-pointer" style={{ borderColor: INK_DIM, color: INK_DIM }}>
-                          + 사진 추가 (선택)
-                          <input type="file" accept="image/jpeg,image/png,image/webp" onChange={handlePhotoChange} className="hidden" />
-                        </label>
-                      )}
-                    </div>
-                  )}
-
-                  <textarea
-                    autoFocus
-                    value={content}
-                    onChange={(e) => { if (e.target.value.length <= MAX_CONTENT) setContent(e.target.value); }}
-                    placeholder="오늘 이 공간에서 든 생각을 짧게 남겨주세요"
-                    rows={3}
-                    className="gb-composer-input w-full text-[13px] leading-relaxed p-2 resize-none outline-none"
-                    style={{ background: "rgba(255,255,255,0.45)", color: INK }}
-                  />
-                  <div className="flex items-center justify-between mt-2">
-                    <span className="text-[10px]" style={{ color: INK_DIM }}>{content.length}/{MAX_CONTENT}</span>
-                    <div className="flex gap-2">
-                      <button type="button" onClick={cancelCompose} className="text-xs px-2.5 py-1" style={{ color: INK_DIM }}>
-                        취소
-                      </button>
-                      <button type="button" onClick={handleSubmit} disabled={!content.trim() || saving || photoUploading} className="text-xs px-3 py-1 border disabled:opacity-40" style={{ borderColor: INK, color: INK }}>
-                        {saving ? "남기는 중..." : "남기기"}
-                      </button>
-                    </div>
-                  </div>
-                </div>
+                  aria-hidden
+                  className="absolute z-10 pointer-events-none"
+                  style={{ left: composer.x, top: composer.y, width: NOTE_W, height: POST_IT_HEIGHT, background: settings.defaultPostitColor, opacity: 0.5, outline: "2px dashed rgba(0,0,0,0.45)", outlineOffset: -6 }}
+                />
               )}
             </div>
           </TransformComponent>
@@ -1001,6 +942,78 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
           </button>
         </div>
       </div>
+
+      {/* ── 포스트잇 작성창 — 캔버스(transform)와 분리된 화면 중앙 오버레이. body로 portal해서 .full-bleed의 transform에 갇히지 않고,
+          보이는 영역(visualViewport) 크기를 따라 키보드 위쪽 가운데에 놓인다. 카드가 보이는 영역보다 크면 본문만 내부 스크롤, 취소/남기기는 항상 보인다. ── */}
+      {composer && typeof document !== "undefined" && createPortal(
+        <div
+          className="flex items-center justify-center"
+          style={{
+            position: "fixed",
+            ...(visibleRect ?? { left: 0, top: 0, width: "100%", height: "100%" }),
+            zIndex: 60,
+            padding: 12,
+            background: "rgba(0,0,0,0.55)",
+          }}
+          onClick={(e) => { if (e.target === e.currentTarget) cancelCompose(); }}
+        >
+          <div
+            className="composer-block flex flex-col w-full"
+            style={{ maxWidth: NOTE_W + 40, maxHeight: "100%", background: settings.defaultPostitColor, boxShadow: "0 4px 18px rgba(0,0,0,0.6)" }}
+          >
+            <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-3.5 pb-2">
+              <p className="text-xs font-medium mb-2" style={{ color: INK }}>
+                이 공간에 어떤 흔적을 남길까요?
+              </p>
+                  {enableImage && settings.allowImage && (
+                    <div className="mb-2">
+                      {photoPreview ? (
+                        <div className="relative">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={photoPreview} alt="" className="w-full aspect-square object-cover" />
+                          {photoUploading && (
+                            <div className="absolute inset-0 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.4)" }}>
+                              <span className="text-[10px]" style={{ color: "#fff" }}>업로드 중...</span>
+                            </div>
+                          )}
+                          <button type="button" onClick={removePhoto} className="absolute top-1 right-1 text-[10px] px-1.5 py-0.5" style={{ background: "rgba(0,0,0,0.6)", color: "#fff" }}>
+                            삭제
+                          </button>
+                        </div>
+                      ) : (
+                        <label className="block text-[11px] py-1.5 text-center border cursor-pointer" style={{ borderColor: INK_DIM, color: INK_DIM }}>
+                          + 사진 추가 (선택)
+                          <input type="file" accept="image/jpeg,image/png,image/webp" onChange={handlePhotoChange} className="hidden" />
+                        </label>
+                      )}
+                    </div>
+                  )}
+
+                  <textarea
+                    autoFocus
+                    value={content}
+                    onChange={(e) => { if (e.target.value.length <= MAX_CONTENT) setContent(e.target.value); }}
+                    placeholder="오늘 이 공간에서 든 생각을 짧게 남겨주세요"
+                    rows={3}
+                    className="gb-composer-input w-full text-[13px] leading-relaxed p-2 resize-none outline-none"
+                    style={{ background: "rgba(255,255,255,0.45)", color: INK }}
+                  />
+            </div>
+            <div className="flex-shrink-0 flex items-center justify-between px-3.5 pb-3 pt-1">
+              <span className="text-[10px]" style={{ color: INK_DIM }}>{content.length}/{MAX_CONTENT}</span>
+              <div className="flex gap-2">
+                <button type="button" onClick={cancelCompose} className="text-xs px-3 py-2" style={{ color: INK_DIM }}>
+                  취소
+                </button>
+                <button type="button" onClick={handleSubmit} disabled={!content.trim() || saving || photoUploading} className="text-xs px-4 py-2 border disabled:opacity-40" style={{ borderColor: INK, color: INK }}>
+                  {saving ? "남기는 중..." : "남기기"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>,
+        document.body,
+      )}
 
       {/* ── 닉네임 설정 프롬프트 ── */}
       <AnimatePresence>

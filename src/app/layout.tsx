@@ -30,13 +30,13 @@ export const metadata: Metadata = {
     description: "공간 경험을 기록하고 취향을 발견하는 서비스",
   },
   // 홈 화면에 추가했을 때만 적용된다(iOS). 일반 브라우저 접속에는 영향이 없다.
-  appleWebApp: { capable: true, title: "공간큐브", statusBarStyle: "default" },
+  appleWebApp: { capable: true, title: "공간큐브", statusBarStyle: "black" },
   icons: { apple: "/icons/apple-touch-icon.png" },
 };
 
 // viewport-fit=cover: 이게 없으면 iOS Safari에서 env(safe-area-inset-*)가 항상 0이라
 // 하단 탭/방명록 하단 바의 safe-area 보정이 동작하지 않는다.
-export const viewport: Viewport = { width: "device-width", initialScale: 1, viewportFit: "cover", themeColor: "#ffffff" };
+export const viewport: Viewport = { width: "device-width", initialScale: 1, viewportFit: "cover", themeColor: "#000000" };
 
 export default function RootLayout({ children, modal }: { children: React.ReactNode; modal: React.ReactNode }) {
   return (
