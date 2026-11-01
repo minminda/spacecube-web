@@ -1,5 +1,4 @@
 import SaveButton from "./SaveButton";
-import { demoBadge } from "@/lib/demoSpaces";
 import SpaceTile, { SPACE_GRID_SIZES } from "./SpaceTile";
 import { spaceCoverImage, spaceHref, type SpaceView } from "@/lib/editorial/types";
 
@@ -36,7 +35,7 @@ export default function SpaceCard({ space, ratio, mobileRatio, sizes = SPACE_GRI
       href={spaceHref(space.slug)}
       image={spaceCoverImage(space)}
       name={space.name}
-      meta={[space.area, space.isDemo ? demoBadge(space.slug) : null].filter(Boolean).join(" · ")}
+      meta={space.area ?? ""}
       line={reason ?? (showSummary && !note ? space.summary : null)}
       note={note}
       partner={space.cubeAvailable}

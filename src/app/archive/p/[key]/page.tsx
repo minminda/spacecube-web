@@ -16,7 +16,6 @@ import EntryActions, { PhotoGrid } from "@/components/archive/EntryActions";
 import { ProfileSpaceToggle } from "@/components/profile/ProfileActions";
 import { prisma } from "@/lib/prisma";
 import { profilePath } from "@/lib/profile/publicProfile";
-import { demoBadge } from "@/lib/demoSpaces";
 
 export const metadata: Metadata = { title: "내 공간 — 공간큐브", robots: { index: false } };
 
@@ -82,7 +81,6 @@ export default async function ArchiveDetailPage({ params }: Props) {
               <p className="ed-label" style={{ color: "var(--ed-dim)" }}>
                 {[d.area, d.category].filter(Boolean).join(" · ") || "지역 미입력"}
                 {personal && " · 개인 기록"}
-                {d.editorial?.isDemo && ` · ${demoBadge(d.editorial.slug)}`}
               </p>
               <h1 className="text-[36px] md:text-[52px] font-bold leading-[1.05] tracking-[-0.04em] break-keep">{d.name}</h1>
               <p className="text-sm tabular-nums">

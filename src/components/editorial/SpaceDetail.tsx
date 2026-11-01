@@ -19,7 +19,7 @@ import { getMySpaceState } from "@/lib/archive/entries";
 import { libraryHref } from "@/lib/archive/library";
 import { getPartnerEpisodes } from "@/lib/editorial/partnerEpisodes";
 import PartnerEpisodeList from "@/components/editorial/PartnerEpisodeList";
-import { demoBadge, isExtendedSpace, isPublicDemoSpace } from "@/lib/demoSpaces";
+import { isExtendedSpace, isPublicDemoSpace } from "@/lib/demoSpaces";
 import { normalizeArea } from "@/lib/editorial/area";
 import { INSTAGRAM_URL } from "@/content/site";
 import { curatorAccess } from "@/lib/curators/access";
@@ -247,7 +247,7 @@ export default async function SpaceDetail({ slug, presentation }: Props) {
                     <span className="block min-w-0">
                       <span className="block text-[13px] font-semibold leading-snug truncate group-hover:underline underline-offset-4">{s.name}</span>
                       <span className="block text-xs truncate" style={{ color: "var(--ed-dim)" }}>
-                        {[normalizeArea(s.area) ?? s.area, s.isDemo ? demoBadge(s.slug) : null].filter(Boolean).join(" · ")}
+                        {normalizeArea(s.area) ?? s.area}
                       </span>
                     </span>
                   </Link>

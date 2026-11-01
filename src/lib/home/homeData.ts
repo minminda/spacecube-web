@@ -46,6 +46,9 @@ function pinnedLatest(stream: ContentItem[]): ContentItem[] {
   return items;
 }
 
+/** HOME(선반 · 추천 · 둘러보기)에서만 숨기는 공간 slug — 사진 화질이 낮아서. DB · 사진 · 상세 · 검색 · 관리자는 그대로. 다시 보이게 하려면 여기서 지운다. */
+export const HOME_HIDDEN_SPACE_SLUGS: ReadonlySet<string> = new Set(["demo-ext-cut-the-cake", "demo-ext-tail-tango", "demo-ext-denmark-library"]);
+
 const PER_SHELF = 12;
 /** 개인화 순위를 "충분하다"고 볼 최소 공간 수 — 미만이면 둘러보기 Fallback */
 const MIN_PERSONAL = 6;
@@ -143,7 +146,7 @@ export async function getHomeData(opts: { userId: string | null; admin: boolean;
   const v = { preview: opts.previewDrafts };
   const access = curatorAccess({ admin: opts.admin, editorial: true });
   const savedRegions = opts.savedRegions ?? [];
-  const [stream, stories, curations, cubeViews, areas, pool, me, similarRaw, shelfRows] = await Promise.all([
+  const [stream, stories, curations, cubeViews, areas, poolAll, me, similarRaw, shelfRows] = await Promise.all([
     listContentStream(v),
     listStoryItems(v),
     listCurations(v),
@@ -155,6 +158,8 @@ export async function getHomeData(opts: { userId: string | null; admin: boolean;
     opts.area && !ENABLE_PUBLIC_DEMO_SPACES ? Promise.resolve({ people: [] as SimilarPerson[], spaces: [] as { slug: string; visited: boolean }[] }) : similarPeopleForHome(opts.userId, { includeDemo: previewDemoUsers(opts.admin) }),
     loadShelfRows(),
   ]);
+  // 사진 화질 문제로 HOME에서만 뺀 공간(데이터 · 사진 · 상세 · 검색은 그대로)
+  const pool = poolAll.filter((f) => !HOME_HIDDEN_SPACE_SLUGS.has(f.view.slug));
   const visible = <T extends { status: string }>(rows: T[]) => rows.filter((r) => r.status !== "ARCHIVED");
 
   // 공간 → 큐레이션에 적힌 선정 이유(가장 최근 큐레이션 것 하나)

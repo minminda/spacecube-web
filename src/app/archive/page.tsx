@@ -17,7 +17,6 @@ import { buildTasteProfile, topAttributes } from "@/lib/discoveryRecommend";
 import { formatDotDate } from "@/lib/time";
 import { normalizeArea } from "@/lib/editorial/area";
 import { defaultLibraryView, filterLibrary, getLibrary, libraryOpenHref, parseLibraryFilter, type LibraryFilter } from "@/lib/archive/library";
-import { demoBadge } from "@/lib/demoSpaces";
 import { curatorAccess } from "@/lib/curators/access";
 import { profilePath } from "@/lib/profile/publicProfile";
 import { ShareProfileButton } from "@/components/profile/ProfileActions";
@@ -247,7 +246,6 @@ export default async function ArchivePage({ searchParams }: Props) {
                         // 상태 — 다녀왔어요가 우선(저장도 해 둔 공간이면 다녀왔어요로 보인다)
                         it.visited ? (it.visitCount >= 2 ? `${it.visitCount}번 다녀왔어요` : "다녀왔어요") : "저장",
                         it.personal ? "개인 기록" : null,
-                        it.demo ? demoBadge(it.slug) : null,
                       ].filter(Boolean).join(" · ")}
                       sizes={SPACE_GRID_SIZES}
                       priority={i < 4}
