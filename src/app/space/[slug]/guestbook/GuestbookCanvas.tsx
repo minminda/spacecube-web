@@ -46,6 +46,7 @@ const MAX_CONTENT = 80;
 const CLICK_TOLERANCE = 8; // px — 이보다 크게 움직이면 팬으로 간주
 const DEFAULT_SCALE = 0.35; // 콘텐츠가 없을 때 쓰는 안정적인 기본 배율
 const MIN_INITIAL_SCALE = 0.16; // 최종(줌아웃 후) 배율 하한 — 질문/포스트잇이 너무 작아 안 보이는 걸 방지
+const MOBILE_MIN_INITIAL_SCALE = 0.3; // 좁은 화면(<768px)의 최종 배율 하한 — 0.16이면 휴대폰(390px)에서 포스트잇이 폭 27px로 보여 모양조차 알아보기 어렵다
 const MAX_INITIAL_SCALE = 0.9; // 최종(줌아웃 후) 배율 상한 — 콘텐츠가 아주 좁게 몰려 있어도 과하게 확대되지 않도록
 const MAX_SCALE = 2.2; // 캔버스 전체 최대 줌 — TransformWrapper와 진입 연출 시작 배율 계산이 공유하는 상한
 const INTRO_HOLD_MS = 650; // 히어로 포스트잇이 화면 가득 보이는 상태로 잠깐 머무는 시간(스펙: 500~800ms)
@@ -223,7 +224,7 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
     const { cx, cy, span } = computeFitToContentViewport(allPoints, { x: WORLD_W / 2, y: WORLD_H / 2 });
     const targetScale = allPoints.length === 0
       ? DEFAULT_SCALE
-      : Math.min(Math.max((Math.min(clientWidth, clientHeight) / span) * settings.initialZoom, MIN_INITIAL_SCALE), MAX_INITIAL_SCALE);
+      : Math.min(Math.max((Math.min(clientWidth, clientHeight) / span) * settings.initialZoom, clientWidth < 768 ? MOBILE_MIN_INITIAL_SCALE : MIN_INITIAL_SCALE), MAX_INITIAL_SCALE);
     const endX = clientWidth / 2 - cx * targetScale;
     const endY = clientHeight / 2 - cy * targetScale;
 
