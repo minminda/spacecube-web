@@ -1,3 +1,25 @@
+# Handoff — 방명록 하단 미확장: 실기기 진단 도구 (2026-11-01)
+
+## 상태: 원인 미확인 (임의 수정 없음)
+- 이전 분석(캔버스 컨테이너 정상)은 **Chromium 에뮬레이션 결과**이며 실제 iPhone Safari와 일치하지 않는다고 보고됐다 → 확정 사실로 쓰지 않는다. 이번에는 레이아웃 값을 바꾸지 않았다(초기 배율 0.3 · 내비게이션 · 작성/키보드 · 데이터 모두 그대로).
+- 코드로 확인되는 구조(에뮬레이션 390×844): 문서 스크롤 없음, Navbar 57 → `.gb-shell` 787(= `100dvh` − 57 − 1 근처, 한 곳에서만 차감) = 상단 줄 40 + 캔버스 674(80%) + 하단 CTA 73. 하단 탭(`BottomTabBar`)은 `/space/`에서 숨김, safe-area는 하단 CTA 한 곳. 중복 차감은 코드상 발견되지 않음.
+- 세 원인 구분: A(캔버스 높이 부족) · B(내부 UI 과다: 상단 57+40, 하단 73 = 170px) · C(Safari UI 영역). 실제로 비는 곳이 A/B/C 중 어느 쪽인지는 **실기기에서만** 가를 수 있어 진단 오버레이를 추가했다.
+
+## 진단 오버레이 (`?gbdiag=1`일 때만 렌더, 일반 방문자에게 안 보임)
+- 파일: `src/app/space/[slug]/guestbook/GuestbookDiag.tsx`(+ GuestbookCanvas에서 쿼리 확인 후 렌더 1줄). 진단이 끝나면 두 곳 모두 삭제.
+- 표시: innerHeight · visualViewport(height/offsetTop) · screen.height · **100lvh / 100svh / 100dvh 실측** · **safe-area top/bottom 실측** · documentElement client/scrollHeight · scrollY · nav / `.gb-shell` / 헤더 / 캔버스 / 하단 CTA의 top · bottom · height · dpr. 화면에는 초록선(innerHeight 하단), 노랑선(visualViewport 하단), 빨강(shell) · 파랑(캔버스) · 분홍(CTA) 테두리. 0.5초마다 + resize/visualViewport 이벤트에서 갱신(주소창 접힘/펼침도 추적).
+- 에뮬레이션 확인(390×844): shell 하단 845 = innerHeight 845, lvh/svh/dvh 모두 845, safe-area 0/0 (실기기 값은 다를 수 있음).
+
+## iPhone에서 확인하는 방법
+1. 배포 후 Safari에서 `…/space/<slug>/guestbook?gbdiag=1`(QR로 들어간 뒤 주소 끝에 `?gbdiag=1`을 붙이거나, Episode에서 방명록 진입 후 주소창 수정).
+2. 패널의 숫자와 선 위치를 스크린샷으로 보내주세요. 해석:
+   - 빨강(shell) 하단 ≈ 노랑/초록선인데 그 아래가 화면에 보이면 → 선 아래는 Safari UI(C) 또는 safe-area 영역.
+   - shell 하단이 초록선보다 한참 위 → A(높이 계산: `100dvh`가 `100svh`/`lvh`와 다른지 패널에서 비교).
+   - CTA(분홍) 아래에 간격 없이 선까지 닿으면 B/A 아님. 상단 줄 40 + CTA 73이 크다면 그 값만 줄이는 것을 다음 단계로.
+   - safe-area bottom이 34 등으로 나오면 CTA 아래 패딩이 그만큼 추가된 것(의도된 홈 인디케이터 여백).
+3. 주소창이 펼쳐진/접힌 두 상태에서 각각 캡처하면 dvh 변화까지 보인다.
+
+---
 # Handoff — 모바일 방명록 캔버스 크기 · 초기 배율 (2026-11-01)
 
 ## 측정(임시 하네스 페이지 /space/gbtest로 실제 GuestbookCanvas 렌더, Chromium 모바일 에뮬레이션 — 실제 iPhone 아님, 하네스는 커밋하지 않음)

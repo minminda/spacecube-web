@@ -17,6 +17,7 @@ import {
   NOTE_W,
   type GuestbookNoteData,
 } from "./canvasConstants";
+import GuestbookDiag from "./GuestbookDiag";
 import GuestbookCommentThread from "@/components/GuestbookCommentThread";
 import CubeReactionIcon from "@/components/CubeReactionIcon";
 import GuestbookClusterLabel from "@/components/GuestbookClusterLabel";
@@ -1057,6 +1058,9 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
         </div>,
         document.body,
       )}
+
+      {/* 임시 진단(?gbdiag=1일 때만) — GuestbookDiag.tsx 머리 주석 참고 */}
+      {searchParams.get("gbdiag") === "1" && <GuestbookDiag />}
 
       {/* ── 닉네임 설정 프롬프트 ── */}
       <AnimatePresence>
