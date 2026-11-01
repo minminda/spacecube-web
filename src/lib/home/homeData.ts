@@ -35,7 +35,8 @@ import { similarPeopleForHome, type SimilarPerson } from "@/lib/people/peopleDat
 import { ENABLE_PUBLIC_DEMO_SPACES } from "@/lib/features";
 import { hasValidImageSrc } from "@/lib/editorial/imageValid";
 import { pinLatest } from "./latestPick";
-import { diversifyShelves, type DiversityStrength } from "./diversity";
+import { diversifyShelves, MAX_PER_SPACE, type DiversityStrength } from "./diversity";
+import { fillShelves } from "./shelfFill";
 import { buildShelfPlan, type PlanItem } from "./shelfConfig";
 import { loadShelfRows } from "./shelfData";
 import { applyThemeRules } from "./themeRules";
@@ -50,6 +51,10 @@ function pinnedLatest(stream: ContentItem[]): ContentItem[] {
 export const HOME_HIDDEN_SPACE_SLUGS: ReadonlySet<string> = new Set(["demo-ext-cut-the-cake", "demo-ext-tail-tango", "demo-ext-denmark-library"]);
 
 const PER_SHELF = 12;
+/** 데스크톱(1280px)에서 한 줄에 7장이 들어간다 — 8장이면 줄이 꽉 차고 오른쪽 끝에 다음 카드가 걸쳐 보인다 */
+const FILL_TARGET = 8;
+/** 선반 주제에 실제로 맞는 공간이 이보다 적으면 다른 공간으로 채우지 않고 선반을 없앤다 */
+const FILL_MIN_NATIVE = 5;
 /** 개인화 순위를 "충분하다"고 볼 최소 공간 수 — 미만이면 둘러보기 Fallback */
 const MIN_PERSONAL = 6;
 /** 한 공간이 HOME에서 2회까지만 나오게 자르고 난 뒤, 이보다 카드가 적게 남는 선반은 보이지 않게 한다 */
@@ -291,6 +296,7 @@ export async function getHomeData(opts: { userId: string | null; admin: boolean;
   // ── 같은 공간이 HOME에서 반복되지 않도록: 보이는 순서대로 노출 횟수를 세며 후보를 재정렬(기존 ranking 유지) ──
   diversifyHome({
     plan,
+    fill: { pool: all.filter((sp) => !!sp.slug).map((space) => ({ space, reason: null })) },
     shelves: [
       { shelf: forYou, strength: "light", limit: forYouShown },
       { shelf: interest, strength: "light", limit: PER_SHELF },
@@ -371,7 +377,7 @@ interface DiversityEntry {
 }
 
 /** HOME에 실제로 보이는 선반만, 보이는 순서대로 diversifyShelves에 넣고 결과 카드를 선반에 되돌려 넣는다(선반 객체를 제자리에서 갱신). */
-export function diversifyHome(input: { plan: PlanItem[]; shelves: DiversityEntry[] }): void {
+export function diversifyHome(input: { plan: PlanItem[]; shelves: DiversityEntry[]; fill?: { pool: HomeCard[] } }): void {
   const order = input.plan.filter((p) => p.visible).map((p) => p.key);
   const entries = input.shelves.filter((e): e is DiversityEntry & { shelf: HomeSpaceShelf } => !!e.shelf);
   const rank = (e: { shelf: HomeSpaceShelf }) => {
@@ -385,4 +391,18 @@ export function diversifyHome(input: { plan: PlanItem[]; shelves: DiversityEntry
   result.forEach((r, i) => { visible[i].shelf.cards = r.cards; });
   // 보이지 않는 선반은 화면 수만큼만
   for (const e of entries) if (!visible.includes(e)) e.shelf.cards = e.shelf.cards.slice(0, e.limit);
+
+  // 선반 채우기 — 화면에 보이는 순서대로, 유형 · 테마 · 지역 · 새로 소개 선반을 FILL_TARGET장까지(안 되면 선반을 없앤다). 자세한 규칙은 shelfFill.ts.
+  if (input.fill) {
+    const ordered = [...visible].sort((a, b) => rank(a) - rank(b));
+    const fillable = (k: string) => k.startsWith("cat-") || k.startsWith("theme-") || k.startsWith("area-") || k === "new";
+    const filled = fillShelves(
+      ordered.map((e) => ({ key: e.shelf.key, cards: e.shelf.cards, fillable: fillable(e.shelf.key) })),
+      input.fill.pool,
+      (c) => c.space.id,
+      (c) => [...c.space.tags, c.space.category].filter(Boolean),
+      { target: FILL_TARGET, maxPerSpace: MAX_PER_SPACE, minNative: FILL_MIN_NATIVE },
+    );
+    filled.forEach((f, i) => { ordered[i].shelf.cards = f.cards; });
+  }
 }
