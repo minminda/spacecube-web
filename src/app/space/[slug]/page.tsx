@@ -204,7 +204,8 @@ export default async function SpacePage({ params, searchParams }: Props) {
   const SHOW_OWNER_NOTE = false;
 
   const recordHref = `/space/${slug}/record`;
-  const ctaHref = session ? recordHref : `/login?callbackUrl=${encodeURIComponent(recordHref)}`;
+  // 비로그인도 방명록을 바로 열고 쓸 수 있다(방명록 페이지가 QR 접근 쿠키로 판정) — 로그인 화면을 거치지 않는다.
+  const ctaHref = session ? recordHref : `/space/${slug}/guestbook`;
   const hasOwnerNote = SHOW_OWNER_NOTE && !!localizedOwnerBio;
 
   return (

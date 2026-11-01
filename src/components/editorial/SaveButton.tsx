@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
 interface Props {
@@ -19,6 +19,18 @@ interface Props {
 
 const ICON_SIZE = { icon: 18, corner: 14, text: 16, detail: 22 } as const;
 
+/* ── 전시 시연 전용(/demo-shot 으로 들어온 브라우저) ──
+   비로그인으로 저장을 누르면 로그인 대신 이 브라우저의 쿠키(demoSaves)에만 표시한다. DB · 계정 · 추천에는 영향이 없고,
+   /demo-shot 에 다시 들어오면 비워진다. 일반 방문자는 demoSave 쿠키가 없어 기존 동작(로그인 이동) 그대로다. */
+const demoMode = () => typeof document !== "undefined" && /(?:^|;\s*)demoSave=1/.test(document.cookie);
+function readDemoSaves(): string[] {
+  const m = document.cookie.match(/(?:^|;\s*)demoSaves=([^;]*)/);
+  return m ? decodeURIComponent(m[1]).split(",").filter(Boolean) : [];
+}
+function writeDemoSaves(ids: string[]) {
+  document.cookie = `demoSaves=${encodeURIComponent(ids.join(","))}; path=/; max-age=${60 * 60 * 12}; samesite=lax`;
+}
+
 /**
  * 공간 저장 — 누르는 즉시 표시를 바꾸고(낙관적), 서버 응답의 최종 상태로 다시 맞춘다.
  * 요청이 진행 중일 때 다시 누르면 무시해 순서가 뒤바뀐 응답으로 화면과 DB가 어긋나지 않게 한다.
@@ -31,10 +43,23 @@ export default function SaveButton({ spaceId, spaceName, initialSaved, loggedIn,
   const router = useRouter();
   const pathname = usePathname();
 
+  useEffect(() => {
+    if (!loggedIn && demoMode() && readDemoSaves().includes(spaceId)) setSaved(true);
+  }, [loggedIn, spaceId]);
+
   async function toggle(e: React.MouseEvent) {
     // 카드 전체가 링크인 곳에서도 상세로 이동하지 않게 한다.
     e.preventDefault();
     e.stopPropagation();
+    if (!loggedIn && demoMode()) {
+      const ids = readDemoSaves().filter((id) => id !== spaceId);
+      const next = !saved;
+      if (next) ids.push(spaceId);
+      writeDemoSaves(ids);
+      setSaved(next);
+      onChange?.(next);
+      return;
+    }
     // 로그인 후 돌아올 곳은 검색어·지역까지 포함한 지금 주소(/find?area=망원 → 로그인 → 같은 화면)
     const here = `${pathname}${window.location.search}`;
     const toLogin = () => router.push(loginHref ? loginHref() : `/login?callbackUrl=${encodeURIComponent(here)}`);
