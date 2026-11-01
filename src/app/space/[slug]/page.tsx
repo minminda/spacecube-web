@@ -1,5 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
+import HardLink from "@/components/HardLink";
 import Image from "next/image";
 import { Suspense } from "react";
 import { cookies, headers } from "next/headers";
@@ -341,13 +342,13 @@ export default async function SpacePage({ params, searchParams }: Props) {
           className="sticky bottom-0 px-6 pt-4"
           style={{ background: "var(--bg)", borderTop: "1px solid var(--border)", paddingBottom: "calc(2rem + env(safe-area-inset-bottom))" }}
         >
-          <Link
+          <HardLink
             href={ctaHref}
             className="tap-target flex items-center justify-center w-full text-center text-sm font-medium py-3 border hover:bg-[var(--fg)] hover:text-[var(--bg)] transition-colors"
             style={{ borderColor: "var(--fg)" }}
           >
             방명록 열기
-          </Link>
+          </HardLink>
         </div>
       </div>
     </main>

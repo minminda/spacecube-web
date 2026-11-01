@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { createPortal } from "react-dom";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   TransformWrapper,
@@ -125,7 +125,6 @@ const INK = "#3d3524";
 const INK_DIM = "#8a7d5c";
 
 export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initialMyNoteId, initialCanWriteThisVisit, hasCommentedThisVisit: initialHasCommentedThisVisit, nickname, settings, newNotesCount, clusters, enableImage, enableComments }: Props) {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const transformRef = useRef<ReactZoomPanPinchContentRef>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
@@ -610,8 +609,26 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
   function finishVisit() {
     if (navigatingToComplete) return; // 연속 클릭으로 중복 라우팅되는 것만 막는다
     setNavigatingToComplete(true);
-    router.push(`/space/${space.slug}/complete${myNoteId ? `?note=${myNoteId}` : ""}`);
+    window.location.assign(`/space/${space.slug}/complete${myNoteId ? `?note=${myNoteId}` : ""}`); // 잠금 화면에서는 새 문서로 나간다(아래 exit 이펙트 참고)
   }
+
+  // 방명록은 html/body 스크롤을 잠근 화면이다 — 이 화면에서 나가는 모든 앱 내 링크(상단 · 하단 바 · 내비게이션 포함)를 새 문서 이동으로 바꿔
+  // 잠금이 켜진 문서를 그대로 두고 떠난다. 소프트 내비게이션으로 HOME에 가면 같은 문서에서 잠금만 풀려 iOS Safari가 주소창을 다시 접지 못할 수 있다.
+  useEffect(() => {
+    const onClick = (e: MouseEvent) => {
+      if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      const a = (e.target as Element | null)?.closest?.("a[href]") as HTMLAnchorElement | null;
+      if (!a || (a.target && a.target !== "_self") || a.hasAttribute("download")) return;
+      const url = new URL(a.href, window.location.href);
+      if (url.origin !== window.location.origin) return;
+      if (url.pathname === window.location.pathname && url.search === window.location.search) return;
+      e.preventDefault();
+      e.stopPropagation();
+      window.location.assign(url.href);
+    };
+    document.addEventListener("click", onClick, true);
+    return () => document.removeEventListener("click", onClick, true);
+  }, []);
 
   const openFocused = useCallback((note: GuestbookNoteData) => {
     if (composer) return; // 작성창이 열려 있는 동안은 다른 흔적을 열지 않는다

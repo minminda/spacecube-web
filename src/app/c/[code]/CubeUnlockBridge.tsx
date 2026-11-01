@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
 import EntryLoadingScreen from "@/components/EntryLoadingScreen";
 
 /**
@@ -20,7 +19,6 @@ import EntryLoadingScreen from "@/components/EntryLoadingScreen";
  * 클라이언트 내비게이션만 담당할 뿐, 어떤 분석 이벤트도 새로 기록하지 않는다.
  */
 export default function CubeUnlockBridge({ code }: { code: string }) {
-  const router = useRouter();
   // React 개발 모드 StrictMode의 mount→cleanup→remount 이중 실행에도 fetch(=SpaceScan 기록)가
   // 두 번 나가지 않도록 막는다 — 컴포넌트 인스턴스가 살아있는 동안 ref는 유지된다.
   const firedRef = useRef(false);
@@ -41,13 +39,16 @@ export default function CubeUnlockBridge({ code }: { code: string }) {
           window.location.reload();
           return;
         }
-        router.replace(dest.pathname + dest.search);
+        // 문서를 새로 불러온다(history는 replace) — /c 문서는 고정 로딩 화면뿐이라 스크롤할 수 없는 상태로 시작했다.
+        // 같은 문서에서 소프트 내비게이션으로 Episode를 이어 붙이면 iOS Safari가 주소창 접기 상태를 다시 계산하지 않을 수 있어,
+        // HOME 직접 접속처럼 Episode도 새 문서로 시작하게 한다. 로딩 화면과 Episode 인트로가 모두 흰 바탕이라 깜빡임은 없다.
+        window.location.replace(dest.pathname + dest.search);
       })
       .catch(() => {
         // fetch 자체가 실패하면(네트워크 등) 하드 내비게이션으로 폴백 — 사용자가 멈춰있지 않게.
         window.location.href = `/api/cube-entry/${encodeURIComponent(code)}`;
       });
-  }, [code, router]);
+  }, [code]);
 
   return <EntryLoadingScreen />;
 }

@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import HardLink from "@/components/HardLink";
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { cookies, headers } from "next/headers";
@@ -418,13 +419,13 @@ export default async function EpisodeDetailPage({ params }: Props) {
       </div>
 
       <div className="flex flex-col gap-3">
-        <Link
+        <HardLink
           href={ctaHref}
           className="tap-target flex items-center justify-center w-full text-center text-sm py-3 border hover:bg-[var(--fg)] hover:text-[var(--bg)] transition-colors"
           style={{ borderColor: "var(--fg)" }}
         >
           방명록 열기
-        </Link>
+        </HardLink>
         <Link href={`/space/${space.slug}`} className="text-xs text-center py-1" style={{ color: "var(--border)" }}>
           공간 페이지로 돌아가기
         </Link>
