@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { layoutSampleNotes, noteFootprint, sampleArea, SAMPLE_AREA_RATIO, IMAGE_NOTE_HEIGHT, type SampleNoteInput, type RealNoteInput } from "./sampleGuestbookLayout";
-import { rectsOverlap, POST_IT_HEIGHT } from "./postitCollision";
+import { layoutSampleNotes, scatterDemoNotes, noteFootprint, sampleArea, SAMPLE_AREA_RATIO, SAMPLE_GAP, IMAGE_NOTE_HEIGHT, type SampleNoteInput, type RealNoteInput } from "./sampleGuestbookLayout";
+import { rectsOverlap, hasCollision, clusterLabelRect, POST_IT_HEIGHT } from "./postitCollision";
 import { WORLD_W, WORLD_H, rotatedOverhang } from "./guestbookNoteBounds";
 
 const centers = { FREE: { x: 2500, y: 2500 }, QUESTION_1: { x: 2000, y: 2200 }, QUESTION_2: { x: 3000, y: 2800 } };
@@ -91,5 +91,43 @@ describe("방명록 샘플 좌표 정리", () => {
     const { moves } = run(existing);
     const ids = new Set(existing.map((n) => n.id));
     expect(moves.every((m) => ids.has(m.id))).toBe(true);
+  });
+});
+
+describe("scatterDemoNotes", () => {
+  const targets = Array.from({ length: 40 }, (_, i) => ({ id: `t${i}`, rotation: (i % 9) - 4 }));
+  const fixed = [{ x: 2300, y: 2300, rotation: 0, hasImage: true }, { x: 1800, y: 1500, rotation: 2, hasImage: false }];
+  const labels = [{ x: 2500, y: 1700 }, { x: 2500, y: 3100 }];
+  const run = () => scatterDemoNotes({ targets, fixed, visibleLabels: labels, seed: "s" });
+
+  it("40개를 모두 놓고 같은 입력이면 같은 결과", () => {
+    const a = run();
+    expect(a.failed).toEqual([]);
+    expect(a.placements.size).toBe(40);
+    expect([...run().placements]).toEqual([...a.placements]);
+  });
+
+  it("서로 · 고정 글 · 라벨과 겹치지 않고 안전 영역 안에 있다", () => {
+    const { placements } = run();
+    const area = sampleArea();
+    const rects = targets.map((t) => noteFootprint(placements.get(t.id)!.x, placements.get(t.id)!.y, t.rotation));
+    for (const t of targets) {
+      const p = placements.get(t.id)!;
+      expect(p.x).toBeGreaterThanOrEqual(area.minX);
+      expect(p.x).toBeLessThanOrEqual(area.maxX);
+      expect(p.y).toBeGreaterThanOrEqual(area.minY);
+      expect(p.y).toBeLessThanOrEqual(area.maxY);
+    }
+    const obstacles = [...fixed.map((n) => noteFootprint(n.x, n.y, n.rotation, n.hasImage ? IMAGE_NOTE_HEIGHT : undefined)), ...labels.map(clusterLabelRect)];
+    rects.forEach((r, i) => {
+      expect(hasCollision(r, obstacles, SAMPLE_GAP)).toBe(false);
+      rects.slice(i + 1).forEach((o) => expect(rectsOverlap(r, o, SAMPLE_GAP)).toBe(false));
+    });
+  });
+
+  it("한쪽 사분면에 몰리지 않는다", () => {
+    const q = [0, 0, 0, 0];
+    for (const p of run().placements.values()) q[(p.x > 2500 ? 1 : 0) + (p.y > 2500 ? 2 : 0)]++;
+    q.forEach((n) => expect(n).toBeGreaterThanOrEqual(6));
   });
 });

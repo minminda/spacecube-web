@@ -7,8 +7,8 @@
 import { POST_IT_HEIGHT, POST_IT_WIDTH, clusterLabelRect, findFreePosition, hasCollision, type Point, type Rect } from "./postitCollision";
 import { centerBiased, centralBounds, noteSafeBounds, rotatedOverhang, type NoteBox } from "./guestbookNoteBounds";
 
-/** 샘플을 놓는 world 가운데 비율 — 가장자리에는 두지 않는다 */
-export const SAMPLE_AREA_RATIO = 0.5;
+/** 샘플을 놓는 world 가운데 비율 — 가장자리에는 두지 않는다(바깥 띠는 실제 방문자가 쓸 자리) */
+export const SAMPLE_AREA_RATIO = 0.68;
 /** 샘플끼리 · 실제 글과의 최소 간격(world px) — 기본 충돌 여백보다 넉넉하게 */
 export const SAMPLE_GAP = 36;
 /** 사진이 붙은 실제 포스트잇의 세로 크기(폭 170 기준 정사각 사진 + 글) — 고정 풋프린트보다 크다 */
@@ -68,6 +68,65 @@ function desiredNear(center: Point, seed: string, area: NoteBox): Point {
   const x = center.x + Math.cos(angle) * r - POST_IT_WIDTH / 2;
   const y = center.y + Math.sin(angle) * r * 0.85 - POST_IT_HEIGHT / 3;
   return { x: Math.min(Math.max(x, area.minX), area.maxX), y: Math.min(Math.max(y, area.minY), area.maxY) };
+}
+
+/**
+ * 전시용 샘플 재배치 — 캔버스 전체에 불규칙하게 고르게 흩는다(best-candidate 샘플링).
+ * 노트마다 후보 자리 여러 개를 고정 난수로 뽑아 충돌 없는 것 중 "이미 놓인 글 · 라벨에서 가장 먼" 자리를 고른다
+ * → 격자처럼 정렬되지도, 한쪽에 몰리지도 않는다. 같은 입력이면 결과가 같다(seed 고정).
+ * fixed(실제 글 · 건드리지 않는 기존 샘플)와 라벨은 장애물로만 쓰고, 옮기는 건 targets의 좌표뿐.
+ */
+export function scatterDemoNotes(input: {
+  targets: { id: string; rotation: number }[];
+  fixed: RealNoteInput[];
+  visibleLabels: Point[];
+  seed: string;
+  candidates?: number;
+}): { placements: Map<string, Point>; failed: string[] } {
+  const area = sampleArea();
+  const obstacles: Rect[] = [
+    ...input.fixed.map((n) => noteFootprint(n.x, n.y, n.rotation, n.hasImage ? IMAGE_NOTE_HEIGHT : POST_IT_HEIGHT)),
+    ...input.visibleLabels.map((c) => clusterLabelRect(c)),
+  ];
+  // 거리 기준점: 놓인 글의 중심 + 라벨 중심
+  const centers: Point[] = [
+    ...input.fixed.map((n) => ({ x: n.x + POST_IT_WIDTH / 2, y: n.y + POST_IT_HEIGHT / 2 })),
+    ...input.visibleLabels,
+  ];
+  const rand = seededRandom(`scatter:${input.seed}`);
+  const { dx, dy } = rotatedOverhang(POST_IT_WIDTH, POST_IT_HEIGHT, 8);
+  const tries = input.candidates ?? 40;
+  const placements = new Map<string, Point>();
+  const failed: string[] = [];
+
+  for (const t of input.targets) {
+    let best: Point | null = null;
+    let bestScore = -1;
+    for (let k = 0; k < tries; k++) {
+      const p = {
+        x: Math.round(area.minX + rand() * (area.maxX - area.minX)),
+        y: Math.round(area.minY + rand() * (area.maxY - area.minY)),
+      };
+      const rect = { x: p.x - dx, y: p.y - dy, width: POST_IT_WIDTH + 2 * dx, height: POST_IT_HEIGHT + 2 * dy };
+      if (hasCollision(rect, obstacles, SAMPLE_GAP)) continue;
+      const cx = p.x + POST_IT_WIDTH / 2;
+      const cy = p.y + POST_IT_HEIGHT / 2;
+      let nearest = Infinity;
+      for (const c of centers) nearest = Math.min(nearest, Math.hypot(c.x - cx, c.y - cy));
+      if (nearest > bestScore) {
+        bestScore = nearest;
+        best = p;
+      }
+    }
+    if (!best) {
+      failed.push(t.id);
+      continue;
+    }
+    placements.set(t.id, best);
+    obstacles.push({ x: best.x - dx, y: best.y - dy, width: POST_IT_WIDTH + 2 * dx, height: POST_IT_HEIGHT + 2 * dy });
+    centers.push({ x: best.x + POST_IT_WIDTH / 2, y: best.y + POST_IT_HEIGHT / 2 });
+  }
+  return { placements, failed };
 }
 
 export interface SampleLayoutResult {

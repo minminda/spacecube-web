@@ -54,6 +54,8 @@ const SINGLE_NOTE_INTRO_MS = 600; // 포스트잇이 정확히 1개일 때 과�
 const HERO_SPAN_MULTIPLIER = 1.3; // 히어로 포스트잇이 화면을 거의 채우되 잘리지 않도록 하는 여유 배수
 const GRID_CELL_W = 220;
 const GRID_CELL_H = 260;
+const COMPOSE_MIN_SCALE = 0.85; // 작성 시 최소 배율 — 작성창이 놓일 포스트잇 크기와 비슷하게 읽히는 정도
+const COMPOSE_MOVE_MS = 450; // 눌렀던 자리가 화면 중앙으로 이동하는 시간
 const CANCEL_DURATION_MS = 420; // 취소 시 이전 화면으로 되돌아가는 애니메이션 길이
 
 const CLOUDINARY_URL = `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload`;
@@ -299,6 +301,20 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
     ctrl.setTransform(px, py, scale, duration, "easeOut");
   }, []);
 
+  /** 월드 좌표를 "지금 실제로 보이는 영역"(키보드 · 주소창을 뺀 visualViewport)의 한가운데로 옮긴다. 작성창이 그 한가운데에 놓인다. */
+  const centerOnVisible = useCallback((worldX: number, worldY: number, scale: number, duration: number) => {
+    const viewport = viewportRef.current;
+    const ctrl = transformRef.current;
+    if (!viewport || !ctrl) return;
+    const r = viewport.getBoundingClientRect();
+    const vv = window.visualViewport;
+    const left = vv?.offsetLeft ?? 0;
+    const top = vv?.offsetTop ?? 0;
+    const w = vv?.width ?? window.innerWidth;
+    const h = vv?.height ?? window.innerHeight;
+    ctrl.setTransform(left + w / 2 - r.left - worldX * scale, top + h / 2 - r.top - worldY * scale, scale, duration, "easeOut");
+  }, []);
+
   /** 특정 포스트잇으로 이동/확대 (딥링크·"내 기록 보기" 등에서 재사용) */
   const jumpToNote = useCallback((note: GuestbookNoteData, scale = 1, duration = 700) => {
     const p = clampNoteToWorld(note);
@@ -463,8 +479,11 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
     }).catch(() => {});
 
     requireNickname(() => {
-      // 작성창은 캔버스 transform과 무관한 화면 중앙 오버레이다 — 카메라(pan/zoom)는 건드리지 않고,
-      // 눌렀던 캔버스 좌표(x, y)만 기억했다가 저장할 때 그 자리에 포스트잇을 만든다.
+      // 눌렀던 캔버스 좌표(x, y)를 보이는 영역의 한가운데로 카메라를 옮기고(현재 줌 유지, 너무 작으면 포스트잇이 읽히는 배율까지만 확대),
+      // 작성창을 그 자리(= 화면 중앙)에 포스트잇처럼 올린다. 저장하면 같은 좌표에 포스트잇이 만들어진다. 취소하면 이전 카메라로 돌아간다.
+      preComposeTransformRef.current = { ...lastTransformRef.current };
+      const target = Math.min(MAX_SCALE, Math.max(lastTransformRef.current.scale, COMPOSE_MIN_SCALE));
+      centerOnVisible(x + NOTE_W / 2, y + POST_IT_HEIGHT / 2, target, COMPOSE_MOVE_MS);
       setComposer({ x, y });
       setComposerClusterType(nearestClusterType(x + NOTE_W / 2, y + 70));
     });
@@ -482,8 +501,13 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
     const update = () => {
       const shifted = Math.abs(vv.height - window.innerHeight) > 1 || Math.abs(vv.width - window.innerWidth) > 1 || vv.offsetTop > 1 || vv.offsetLeft > 1;
       setVisibleRect(shifted ? { left: vv.offsetLeft, top: vv.offsetTop, width: vv.width, height: vv.height } : null);
+      // 키보드 · 회전으로 보이는 영역이 바뀌면 같은 자리를 새 한가운데로 다시 맞춘다(배율은 그대로)
+      centerOnVisible(composer.x + NOTE_W / 2, composer.y + POST_IT_HEIGHT / 2, lastTransformRef.current.scale, 180);
     };
-    update();
+    {
+      const shifted = Math.abs(vv.height - window.innerHeight) > 1 || Math.abs(vv.width - window.innerWidth) > 1 || vv.offsetTop > 1 || vv.offsetLeft > 1;
+      if (shifted) setVisibleRect({ left: vv.offsetLeft, top: vv.offsetTop, width: vv.width, height: vv.height });
+    }
     vv.addEventListener("resize", update);
     vv.addEventListener("scroll", update);
     window.addEventListener("resize", update); // 회전 · 주소창 변화 — visualViewport 이벤트가 오지 않는 환경 대비
@@ -493,7 +517,7 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
       vv.removeEventListener("scroll", update);
       window.removeEventListener("resize", update);
     };
-  }, [composer]);
+  }, [composer, centerOnVisible]);
 
   async function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -943,8 +967,9 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
         </div>
       </div>
 
-      {/* ── 포스트잇 작성창 — 캔버스(transform)와 분리된 화면 중앙 오버레이. body로 portal해서 .full-bleed의 transform에 갇히지 않고,
-          보이는 영역(visualViewport) 크기를 따라 키보드 위쪽 가운데에 놓인다. 카드가 보이는 영역보다 크면 본문만 내부 스크롤, 취소/남기기는 항상 보인다. ── */}
+      {/* ── 포스트잇 작성창 — 눌렀던 캔버스 자리가 카메라 이동으로 보이는 영역의 한가운데에 오고, 작성창이 그 위에 놓인다(centerOnVisible).
+          body로 portal해서 .full-bleed의 transform에 갇히지 않고, 보이는 영역(visualViewport)을 따라 키보드 위쪽 가운데에 놓인다.
+          카드가 보이는 영역보다 크면 본문만 내부 스크롤, 취소/남기기는 항상 보인다. ── */}
       {composer && typeof document !== "undefined" && createPortal(
         <div
           className="flex items-center justify-center"
@@ -953,7 +978,7 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
             ...(visibleRect ?? { left: 0, top: 0, width: "100%", height: "100%" }),
             zIndex: 60,
             padding: 12,
-            background: "rgba(0,0,0,0.55)",
+            background: "rgba(0,0,0,0.3)", // 캔버스(눌렀던 자리)가 비쳐 보이도록 옅게
           }}
           onClick={(e) => { if (e.target === e.currentTarget) cancelCompose(); }}
         >
