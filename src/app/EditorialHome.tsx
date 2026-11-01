@@ -42,9 +42,10 @@ interface Props {
 function SpaceShelf({ shelf, savedIds, loggedIn, id }: { shelf: HomeSpaceShelf; savedIds: Set<string>; loggedIn: boolean; id?: string }) {
   return (
     <Shelf id={id} title={shelf.title} description={shelf.description} href={shelf.href} cta={shelf.cta} kind="space">
-      {shelf.cards.map(({ space, reason }) => (
+      {/* 공간 소개(이유 한 줄)는 HOME 선반에서 기본으로 보이지 않는다 — 사진 · 공간명 · 지역만. 소개는 카드를 눌러 공간 상세에서 본다(검색 결과 카드는 그대로 이유를 보여준다). */}
+      {shelf.cards.map(({ space }) => (
         <li key={space.id}>
-          <HomeSpaceCard space={space} reason={reason} save={{ saved: savedIds.has(space.id), loggedIn }} />
+          <HomeSpaceCard space={space} save={{ saved: savedIds.has(space.id), loggedIn }} />
         </li>
       ))}
     </Shelf>
@@ -226,7 +227,7 @@ export default async function EditorialHome({ admin, previewDrafts, fixtures, us
 
 function EmptySection({ title, text }: { title: string; text: string }) {
   return (
-    <section className="py-4 md:py-6">
+    <section className="py-3 md:py-[18px]">
       <div className="ed-wide">
         <h2 className="text-xl md:text-[28px] font-bold tracking-[-0.025em]">{title}</h2>
         <p className="pt-3 text-sm" style={{ color: "var(--ed-dim)" }}>{text}</p>

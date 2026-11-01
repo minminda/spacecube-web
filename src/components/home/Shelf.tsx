@@ -50,7 +50,7 @@ export default function Shelf({ id, title, description, href, cta = "전체 보�
   const scrollable = !(edge.start && edge.end);
 
   return (
-    <section id={id} className="scroll-mt-20 py-4 md:py-6" aria-label={title}>
+    <section id={id} className="scroll-mt-20 py-3 md:py-[18px]" aria-label={title}>
       <div className="ed-wide">
         <div className="flex items-end justify-between gap-4 pb-2.5 md:pb-3.5">
           <div className="min-w-0">
