@@ -472,20 +472,36 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
     });
   }
 
-  // 모바일 키보드가 열리면 작성창이 가려지지 않도록 초점을 위로 밀어 재조정
+  // 모바일 키보드가 열리면 작성창이 가려지지 않도록, "지금 실제로 보이는 영역(visualViewport) 안에서" 작성창이 가운데에 오게 카메라를 다시 맞춘다.
+  // - Android Chrome: 키보드가 visualViewport.height만 줄인다(레이아웃 뷰포트는 그대로).
+  // - iOS Safari: 키보드가 뜨면 visualViewport가 아래로 밀려(offsetTop>0) 상단 바가 화면 밖으로 올라가기도 한다.
+  // 두 경우 모두 캔버스(viewportRef)의 화면 좌표와 visualViewport의 교집합 가운데로 초점을 옮기면 된다.
+  // 키보드가 닫히면 같은 계산이 offset 0으로 돌아와 원래 가운데로 복귀한다. 핀치 확대 중(scale>1)에는 건드리지 않는다.
   useEffect(() => {
     if (!composer) return;
     const vv = window.visualViewport;
     if (!vv) return;
-    function onViewportResize() {
-      if (!vv || !composer) return;
-      const keyboardHeight = window.innerHeight - vv.height;
-      if (keyboardHeight > 100) {
-        focusOnPoint(composer.x + NOTE_W / 2, composer.y + 70, COMPOSE_SCALE, 300, -keyboardHeight / 2);
-      }
+    let lastOffset = 0;
+    let lastHeight = viewportRef.current?.clientHeight ?? 0;
+    function refocus() {
+      const el = viewportRef.current;
+      if (!vv || !composer || !el || vv.scale > 1.01) return;
+      const rect = el.getBoundingClientRect();
+      const top = Math.max(rect.top, vv.offsetTop);
+      const bottom = Math.min(rect.bottom, vv.offsetTop + vv.height);
+      if (bottom - top < 80) return;
+      const offset = (top + bottom) / 2 - rect.top - rect.height / 2;
+      if (Math.abs(offset - lastOffset) < 8 && Math.abs(rect.height - lastHeight) < 8) return;
+      lastOffset = offset;
+      lastHeight = rect.height; // 회전 · 주소창 변화로 캔버스 높이 자체가 바뀐 경우에도 작성창을 가운데로 다시 맞춘다
+      focusOnPoint(composer.x + NOTE_W / 2, composer.y + 70, COMPOSE_SCALE, 300, offset);
     }
-    vv.addEventListener("resize", onViewportResize);
-    return () => vv.removeEventListener("resize", onViewportResize);
+    vv.addEventListener("resize", refocus);
+    vv.addEventListener("scroll", refocus);
+    return () => {
+      vv.removeEventListener("resize", refocus);
+      vv.removeEventListener("scroll", refocus);
+    };
   }, [composer, focusOnPoint]);
 
   async function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -703,6 +719,8 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
         ref={viewportRef}
         className="relative flex-1 min-h-0 overflow-hidden cursor-grab active:cursor-grabbing"
         style={{ touchAction: "none", background: worldBg }}
+        // iOS는 포커스한 입력창을 보이게 하려고 overflow:hidden 컨테이너를 직접 스크롤하기도 한다 — 카메라(transform)로만 움직이므로 항상 원위치로 되돌린다.
+        onScrollCapture={(e) => { const t = e.target as HTMLElement; if (t.scrollTop || t.scrollLeft) { t.scrollTop = 0; t.scrollLeft = 0; } }}
       >
         <AnimatePresence>
           {toast && (
@@ -897,7 +915,7 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
                     onChange={(e) => { if (e.target.value.length <= MAX_CONTENT) setContent(e.target.value); }}
                     placeholder="오늘 이 공간에서 든 생각을 짧게 남겨주세요"
                     rows={3}
-                    className="w-full text-[13px] leading-relaxed p-2 resize-none outline-none"
+                    className="gb-composer-input w-full text-[13px] leading-relaxed p-2 resize-none outline-none"
                     style={{ background: "rgba(255,255,255,0.45)", color: INK }}
                   />
                   <div className="flex items-center justify-between mt-2">
@@ -1130,7 +1148,7 @@ export default function GuestbookCanvas({ space, initialNotes, isLoggedIn, initi
                     value={editContent}
                     onChange={(e) => { if (e.target.value.length <= MAX_CONTENT) setEditContent(e.target.value); }}
                     rows={4}
-                    className="w-full text-[15px] leading-relaxed p-2 resize-none outline-none"
+                    className="gb-composer-input w-full text-[15px] leading-relaxed p-2 resize-none outline-none"
                     style={{ background: "rgba(255,255,255,0.45)", color: INK }}
                   />
                   <div className="flex items-center justify-between mt-2">

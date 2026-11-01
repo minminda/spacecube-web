@@ -91,6 +91,28 @@ body {
 @supports (height: 100dvh) {
   .gb-shell { height: calc(100dvh - var(--nav-h) - 1px); }
 }
+/* 방명록은 문서 스크롤이 없는 "고정 화면"이다. body의 min-height(100vh = 주소창을 접은 가장 큰 높이)가
+   주소창이 보일 때의 실제 화면보다 커서 문서가 몇십 px 스크롤되는 것을 막는다 — 셸이 이미 dvh로 화면을 정확히 채운다. */
+html:has(.gb-shell), html:has(.gb-shell) body {
+  height: 100vh;
+  min-height: 0;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+@supports (height: 100dvh) {
+  html:has(.gb-shell), html:has(.gb-shell) body { height: 100dvh; }
+}
+/* iOS Safari는 16px 미만 입력창에 포커스하면 화면을 확대하고 되돌리지 않는다 — 터치 기기에서만 입력 글자를 16px로. */
+@media (pointer: coarse) {
+  .gb-composer-input { font-size: 16px; }
+}
+
+/* 일반 콘텐츠 페이지의 "최소 한 화면" 높이 — svh(주소창이 보이는 안정적인 최소 높이)를 쓴다.
+   100vh는 주소창이 보일 때 실제 화면보다 커서 가운데 정렬 · 하단 여백이 어긋나고, dvh는 스크롤 중 계속 바뀌어
+   레이아웃이 흔들린다. 최소 높이는 늘 안정적이어야 하므로 svh가 맞다. 높이를 "고정"하는 곳(방명록 셸 · 모달)은 dvh. */
+@supports (min-height: 100svh) {
+  .min-h-screen { min-height: 100svh; }
+}
 
 ::selection {
   background: var(--fg);
@@ -189,6 +211,9 @@ html[data-ed-theme="dark"]:has(.editorial-bleed) { color-scheme: dark; }
 /* 콘텐츠가 짧아도 푸터 아래로 기본 배경(--bg)이 드러나지 않도록 본문이 최소 한 화면을 채운다(56px = Navbar) */
 .editorial-bleed > main {
   min-height: calc(100vh - var(--nav-h));
+}
+@supports (min-height: 100svh) {
+  .editorial-bleed > main { min-height: calc(100svh - var(--nav-h)); }
 }
 .ed-container {
   max-width: 1200px;

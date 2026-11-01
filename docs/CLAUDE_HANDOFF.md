@@ -1,41 +1,34 @@
-# Handoff — 졸업전시 Golden Path 안정화 (2026-11-01)
+# Handoff — 모바일 뷰포트 · 방명록 키보드 · 기본 PWA (2026-11-01)
 
-## 결론
-조사 결과 HOME → 상세 → QR → EP.1 → Scene → 방명록 작성은 **비로그인으로 이미 정상**(Production curl 확인). 막히는 곳은 두 군데뿐이라 그것만 최소 수정했다. DB schema · 인증 · 정책 변경 없음.
+## 원인 (코드에서 확인)
+- **방명록 문서 스크롤**: `body`가 `min-h-screen`(=100vh, 주소창을 접은 가장 큰 높이)인데 방명록 셸은 `100dvh`라, 주소창이 보이면 문서가 그 차이만큼 스크롤됐다. 캔버스는 `touch-action:none`이라 스크롤이 어색하게 겹쳤다.
+- **작성창 입력 글자 13px**: iOS Safari는 16px 미만 입력창에 포커스하면 화면을 확대하고 되돌리지 않는다(작성창 · 수정창 모두).
+- **iOS의 포커스 스크롤**: 입력창을 보이게 하려고 `overflow:hidden` 컨테이너(캔버스 · react-zoom-pan-pinch 래퍼)를 직접 스크롤해 캔버스가 비정상 위치로 밀릴 수 있었다.
+- **키보드 보정 공식**: 기존 `-keyboardHeight/2`는 `innerHeight - vv.height`만 봐서 iOS의 `visualViewport.offsetTop`(상단 바가 올라가는 경우)을 못 맞췄고, 키보드가 아닌 높이 변화(회전)도 놓쳤다.
+- 이미 괜찮았던 것: viewport-fit=cover, 하단 탭 safe-area + 문서 끝 spacer, 방명록 하단 바 safe-area, 방명록 셸 dvh, 모달 dvh. (`100vw` full-bleed는 모바일에 세로 스크롤바가 없어 무해.)
 
 ## 수정
-1. **비로그인 저장 → 로그인 이동** (P1): 시연 브라우저 한정으로 해결. 기존 `/demo-shot` 구조를 재사용.
-   - `/demo-shot` 접속 시 비-httpOnly 쿠키 `demoSave=1`(12h)을 추가로 심고, 매번 `demoSaves`(저장 표시 목록)를 비운다. `?off=1`은 둘 다 해제.
-   - `SaveButton`(editorial 공용)이 `!loggedIn && demoSave=1`일 때만 로그인 대신 쿠키 `demoSaves`에 spaceId를 넣고 즉시 "저장됨" 표시. 새로고침 후에도 유지. **DB · SavedSpace · 추천에 쓰지 않음.**
-   - `demoSave` 쿠키가 없는 일반 방문자는 기존 동작(로그인 이동) 그대로 — 로컬에서 확인.
-2. **`/space/[slug]?src=qr`의 「방명록 열기」** (P2): 비로그인이면 `/login`으로 가던 것을 방명록으로 직행(방명록은 QR 쿠키로 비로그인 열람·작성 가능). 로그인 사용자는 기존 `/record` 유지.
+- `globals.css`
+  - 방명록 화면(`html:has(.gb-shell)`)만 문서 스크롤 잠금 + `100dvh`.
+  - `.gb-composer-input`: 터치 기기(`pointer: coarse`)에서만 16px.
+  - 최소 한 화면 높이 `.min-h-screen`, `.editorial-bleed > main`을 **svh**로(주소창이 보이는 안정적인 최소 높이). 높이를 고정하는 곳(방명록 셸 · 모달)은 기존대로 dvh. 100vh→dvh 일괄 치환 아님.
+- `GuestbookCanvas.tsx` (위치 계산 · 충돌 · 줌 · 저장 API는 변경 없음)
+  - 키보드/회전: `visualViewport`의 resize·scroll에서 "캔버스 ∩ 보이는 영역"의 가운데로 작성창을 다시 맞춤(키보드가 닫히면 원위치 복귀, 핀치 확대 중에는 건드리지 않음).
+  - 캔버스 컨테이너의 `scroll` 발생 시 즉시 0으로 되돌림.
+  - 입력창은 `autoFocus` 유지(iOS는 사용자 제스처 안의 focus만 키보드를 연다 — 지연 focus로 바꾸지 않음).
+- PWA(최소): `src/app/manifest.ts`(standalone, 이름 공간큐브), `public/icons/*`(검정 바탕 흰 큐브 192/512/maskable/apple-touch), `layout.tsx`에 appleWebApp · themeColor · apple icon. **Service Worker · 오프라인 캐시 없음**, 설치는 선택. QR을 브라우저로 여는 흐름 그대로.
 
-## 핵심 변경 파일
-`src/app/demo-shot/route.ts`, `src/components/editorial/SaveButton.tsx`, `src/app/space/[slug]/page.tsx`, `docs/exhibition-checklist-2026-11.md`(신규)
+## 변경하지 않음
+인증, `/demo-shot` 저장, 저장/포스트잇 API, QR/Cube, 접근 정책, 방명록 작성 횟수, DB schema.
 
-## 확인한 실제 데이터 (read-only)
-| 공간 | slug | Cube | EP.1 | 방명록 |
-|---|---|---|---|---|
-| 아카커피룸 | aka-coffee-room | GC-001 | 공개 · Scene 5 | ACTIVE |
-| 턴다운서비스 | turndown-service | GC-004 | 공개 · Scene 5 | ACTIVE |
-| 녹화버튼 | nokhwabutton | GC-006 | 공개 · Scene 5 | ACTIVE |
+## 검증
+- tsc · eslint(변경 3파일) · vitest src/lib 1100 · `npm run build`(manifest.webmanifest 생성 확인) 통과.
+- **브라우저 에뮬레이션(390×664, 터치 emulation, 실제 기기 아님)**: QR → EP → 방명록 흐름 열림 · 방명록 문서 높이 = 화면 높이(스크롤 0) · 하단 CTA 가시 · 작성창 열림 · 포커스 · 입력 16px · 높이를 380으로 줄여도(키보드가 올라온 상태 모사) 입력창과 "남기기"가 보임 · 공간 상세 끝까지 스크롤했을 때 푸터가 하단 탭에 가려지지 않음 · 가로 오버플로 없음 · 데스크톱 방명록 화면 이상 없음. manifest · theme-color · apple 메타 태그 노출 확인.
 
-세 공간 모두 isDemo=false, 공개 상세 200, `/c/<코드>` → `/api/cube-entry` → EP.1(`?src=qr`) → 방명록 200(로그인 없음).
+## 미검증 (실기기 필요 — 에뮬레이션으로 확인 불가)
+- iPhone Safari / Android Chrome의 **실제 소프트 키보드**(visualViewport 동작), 주소창 접힘/펼침 중 레이아웃, 홈 인디케이터 겹침, 회전.
+- iOS 입력창 확대(16px 수정이 실제로 막는지).
+- 홈 화면에 추가 후 standalone 실행(주소창 없는 상태에서는 브라우저 뒤로가기가 없고, 소셜 로그인이 standalone에서 어떻게 열리는지 미확인 — 전시 시연은 로그인 불필요).
 
-## 테스트
-tsc · eslint(변경 3파일) · vitest src/lib 1100 · `npm run build` 통과. 로컬 dev에서 저장(즉시 표시 · 새로고침 유지 · `/demo-shot` 초기화 · 일반 방문자 로그인 이동) 확인.
-
-## Production 검증 중 생긴 데이터
-- SpaceScan 4건(GC-001 ×2, GC-004 ×1, GC-006 ×1), User-Agent가 curl이라 식별 가능.
-- 방명록 포스트잇은 **쓰지 않음**(작성 API는 빈 본문 400 응답으로 비로그인 도달만 확인).
-- 로컬 dev 서버가 Production DB에 연결되어 있음(.env). 저장 데모는 쿠키만 써서 DB 쓰기 없음.
-
-## 사람이 확인해야 할 것 (실기기)
-- 실제 인쇄 QR을 iPhone Safari / Android Chrome 기본 카메라로 스캔해 URL이 `/c/GC-00x`인지.
-- 포스트잇 작성 → 모바일 키보드가 버튼을 가리지 않는지, 캔버스 위치가 정상인지(코드상 확인 불가, 실기기 필요).
-- 한 폰에서 반복 시연 시 포스트잇은 방문자(12h) 1개 정책이라 두 번째는 작성 불가 → 체크리스트 fallback 참고.
-- 이 변경이 배포된 뒤 `/demo-shot`이 Production에서 `demoSave` 쿠키를 심는지.
-
-## 결정 필요
-- 같은 폰으로 반복 시연할 때 포스트잇 1개 제한을 시연 한정으로 풀지 여부(현재는 정책 유지, 시크릿 창/다른 기기 사용 권장).
-- `isFeatured` 대표 이야기가 세 공간 모두 미지정 → 표시 순서 첫 번째(EP.1)로 폴백 중. 의도와 같으면 변경 불필요.
+## 검증 중 생긴 데이터 (Production DB, 로컬 dev가 연결됨)
+SpaceScan 1건(GC-001), 방명록 WRITE_ATTEMPT 계측 1건. 포스트잇은 저장하지 않음.
