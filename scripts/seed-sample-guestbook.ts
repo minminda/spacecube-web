@@ -37,6 +37,8 @@ const APPLY = process.argv.includes("--apply");
 const CLEANUP = process.argv.includes("--cleanup");
 
 const TARGET = 12; // 공간당 샘플 개수(10~15 사이)
+/** 졸업전시(2026-11-04) 시연용으로 세 공간만 더 채운다(기존 12개 + 40개). 전시가 끝나면 이 표를 비우면 된다 — 이미 있는 샘플은 그대로고 더는 늘지 않는다. */
+const TARGET_BY_SLUG: Record<string, number> = { "aka-coffee-room": 52, nokhwabutton: 52, "turndown-service": 52 };
 const AUTHOR_EMAIL = SAMPLE_GUESTBOOK_AUTHOR_EMAIL;
 const AUTHOR_NICKNAME = "방명록샘플"; // 계정 내부 이름 — 포스트잇에는 쓰지 않는다(프로필 비공개)
 /** 포스트잇 아래 이름 — 비로그인 방문자와 같은 고정 익명 이름(가짜 사용자 이름을 지어내지 않는다) */
@@ -149,7 +151,7 @@ async function ensureAuthor() {
 
       // 새로 쓸 글이 있을 때만 작성자 계정을 만든다(동시에 두 배포가 만들어도 이메일 unique라 하나만 남는다)
       if (APPLY && !authorId) {
-        const dry = planSampleTopUp({ questions, existing: [], bank: SAMPLE_ANSWERS, target: TARGET });
+        const dry = planSampleTopUp({ questions, existing: [], bank: SAMPLE_ANSWERS, target: TARGET_BY_SLUG[space.slug] ?? TARGET });
         if (dry.status === "ok" && dry.add.length > 0) authorId = await ensureAuthor();
       }
 
@@ -170,7 +172,7 @@ async function ensureAuthor() {
               orderBy: [{ createdAt: "asc" }, { id: "asc" }],
             })
           : [];
-        const plan = planSampleTopUp({ questions, existing, bank: SAMPLE_ANSWERS, target: TARGET });
+        const plan = planSampleTopUp({ questions, existing, bank: SAMPLE_ANSWERS, target: TARGET_BY_SLUG[space.slug] ?? TARGET });
 
         // 지금 질문에 맞지 않는 예전 샘플 — 실제 방문자의 공감 · 댓글(과 그 알림 · 리포트 선정)이 하나도 없을 때만 지운다
         const engaged = new Set(
