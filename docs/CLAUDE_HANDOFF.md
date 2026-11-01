@@ -1,3 +1,14 @@
+# Handoff — 신규 공간 8곳 등록 · HOME 31곳 (2026-11-01)
+- **적용(Production DB, EditorialSpace 새 행 8개만 추가, 기존 행 수정 0)**: `scripts/seed-photo-spaces.ts`(dry-run 기본, `--apply`, `--archive`로 되돌리기; 같은 slug면 건너뜀 → 재실행 시 등록 0·건너뜀 8 확인). 계획 데이터는 `src/lib/home/photoSpaceSeeds.ts`.
+  - 사진 1 고요한 진열장 · 2 영상 아카이브 룸 · 3 작은 조명 가게 · 4 창가 서재 · 6 드립 도구 상점 · 7 작은 청음실 · 8 브라운관이 있는 창가 → 모두 `demo-photo-*`(시연용 가상 공간). **이름은 사진 분위기로 붙인 전시용 임의 이름**이며 주소 · 운영시간 · 링크 · 소개문은 비움(상세는 "위치 정보 준비 중" + 상단 "가상 공간이며 실제 장소가 아닙니다" 안내가 자동으로 붙음, 카드 라벨 없음). 지역은 기존 가상 공간과 같은 "망원동".
+  - 사진 5(Music Complex Seoul 간판) → 이미 있던 운영 Space "뮤직컴플렉스"와 같은 사진이라 새 이름을 짓지 않고 그 Space 정보로 `demo-ext-music-complex`(실제 장소 · 인사동) 등록. 별도 업로드 없음.
+  - 사진 7장은 Cloudinary `gonggancube/demo-photo/<slug>`에 업로드(원본 900px 폭 · 80~240KB, 재인코딩 없음), 렌더는 next/image.
+- **추가 검토한 기존 공간**: 뮤직컴플렉스 → 추가. 별관 → 사진에 "© Kaden's Note" 워터마크라 제외 유지. 라이팅룸 → 사진이 방문자 얼굴 · 손편지 콜라주(공개 권한 불분명)라 제외. 다시점(dasijum) → 이미 등록된 dasijeom과 중복이라 제외. 카페 공간(buk) → 손님이 찍힌 사진이고 영구 시연 공간(방명록 운영)이라 제외. 컷더케이크 · 테일탱고 · 덴마크서재는 계속 HOME에서 숨김(DB · 사진 그대로).
+- **측정(로컬 dev, 운영 DB 읽기, 에뮬레이션)**: HOME 고유 공간 23 → 31(`공간 31곳`), 선반 사진 57 → 73장(한 공간 최대 2회 노출 규칙 유지), 새 8곳 모두 노출, 숨김 3곳 노출 0, "시연" 라벨 0, 깨진 이미지 0, 모든 선반 이미지 lazy. 상세 확인: /spaces/demo-photo-small-lamp-shop에 가상 공간 안내 표시.
+- 테스트: tsc · eslint(새 파일) · vitest · build 통과.
+- 주의: 사진 8장은 모두 원본이 세로 900px폭이라 상세 16:9 대표 사진은 중앙 기준 크롭(공간별 `coverPosition` 지정). 실제 화면 구도는 눈으로 확인 필요. 다시 숨기려면 `--archive`(삭제 없음).
+
+---
 # Handoff — HOME 공간 전시: 라벨 제거 · 3곳 제외 · 사진 현황 (2026-11-01)
 - **라벨 제거**: HOME 카드 · 검색/공용 SpaceCard · 상세의 "함께 소개된 공간" · 내 아카이브 카드/상세에서 "시연용 공간"/"시연 컬렉션" 표시를 뺐다(`demoBadge` 호출 제거, 함수는 남겨 둠). 데이터(isDemo · slug 접두어 · 기능 가용성)는 그대로. **남긴 문구(결정 필요)**: ① 가상 공간(demo-*) 상세 페이지 상단의 "시연용 공간 — 가상 공간이며 실제 장소가 아닙니다" 고지(SpaceDetail), ② 관리자 미리보기 배너, ③ 지역 잠금 안내의 "일부 공간은 시연용입니다", ④ 큐레이션 카드 eyebrow "· 시연용". 가상 공간을 실제처럼 보이게 하는 부분이라 임의로 지우지 않았다.
 - **HOME 제외 3곳**: `src/lib/home/homeData.ts`의 `HOME_HIDDEN_SPACE_SLUGS`(demo-ext-cut-the-cake · demo-ext-tail-tango · demo-ext-denmark-library)를 finder pool에서 걸러 선반 · 추천 · 둘러보기 · 개수에서 모두 제외. DB/사진/상세(/spaces/…)/검색/관리자는 무변경. 다시 보이게 하려면 slug를 지운다.
