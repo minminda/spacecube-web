@@ -14,11 +14,6 @@ import { AdminPageHeader, AdminTable, EmptyState, StatusBadge, adminButtonClass 
 
 const DAY = 24 * 60 * 60 * 1000;
 
-/** n일 전 시각 — 요청 시점 기준(서버 컴포넌트, 렌더마다 새로 계산). */
-function daysAgo(n: number): Date {
-  return new Date(Date.now() - n * DAY);
-}
-
 /**
  * KPI / 리포트 — 운영 공간 선택 화면. 정식 KPI(방문자 퍼널·기간 조회·PDF)는 기존 공간별
  * 리포트(/admin/[id]/report)에 그대로 있다. 여기서는 공간을 고르기 위한 참고 수치(최근 30일
@@ -43,18 +38,18 @@ export default async function AdminReportsIndexPage({ searchParams }: { searchPa
   const rangeEnd = new Date((parseKstDateStart(picked.to) as Date).getTime() + DAY);
   const [discovery, onsite] = await Promise.all([getDiscoveryStats("all", rangeStart, rangeEnd), getServiceOnsiteStats(rangeStart, rangeEnd)]);
 
-  const since = daysAgo(30);
   const adminIds = [...(await getKpiExcludedUserIds())];
   const notAdmin = adminIds.length > 0 ? { OR: [{ userId: null }, { userId: { notIn: adminIds } }] } : {};
 
   const [spaces, scanGroups] = await Promise.all([
     prisma.space.findMany({ orderBy: { createdAt: "desc" }, select: { id: true, name: true, isActive: true, isDemo: true, district: true } }),
-    prisma.spaceScan.groupBy({ by: ["spaceId"], where: { scannedAt: { gte: since }, ...notAdmin }, _count: { _all: true } }),
+    prisma.spaceScan.groupBy({ by: ["spaceId"], where: { scannedAt: { gte: rangeStart, lt: rangeEnd }, ...notAdmin }, _count: { _all: true } }),
   ]);
   const scansBySpace = new Map(scanGroups.map((g) => [g.spaceId, g._count._all]));
   // 졸업전시 시연 모드(관리자 + 쿠키): 시연 대상 공간의 30일 QR 스캔 수만 예시 값으로 바꿔 표시한다(DB 무변경).
   const sim = await getKpiSimulation();
-  const simBySpace = new Map((sim?.spaces ?? []).map((s) => [s.spaceId, s.total]));
+  // 시연 값은 '최근 30일' 필터에서만 적용한다(다른 기간은 항상 실제 값).
+  const simBySpace = new Map((preset === "30d" ? sim?.spaces ?? [] : []).map((s) => [s.spaceId, s.total]));
   const simRequested = await isKpiSimulationRequested();
 
   return (
@@ -66,6 +61,7 @@ export default async function AdminReportsIndexPage({ searchParams }: { searchPa
       />
       <div className="mb-6 space-y-3">
         {sim && <SimulationBanner />}
+        {sim && preset !== "30d" && <p className="text-xs" style={{ color: "var(--a-dim)" }}>시연 수치는 &apos;최근 30일&apos; 선택 시에만 표시됩니다. 지금은 실제 값입니다.</p>}
         <KpiSimulationToggle active={!!sim} />
         {simRequested && !sim && <p className="text-xs" style={{ color: "var(--a-dim)" }}>시연 모드는 관리자 로그인 상태에서만 동작합니다.</p>}
       </div>
@@ -96,7 +92,7 @@ export default async function AdminReportsIndexPage({ searchParams }: { searchPa
       {spaces.length === 0 ? (
         <EmptyState title="운영 공간이 없습니다" />
       ) : (
-        <AdminTable head={["운영 공간", "지역", "QR 스캔 · 30일", ""]} minWidth={600}>
+        <AdminTable head={["운영 공간", "지역", `QR 스캔 · ${SERVICE_RANGES.find((r) => r.value === preset)?.label}`, ""]} minWidth={600}>
           {spaces.map((s) => (
             <tr key={s.id}>
               <td>

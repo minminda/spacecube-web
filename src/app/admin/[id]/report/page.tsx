@@ -112,7 +112,8 @@ export default async function ReportAdminPage({ params, searchParams }: Props) {
 
   const recommendedFileName = `공간큐브_${space.name}_${range.from}_${range.to}.pdf`;
   // 시연 대상 공간이면 QR 스캔 수·QR 일별 추이만 시연 값으로 대체(그 외 지표는 모두 실제 값).
-  const simSpace = sim?.spaces.find((x) => x.spaceId === space.id) ?? null;
+  // 시연 값은 '최근 30일' 프리셋에서만 적용한다(다른 기간·직접 지정은 실제 값).
+  const simSpace = activePreset === "30d" ? sim?.spaces.find((x) => x.spaceId === space.id) ?? null : null;
   const simQrScans = simSpace ? simulatedCountInRange(simSpace.daily, range.from, range.to) : null;
   const qrScansShown = simQrScans ?? rangeExtended.qrScans;
   const simQrTrend = simSpace ? simulatedTrendForDates(simSpace.daily, dailyTrend.map((d) => d.date)) : [];
