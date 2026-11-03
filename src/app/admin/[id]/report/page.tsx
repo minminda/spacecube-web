@@ -29,6 +29,9 @@ import ReportTabs from "./ReportTabs";
 import { AdminPageHeader } from "@/components/admin/ui";
 import { getDiscoveryStats } from "@/lib/discoveryKpi";
 import { DiscoverySection, KpiAreaHeading } from "@/components/admin/kpi/DiscoveryKpi";
+import { getKpiSimulation, isKpiSimulationRequested } from "@/lib/kpiSimulationServer";
+import KpiSimulationToggle from "@/components/admin/kpi/KpiSimulationToggle";
+import { SimulationBanner, SimulatedQrSection } from "@/components/admin/kpi/SimulatedQrSection";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -102,6 +105,10 @@ export default async function ReportAdminPage({ params, searchParams }: Props) {
     getDiscoveryStats({ operationalSpaceId: spaceId, slug: space.slug }, range.start, range.end),
   ]);
 
+  // 졸업전시 시연 모드(관리자 + 쿠키) — 읽기 전용 예시 데이터. 아래 실제 KPI·리포트 미리보기는 변경하지 않는다.
+  const sim = await getKpiSimulation();
+  const simRequested = await isKpiSimulationRequested();
+
   const recommendedFileName = `공간큐브_${space.name}_${range.from}_${range.to}.pdf`;
   const noRangeData = rangeStats.qrUsers === 0 && rangeExtended.qrScans === 0;
 
@@ -114,6 +121,13 @@ export default async function ReportAdminPage({ params, searchParams }: Props) {
       />
 
       <ReportTabs spaceId={space.id} active="core" from={range.from} to={range.to} />
+
+      <div className="no-print space-y-3">
+        {sim && <SimulationBanner />}
+        <KpiSimulationToggle active={!!sim} />
+        {simRequested && !sim && <p className="text-xs" style={{ color: "var(--dim)" }}>시연 모드는 관리자 로그인 상태에서만 동작합니다.</p>}
+        {sim && <SimulatedQrSection sim={sim.spaces} spaceId={space.id} spaceName={space.name} excludedNames={sim.excludedNames} />}
+      </div>
 
       {/* ── 기간 선택 — 이 페이지 전체(KPI 요약 + 리포트 미리보기)가 공유하는 단일 기간 소스 ── */}
       <div className="no-print" style={{ borderTop: "1px solid var(--border)" }} />

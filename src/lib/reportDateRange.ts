@@ -65,7 +65,7 @@ export function formatKstTime(date: Date): string {
   return `${String(h).padStart(2, "0")}:${String(min).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
-function addDays(date: Date, n: number): Date {
+export function addDays(date: Date, n: number): Date {
   return new Date(date.getTime() + n * DAY_MS);
 }
 

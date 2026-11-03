@@ -6,6 +6,9 @@ import { isAdmin } from "@/lib/admin";
 import { getKpiExcludedUserIds } from "@/lib/demoData";
 import { getDiscoveryStats, getServiceOnsiteStats } from "@/lib/discoveryKpi";
 import { presetDateRange, parseKstDateStart, toDotFormat, type DateRangePreset } from "@/lib/reportDateRange";
+import { getKpiSimulation, isKpiSimulationRequested } from "@/lib/kpiSimulationServer";
+import KpiSimulationToggle from "@/components/admin/kpi/KpiSimulationToggle";
+import { SimulationBanner } from "@/components/admin/kpi/SimulatedQrSection";
 import { DiscoverySection, KpiAreaHeading, PeopleSteps } from "@/components/admin/kpi/DiscoveryKpi";
 import { AdminPageHeader, AdminTable, EmptyState, StatusBadge, adminButtonClass } from "@/components/admin/ui";
 
@@ -49,6 +52,10 @@ export default async function AdminReportsIndexPage({ searchParams }: { searchPa
     prisma.spaceScan.groupBy({ by: ["spaceId"], where: { scannedAt: { gte: since }, ...notAdmin }, _count: { _all: true } }),
   ]);
   const scansBySpace = new Map(scanGroups.map((g) => [g.spaceId, g._count._all]));
+  // 졸업전시 시연 모드(관리자 + 쿠키): 시연 대상 공간의 30일 QR 스캔 수만 예시 값으로 바꿔 표시한다(DB 무변경).
+  const sim = await getKpiSimulation();
+  const simBySpace = new Map((sim?.spaces ?? []).map((s) => [s.spaceId, s.total]));
+  const simRequested = await isKpiSimulationRequested();
 
   return (
     <>
@@ -57,6 +64,11 @@ export default async function AdminReportsIndexPage({ searchParams }: { searchPa
         title="KPI / 리포트"
         description=""
       />
+      <div className="mb-6 space-y-3">
+        {sim && <SimulationBanner />}
+        <KpiSimulationToggle active={!!sim} />
+        {simRequested && !sim && <p className="text-xs" style={{ color: "var(--a-dim)" }}>시연 모드는 관리자 로그인 상태에서만 동작합니다.</p>}
+      </div>
       <section className="space-y-5 mb-10">
         <div className="space-y-2">
           <p className="text-sm font-semibold">서비스 전체 흐름 <span className="font-normal" style={{ color: "var(--a-dim)" }}>({toDotFormat(picked.from)} — {toDotFormat(picked.to)}, KST)</span></p>
@@ -93,7 +105,9 @@ export default async function AdminReportsIndexPage({ searchParams }: { searchPa
                 {s.isDemo && <span className="ml-2"><StatusBadge tone="draft">시연</StatusBadge></span>}
               </td>
               <td style={{ color: "var(--a-dim)" }}>{s.district ?? "—"}</td>
-              <td className="tabular-nums">{scansBySpace.get(s.id) ?? 0}</td>
+              <td className="tabular-nums">
+                {simBySpace.has(s.id) ? (<>{simBySpace.get(s.id)} <span className="ml-1"><StatusBadge tone="draft">시연</StatusBadge></span></>) : (scansBySpace.get(s.id) ?? 0)}
+              </td>
               <td className="text-right space-x-1 whitespace-nowrap">
                 <Link href={`/admin/${s.id}/report/story`} className={adminButtonClass("ghost", "sm")}>스토리 분석</Link>
                 <Link href={`/admin/${s.id}/report`} className={adminButtonClass("secondary", "sm")}>리포트 열기</Link>
