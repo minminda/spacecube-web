@@ -34,3 +34,13 @@ describe("kpiSimulation", () => {
     expect(s.daily.reduce((n, d) => n + d.count, 0)).toBe(s.total);
   });
 });
+
+import { simulatedCountInRange, simulatedTrendForDates } from "./kpiSimulation";
+describe("kpiSimulation range helpers", () => {
+  const daily = [{ date: "2026-11-01", count: 2 }, { date: "2026-11-02", count: 3 }, { date: "2026-11-03", count: 1 }];
+  it("sums within an inclusive range and fills missing days with 0", () => {
+    expect(simulatedCountInRange(daily, "2026-11-02", "2026-11-09")).toBe(4);
+    expect(simulatedCountInRange(daily, "2026-10-01", "2026-10-10")).toBe(0);
+    expect(simulatedTrendForDates(daily, ["2026-10-31", "2026-11-01"])).toEqual([{ date: "2026-10-31", count: 0 }, { date: "2026-11-01", count: 2 }]);
+  });
+});

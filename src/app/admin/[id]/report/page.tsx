@@ -29,9 +29,10 @@ import ReportTabs from "./ReportTabs";
 import { AdminPageHeader } from "@/components/admin/ui";
 import { getDiscoveryStats } from "@/lib/discoveryKpi";
 import { DiscoverySection, KpiAreaHeading } from "@/components/admin/kpi/DiscoveryKpi";
+import { simulatedCountInRange, simulatedTrendForDates } from "@/lib/kpiSimulation";
 import { getKpiSimulation, isKpiSimulationRequested } from "@/lib/kpiSimulationServer";
 import KpiSimulationToggle from "@/components/admin/kpi/KpiSimulationToggle";
-import { SimulationBanner, SimulatedQrSection } from "@/components/admin/kpi/SimulatedQrSection";
+import { SimulationBanner, SimTag } from "@/components/admin/kpi/SimulatedQrSection";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -110,7 +111,12 @@ export default async function ReportAdminPage({ params, searchParams }: Props) {
   const simRequested = await isKpiSimulationRequested();
 
   const recommendedFileName = `공간큐브_${space.name}_${range.from}_${range.to}.pdf`;
-  const noRangeData = rangeStats.qrUsers === 0 && rangeExtended.qrScans === 0;
+  // 시연 대상 공간이면 QR 스캔 수·QR 일별 추이만 시연 값으로 대체(그 외 지표는 모두 실제 값).
+  const simSpace = sim?.spaces.find((x) => x.spaceId === space.id) ?? null;
+  const simQrScans = simSpace ? simulatedCountInRange(simSpace.daily, range.from, range.to) : null;
+  const qrScansShown = simQrScans ?? rangeExtended.qrScans;
+  const simQrTrend = simSpace ? simulatedTrendForDates(simSpace.daily, dailyTrend.map((d) => d.date)) : [];
+  const noRangeData = rangeStats.qrUsers === 0 && qrScansShown === 0;
 
   return (
     <main className="flex flex-col gap-8 print:px-6 print:py-8">
@@ -126,7 +132,6 @@ export default async function ReportAdminPage({ params, searchParams }: Props) {
         {sim && <SimulationBanner />}
         <KpiSimulationToggle active={!!sim} />
         {simRequested && !sim && <p className="text-xs" style={{ color: "var(--dim)" }}>시연 모드는 관리자 로그인 상태에서만 동작합니다.</p>}
-        {sim && <SimulatedQrSection sim={sim.spaces} spaceId={space.id} spaceName={space.name} excludedNames={sim.excludedNames} />}
       </div>
 
       {/* ── 기간 선택 — 이 페이지 전체(KPI 요약 + 리포트 미리보기)가 공유하는 단일 기간 소스 ── */}
@@ -152,7 +157,7 @@ export default async function ReportAdminPage({ params, searchParams }: Props) {
         <KpiAreaHeading step="A" caption="공간 발견 이전 · Discovery" title="공간 발견 — 이 공간을 찾아보고 방문을 고려했나" />
         <DiscoverySection stats={discoveryStats} scopeLabel="space" />
         <KpiAreaHeading step="B" caption="공간 방문 이후 · On-site Experience" title="공간 방문 이후 — 실제로 와서 어디까지 경험했나" />
-        {!earliestRecordDate ? (
+        {!earliestRecordDate && !simSpace ? (
           <p className="text-sm" style={{ color: "var(--dim)" }}>
             아직 이 공간에 대한 기록이 없습니다. 첫 방문 기록이 생기면 KPI가 쌓이기 시작합니다.
           </p>
@@ -160,6 +165,7 @@ export default async function ReportAdminPage({ params, searchParams }: Props) {
           <p className="text-sm" style={{ color: "var(--dim)" }}>선택한 기간에 기록된 방문이 없습니다.</p>
         ) : (
           <>
+            {simSpace && <p className="text-xs" style={{ color: "var(--dim)" }}>시연 모드: &quot;시연&quot; 표시가 있는 QR 스캔 수·추이만 예시 값입니다. 아래 핵심 퍼널(QR Scan 포함)·방문 로그·스토리·방명록 지표와 리포트 미리보기/PDF는 실제 기록이며 시연 QR 수치에서 파생되지 않습니다.</p>}
             <CoreFunnelSection funnel={funnelStats} />
 
             <div className="space-y-2">
@@ -167,7 +173,7 @@ export default async function ReportAdminPage({ params, searchParams }: Props) {
               <div className="grid grid-cols-3 gap-3">
                 <StatBox label="방문 Record 수" value={rangeStats.totalRecords} unit="건" />
                 <StatBox label="QR 이용자" value={rangeStats.qrUsers} unit="명" />
-                <StatBox label="QR 스캔 수" value={rangeExtended.qrScans} unit="회" />
+                <StatBox label="QR 스캔 수" value={qrScansShown} unit="회" sim={!!simSpace} />
               </div>
             </div>
 
@@ -252,6 +258,7 @@ export default async function ReportAdminPage({ params, searchParams }: Props) {
               </div>
             </details>
 
+            {simSpace && simQrTrend.length > 0 && <DailyTrendChart data={simQrTrend} title="일별 QR 스캔 추이" sim />}
             {dailyTrend.length > 0 ? (
               <DailyTrendChart data={dailyTrend} />
             ) : (
@@ -488,10 +495,10 @@ function FunnelSection({ funnel }: { funnel: GuestbookConversionFunnel }) {
   );
 }
 
-function StatBox({ label, value, unit }: { label: string; value: number | string; unit: string }) {
+function StatBox({ label, value, unit, sim }: { label: string; value: number | string; unit: string; sim?: boolean }) {
   return (
     <div className="flex flex-col gap-1 p-4 border" style={{ borderColor: "var(--border)" }}>
-      <p className="text-xs" style={{ color: "var(--dim)" }}>{label}</p>
+      <p className="text-xs" style={{ color: "var(--dim)" }}>{label}{sim && <SimTag />}</p>
       <p className="text-2xl font-bold leading-none">{value}</p>
       {unit && <p className="text-xs" style={{ color: "var(--dim)" }}>{unit}</p>}
     </div>
@@ -499,16 +506,16 @@ function StatBox({ label, value, unit }: { label: string; value: number | string
 }
 
 /** "일별 방문 추이" — 새 차트 라이브러리 없이 막대 높이(%)만으로 그리는 최소 구현, 관리자 전용. */
-function DailyTrendChart({ data }: { data: { date: string; count: number }[] }) {
+function DailyTrendChart({ data, title = "일별 방문 추이 (Record 기준)", sim }: { data: { date: string; count: number }[]; title?: string; sim?: boolean }) {
   const max = Math.max(1, ...data.map((d) => d.count));
   return (
     <div className="space-y-2">
-      <p className="text-xs" style={{ color: "var(--dim)" }}>일별 방문 추이 (Record 기준)</p>
+      <p className="text-xs" style={{ color: "var(--dim)" }}>{title}{sim && <SimTag />}</p>
       <div className="flex items-end gap-[2px]" style={{ height: 64 }}>
         {data.map((d) => (
           <div
             key={d.date}
-            title={`${toDotFormat(d.date)} · ${d.count}건`}
+            title={`${toDotFormat(d.date)} · ${d.count}${sim ? "회 (시연)" : "건"}`}
             className="flex-1"
             style={{
               height: `${Math.max((d.count / max) * 100, d.count > 0 ? 8 : 2)}%`,

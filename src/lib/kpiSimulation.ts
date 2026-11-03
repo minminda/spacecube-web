@@ -83,3 +83,14 @@ export function buildSimulatedScans(spaces: { id: string; name: string }[], now:
     };
   });
 }
+
+/** [from, to](KST 날짜 문자열, 양끝 포함) 구간의 시연 스캔 합. 시연 30일 밖의 날짜는 0으로 센다. */
+export function simulatedCountInRange(daily: { date: string; count: number }[], from: string, to: string): number {
+  return daily.filter((d) => d.date >= from && d.date <= to).reduce((n, d) => n + d.count, 0);
+}
+
+/** 기존 일별 추이의 날짜 축(dates)에 맞춰 시연 값을 채운다(없는 날은 0). */
+export function simulatedTrendForDates(daily: { date: string; count: number }[], dates: string[]): { date: string; count: number }[] {
+  const map = new Map(daily.map((d) => [d.date, d.count]));
+  return dates.map((date) => ({ date, count: map.get(date) ?? 0 }));
+}

@@ -90,7 +90,7 @@ export default async function AdminReportsIndexPage({ searchParams }: { searchPa
           ]}
         />
         <p className="text-xs leading-relaxed" style={{ color: "var(--a-faint)" }}>
-          모두 &quot;몇 명&quot;(중복 제거) 기준이며 시연 공간 · 관리자 · 더미 계정은 제외됩니다. 방명록 · 재방문 등 세부 단계는 아래 공간별 리포트에서 확인하세요.
+          {sim ? "시연 모드에서도 이 서비스 전체 흐름은 실제 데이터입니다(아래 표의 '시연' 값만 예시). " : ""}모두 &quot;몇 명&quot;(중복 제거) 기준이며 시연 공간 · 관리자 · 더미 계정은 제외됩니다. 방명록 · 재방문 등 세부 단계는 아래 공간별 리포트에서 확인하세요.
         </p>
       </section>
       {spaces.length === 0 ? (
