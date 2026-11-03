@@ -102,7 +102,7 @@ export default async function AdminReportsIndexPage({ searchParams }: { searchPa
               </td>
               <td style={{ color: "var(--a-dim)" }}>{s.district ?? "—"}</td>
               <td className="tabular-nums">
-                {simBySpace.has(s.id) ? (<>{simBySpace.get(s.id)} <span className="ml-1"><StatusBadge tone="draft">시연</StatusBadge></span></>) : (scansBySpace.get(s.id) ?? 0)}
+                {simBySpace.get(s.id) ?? scansBySpace.get(s.id) ?? 0}
               </td>
               <td className="text-right space-x-1 whitespace-nowrap">
                 <Link href={`/admin/${s.id}/report/story`} className={adminButtonClass("ghost", "sm")}>스토리 분석</Link>

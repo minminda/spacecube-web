@@ -5,7 +5,7 @@ export function SimulationBanner() {
   return (
     <div className="no-print flex items-start gap-3 border px-4 py-3 text-xs leading-relaxed" style={{ borderColor: "#e0a030", background: "#fff6e6", color: "#8a5a00" }}>
       <StatusBadge tone="draft">시연 데이터</StatusBadge>
-      <p>시연 데이터 — 전시를 위한 QR 스캔 예시 수치가 적용되어 있습니다. &quot;시연&quot; 표시가 붙은 값만 예시이고, 그 외 지표는 실제 기록입니다.</p>
+      <p>시연 데이터 — QR 스캔 일부 항목에 전시용 예시 수치가 적용되었습니다.</p>
     </div>
   );
 }
